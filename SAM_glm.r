@@ -8,9 +8,9 @@ setwd(wkdir)
 ## Load raw csv file
 infile <- "DataForExport.csv"
 
+library(car)
 library(MASS)
 library(boot)
-library(car)
 source("D:/GitCode/AbResearch/SAM_utils.R")
 
 samdata <- read.csv(infile,header=T)
