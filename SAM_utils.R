@@ -9,11 +9,14 @@ doLogistic <- function(indat) {
     return(ans)
 }
 
-xp <- dose.p(fm1, p=c(0.50, 0.90, 0.95))  # from MASS
-xp.ci <- xp + attr(xp, "SE") %*% matrix(qnorm(1 - 0.05/2)*c(-1,1), nrow=1)
-zp.est <- exp(cbind(xp, attr(xp, "SE"), xp.ci[,1], xp.ci[,2]))
-dimnames(zp.est)[[2]] <- c("LD", "SE", "LCL","UCL")
-zp.est 
+
+##http://stackoverflow.com/questions/28053542/confidence-intervals-for-lethal-dose-ld-for-logistic-regression-in-r
+# LM50 <- dose.p(model, p=c(0.50, 0.90, 0.95))  # from MASS
+# LM50.ci <- LM50 + attr(LM50, "SE") %*% matrix(qnorm(1 - 0.05/2)*c(-1,1), nrow=1)
+# zp.est <- cbind(LM50, attr(LM50, "SE"), LM50.ci[,1], LM50.ci[,2])
+# dimnames(zp.est)[[2]] <- c("LD", "SE", "LCL","UCL")
+# zp.est 
+
 
 
 ## Version 31/05/2104
