@@ -7,6 +7,11 @@ library(boot)
 library(car)
 
 
+##-----------------------------
+## Need to work out a way to combine the full sample with the top up sample (good grief)
+##-----------------------------
+
+
 setwd('D:\\R_Stuff\\Logistic')
 infile <- "D:\\R_Stuff\\Logistic/BlacklipSAM.txt"
 #Load raw csv file
@@ -29,6 +34,8 @@ samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M"))
 #samdata$Mat[samdata$SPC_GonadStage %in% c("0")] <- "I"
 
 #samdata.subdata <- droplevels(subset(samdata, SiteCode =="217_1999_10"))
+sites <- as.data.frame(table(samdata$SiteCode))
+sites
 
 
 ## Outlier Removal: Unusual large immature animals
