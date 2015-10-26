@@ -320,6 +320,7 @@ ShellResults <- merge(ShellList, SiteNames, by.x="SiteCode", by.Y="SiteCode", al
 write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
 
-
+samfilt <- subset(SamList, N.underLD05 >15 & N.overLD95 > 15)
+shellfilt <- subset(ShellList, N.underLD05 >15 & N.overLD95 > 15)
 
 
