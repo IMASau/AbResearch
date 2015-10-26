@@ -5,7 +5,7 @@
 library(FSA)
 library(car)      # Before dplyr to reduce conflicts with MASS
 library(magrittr)
-library(dplyr)
+library(plyr)
 
 ## Load raw csv file
 wkdir <- "D:/Fisheries Research/Abalone/SeasonalSAM"
@@ -26,12 +26,28 @@ pick <- which(samdata$Site_Name == "George III Rock")
 samdata$Region[pick] <- "South"
 
 
-# samdata$logW <- log(samdata$Total_Wt)
-# samdata$logL <- log(samdata$Length)
+## Create new Season* Region interaction variable
+samdata$RegionSeason <- interaction(samdata$Region,samdata$Season)
 
+ samdata$logW <- log(samdata$Total_Wt)
+ samdata$logL <- log(samdata$Length)
+
+samdata[which(samdata$Length > 140 & samdata$Total_Wt < 100),]
+samdata[which(samdata$Length < 50 & samdata$Total_Wt > 100),]
+
+## Outlier Removal: Unusual large light animals
+pick <- which(samdata$Length > 140 & samdata$Total_Wt < 100)
+outlier <- samdata[pick,]
+samdata <- samdata[-pick,]
+
+## Outlier Removal: Unusual small heavy animals
+pick <- which(samdata$Length < 50 & samdata$Total_Wt > 100)
+outlier <- samdata[pick,]
+samdata <- samdata[-pick,]
 
 subdata <- subset(samdata,RegionSeason=="North.Winter")
 subdata00 <- subset(samdata, Region == "North")
+
 
 plot(Total_Wt~Length,data=subdata,pch=19,col=rgb(0,0,0,0.3),xlab="Total Length (mm)",ylab="Weight (g)")
 plot(logW~logL,data=subdata,pch=19,col=rgb(0,0,0,0.3),xlab="log Total Length",ylab="log Weight")
@@ -46,7 +62,7 @@ Anova(fit1)
 
 summary(fit1)
 
-lens <- c(100,160)                  # vector of lengths
+lens <- c(50,160)                  # vector of lengths
 nd <- data.frame(logL=log10(lens))  # df of log(lengths)
 ( plogW <- predict(fit1,nd) )       # predicted log(weights)
 
@@ -70,9 +86,9 @@ lines(ys~xs,lwd=2)
 
 plot(Total_Wt~Length,data=subdata,pch=19,col=rgb(0,0,0,1/4),
      ylab="Weight (g)",xlab="Total Length (mm)")
-btxs <- 10^xs
-btys <- cf*10^ys
-lines(btys~btxs,lwd=2)
+# btxs <- 10^xs
+# btys <- cf*10^ys
+# lines(btys~btxs,lwd=2)
 
 btxs <- exp(xs)
 btys <- cf*exp(ys)
@@ -182,7 +198,7 @@ legend("topleft",c("1990","2000"),col=c("black",col2),lwd=2,cex=0.75,bty="n")
 # == END -- NOT SHOWN IN BOOK, BOOK PRINTING ONLY ============
 # ############################################################
 
-fit2 <- lm(logW~logL*Season,data=subdata00)
+fit2 <- lm(logW~logL + Season,data=subdata00)
 
 # ############################################################
 # == BEGIN -- NOT SHOWN IN BOOK, BOOK PRINTING ONLY ==========
@@ -202,14 +218,14 @@ plot(Total_Wt~Length,data=subdata00,pch=symbs[subdata00$Season],
 tmp <- subdata00 %>% group_by(Season) %>%
   summarize(min=min(Length,na.rm=TRUE),
             max=max(Length,na.rm=TRUE))
-# plot line for 1990
-tmpx <- seq(tmp$min[1],tmp$max[1],length.out=99)
-tmpy <- 10^(predict(fit2,
+# plot line for Spring
+tmpy <- exp(predict(fit2,
            data.frame(logL=log10(tmpx),Season=factor("Spring"))))
 lines(tmpy~tmpx,col="blue",lwd=2)
-# plot line for 2000
+# plot line for Autumn
 tmpx <- seq(tmp$min[2],tmp$max[2],length.out=99)
-tmpy <- 10^(predict(fit2,
+tmpy1 <- data.frame(logL=log10(tmpx),Season=factor("Autumn"))
+tmpy <- exp(predict(fit2,
            data.frame(logL=log10(tmpx),Season=factor("Autumn"))))
 lines(tmpy~tmpx,col="gray90",lwd=2)
 # add a legend

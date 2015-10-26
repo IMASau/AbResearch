@@ -27,6 +27,8 @@ samdata <- droplevels(samdata)
 # Simplify Maturity classes
 samdata$Mat <- NA
 samdata$Mat <- ifelse(samdata$Sex=="I", c("I"), c("M"))
+#samdata$Mat <- ifelse(samdata$Gnd_Score<=1, c("I"), c("M"))
+
 
 # Code Season and Site
 samdata$Season <- samdata$SamplePeriod
@@ -116,7 +118,10 @@ outCompare$SigSeason
 outCompare$Sigregion
 outCompare$SigInteract
 
-
+anova(model, test="Chisq")
+anova(model, test="Cp")
+anova(model, test="LRT")
+anova(model, test="Cp")
 
 source("D:\\Students\\Carly Giosio/carly_utils.R")
 plotgraph(SizeMat,out$LM50,Site,scN,savefile=F)

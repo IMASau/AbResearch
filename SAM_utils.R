@@ -22,7 +22,7 @@ doLogistic <- function(indat) {
 ## Version 31/05/2104
 ## Fit logistic regression with additional factors (Site & Season)
 doLogisticOrth <- function(indat) {
- model <- glm(MatRatio ~ Length + Season * Region, family=binomial(link = "logit"), data = indat, weights = Total)
+ model <- glm(MatRatio ~ Length + Season + Region + Season* Region, family=binomial(link = "logit"), data = indat, weights = Total)
  glm.summary <-  summary(model)
  SigSeason <- glm.summary$coefficients[3,4]
  SigRegion <- glm.summary$coefficients[4,4]
@@ -193,4 +193,13 @@ dataThinningOneSite <- function(indat3,SizeClass,ThinFactor, savefile=F) {
 
 
 
+library(ggplot2)
+require(methods)
+
+## plot base + points
+p <- ggplot(subdata00, aes(x = logL, y = logW)) + geom_point()
+print(p)
+
+## looking at a linear fit, we see it is poor at the extremes
+p + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 
