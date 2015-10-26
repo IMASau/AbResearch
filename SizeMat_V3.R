@@ -162,7 +162,7 @@ for (i in 1:NumSites) {
   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
   
   SamList$Ld95BootU95[i] <-  as.numeric(boot95.upper)
-  SamList$Ld95BootU95[i] <-  as.numeric(boot95.lower)
+  SamList$Ld95BootL95[i] <-  as.numeric(boot95.lower)
   
   })
 
@@ -256,7 +256,7 @@ for (i in 1:NumSites) {
   ShellList$LD75[i] <-  as.vector(ld75)
   ld95 <- dose.p(r, p = 0.95); 
   ShellList$LD95[i] <-  as.numeric(ld95)
-  ShellList$IQR[i] <-  ShellList$LD75[i] - ShellList$LD75[i]
+  ShellList$IQR[i] <-  ShellList$LD75[i] - ShellList$LD25[i]
   
   N.underLD05 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld05)))))
   ShellList$N.underLD05[i] <-  as.numeric(N.underLD05)
