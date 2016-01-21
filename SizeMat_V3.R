@@ -18,18 +18,22 @@ infile <- "D:\\R_Stuff\\Logistic/BlacklipSAM.txt"
 BlckPop <- read.csv(infile, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPop <- BlckPop[order(BlckPop$SiteCode,BlckPop$SPC_ShellLength),]
 
-BlckPop.subdata <- droplevels(subset(BlckPop, BlckPop$SiteCode =="161_1998_5"))
+## Note SiteCode is a single field that combines SiteNumber, Year & Month
+## This effectively pools all data colelcted from a site in the same month,
+## to address sites where sampling was collected over multiple days, but have 
+## different sample codes for some reason. May have some unintended side effects
 
-t1 <- BlckPop.subdata[1,14] 
-
-t2<- t1=="I"
 
 Sex <- as.data.frame(table(BlckPop$SPC_Sex))
 SAM_Type <- as.data.frame(table(BlckPop$SAM_Type))
 GndStg <- as.data.frame(table(BlckPop$SPC_GonadStage))
-Trem <- subset(BlckPop, BlckPop$SPC_Sex =="T")
 
+Trem <- subset(BlckPop, BlckPop$SPC_Sex =="T") # Remove Trematode records
+
+## Subset
 samdata <- subset(BlckPop, SPC_Sex %in% c("I", "M", "F"))
+
+## re-code Male and Female as M for Mature (I = Imature)
 samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M")) 
 #samdata$Mat[samdata$SPC_GonadStage %in% c("0")] <- "I"
 
@@ -37,13 +41,12 @@ samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M"))
 sites <- as.data.frame(table(samdata$SiteCode))
 sites
 
-
-## Outlier Removal: Unusual large immature animals
+## Routine Outlier Removal: Unusual large immature animals
 pick <- which((samdata$SPC_ShellLength >139) & (samdata$Mat=="I"))
 outlier <- samdata[pick,]
 samdata <- samdata[-pick,]
 
-## Outlier Removal: Unusual small mature animals
+## Routine Outlier Removal: Unusual small mature animals
 pick <- which((samdata$SPC_ShellLength <60) & (samdata$Mat=="M"))
 outlier <- rbind(outlier,samdata[pick,])
 samdata <- samdata[-pick,]
@@ -55,6 +58,7 @@ Mat <- as.data.frame(table(samdata$SPC_Sex))
 Mat
 SamList <- as.data.frame(table(samdata$SiteCode))
 colnames(SamList) <- c("SiteCode", "N")
+
 
 SamList$LD05 <- as.numeric(NA)
 SamList$LD25 <- as.numeric(NA)
