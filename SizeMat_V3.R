@@ -177,7 +177,7 @@ for (i in 1:NumSites) {
 SiteNames <- unique(samdata[,1:8])
 SamResults <- merge(SamList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 
-write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM",  col.names=TRUE, row.names=TRUE, append=FALSE)
+#write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM",  col.names=TRUE, row.names=TRUE, append=FALSE)
 
 
 ##Size at Emergence ####
@@ -241,7 +241,7 @@ ShellList <- subset(ShellList, SiteCode!="821_2009_11", drop=TRUE)
 NumSites <- nrow(ShellList); NumSites
 NumSites
 
-i <- 14
+i <- 450
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
   subdat <- droplevels(subset(shelldata, shelldata$SiteCode == ShellList[i,1]))
@@ -324,7 +324,7 @@ for (i in 1:NumSites) {
 SiteNames <- unique(shelldata[,1:8])
 ShellResults <- merge(ShellList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 
-write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
+#write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
 
 samfilt <- subset(SamList, N.underLD05 >15 & N.overLD95 > 15)
