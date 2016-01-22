@@ -5,6 +5,7 @@ library(xlsx)
 library(reshape)
 library(boot)
 library(car)
+library(plyr)
 
 
 ##-----------------------------
@@ -181,7 +182,7 @@ for (i in 1:NumSites) {
 SiteNames <- unique(samdata[,1:8])
 SamResults <- merge(SamList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 
-#write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM",  col.names=TRUE, row.names=TRUE, append=FALSE)
+write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM",  col.names=TRUE, row.names=TRUE, append=FALSE)
 
 
 ##Size at Emergence ####
@@ -328,10 +329,24 @@ for (i in 1:NumSites) {
 SiteNames <- unique(shelldata[,1:8])
 ShellResults <- merge(ShellList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 
-#write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
+write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
-
+##Filter datasets to include only sites where there is a good spread of data
 samfilt <- subset(SamList, N.underLD05 >15 & N.overLD95 > 15)
-shellfilt <- subset(ShellList, N.underLD05 >15 & N.overLD95 > 15)
+#shellfilt <- subset(ShellList, N.underLD05 >15 & N.overLD95 > 15)
+
+
+
+colnames(samfilt) <- paste("SAM", colnames(samfilt), sep = ".")
+shllListCols <- colnames(ShellList)
+colnames(ShellList) <- paste("SEM", colnames(ShellList), sep = ".")
+samfilt <- rename(samfilt, c("SAM.SiteCode"="SiteCode"))
+ShellList <- rename(ShellList, c("SEM.SiteCode"="SiteCode"))
+
+matched <- join(samfilt,ShellList,by="SiteCode",type="inner")
+plot(matched$SAM.IQR ~ matched$SEM.IQR)
+plot(matched$SAM.LD95 ~ matched$SEM.LD95)
+
+
 
 
