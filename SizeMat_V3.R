@@ -347,6 +347,7 @@ matched <- join(samfilt,ShellList,by="SiteCode",type="inner")
 plot(matched$SAM.IQR ~ matched$SEM.IQR)
 plot(matched$SAM.LD95 ~ matched$SEM.LD95)
 
+write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM_SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
 
 
