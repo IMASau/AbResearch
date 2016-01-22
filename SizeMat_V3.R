@@ -189,7 +189,7 @@ SamResults <- merge(SamList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=
 Shell <- as.data.frame(table(BlckPop$SPC_ShellCover))
 
 shelldata <- subset(BlckPop, BlckPop$SPC_ShellCover %in% c("A","P","0","1","2","3"))
-shelldata$Shell <- ifelse(shelldata$SPC_ShellCover %in% c("A","0","1" ), c("C"), c("E")) 
+shelldata$Shell <- ifelse(shelldata$SPC_ShellCover %in% c("A","0"), c("C"), c("E")) 
 
 SizeShell <- table(shelldata$SiteCode, shelldata$Shell)
 
