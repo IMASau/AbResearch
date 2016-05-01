@@ -329,5 +329,13 @@ plot(matched$SAM.LD95 ~ matched$SEM.LD95)
 
 write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM_SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
+ hist(SamList$LD50,breaks=10)
+ hist(SamList$LD95,breaks=10)
+ plot(SamList$LD50 ~ SamList$IQR)
+ plot(SamList$LD95 ~ SamList$IQR)
+ plot(SamList$N.underLD05 ~ SamList$IQR)
+ plot(SamList$N.overLD95 ~ SamList$IQR)
+
+
 
 
