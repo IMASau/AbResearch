@@ -1,25 +1,30 @@
+setwd('D:\\R_Stuff\\Logistic')
 library(MASS)
 library(gdata)
 library(doBy)
 library(xlsx)
 library(reshape)
+library(reshape2)
 library(boot)
 library(car)
 library(plyr)
 library(lubridate)
+library(snow)
 
 
 ##-----------------------------
 ## Need to work out a way to combine the full sample with the top up sample (good grief)
+## Currently combining all data collected at the same site in the same month as a 'sample'
 ##-----------------------------
 
+## Consider trialling this form of bootstrap
+## http://stackoverflow.com/questions/28053542/confidence-intervals-for-lethal-dose-ld-for-logistic-regression-in-r
 
-setwd('D:\\R_Stuff\\Logistic')
-infile <- "D:\\R_Stuff\\Logistic/BlacklipSAM.txt"
 
-#Load raw csv file
-BlckPop <- read.csv(infile, header=TRUE, sep=',', dec='.', as.is=TRUE)
-BlckPop <- BlckPop[order(BlckPop$SiteCode,BlckPop$SPC_ShellLength),]
+# ##Load raw csv file
+# infile <- "D:\\R_Stuff\\Logistic/BlacklipSAM.txt"
+# BlckPop <- read.csv(infile, header=TRUE, sep=',', dec='.', as.is=TRUE)
+# BlckPop <- BlckPop[order(BlckPop$SiteCode,BlckPop$SPC_ShellLength),]
 
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
@@ -51,14 +56,13 @@ samdata <- subset(BlckPop, SPC_Sex %in% c("I", "M", "F"))
 samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M")) 
 #samdata$Mat[samdata$SPC_GonadStage %in% c("0")] <- "I"
 
-#samdata.subdata <- droplevels(subset(samdata, SiteCode =="217_1999_10"))
-sites <- as.data.frame(table(samdata$SiteCode))
-sites
-
 ## Remove sites with no mature or no immature
+SamAssess <- dcast(samdata, SiteCode  ~ Mat, length)
+SamList <- subset(SamAssess, (I >3 & M > 3))
 
-SiteAssess <- dcast(samdata, SiteCode  ~ Mat, function(x) length(x))
-SamList <- subset(SiteAssess, (I >0 & M > 0))
+## Remove sites with less than 150 records
+SamList <- droplevels(subset(SamList, (I + M)> 150, drop=TRUE))
+
 
 ## Routine Outlier Removal: Unusual large immature animals
 pick <- which((samdata$SPC_ShellLength >139) & (samdata$Mat=="I"))
@@ -69,14 +73,6 @@ samdata <- samdata[-pick,]
 pick <- which((samdata$SPC_ShellLength <60) & (samdata$Mat=="M"))
 outlier <- rbind(outlier,samdata[pick,])
 samdata <- samdata[-pick,]
-
-Mat <- as.data.frame(table(samdata$Mat))
-Mat
-Mat <- as.data.frame(table(samdata$SPC_Sex))
-Mat
-# SamList <- as.data.frame(table(samdata$SiteCode))
-# colnames(SamList) <- c("SiteCode", "N")
-# SamList$SiteCode <- as.character(SamList$SiteCode)
 
 SamList$LD05 <- as.numeric(NA)
 SamList$LD25 <- as.numeric(NA)
@@ -95,25 +91,7 @@ SamList$Ld95BootL95 <- as.numeric(NA)
 
 NumSites <- nrow(SamList)
 NumSites
-#SiteIDList <- droplevels(SiteIDList[-117,])
 
-SamList <- droplevels(subset(SamList, (I + M)> 150, drop=TRUE))
-SamList[117,]
-SamList <- subset(SamList, SiteCode!="841_2009_9", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="216_1999_10", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="155_2007_8", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="155_2008_8", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="161_1998_5", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="285_2000_2", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="293_2000_2", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="358_1994_6", drop=TRUE)
-SamList <- subset(SamList, SiteCode!="473_2010_10", drop=TRUE)
-
-NumSites <- nrow(SamList); NumSites
-
-i <- 1
-
-i <- 108
 i <- 400
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
@@ -148,77 +126,76 @@ for (i in 1:NumSites) {
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
 
   
-  # ## Bootstrap the ld50 paramater ####
-  # BootSAM50 <- function(data, indices) {
-  #  bootdata <- data[indices, ]
-  #  SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
-  #  SizeMat <- as.data.frame(rbind(SizeMat))
-  #  SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
-  #  SizeMat$Total <- SizeMat$I + SizeMat$M
-  #  SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
-  #  model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
-  #  #conRD <- -coef(model)[1]/coef(model)[2]
-  #  ld50 <- dose.p(model, p = 0.5)
-  #  return(ld50)
-  # }
-  # try({
-  #   
-  # booted.SAM <- boot(subdat,statistic=BootSAM50, R= 1000)
-  # booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
-  # boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
-  # boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
-  # 
-  # SamList$Ld50BootU95[i] <-  as.numeric(boot95.upper)
-  # SamList$Ld50BootL95[i] <-  as.numeric(boot95.lower)
-  # 
-  # })
-  # 
-  # ## Bootstrap the ld95 paramater ####
-  # BootSAM95 <- function(data, indices) {
-  #  bootdata <- data[indices, ]
-  #  SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
-  #  SizeMat <- as.data.frame(rbind(SizeMat))
-  #  SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
-  #  SizeMat$Total <- SizeMat$I + SizeMat$M
-  #  SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
-  #  model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
-  #  #conRD <- -coef(model)[1]/coef(model)[2]
-  #  ld95 <- dose.p(model, p = 0.95)
-  #  return(ld95)
-  # }
-  # try({
-  #   
-  # booted.SAM <- boot(subdat,statistic=BootSAM95, R= 1000)
-  # booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
-  # boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
-  # boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
-  # 
-  # SamList$Ld95BootU95[i] <-  as.numeric(boot95.upper)
-  # SamList$Ld95BootL95[i] <-  as.numeric(boot95.lower)
-  
+  ## Bootstrap the ld50 paramater ####
+  BootSAM50 <- function(data, indices) {
+   require(MASS)
+   bootdata <- data[indices, ]
+   SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
+   SizeMat <- as.data.frame(rbind(SizeMat))
+   SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
+   SizeMat$Total <- SizeMat$I + SizeMat$M
+   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+   model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+   #conRD <- -coef(model)[1]/coef(model)[2]
+   ld50 <- dose.p(model, p = 0.5)
+   return(ld50)
+  }
+  try({
+
+  booted.SAM <- boot(subdat,statistic=BootSAM50, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
+  boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
+  boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
+
+  SamList$Ld50BootU95[i] <-  as.numeric(boot95.upper)
+  SamList$Ld50BootL95[i] <-  as.numeric(boot95.lower)
+
   })
+
+  ## Bootstrap the ld95 paramater ####
+  BootSAM95 <- function(data, indices) {
+   require(MASS)
+   bootdata <- data[indices, ]
+   SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
+   SizeMat <- as.data.frame(rbind(SizeMat))
+   SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
+   SizeMat$Total <- SizeMat$I + SizeMat$M
+   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+   model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+   #conRD <- -coef(model)[1]/coef(model)[2]
+   ld95 <- dose.p(model, p = 0.95)
+   return(ld95)
+  }
+  try({
+
+  booted.SAM <- boot(subdat,statistic=BootSAM95, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
+  boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
+  boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
+
+  SamList$Ld95BootU95[i] <-  as.numeric(boot95.upper)
+  SamList$Ld95BootL95[i] <-  as.numeric(boot95.lower)
+
+ })
 
 }
 SiteNames <- unique(samdata[,c(1:7,14)])
-#SamResults <- merge(SamList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 SamResults <- join(SamList, SiteNames, by="SiteCode", type="inner")
 
 write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM",  col.names=TRUE, row.names=TRUE, append=FALSE)
 
 
 ##Size at Emergence ####
-
 Shell <- as.data.frame(table(BlckPop$SPC_ShellCover))
 
 shelldata <- subset(BlckPop, BlckPop$SPC_ShellCover %in% c("A","P","0","1","2","3"))
 shelldata$Shell <- ifelse(shelldata$SPC_ShellCover %in% c("A","0"), c("C"), c("E")) 
 
-SizeShell <- table(shelldata$SiteCode, shelldata$Shell)
+ShellAssess <- dcast(shelldata, SiteCode  ~ Shell, length)
+ShellList <- subset(ShellAssess, (C >3 & E > 3))
 
-Shell <- as.data.frame(table(shelldata$Shell))
-Shell
-
-#shelldata.subdata <- droplevels(subset(shelldata, SiteCode =="268_2000_2"))
+## Remove sites with less than 150 records
+ShellList <- droplevels(subset(ShellList, (C + E)> 150, drop=TRUE))
 
 ## Outlier Removal: Unusual large cryptic animals
 pick <- which((shelldata$SPC_ShellLength >150) & (shelldata$Shell=="C"))
@@ -229,13 +206,6 @@ shelldata <- shelldata[-pick,]
 pick <- which((shelldata$SPC_ShellLength <60) & (shelldata$Shell=="E"))
 outlier <- rbind(outlier,shelldata[pick,])
 shelldata <- shelldata[-pick,]
-
-Shell <- as.data.frame(table(shelldata$Shell))
-Shell
-
-
-ShellList <- as.data.frame(table(shelldata$SiteCode))
-colnames(ShellList) <- c("SiteCode", "N")
 
 ShellList$LD05 <- as.numeric(NA)
 ShellList$LD25 <- as.numeric(NA)
@@ -250,19 +220,6 @@ ShellList$Ld50BootU95 <- as.numeric(NA)
 ShellList$Ld50BootL95 <- as.numeric(NA)
 ShellList$Ld95BootU95 <- as.numeric(NA)
 ShellList$Ld95BootL95 <- as.numeric(NA)
-
-NumSites <- nrow(ShellList)
-NumSites
-ShellList <- subset(ShellList, N> 150, drop=TRUE)
-ShellList[417,]
-ShellList <- subset(ShellList, SiteCode!="841_2009_9", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="268_2000_2", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="285_2000_2", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="290_2000_2", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="483_2002_11", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="649_1994_1", drop=TRUE)
-ShellList <- subset(ShellList, SiteCode!="821_2009_11", drop=TRUE)
-
 
 NumSites <- nrow(ShellList)
 NumSites
@@ -298,9 +255,10 @@ for (i in 1:NumSites) {
   N.overLD95 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld95)))))
   ShellList$N.overLD95[i] <-  as.numeric(N.overLD95)
   
-  
+
   ## Bootstrap the ld50 paramater
   BootSEM50 <- function(data, indices) {
+   require(MASS)
    bootdata <- data[indices, ]
    SizeShell <- table(bootdata$SPC_ShellLength, bootdata$Shell)
    SizeShell <- as.data.frame(rbind(SizeShell))
@@ -313,17 +271,18 @@ for (i in 1:NumSites) {
    return(ld50)
   }
  try({
-  booted.SEM <- boot(subdat,statistic=BootSEM50, R= 1000)
+  booted.SEM <- boot(subdat,statistic=BootSEM50, R= 1000, parallel = "snow", ncpus = 3)
   booted.SEM.CI <- boot.ci(booted.SEM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SEM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SEM.CI$bca[5],nsmall = 2)
   ShellList$Ld50BootU95[i] <-  as.numeric(boot95.upper)
   ShellList$Ld50BootL95[i] <-  as.numeric(boot95.lower)
-  
+
 })
 
     ## Bootstrap the ld95 paramater
   BootSEM95 <- function(data, indices) {
+   require(MASS)
    bootdata <- data[indices, ]
    SizeShell <- table(bootdata$SPC_ShellLength, bootdata$Shell)
    SizeShell <- as.data.frame(rbind(SizeShell))
@@ -336,15 +295,15 @@ for (i in 1:NumSites) {
    return(ld95)
   }
  try({
-  booted.SEM <- boot(subdat,statistic=BootSEM95, R= 1000)
+  booted.SEM <- boot(subdat,statistic=BootSEM95, R= 1000, parallel = "snow", ncpus = 3)
   booted.SEM.CI <- boot.ci(booted.SEM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SEM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SEM.CI$bca[5],nsmall = 2)
   ShellList$Ld95BootU95[i] <-  as.numeric(boot95.upper)
   ShellList$Ld95BootL95[i] <-  as.numeric(boot95.lower)
-  
+
 })
-  
+
 
 }
 SiteNames <- unique(shelldata[,c(1:7,14)])
