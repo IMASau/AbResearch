@@ -335,7 +335,8 @@ write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SAM
  plot(SamList$LD95 ~ SamList$IQR)
  plot(SamList$N.underLD05 ~ SamList$IQR)
  plot(SamList$N.overLD95 ~ SamList$IQR)
+ plot(SamList$LD50CR ~ SamList$IQR)
 
-
+SamList$LD50CR <- SamList$Ld50BootU95 - SamList$Ld50BootL95
 
 
