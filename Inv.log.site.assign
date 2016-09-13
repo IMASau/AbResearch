@@ -1,0 +1,13 @@
+## The follwoing csv file was created from the Growth parameters tab in sex maturity data.xlsx held in Abalone\Section Shared\Size_limits SAMS\s+2 review
+# lat and longs were assigned from the research database except for sites blackjack, Deal island and Hope early which were given lat longs based on closest recorded work.
+# lat long for long island (Hogan) was not available in database and was estimated from manifold. IL calculations (MaxDL, L50 , L95) were drawn straight from the excel file and were not recalculated
+setwd("D:/Fisheries Research/Abalone/SAM")
+IL.data<-read.csv("Inv.Log.Data.csv", header = T)
+summary(IL.data)
+
+library(plyr)
+IL.block<-ddply(IL.data,.(BlockNo), summarize,  MaxDL = mean(MaxDL, na.rm=T), MaxDLsd = sd(MaxDL, na.rm=T),
+                                                L50 = mean(L50, na.rm=T), L50sd = sd(L50, na.rm=T),
+                                                L95 = mean(L95, na.rm=T), L95sd = sd(L95, na.rm=T) )
+
+

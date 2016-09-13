@@ -2,12 +2,13 @@
 ## Fit logistic regression
 doLogistic <- function(indat) {
     model <- glm(MatRatio ~ Length, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+    LM05 <-  dose.p(model, p = 0.05)[[1]]
     LM50 <-  dose.p(model, p = 0.5)[[1]]
     LM75 <-  dose.p(model, p = 0.75)[[1]]
     LM95 <-  dose.p(model, p = 0.95)[[1]]
     IQ <-    dose.p(model, p = 0.75)[[1]] -  dose.p(model, p = 0.25)[[1]]
-    ans <- list(LM50, LM75, LM95, IQ,model)
-    names(ans) <- c("LM50","LM75","LM95","IQ","Model")
+    ans <- list(LM05, LM50, LM75, LM95, IQ,model)
+    names(ans) <- c("LM05","LM50","LM75","LM95","IQ","Model")
     return(ans)
 }
 
@@ -36,47 +37,48 @@ doLogisticOrth <- function(indat) {
 }
 
 
-## Plot the logistic curve
-plotgraph <- function(indat,LM50,Site,scN,savefile=F) {
-    if (savefile) {
-        graphfile <- paste(resdir,Site,"_Maturity.tiff",sep="")
-        if (file.exists(graphfile)) file.remove(graphfile)
-        tiff(file=graphfile,width=150,height=110,units="mm",res=300,compression=c("lzw"))
-    }
-    par(mfrow = c(1,1))
-    par(mai=c(0.4,0.4,0.1,0.05),oma=c(0,0,0.0,0.0))
-    par(cex=0.75, mgp=c(1.35,0.35,0), font.axis=2,font=2)
-    npts <- length(indat$Length)
-    pick <- which(indat$Total > 1)
-    plot(indat$Length[pick],indat$MatRatio[pick],type="p",pch=16,cex=1.0,xlim=c(50,160),xaxs="r",
-         xlab="",ylab="")
-    if (length(pick) < npts) points(indat$Length[-pick],indat$MatRatio[-pick],pch=16,cex=1.0,col=2)
-    #abline(lm(SizeMat$MatRatio~SizeMat$Length),col='gray', lwd=2,lty=3)
-    abline(h=0.5,v=LM50,col='blue',lty=2)
-    xx <- seq(min(indat$Length), max(indat$Length), length=100)
-    yy <- predict(model, data.frame(Length=xx), type='response', se=T)
-
-    mydata <- cbind(xx,yy$fit)
-    mydata <- as.data.frame(mydata)
-    colnames(mydata) <- c("X", "YPredict")
-
-    lines(xx,yy$fit, col='blue', lwd=4, lty=2)
-    lines(xx, plogis(model$coef[1]+xx*model$coef[2]))
-    lines(yy$fit+yy$se.fit ~ xx, col="red", type="l", lwd=2, lty=3)
-    lines(yy$fit-yy$se.fit ~ xx, col="red", type="l", lwd=2, lty=3)
-    text(60,1.0,paste("Small  ",scN[1],sep=""),cex=1.0,font=2)
-    text(60,0.9,paste("Medium ",scN[2],sep=""),cex=1.0,font=2)
-    text(60,0.8,paste("Large  ",scN[3],sep=""),cex=1.0,font=2)
-    legend(145,0.1,c("N > 1","N = 1"),pch=c(16,16),col=c(1,2),cex=1.25,bty="n")
-    title(ylab=list("Proportion Mature",cex=1.0,font=2),
-          xlab=list(paste(Site,"   Length mm",sep=""),cex=1.0,font=2))
-
-    if (savefile) {
-        dev.off()
-        graphics.off()
-    }
+## Plot the logistic curve for LM75
+plotgraph <- function(indat,LM50,LM75,LM95,Site,scN,savefile=T) {
+  if (savefile) {
+    graphfile <- paste(resdir,Site,"_Maturity.tiff",sep="")
+    if (file.exists(graphfile)) file.remove(graphfile)
+    tiff(file=graphfile,width=150,height=110,units="mm",res=300,compression=c("lzw"))
+  }
+  par(mfrow = c(1,1))
+  par(mai=c(0.4,0.4,0.1,0.05),oma=c(0,0,0.0,0.0))
+  par(cex=0.75, mgp=c(1.35,0.35,0), font.axis=2,font=2)
+  npts <- length(indat$Length)
+  pick <- which(indat$Total > 1)
+  plot(indat$Length[pick],indat$MatRatio[pick],type="p",pch=16,cex=1.0,xlim=c(50,160),xaxs="r",
+       xlab="",ylab="")
+  if (length(pick) < npts) points(indat$Length[-pick],indat$MatRatio[-pick],pch=16,cex=1.0,col=2)
+  #abline(lm(SizeMat$MatRatio~SizeMat$Length),col='gray', lwd=2,lty=3)
+  abline(h=0.50,v=LM50,col="red",lty=2)
+  abline(h=0.75,v=LM75,col="yellow",lty=2)
+  abline(h=0.95,v=LM95,col="green",lty=2)
+  xx <- seq(min(indat$Length), max(indat$Length), length=100)
+  yy <- predict(model, data.frame(Length=xx), type='response', se=T)
+  
+  mydata <- cbind(xx,yy$fit)
+  mydata <- as.data.frame(mydata)
+  colnames(mydata) <- c("X", "YPredict")
+  
+  lines(xx,yy$fit, col='blue', lwd=4, lty=2)
+  lines(xx, plogis(model$coef[1]+xx*model$coef[2]))
+  lines(yy$fit+yy$se.fit ~ xx, col="red", type="l", lwd=2, lty=3)
+  lines(yy$fit-yy$se.fit ~ xx, col="red", type="l", lwd=2, lty=3)
+  text(70,0.9,paste("Maturity range (mm) ",round(BaseResults[pSite,19], digits=2),sep=""),cex=1.0,font=2)
+  #text(60,0.9,paste("Medium ",scN[2],sep=""),cex=1.0,font=2)
+  #text(60,0.8,paste("Large  ",scN[3],sep=""),cex=1.0,font=2)
+  legend(145,0.2,c("N > 1","N = 1"),pch=c(16,16),col=c(1,2),cex=1.25,bty="n")
+  title(ylab=list("Proportion Mature",cex=1.0,font=2),
+        xlab=list(paste(Site,"   Length mm",sep=""),cex=1.0,font=2))
+  
+  if (savefile) {
+    dev.off()
+    #graphics.off()
+  }
 } # end of plotgraph
-
 
 
 ## Merge the individual sites & seasons

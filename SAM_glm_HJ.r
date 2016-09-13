@@ -2,26 +2,67 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/Fisheries Research/Abalone"
+wkdir <- "D:/R_Stuff/SAM"
 setwd(wkdir)
 
 ## Load raw csv file
-infile <- "DataForExport.csv"
+infile <- "Basic Sam Query.csv"
 
 library(car)
 library(MASS)
 library(boot)
+library(dplyr)
+library(plyr)
 source("D:/GitCode/AbResearch/SAM_utils.R")
 
-samdata <- read.csv(infile,header=T)
-dim(samdata)
-head(samdata)
+alldata <- read.csv(infile,header=T)
+dim(alldata)
+head(alldata)
+
+n.per.sample<-ddply(alldata,.(Seq.Num), summarize,  n = length(Length))
+
+subdata<-droplevels(subset(n.per.sample, n>=49))
+
+samdata<-join(alldata, subdata, by = "Seq.Num", type = "inner")
+
+
+#recode date
+
+samdata$NewDate <- as.character(samdata$Date)
+samdata$NewDate <- substr(samdata$NewDate, 1, 10)
+samdata$FishYear<-substr(samdata$NewDate, 4, 10)
+#samdata$NewDate<-as.Date(samdata$NewDate, "%m/%d/%Y")
+samdata$FishYear<-sapply(strsplit(samdata$FishYear, "/"), "[", 2)
+samdata$FishYear<-as.numeric(samdata$FishYear)
+
+samdata$FishMonth<-sapply(strsplit(samdata$NewDate, "/"), "[", 2)
+samdata$FishMonth<-as.numeric(samdata$FishMonth)
+samdata$FishQtr<-samdata$FishMonth
+samdata$FishQtr[samdata$FishQtr %in% c("1", "2", "3")] <- "Q1"
+samdata$FishQtr[samdata$FishQtr %in% c("4", "5", "6")] <- "Q2"
+samdata$FishQtr[samdata$FishQtr %in% c("7", "8", "9")] <- "Q3"
+samdata$FishQtr[samdata$FishQtr %in% c("10", "11", "12")] <- "Q4"
+samdata$FishQtr<-as.factor(samdata$FishQtr)
+summary(samdata)
 
 samdata <- subset(samdata, Sex %in% c("I", "M", "F"))
 
+samdata$SubBlockNo <- paste(samdata$Stat.Block,samdata$Sub.Block, sep="")
+samdata$new_zone[samdata$Stat.Block %in%  c(seq(14,30,1)) | samdata$SubBlockNo %in% c("13C", "13D", "13E", "31A")] <- "E"
+samdata$new_zone[samdata$Stat.Block %in%  c(seq(7,12,1)) | samdata$SubBlockNo %in% c("13A", "13B", "06D", "6D")] <- "W"
+samdata$new_zone[samdata$SubBlockNo %in% c("6A", "6C")] <- "CW"
+samdata$new_zone[samdata$SubBlockNo %in% c("5A", "5B", "5C")] <- "N"
+samdata$new_zone[samdata$Stat.Block %in%  c(1, 2, 3, 4,47, 48, 49,39, 40) | samdata$SubBlockNo %in% c("31 B")] <- "N" 
+samdata$new_zone[samdata$Stat.Block %in% c(seq(32, 38,1),seq(41,46,1), seq(50,57,1))] <- "BS"
+
+summary(samdata)
+
+n.SubBlockNo<-ddply(samdata,.(SubBlockNo, FishYear), summarize,  n = length(Length))
+
+
 #Option - remove Wineglass Bay Site for Season * region analysis
-pick <- which(samdata$Site_Name == "Wineglass Bay")
-samdata <- samdata[-pick,]
+pick <- which(samdata$SubBlockNo == "13E")
+samdata <- samdata[pick,]
 samdata <- droplevels(samdata)
 
 # Simplify Maturity classes
@@ -29,19 +70,14 @@ samdata$Mat <- NA
 samdata$Mat <- ifelse(samdata$Sex=="I", c("I"), c("M"))
 
 # Code Season and Site
-samdata$Season <- samdata$SamplePeriod
-samdata$Region <- NA
-
-pick <- which(samdata$Site_Name == "Gardens")
-samdata$Region[pick] <- "North"
-pick <- which(samdata$Site_Name == "George III Rock")
-samdata$Region[pick] <- "South"
+samdata$Season <- as.factor(samdata$FishYear)
+samdata$Region <- samdata$new_zone
 
 ## Create new Season* Region interaction variable
 samdata$RegionSeason <- interaction(samdata$Region,samdata$Season)
 
 # Characterize Sites
-Sites <- unique(samdata$Site_Name); Sites
+Sites <- unique(samdata$SubBlockNo); Sites
 NS <- length(Sites)
 
 RegionSeasonVec <- unique(samdata$RegionSeason); RegionSeasonVec
@@ -69,41 +105,47 @@ pick <- which(samdata$Length > 130)
 samdata$SizeC[pick] <- "Large"
 
 ## Calculate Base cases for each site.
-columns <- c("LM50", "LM75", "LM95","IQ","a","b","smallN","mediumN","largeN","totalN")
-BaseResults <- matrix(0,nrow=NSR,ncol=length(columns),dimnames=list(RegionSeasonVec,columns))
-for (pSite in 1:NSR) {
- Site <- RegionSeasonVec[pSite]
- pick <- which(samdata$RegionSeason == Site)
- if (length(pick) > 0) {
-  subdata <- samdata[pick,]
-   } else { "Oops something has gone wrong"
-    }
+## Calculate Base cases for each site.
+columns <- c("LM50", "IQ","a","b","smallN","mediumN","largeN","totalN")
+BaseResults <- matrix(0,nrow=NS,ncol=length(columns),dimnames=list(RegionSeasonVec,columns))
+# for (pSite in 1:NSR) {
+#   Site <- RegionSeasonVec[pSite]
+#   pick <- which(samdata$RegionSeason == Site)
+#   if (length(pick) > 0) {
+#     subdata <- samdata[pick,]
+#   } else { "Oops something has gone wrong"
+#   }
 
+pick <- which(samdata$Site_Name == Site1)
+if (length(pick) > 0) {
+ subdata <- samdata[pick,]
+} else { "Oops something has gone wrong"
+}
   ## Create required fields for logistic regression
- SizeMat <- table(subdata$Length, subdata$Mat)
- SizeMat <- as.data.frame(rbind(SizeMat))
- SizeMat$Length <- as.numeric(rownames(SizeMat))
- head(SizeMat)
- SizeMat$Total <- NA
- SizeMat$Total <- SizeMat$I + SizeMat$M
- SizeMat$MatRatio <- NA
- SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+  SizeMat <- table(subdata$Length, subdata$Mat)
+  SizeMat <- as.data.frame(rbind(SizeMat))
+  SizeMat$Length <- as.numeric(rownames(SizeMat))
+  head(SizeMat)
+  SizeMat$Total <- NA
+  SizeMat$Total <- SizeMat$I + SizeMat$M
+  SizeMat$MatRatio <- NA
+  SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
   out <- doLogistic(SizeMat)
- BaseResults[pSite,1] <- out$LM50
- BaseResults[pSite,2] <- out$LM75
- BaseResults[pSite,3] <- out$LM95
- BaseResults[pSite,4] <- out$IQ
- model <- out$Model
- BaseResults[pSite,5:6] <- model$coef
- scN <- numeric(3)
- pick <- which(SizeMat$Length <= 90)
- scN[1] <- sum(SizeMat$Total[pick],na.rm=T)
- pick <- which((SizeMat$Length > 90) & (SizeMat$Length <= 130))
- scN[2] <- sum(SizeMat$Total[pick],na.rm=T)
- pick <- which(SizeMat$Length > 130)
- scN[3] <- sum(SizeMat$Total[pick],na.rm=T)
- BaseResults[pSite,7:10] <- c(scN,sum(scN))
- plotgraph(SizeMat,out$LM50,Site,scN,savefile=F)
+  BaseResults[pSite,1] <- out$LM50
+  BaseResults[pSite,2] <- out$LM75
+  BaseResults[pSite,3] <- out$LM95
+  BaseResults[pSite,4] <- out$IQ
+  model <- out$Model
+  BaseResults[pSite,5:6] <- model$coef
+  scN <- numeric(3)
+  pick <- which(SizeMat$Length <= 90)
+  scN[1] <- sum(SizeMat$Total[pick],na.rm=T)
+  pick <- which((SizeMat$Length > 90) & (SizeMat$Length <= 130))
+  scN[2] <- sum(SizeMat$Total[pick],na.rm=T)
+  pick <- which(SizeMat$Length > 130)
+  scN[3] <- sum(SizeMat$Total[pick],na.rm=T)
+  BaseResults[pSite,7:10] <- c(scN,sum(scN))
+  #plotgraph(SizeMat,out$LM50,Site,scN,savefile=F)
 }
 BaseResults
 
@@ -270,7 +312,7 @@ for (i in 2:reps) {
  y <- exp(Results[i,3]+Results[i,4]*x)/(1+exp(Results[i,3]+Results[i,4]*x))
  lines(x,y,col="grey")
 }
-y <- exp(BaseResults[pSite,3]+BaseResults[pSite,4]*x)/(1+exp(BaseResults[pSite,3]+BaseResults[pSite,4]*x))
+y <- exp(BaseResults[pSite,11]+BaseResults[pSite,12]*x)/(1+exp(BaseResults[pSite,11]+BaseResults[pSite,12]*x))
 lines(x,y,col="red",lwd=3)
 
 
@@ -289,10 +331,10 @@ for (i in 1:reps) {
  y2 <- exp(Results2[i,3]+Results2[i,4]*x)/(1+exp(Results2[i,3]+Results2[i,4]*x))
  lines(x,y2,col="lightblue")
 }
-y <- exp(BaseResults[pSite2,3]+BaseResults[pSite2,4]*x)/(1+exp(BaseResults[pSite2,3]+BaseResults[pSite2,4]*x))
+y <- exp(BaseResults[pSite2,11]+BaseResults[pSite2,12]*x)/(1+exp(BaseResults[pSite2,11]+BaseResults[pSite2,12]*x))
 lines(x,y,col="red",lwd=3)
 
-y3 <- exp(BaseResults[pSite,3]+BaseResults[pSite,4]*x)/(1+exp(BaseResults[pSite,3]+BaseResults[pSite,4]*x))
+y3 <- exp(BaseResults[pSite,11]+BaseResults[pSite,12]*x)/(1+exp(BaseResults[pSite,11]+BaseResults[pSite,12]*x))
 lines(x,y3,col=4,lwd=3)
 abline(v=c(BaseResults[pSite:pSite2,1]),col=3,lwd=1)
 title(ylab=list("Proportion Mature",cex=1.0,font=2),
