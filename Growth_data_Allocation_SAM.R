@@ -99,8 +99,9 @@ SAM.IL<-left_join(SamFilterIL,IL.info[,4:9], by = 'SIT_Id')
 Unpick<-subset(SAM.IL, is.na(MaxDL))
 Unpick<-Unpick[,1:34]
 SIT_ID<-subset(SAM.IL, !is.na(MaxDL))
-
 rm(SAM.IL)
+IL<-unique(SIT_ID$SIT_Id)
+
 
 #LM 
 boxcox(SIT_ID$L50^1.8~SIT_ID$LD50)
