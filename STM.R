@@ -22,12 +22,11 @@ if (exists("eLMLResults"))
 
 for(i in Sites){
   choice<-subset(SAMILResults, SiteCode == i)
-   
   param <- c(choice$MaxDL,choice$L50,choice$L95,choice$SigMax) # MaxDL, L50, L95, SigMax
   Lm50 <- choice$LD50 # estimated size at 50% maturity
   LML <- choice$LML
   #eLML from L50
-  midpts <- seq(2,210,2)# adjsut by zone ?
+  midpts <- seq(2,210,2)
   G <- STM(param,midpts)
   Nt <- numeric(105)
   Nt[trunc(Lm50/2)] <- 1000
@@ -41,7 +40,7 @@ for(i in Sites){
   U.LML <- Nt1df[pick,]
   choice$PctU.LML<-sum(U.LML$V1/10)/2
   
-  pick<-choice[,c(1,42:43)]  
+  pick<-choice[,c(1,40:41)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else

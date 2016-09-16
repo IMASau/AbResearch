@@ -300,6 +300,17 @@ ggplot(GwthResults, aes(x=Zone, y=eLML)) +
 #########################
 #
 #
+################
+# SUMSTATS by Block
+################
+BlockSumStats<-ddply(GwthResults,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
+                     mn.L50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T),
+                     mn.L95 = mean(LD95, na.rm=T), mn.LCI95 = mean(Ld95BootL95, na.rm=T), mn.UCI95 = mean(Ld95BootU95, na.rm=T),
+                     mn.IQR = mean(IQR, na.rm=T), sd.IQR = sd(IQR, na.rm=T),
+                     mn.pct.L50 = mean(PctL50, na.rm=T), sd.pct.L50 = mean(PctL50, na.rm=T),
+                     mn.Bootrange.L50 = mean(Ld50BootRange, na.rm=T), sd.Bootrange.L50 = mean(Ld50BootRange, na.rm=T),
+                     mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
+
 doPlot = function(LFPlot) {
   dum = subset(BlockSumStats, Zone == LFPlot)
   ggobj = ggplot(data = dum, aes(y=mn.eLML, x=as.factor(BlockNo))) + 
@@ -332,6 +343,7 @@ doPlot = function(LFPlot) {
     labs(title= dum$Zone, size=10)+
     #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
     geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
         theme_bw()+
     theme(legend.title=element_blank(),
           legend.text = element_text(size=14),
