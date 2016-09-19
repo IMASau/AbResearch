@@ -13,26 +13,29 @@ source("D:/GitCode/AbResearch/IL_funs.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
 
-Gwth<-read.csv("GwthDatablacklip.csv", header=TRUE)
-dim(Gwth)
-head(Gwth,20)
-summary(Gwth)
+GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
+dim(GwthRaw)
+head(GwthRaw,20)
+summary(GwthRaw)
 
 SiteDrop<-c(802)
-pick <- which(Gwth$SiteId %in% SiteDrop)
-Gwth<-Gwth[-pick,]
-Gwth<-subset(Gwth)
+pick <- which(GwthRaw$SiteId %in% SiteDrop)
+Gwth<-GwthRaw[-pick,]
+GwthRaw<-subset(GwthRaw)
 
 sitenames <-  read.csv("sitenames.csv", header=TRUE)
 sitenos <- sitenames$SiteId
 Nsites <- length(sitenos)
-Gwth$SiteN <- NA
+GwthRaw$SiteN <- NA
 
 for (i in 1:Nsites) {
    pick <- which(Gwth$SiteId == sitenos[i])
-   Gwth$SiteN[pick] <- as.character(sitenames$NameSh[i])
+   GwthRaw$SiteN[pick] <- as.character(sitenames$NameSh[i])
 }
-unique(Gwth$SiteN)
+unique(GwthRaw$SiteN)
+
+
+#Gwth<-droplevels(subset(GwthRaw, Dt >= 0.25 & Dt < 5))
 
 
 sitechar <- as.data.frame(matrix(0,nrow=Nsites,ncol=6,dimnames=list(sitenos,c("SiteId","Name",
@@ -69,7 +72,7 @@ sitechar <- sitechar[order(sitechar[,5]),]
    numcol <- length(columns)
    rows <- 1:nP
    influen <- matrix(0,nrow=nP,ncol=numcol,dimnames=list(rows,columns))
-   model <- fitIL(absite$Lt,absite$DL,SiteId=site1,outliers=T,sitename=as.character(absite$SiteN[1]))
+   model <- fitIL(absite$Lt,absite$DL,SiteId=p,outliers=T,sitename=as.character(absite$SiteN[1]))
    BaseCase <- c(NA,NA,model$model$estimate, model$model$minimum,NA)
    LtDL <- c(13,15)
    for (i in 1:nP) {

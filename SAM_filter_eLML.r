@@ -5,8 +5,6 @@ rm(list=ls(all=TRUE))
 wkdir <- "D:/R_Stuff/SAM"
 setwd(wkdir)
 
-## Load raw csv file
-#infile <- "Basic Sam Query.csv"
 
 library(car)
 library(MASS)
@@ -18,10 +16,8 @@ library(ggplot2)
 library(multcompView)
 library(devtools)
 #sources
-#source("D:/GitCode/AbResearch/SAM_utils_TechReport.R")
-source("D:/GitCode/AbResearch/Grwth_matrix.r")
 
-# # load D:\R_Stuff\SAM    SAM2016_April  SAM_TechReport230816.RData
+load ('D:/R_Stuff/SAM/SAM2016_April.RData') #SAM2016_April
 # keep(SamResults, sure =T)
 
 #rename columns
@@ -115,6 +111,17 @@ rm(choice, DT_MSc, DT_out, pick)
 
 SamFilter<-SamFilter[!duplicated(SamFilter[,1]),]
 
-
 ddply(SamResults,.(Zone), summarize,  n = length(SiteCode), 
-      mn.L50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T)
+      mn.LD50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T)
+      , LD50Range = mean(Ld50BootRange, na.rm=T))
+
+keep(SamResults, SamFilter, sure =T)
+
+#Filter by CIrange to mean of dataset
+L50RangeMean<-mean(SamFilter$Ld50BootRange, na.rm=T)
+
+pick <- which(SamFilter$Ld50BootRange <= L50RangeMean)
+SamFilterCI <- SamFilter[pick,]
+SamFilterCI <- droplevels(SamFilterCI)
+
+

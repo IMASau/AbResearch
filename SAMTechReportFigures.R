@@ -312,6 +312,52 @@ BlockSumStats<-ddply(GwthResults,.(BlockNo, Zone), summarize,  n = length(SiteCo
                      mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
 
 doPlot = function(LFPlot) {
+ dum = subset(GwthResults, Zone == LFPlot)
+ ggobj = ggplot(data = dum, aes(y=eLML, x=as.factor(BlockNo))) + 
+  xlab("BlockNo") +
+  ylab("eLML (mm)") +
+  labs(title= dum$Zone, size=10)+
+  #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
+  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+  geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+  theme_bw()+
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size=14),
+        axis.title.x = element_text(size=14),
+        axis.text.x  = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        axis.text.y  = element_text(size=14),
+        legend.position="none")
+ #ggsave(sprintf("%s_LFplot.tiff", LFPlot))
+ print(ggobj)
+}
+lapply(unique(BlockSumStats$Zone), doPlot)
+
+doPlot = function(LFPlot) {
+ dum = subset(GwthResults, Zone == LFPlot)
+ ggobj = ggplot(data = dum, aes(x=LD50,  y=eLML)) + 
+ geom_point(aes(colour=GrowthSite), size=3)+
+ xlab(bquote(''~LM['50%']~'(mm)')) + ylab(bquote(''~eLML['']~'(mm)'))+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2, color='black')+
+ #geom_text_repel(aes(label=BlockNo), size=3)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+# theme(legend.position=c(0.1, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+}
+lapply(unique(GwthResults$Zone), doPlot)
+
+
+
+doPlot = function(LFPlot) {
   dum = subset(BlockSumStats, Zone == LFPlot)
   ggobj = ggplot(data = dum, aes(y=mn.eLML, x=as.factor(BlockNo))) + 
     xlab("BlockNo") +

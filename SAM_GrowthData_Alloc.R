@@ -7,6 +7,7 @@ library(dplyr)
 library(plyr)
 library(gdata)
 library(ggplot2)
+library(ggrepel)
 library(multcompView)
 library(devtools)
 library(lubridate)
@@ -32,12 +33,16 @@ rbind.match.columns <- function(input1, input2) {
 
 
 # LOAD SAM DATA
-load('D:/R_Stuff/SAM/Logistic/SamFilter050916.RData ')
-keep(SamFilter, SamResults, sure=T)
+load('D:/R_Stuff/SAM/Logistic/SamFilter190916.RData ')
+keep(SamFilterCI, SamFilter, SamResults, sure=T)
 #recode database subblock errors
 SamFilter$SubBlockNo[SamFilter$SubBlockNo==11] <- "11A"
+SamFilterCI$SubBlockNo[SamFilterCI$SubBlockNo==11] <- "11A"
 
+#
+###### CHOOSE OPTION ########
 SamFilterIL<-SamFilter
+#SamFilterIL<-SamFilterCI
 # #================================================================
 # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
 # #================================================================
@@ -68,10 +73,11 @@ SamFilterIL<-left_join(SamFilterIL,SLSubBlockSum, by = 'SubBlockNo')
 rm(BlckPop, BlckPopNew, SLSubBlockSum)
 
 #drop SAM observations with odd low LD50
-OddLook<-subset(SamFilterIL, LD50 < 100 & SLmax > 183)
-OddSiteCodes<-unique(OddLook$SiteCode)
-pick <- which(SamFilterIL$SiteCode %in% OddSiteCodes)
-SamFilterIL<-SamFilterIL[-pick,]
+# OddLook<-subset(SamFilterIL, LD50 < 100 & SLmax > 183)
+# OddSiteCodes<-unique(OddLook$SiteCode)
+# pick <- which(SamFilterIL$SiteCode %in% OddSiteCodes)
+# SamFilterIL<-SamFilterIL[-pick,]
+
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
@@ -87,7 +93,8 @@ names(IL.info)[names(IL.info)=='SiteId']<-"SIT_Id"
 
 #Add zone 
 IL.info$Zone[IL.info$BlockNo %in%  c(seq(13,30,1)) | IL.info$SIT_Id %in% c("588")]<- "E"
-IL.info$Zone[IL.info$BlockNo %in%  c(seq(6,12,1))]  <- "W"
+IL.info$Zone[IL.info$BlockNo %in%  c(seq(6,12,1))]  <- "CW"
+IL.info$Zone[IL.info$BlockNo %in%  c(seq(7,12,1))]  <- "W"
 IL.info$Zone[IL.info$BlockNo %in% c("5") | IL.info$SIT_Id %in% c("316")]<- "N"
 IL.info$Zone[IL.info$BlockNo %in%  c(1, 2, 3, 4,47, 48, 49,39, 40)] <- "N" 
 IL.info$Zone[IL.info$BlockNo %in% c(seq(32, 38,1),seq(41,46,1), seq(50,57,1))] <- "BS"
@@ -95,7 +102,12 @@ IL.info$Zone[IL.info$BlockNo %in% c(seq(32, 38,1),seq(41,46,1), seq(50,57,1))] <
 IL.info<-droplevels(subset(IL.info, SIT_Id != "266"))#Louisa Bay
 IL.info<-droplevels(subset(IL.info, SIT_Id != "171"))#Sterile Island
 IL.info<-droplevels(subset(IL.info, SIT_Id != "172"))#Actaeon Island
-#IL.info<-droplevels(subset(IL.info, SIT_Id != "461"))# One Tree Point
+# IL.info<-droplevels(subset(IL.info, SIT_Id != "461"))# One Tree Point
+# IL.info<-droplevels(subset(IL.info, SIT_Id != "764"))#Duck holes
+IL.info<-droplevels(subset(IL.info, SIT_Id != "480"))#Gagens Point
+IL.info<-droplevels(subset(IL.info, SIT_Id != "478"))#Middle Grounds
+IL.info<-droplevels(subset(IL.info, SIT_Id != "337"))#Southerly Bottom
+IL.info<-droplevels(subset(IL.info, SIT_Id != "813"))#George III
 
 IL.info$L95<-as.numeric(as.character(IL.info$L95))
 IL.info$L50<-as.numeric(as.character(IL.info$L50))
@@ -114,9 +126,10 @@ rm(SAM.IL)
 Gwth.Id<-unique(SAMGwthSites$SIT_Id)
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSites$LD50^5~SAMGwthSites$L50)
-fit<-lm(LD50^5~L50, data=SAMGwthSites)
+boxcox(SAMGwthSites$LD50^-2~SAMGwthSites$L50)
+fit<-lm(LD50^-2~L50, data=SAMGwthSites)
 summary(fit)
+
 anova(fit)
 par(mfrow = c(2,2))
 plot(fit)
@@ -124,9 +137,10 @@ par(mfrow = c(1,1))
 
 # view the data l50 by ld50
 ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) + 
- geom_point(aes(colour=Zone))+
+ geom_point(aes(colour=Zone), size=3)+
  xlab(bquote(''~L['50']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
- geom_smooth(method=lm, se=F, fill='Black', fullrange=F, size=1.2, color='black')+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2, color='black')+
+ geom_text_repel(aes(label=GrowthSite), size=3)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
@@ -168,7 +182,7 @@ for(z in Zones){
  Samchoice$match<-as.numeric(Samchoice$match)
  ILchoice$match<-1:nrow(ILchoice)
  
- Zonejoin<-left_join(Samchoice,ILchoice[,c(6,35:41)], by = 'match')
+ Zonejoin<-left_join(Samchoice,ILchoice[,c(6,35:40)], by = 'match')
  
  if (exists("SAMjoin"))
   SAMjoin <- rbind(SAMjoin, Zonejoin)
@@ -190,11 +204,14 @@ SAMGwthOutPut<-rbind.match.columns(SAMjoin, BSjoin)
 SAMILResults<-rbind.match.columns(SAMGwthSites,SAMGwthOutPut)
 
 
-GrwthAllocations<-SAMjoin[,c(6, 18, 21, 22,29, 36,42)]
-E_GrwthAllocations<-droplevels(subset(GrwthAllocations, Zone =='E'))
+# GrwthAllocations<-SAMjoin[,c(6, 18, 21, 22,29, 36,41)]
+# E_GrwthAllocations<-droplevels(subset(GrwthAllocations, Zone =='E'))
+# 
+# write.csv(GrwthAllocations, file='GrwthAllocations.csv')
+
+########GROWTH ALLOCATION OPTIONS NOT USED###############
 
 
-########OPTIONS NOT USED###############
 # #ALLOCATE THE GROWTH DATA BY LD50 without zone retrictions
 # SAMSite.Z$match<-sapply(SAMSite.Z$LD50,function(x)which.min(abs(x - SAMGwthSites$LD50)))
 # SAMGwthSites$match<-c(1:20)
@@ -203,7 +220,64 @@ E_GrwthAllocations<-droplevels(subset(GrwthAllocations, Zone =='E'))
 # names(SAMjoin)[names(SAMjoin)=='LD50.y']<-"GrowthLD50"
 
 
+# #ALLOCATE GROWTH DATA ONLY KEEPING MAXIMUM REULST FOR EACH MATCH OF GROWTH AND SAM
+SAMGwthSites<-do.call(rbind,lapply(split(SAMGwthSites,SAMGwthSites$SIT_Id),function(chunk) chunk[which.min(chunk$LD50),]))
 
 
-SAMGwthSites<-SAMGwthSites[order(SAMGwthSites$SIT_Id),] 
-SAMGwthSites<-SAMGwthSites[!duplicated(SAMGwthSites$SIT_Id), ]
+
+
+
+
+
+#ALLOCATE GROWTH DATA VIA Producing LD50t for each of the growth data from Growth data with matching LD50range < 5 mm
+# fit2<-lm(LD50~L50, data=SAMGwthSites)
+# summary(fit2)
+# 
+# anova(fit2)
+# par(mfrow = c(2,2))
+# plot(fit2)
+# par(mfrow = c(1,1))
+# #shapiro.test(fit2)
+# 
+# 
+# IL.info$LD50t<-fit2$coef[1]+fit2$coef[2]*IL.info$L50
+# 
+# # #================================================================
+# # #
+# # #                         Growth data allocation with zone 
+# # #
+# # #================================================================
+# #############################
+# SAMSite.BS<-droplevels(subset(SamFilter, Zone == 'BS'))
+# SAMSite.Z<-droplevels(subset(SamFilter, Zone != 'BS'))
+# 
+# Zones<-unique(SAMSite.Z$Zone)
+# #####
+# if (exists("SAMjoin")) 
+#  rm(SAMjoin)
+# 
+# for(z in Zones){
+#  Samchoice<-subset(SamFilter, Zone == z)
+#  ILchoice<-subset(IL.info, Zone == z)
+#  Samchoice$match<-sapply(Samchoice$LD50,function(x)which.min(abs(x - ILchoice$LD50t)))
+#  Samchoice$match<-as.numeric(Samchoice$match)
+#  ILchoice$match<-1:nrow(ILchoice)
+#  
+#  Zonejoin<-left_join(Samchoice,ILchoice[,c(2:5,7,14)], by = 'match')
+#  
+#  if (exists("SAMjoin"))
+#   SAMjoin <- rbind(SAMjoin, Zonejoin)
+#  else
+#   SAMjoin <- Zonejoin
+# }
+# 
+# #TREAT BSZ grwth data as mean values as no direct matches by SIT_ID
+# BS.IL.Info<-droplevels(subset(IL.info, SIT_Id == "315"))
+# BSjoin<-left_join(SAMSite.BS, BS.IL.Info[,c(2:6,12)], by = 'Zone')
+# 
+# 
+# 
+# SAMGwthOutPut<-rbind.match.columns(SAMjoin, BSjoin)
+# 
+# SAMILResults<-SAMGwthOutPut
+# 
