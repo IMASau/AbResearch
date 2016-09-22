@@ -37,7 +37,8 @@ ASM<-GwthResults
 
 #Boxplot by maturity L%
 ggplot(GwthResults, aes(x=Zone, y=LD50)) + 
-  xlab("Zone") +  ylab(bquote(~L['50%']~'(mm)'))+
+  xlab("Zone") +  
+  ylab(expression(paste(LM['50%']~'(mm)')))+
   geom_boxplot(outlier.colour = "black", outlier.size = 3)+
   theme_bw()+#white background
   theme(legend.position="none",
@@ -61,11 +62,18 @@ BlockSumStats<-ddply(GwthResults,.(BlockNo, Zone), summarize,  n = length(SiteCo
                      mn.IQR = mean(IQR, na.rm=T), sd.IQR = sd(IQR, na.rm=T),
                      mn.pct.L50 = mean(PctL50, na.rm=T), sd.pct.L50 = mean(PctL50, na.rm=T),
                      mn.Bootrange.L50 = mean(Ld50BootRange, na.rm=T), sd.Bootrange.L50 = mean(Ld50BootRange, na.rm=T),
-                     mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
-                     # mn.eLMLbootL95 = mean(eLMLbootL95, na.rm=T) , sd.eLMLbootL95 = sd(eLMLbootL95, na.rm=T),
+                     mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)),
+                     mn.SLmax = mean(SLmax, na.rm=T),
+                     mn.PctU.LML = mean(PctU.LML, na.rm =T), sd.PctU.LML = sd(PctU.LML, na.rm =T))
+                                          # mn.eLMLbootL95 = mean(eLMLbootL95, na.rm=T) , sd.eLMLbootL95 = sd(eLMLbootL95, na.rm=T),
                      # mn.eLMLbootU95 = mean(eLMLbootU95, na.rm=T) , sd.eLMLbootU95 = sd(eLMLbootU95, na.rm=T),
                      # diffLML = mean(LMLDiff, na.rm=T))
 write.csv(BlockSumStats, file= "blockSAMstats.csv")
+
+#difference between maxSL and LD50
+BlockSumStats$LD50SLmaxDiff<-BlockSumStats$mn.SLmax-BlockSumStats$mn.L50
+mean(BlockSumStats$LD50SLmaxDiff)
+range(BlockSumStats$LD50SLmaxDiff)
 
 #############################
 #   (%<L50%)  comparison at l50 
@@ -92,7 +100,7 @@ par(mfrow = c(1,1))
 
 ggplot(data = GwthResults, aes(x=PctL50,  y=Ld50BootRange, color=ifelse(Ld50BootRange>10, 'red', 'black'))) + 
   geom_point()+
-  xlab(bquote('Percentage sample <'~L['50%']~'.')) + ylab(bquote('C.I. Range'~L['50%']~'(mm)'))+
+  xlab(bquote('Proportion <'~LM['50%']~'(%)')) + ylab(bquote('C.I. Range'~LM['50%']~'(mm)'))+
   #geom_smooth(method=lm, se=F, fill='Black', fullrange=F, size=1.2, color='black')+
   #ggtitle(paste(dum$SubBlockNo, FishYear))+
   #labs(title= Yeardum$SubBlockNo, size=10)+
@@ -114,6 +122,34 @@ ggplot(data = GwthResults, aes(x=PctL50,  y=Ld50BootRange, color=ifelse(Ld50Boot
 #############################
 #   IQrange (L75-L25) CIrange comparison at l50 
 #############################
+#PERCENTAGE IQR and bootstrapped CI of LM50
+ggplot(data=GwthResults, aes(x=PctIQR,  y=Ld50BootRange, color=ifelse(Ld50BootRange>10, 'red', 'black'))) + 
+ geom_point()+
+ xlab(bquote(~IQ['Range']~'%')) + 
+ ylab(bquote(~C.I.['Range']~LM['50%']~'(mm)'))+
+ #geom_smooth(method=lm, se=F, fill='Black', fullrange=F, size=1.2, color='black')+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.9, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+plot(GwthResults$PctIQR, GwthResults$Ld50BootRange)
+#anova diferences L%
+boxcox(log(GwthResultsLM50.10MM$Ld50BootRange)~GwthResultsLM50.10MM$PctIQR)
+fit<-lm(log(GwthResultsLM50.10MM$Ld50BootRange)~GwthResultsLM50.10MM$PctIQR)
+summary(fit)
+anova(fit)
+par(mfrow = c(2,2))
+plot(fit)
+par(mfrow = c(1,1))
 
 #Range of IQ against CIrangeL50%
 plot(GwthResults$IQR, GwthResults$Ld50BootRange)
@@ -136,7 +172,7 @@ par(mfrow = c(1,1))
 
 ggplot(data = GwthResults, aes(x=IQR,  y=Ld50BootRange, color=ifelse(Ld50BootRange>10, 'red', 'black'))) + 
   geom_point()+
-  xlab(bquote(~IQ['range']~'(mm)')) + ylab(bquote('C.I. Range'~L['50%']~'(mm)'))+
+  xlab(bquote(~IQ['range']~'(mm)')) + ylab(bquote('C.I. Range'~LM['50%']~'(mm)'))+
   #geom_smooth(method=lm, se=F, fill='Black', fullrange=F, size=1.2, color='black')+
   #ggtitle(paste(dum$SubBlockNo, FishYear))+
   #labs(title= Yeardum$SubBlockNo, size=10)+
@@ -152,11 +188,21 @@ ggplot(data = GwthResults, aes(x=IQR,  y=Ld50BootRange, color=ifelse(Ld50BootRan
         axis.text.y  = element_text(size=14))
 
 
+#                    HISTOGRAM CI RANGE
+
+mn_ld50ci<-mean(GwthResults$Ld50BootRange, na.rm=T)
+#md_ld50ci<-median(GwthResults$Ld50BootRange, na.rm=T)
+Usd_ld50ci<-mn_ld50ci+sd(GwthResults$Ld50BootRange, na.rm=T)
+Lsd_ld50ci<-mn_ld50ci-sd(GwthResults$Ld50BootRange, na.rm=T)
+
 ####Histogram of CIrangeL50
 ggplot(data = GwthResults, aes(x=Ld50BootRange)) + 
   geom_histogram(bins = 30)+
-  xlab(bquote(~CI['range']~'L'['50%']))+
+  xlab(bquote(~CI['range']~'LM'['50%']))+
   #ylim(0,120)+
+ geom_vline(xintercept=mn_ld50ci, colour = 'red', linetype= 3, size=1.5)+
+ geom_vline(xintercept=Usd_ld50ci,  linetype= 3, size=1.2)+
+ geom_vline(xintercept=Lsd_ld50ci,  linetype= 3, size=1.2)+
   theme_bw()+
   #scale_fill_identity()+ #this makes sure the color follows the color argument above in aes()
   theme(legend.position=c(0.9, 0.8))+
@@ -166,6 +212,8 @@ ggplot(data = GwthResults, aes(x=Ld50BootRange)) +
         axis.text.x  = element_text(size=14))+
   theme(axis.title.y = element_text(size=14),
         axis.text.y  = element_text(size=14))
+
+
 
 #############################
 #  END-  IQrange (L75-L25) CIrange comparison at l50 
@@ -178,11 +226,11 @@ ggplot(data = GwthResults, aes(x=Ld50BootRange)) +
 
 rangeCI95<-as.data.frame(GwthResults$Ld95BootRange)
 colnames(rangeCI95)[1] <- "CIRange"
-rangeCI95$LM<-"L95%"
+rangeCI95$LM<-"LM95%"
 
 rangeCI50<-as.data.frame(GwthResults$Ld50BootRange)
 colnames(rangeCI50)[1] <- "CIRange"
-rangeCI50$LM<-"L50%"
+rangeCI50$LM<-"LM50%"
 CIRange<-rbind(rangeCI50, rangeCI95)
 rm(rangeCI50, rangeCI95)
 
@@ -203,7 +251,7 @@ ASM<-CIRange
 
 #Boxplot by maturity L%
 ggplot(CIRange, aes(x=LM, y=CIRange)) + 
-  xlab("Maturity Estimate") + labs(y=expression(paste("C.I. Range (mm)")))+
+  xlab("Maturity Estimate") + ylab(bquote(~CI['range']~'LM'))+
   geom_boxplot(outlier.colour = "black", outlier.size = 3)+
   theme_bw()+#white background
   theme(legend.position="none",
@@ -237,7 +285,7 @@ par(mfrow = c(1,1))
 
 ggplot(data=GwthResults, aes(x=Mrange,  y=Ld50BootRange, color=ifelse(Ld50BootRange>10, 'red', 'black'))) + 
   geom_point()+
-  xlab(bquote(~M['range']~'(mm)')) + ylab(bquote('C.I. Range'~L['50%']~'(mm)'))+
+  xlab(bquote(~M['range']~'(mm)')) + ylab(bquote('C.I. Range'~LM['50%']~'(mm)'))+
   #geom_smooth(method=lm, se=F, fill='Black', fullrange=F, size=1.2, color='black')+
   #ggtitle(paste(dum$SubBlockNo, FishYear))+
   #labs(title= Yeardum$SubBlockNo, size=10)+
@@ -299,17 +347,16 @@ ggplot(GwthResults, aes(x=Zone, y=eLML)) +
 #           Plots for eLML L50%
 #########################
 #
-#
-################
-# SUMSTATS by Block
-################
-BlockSumStats<-ddply(GwthResults,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
-                     mn.L50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T),
-                     mn.L95 = mean(LD95, na.rm=T), mn.LCI95 = mean(Ld95BootL95, na.rm=T), mn.UCI95 = mean(Ld95BootU95, na.rm=T),
-                     mn.IQR = mean(IQR, na.rm=T), sd.IQR = sd(IQR, na.rm=T),
-                     mn.pct.L50 = mean(PctL50, na.rm=T), sd.pct.L50 = mean(PctL50, na.rm=T),
-                     mn.Bootrange.L50 = mean(Ld50BootRange, na.rm=T), sd.Bootrange.L50 = mean(Ld50BootRange, na.rm=T),
-                     mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
+# add ylimits for plots
+Zone<-c('BS', "CW", "E", "N", "W")
+Top<-c(112, 135, 150, 135, 150)
+Bottom<-c(95, 110, 130, 90, 135)
+
+ylimits<-data.frame(Zone, Top, Bottom)
+GwthResults<-left_join(GwthResults, ylimits, by = "Zone")
+
+
+setwd("D:/Fisheries Research/Abalone/SAM")
 
 doPlot = function(LFPlot) {
  dum = subset(GwthResults, Zone == LFPlot)
@@ -317,7 +364,7 @@ doPlot = function(LFPlot) {
   xlab("BlockNo") +
   ylab("eLML (mm)") +
   labs(title= dum$Zone, size=10)+
-  #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
+  ylim(min(dum$Bottom), max(dum$Top))+
   geom_boxplot(outlier.colour = "black", outlier.size = 3)+
   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
   theme_bw()+
@@ -328,10 +375,25 @@ doPlot = function(LFPlot) {
         axis.title.y = element_text(size=14),
         axis.text.y  = element_text(size=14),
         legend.position="none")
- #ggsave(sprintf("%s_LFplot.tiff", LFPlot))
+ ggsave(sprintf("%s_eLMLplot.tiff", LFPlot, width = 6, height = 8, units = "cm"))
  print(ggobj)
 }
-lapply(unique(BlockSumStats$Zone), doPlot)
+lapply(unique(GwthResults$Zone), doPlot)
+
+
+
+################
+# SUMSTATS by Block
+################
+
+BlockSumStats<-ddply(GwthResults,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
+                     mn.L50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T),
+                     mn.L95 = mean(LD95, na.rm=T), mn.LCI95 = mean(Ld95BootL95, na.rm=T), mn.UCI95 = mean(Ld95BootU95, na.rm=T),
+                     mn.IQR = mean(IQR, na.rm=T), sd.IQR = sd(IQR, na.rm=T),
+                     mn.pct.L50 = mean(PctL50, na.rm=T), sd.pct.L50 = mean(PctL50, na.rm=T),
+                     mn.Bootrange.L50 = mean(Ld50BootRange, na.rm=T), sd.Bootrange.L50 = mean(Ld50BootRange, na.rm=T),
+                     mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
+
 
 doPlot = function(LFPlot) {
  dum = subset(GwthResults, Zone == LFPlot)
@@ -355,41 +417,18 @@ doPlot = function(LFPlot) {
 }
 lapply(unique(GwthResults$Zone), doPlot)
 
-
-
-doPlot = function(LFPlot) {
-  dum = subset(BlockSumStats, Zone == LFPlot)
-  ggobj = ggplot(data = dum, aes(y=mn.eLML, x=as.factor(BlockNo))) + 
-    xlab("BlockNo") +
-    ylab("eLML (mm)") +
-    labs(title= dum$Zone, size=10)+
-    #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
-    geom_point(position=position_dodge(), stat="identity", size =3) +
-    geom_errorbar(aes(ymin=dum$mn.eLML-dum$se.eLML, ymax=dum$mn.eLML+dum$se.eLML),
-                  width=.2,                    # Width of the error bars
-                  position=position_dodge(.9))+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
-  #ggsave(sprintf("%s_LFplot.tiff", LFPlot))
-  print(ggobj)
-}
-lapply(unique(BlockSumStats$Zone), doPlot)
-
+#
+##                   PCT LML protection
+#
 doPlot = function(LFPlot) {
   dum = subset(GwthResults, Zone == LFPlot)
-  ggobj = ggplot(data = dum, aes(y=eLML, x=as.factor(BlockNo))) + 
+  ggobj = ggplot(data = dum, aes(y=PctU.LML, x=as.factor(BlockNo))) + 
     xlab("BlockNo") +
-    ylab("eLML (mm)") +
+    ylab("Percentage Population Protected") +
     labs(title= dum$Zone, size=10)+
     #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
     geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   #geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
         theme_bw()+
     theme(legend.title=element_blank(),
           legend.text = element_text(size=14),
@@ -398,31 +437,128 @@ doPlot = function(LFPlot) {
           axis.title.y = element_text(size=14),
           axis.text.y  = element_text(size=14),
           legend.position="none")
-  #ggsave(sprintf("%s_LFplot.tiff", LFPlot))
+  ggsave(sprintf("%s_PctProtected.tiff", LFPlot))
   print(ggobj)
 }
 lapply(unique(BlockSumStats$Zone), doPlot)
 
+#
+#########################
+#           Plots for eLML L50% on LM50 < 5mm
+#########################
+#
+#
+################
+# SUMSTATS by Block
+################
+GwthResultsLM50.10MM<-droplevels(subset(GwthResults, Ld50BootRange <= 10))
+GwthResultsLM50.5MM<-droplevels(subset(GwthResults, Ld50BootRange <= 5))
 
-#eLML boxplot from the BootU95 of L50%
+L50RangeMean<-mean(GwthResults$Ld50BootRange, na.rm=T)
+
+pick <- which(GwthResults$Ld50BootRange <= L50RangeMean)
+GwthRltLD50Mn <- GwthResults[pick,]
+GwthRltLD50Mn <- droplevels(GwthRltLD50Mn)
+
 doPlot = function(LFPlot) {
-  dum = subset(GwthResults, Zone == LFPlot)
-  ggobj = ggplot(data = dum, aes(y=eLMLbootU95, x=as.factor(BlockNo))) + 
-    xlab("BlockNo") +
-    ylab("eLML (UCI) (mm)") +
-    labs(title= dum$Zone, size=10)+
-    #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
-  #ggsave(sprintf("%s_LFplot.tiff", LFPlot))
-  print(ggobj)
+ dum = subset(GwthResultsLM50.5MM, Zone == LFPlot)
+ ggobj = ggplot(data = dum, aes(y=eLML, x=as.factor(BlockNo))) + 
+  xlab("BlockNo") +
+  ylab("eLML (mm)") +
+  labs(title= dum$Zone, size=10)+
+  ylim(min(dum$Bottom), max(dum$Top))+
+  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+  geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+  theme_bw()+
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size=14),
+        axis.title.x = element_text(size=14),
+        axis.text.x  = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        axis.text.y  = element_text(size=14),
+        legend.position="none")
+ ggsave(sprintf("%s_eLML_5mmplot.tiff", LFPlot, width = 6, height = 8, units = "cm"))
+ print(ggobj)
 }
-lapply(unique(BlockSumStats$Zone), doPlot)
+lapply(unique(GwthResultsLM50.5MM$Zone), doPlot)
+
+
+BlockSumStats5mm<-ddply(GwthResultsLM50.5MM,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
+                        mn.L50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T),
+                        mn.L95 = mean(LD95, na.rm=T), mn.LCI95 = mean(Ld95BootL95, na.rm=T), mn.UCI95 = mean(Ld95BootU95, na.rm=T),
+                        mn.IQR = mean(IQR, na.rm=T), sd.IQR = sd(IQR, na.rm=T),
+                        mn.pct.L50 = mean(PctL50, na.rm=T), sd.pct.L50 = mean(PctL50, na.rm=T),
+                        mn.Bootrange.L50 = mean(Ld50BootRange, na.rm=T), sd.Bootrange.L50 = mean(Ld50BootRange, na.rm=T),
+                        mn.eLML = mean(eLML, na.rm=T) , sd.eLML = sd(eLML, na.rm=T), se.eLML = sd(eLML, na.rm=T)/sqrt(length(eLML)))
+
+doPlot = function(LFPlot) {
+ dum = subset(GwthResults, Zone == LFPlot)
+ ggobj = ggplot(data = dum, aes(x=LD50,  y=eLML)) + 
+  geom_point(aes(colour=GrowthSite), size=3)+
+  xlab(bquote(''~LM['50%']~'(mm)')) + ylab(bquote(''~eLML['']~'(mm)'))+
+  geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2, color='black')+
+  #geom_text_repel(aes(label=BlockNo), size=3)+
+  #ggtitle(paste(dum$SubBlockNo, FishYear))+
+  #labs(title= Yeardum$SubBlockNo, size=10)+
+  #geom_histogram(binwidth=50)+
+  theme_bw()+
+  #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+  # theme(legend.position=c(0.1, 0.8))+
+  theme(legend.title=element_blank())+
+  theme(legend.text = element_text(size=14))+
+  theme(axis.title.x = element_text(size=14),
+        axis.text.x  = element_text(size=14))+
+  theme(axis.title.y = element_text(size=14),
+        axis.text.y  = element_text(size=14))
+}
+lapply(unique(GwthResults$Zone), doPlot)
+
+#
+##                   PCT LML protection
+#
+doPlot = function(LFPlot) {
+ dum = subset(GwthResultsLM50.5MM, Zone == LFPlot)
+ ggobj = ggplot(data = dum, aes(y=Pctless.LML) + 
+  xlab("BlockNo") +
+  ylab("Percentage Population Protected") +
+  labs(title= dum$Zone, size=10)+
+  #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
+  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+  #geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+  theme_bw()+
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size=14),
+        axis.title.x = element_text(size=14),
+        axis.text.x  = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        axis.text.y  = element_text(size=14),
+        legend.position="none")
+ ggsave(sprintf("%s_PctProtected.tiff", LFPlot))
+ print(ggobj)
+}
+lapply(unique(GwthResultsLM50.5MM$Zone), doPlot)
+
+
+#HISTO of percentage protection
+ggplot(data = GwthResults, aes(x=Pctless.LML)) + 
+ xlab("Percent") +
+ ylab("Number of sites") +
+ xlim(0,50)+
+ #labs(title= dum$Zone, size=10)+
+ #ylim(min(dum$sd.eLML-10), max(dum$sd.eLML+10))+
+ geom_histogram(breaks=seq(0, 50, by = 5), binwidth=5)+
+ #geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+ theme_bw()+
+ theme(legend.title=element_blank(),
+       legend.text = element_text(size=14),
+       axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14),
+       axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14),
+       legend.position="none")+
+ facet_grid(Zone~ .)
+
+
+
+
 

@@ -84,6 +84,7 @@ SamList$IQR <- as.numeric(NA)
 SamList$N.underLD05 <- as.numeric(NA)
 SamList$N.underLD50 <- as.numeric(NA)
 SamList$N.overLD95 <- as.numeric(NA)
+SamList$N.IQR <- as.numeric(NA)
 SamList$Ld50BootU95 <- as.numeric(NA)
 SamList$Ld50BootL95 <- as.numeric(NA)
 SamList$Ld95BootU95 <- as.numeric(NA)
@@ -126,12 +127,16 @@ for (i in 1:NumSites) {
   
   N.underLD05 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld05)))))
   SamList$N.underLD05[i] <-  as.numeric(N.underLD05)
-  N.underLD50 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld50)))))
+    N.underLD50 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld50)))))
   SamList$N.underLD50[i] <-  as.numeric(N.underLD50)
    N.overLD95 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld95)))))
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
-
-  
+  SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
+   N.overLD25 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld25)))))
+   N.overLD75 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld75)))))
+   SamList$N.IQR[i]<-as.numeric(N.overLD25-N.overLD75)
+  SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
+}
   ## Bootstrap the ld50 paramater ####
   BootSAM50 <- function(data, indices) {
    require(MASS)

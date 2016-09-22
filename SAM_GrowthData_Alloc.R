@@ -124,10 +124,12 @@ SAMSites<-SAMSites[,1:34]
 SAMGwthSites<-subset(SAM.IL, !is.na(MaxDL))
 rm(SAM.IL)
 Gwth.Id<-unique(SAMGwthSites$SIT_Id)
+combinedDF<-left_join(SAMGwthSites[,c(6,17,21,22,24,28:31,33,35:39)],IL.info[,c(1:11)], by = 'SIT_Id')
+write.csv(combinedDF, file='GrwthSAMmatched.csv')
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSites$LD50^-2~SAMGwthSites$L50)
-fit<-lm(LD50^-2~L50, data=SAMGwthSites)
+boxcox(SAMGwthSites$LD50~SAMGwthSites$L50)
+fit<-lm(LD50~L50, data=SAMGwthSites)
 summary(fit)
 
 anova(fit)
@@ -137,10 +139,12 @@ par(mfrow = c(1,1))
 
 # view the data l50 by ld50
 ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) + 
- geom_point(aes(colour=Zone), size=3)+
- xlab(bquote(''~L['50']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
+ xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
  geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2, color='black')+
  geom_text_repel(aes(label=GrowthSite), size=3)+
+ geom_errorbar(aes(ymin=SAMGwthSites$Ld50BootL95, ymax=SAMGwthSites$Ld50BootU95),
+               width=.2)+
+ geom_point(aes(colour=Zone), size=3)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
@@ -155,11 +159,11 @@ ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) +
        axis.text.y  = element_text(size=14))
 
 
-#drop SAM observations with odd low LD50
-OddLook<-subset(SAMGwthSites, L50 < 110 & LD50 > 120)
-OddSiteCodes<-unique(OddLook$SiteCode)
-pick <- which(SamFilterIL$SiteCode %in% OddSiteCodes)
-SamFilterIL<-SamFilterIL[-pick,]
+# #drop SAM observations with odd low LD50
+# OddLook<-subset(SAMGwthSites, L50 < 110 & LD50 > 120)
+# OddSiteCodes<-unique(OddLook$SiteCode)
+# pick <- which(SamFilterIL$SiteCode %in% OddSiteCodes)
+# SamFilterIL<-SamFilterIL[-pick,]
 #
 # #================================================================
 # #
@@ -182,7 +186,7 @@ for(z in Zones){
  Samchoice$match<-as.numeric(Samchoice$match)
  ILchoice$match<-1:nrow(ILchoice)
  
- Zonejoin<-left_join(Samchoice,ILchoice[,c(6,35:40)], by = 'match')
+ Zonejoin<-left_join(Samchoice,ILchoice[,c(6,37:42)], by = 'match')
  
  if (exists("SAMjoin"))
   SAMjoin <- rbind(SAMjoin, Zonejoin)
@@ -212,7 +216,8 @@ SAMILResults<-rbind.match.columns(SAMGwthSites,SAMGwthOutPut)
 ########GROWTH ALLOCATION OPTIONS NOT USED###############
 
 
-# #ALLOCATE THE GROWTH DATA BY LD50 without zone retrictions
+#                      1. #ALLOCATE THE GROWTH DATA BY LD50 without zone retrictions
+
 # SAMSite.Z$match<-sapply(SAMSite.Z$LD50,function(x)which.min(abs(x - SAMGwthSites$LD50)))
 # SAMGwthSites$match<-c(1:20)
 # SAMjoin<-left_join(SAMSite.Z,SAMGwthSites[,c(6,35:41)], by = 'match')
@@ -220,16 +225,13 @@ SAMILResults<-rbind.match.columns(SAMGwthSites,SAMGwthOutPut)
 # names(SAMjoin)[names(SAMjoin)=='LD50.y']<-"GrowthLD50"
 
 
-# #ALLOCATE GROWTH DATA ONLY KEEPING MAXIMUM REULST FOR EACH MATCH OF GROWTH AND SAM
-SAMGwthSites<-do.call(rbind,lapply(split(SAMGwthSites,SAMGwthSites$SIT_Id),function(chunk) chunk[which.min(chunk$LD50),]))
+#                      2. #ALLOCATE GROWTH DATA ONLY KEEPING MAXIMUM REULST FOR EACH MATCH OF GROWTH AND SAM
+
+#SAMGwthSites<-do.call(rbind,lapply(split(SAMGwthSites,SAMGwthSites$SIT_Id),function(chunk) chunk[which.min(chunk$LD50),]))
 
 
+#                      3. #ALLOCATE GROWTH DATA VIA Producing LD50t for each of the growth data from Growth data with matching LD50range < 5 mm
 
-
-
-
-
-#ALLOCATE GROWTH DATA VIA Producing LD50t for each of the growth data from Growth data with matching LD50range < 5 mm
 # fit2<-lm(LD50~L50, data=SAMGwthSites)
 # summary(fit2)
 # 

@@ -12,6 +12,7 @@ source("D:/GitCode/AbResearch/IL_funs.r")
 #source("D:/Fisheries Research/Abalone/SAM/MH growth code/abalonesubblks.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
+#load("D:/R_Stuff/SAM/Logistic/IL_output200916.RData")
 
 GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
 dim(GwthRaw)
@@ -38,12 +39,12 @@ unique(GwthRaw$SiteN)
 #Gwth<-droplevels(subset(GwthRaw, Dt >= 0.25 & Dt < 5))
 
 
-sitechar <- as.data.frame(matrix(0,nrow=Nsites,ncol=6,dimnames=list(sitenos,c("SiteId","Name",
-                  "Longitude","Latitude","StatBlock","Records"))))
+sitechar <- as.data.frame(matrix(0,nrow=Nsites,ncol=7,dimnames=list(sitenos,c("SiteId","Name",
+                  "Longitude","Latitude","StatBlock","Recap_Year","Records"))))
 for (i in 1:Nsites) {
    pick <- which(Gwth$SiteId == sitenos[i])
    sitechar[i,] <- c(sitenos[i],as.character(Gwth$SiteN[pick[1]]),Gwth$Long[pick[1]],Gwth$Lat[pick[1]],
-                     Gwth$StatBlock[pick[1]],length(pick))
+                     Gwth$StatBlock[pick[1]],Gwth$Recap_Year[pick[1]],length(pick))
 }
 sitechar
 sitechar<-sitechar[complete.cases(sitechar),]

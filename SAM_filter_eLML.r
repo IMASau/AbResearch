@@ -111,6 +111,12 @@ rm(choice, DT_MSc, DT_out, pick)
 
 SamFilter<-SamFilter[!duplicated(SamFilter[,1]),]
 
+#Add SamNIQR to SamFilter
+load('D:/R_Stuff/SAM/Logistic/SamN_IQR.RData')
+SamFilter<-left_join(SamFilter, SamNIQR, by = "SiteCode") 
+SamFilter$PctIQR<-SamFilter$N.IQR/SamFilter$n*100
+
+
 ddply(SamResults,.(Zone), summarize,  n = length(SiteCode), 
       mn.LD50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T)
       , LD50Range = mean(Ld50BootRange, na.rm=T))

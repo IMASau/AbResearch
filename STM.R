@@ -33,12 +33,12 @@ for(i in Sites){
   Nt1 <- G %*% (G %*% Nt)
   choice$eLML<-(findmedL(Nt1))
   Nt1df<-as.data.frame(Nt1)
-  Nt1df<-add_rownames(Nt1df, "Length")
+  Nt1df$Length<-midpts
   pick<-which(Nt1df$V1 > 0)
   Nt1df <- Nt1df[pick,]
-  pick<-which(Nt1df$Length >= LML)
-  U.LML <- Nt1df[pick,]
-  choice$PctU.LML<-sum(U.LML$V1/10)/2
+  pick<-which(Nt1df$Length <= LML)
+  L.LML <- Nt1df[pick,]
+  choice$Pctless.LML<-sum(L.LML$V1/10)/2
   
   pick<-choice[,c(1,41:42)]  
   if (exists("eLMLResults"))
