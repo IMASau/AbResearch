@@ -6,6 +6,7 @@ library(FSA)
 library(car)      # Before dplyr to reduce conflicts with MASS
 library(magrittr)
 library(plyr)
+library(ggplot2)
 
 ## Load raw csv file
 wkdir <- "D:/Fisheries Research/Abalone/SeasonalSAM"
@@ -45,8 +46,8 @@ pick <- which(samdata$Length < 50 & samdata$Total_Wt > 100)
 outlier <- samdata[pick,]
 samdata <- samdata[-pick,]
 
-subdata <- subset(samdata,RegionSeason=="North.Winter")
-subdata00 <- subset(samdata, Region == "North")
+subdata <- subset(samdata,RegionSeason=="North.Summer")
+subdata00 <- subset(samdata, Region == "South")
 
 
 plot(Total_Wt~Length,data=subdata,pch=19,col=rgb(0,0,0,0.3),xlab="Total Length (mm)",ylab="Weight (g)")
@@ -93,11 +94,14 @@ plot(Total_Wt~Length,data=subdata,pch=19,col=rgb(0,0,0,1/4),
 btxs <- exp(xs)
 btys <- cf*exp(ys)
 lines(btys~btxs,lwd=2)
+test <- as.data.frame(btys)
 
 
 btys <- cf*exp(predict(fit1,data.frame(logL=xs),
                       interval="prediction"))
 head(btys,n=3)
+test <- as.data.frame(btys)
+test <- cbind(test,btxs)
 
 plot(Total_Wt~Length,data=subdata,pch=19,col=rgb(0,0,0,1/4),
      ylab="Weight (g)",xlab="Total Length (mm)")
@@ -107,6 +111,13 @@ lines(btys[,"upr"]~btxs,col="gray20",lwd=2,lty="dashed")
 
 r <- residuals(fit1)
 fv <- fitted(fit1)
+
+ggplot(data=subdata,aes(x=Length,y=Total_Wt)) + geom_point() +
+geom_line(data=test, aes(x=btxs,y=fit)) +
+ geom_line(data=test, aes(x=btxs,y=lwr)) +
+geom_line(data=test, aes(x=btxs,y=upr)) + 
+ scale_y_continuous(breaks = seq(0, 500, 100),minor_breaks = seq(0,500, 20),limits = c(0 , 500)) +
+ scale_x_continuous(breaks = seq(40, 180, 20),minor_breaks = seq(40,180, 5),limits = c(40 , 180))
 
 # ############################################################
 # == BEGIN -- NOT SHOWN IN BOOK, BOOK PRINTING ONLY ==========

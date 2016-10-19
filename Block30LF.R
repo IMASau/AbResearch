@@ -10,7 +10,7 @@ temp <- read.xlsx(
 
 
 # Density plots with semi-transparent fill
-dat <- subset(temp, SLength <= 197)
+dat <- subset(temp, SLength <= 197 & Smp_date <= "2014-09-11")
 ggplot(dat, aes(x=SLength, fill=as.factor(Trip))) + geom_density(alpha=.3)
 
 # Interleaved histograms
