@@ -79,6 +79,8 @@ SamList$LD05 <- as.numeric(NA)
 SamList$LD25 <- as.numeric(NA)
 SamList$LD50 <- as.numeric(NA)
 SamList$LD75 <- as.numeric(NA)
+SamList$LD85 <- as.numeric(NA)
+SamList$LD90 <- as.numeric(NA)
 SamList$LD95 <- as.numeric(NA)
 SamList$IQR <- as.numeric(NA)
 SamList$N.underLD05 <- as.numeric(NA)
@@ -87,6 +89,12 @@ SamList$N.overLD95 <- as.numeric(NA)
 SamList$N.IQR <- as.numeric(NA)
 SamList$Ld50BootU95 <- as.numeric(NA)
 SamList$Ld50BootL95 <- as.numeric(NA)
+SamList$Ld75BootU95 <- as.numeric(NA)
+SamList$Ld75BootL95 <- as.numeric(NA)
+SamList$Ld85BootU95 <- as.numeric(NA)
+SamList$Ld85BootL95 <- as.numeric(NA)
+SamList$Ld90BootU95 <- as.numeric(NA)
+SamList$Ld90BootL95 <- as.numeric(NA)
 SamList$Ld95BootU95 <- as.numeric(NA)
 SamList$Ld95BootL95 <- as.numeric(NA)
 SamList$a <- as.numeric(NA)
@@ -96,7 +104,9 @@ SamList$b <- as.numeric(NA)
 NumSites <- nrow(SamList)
 NumSites
 
-i <- 400
+#samdataT<-subset(samdata, SiteCode %in% KeepSits)
+
+i <- 577
 #i<- "10_1988_8"
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
@@ -118,6 +128,10 @@ for (i in 1:NumSites) {
   SamList$LD50[i] <-  as.numeric(ld50)
   ld75 <- dose.p(r, p = 0.75); 
   SamList$LD75[i] <-  as.vector(ld75)
+  ld85 <- dose.p(r, p = 0.85); 
+  SamList$LD85[i] <-  as.vector(ld85)
+  ld90 <- dose.p(r, p = 0.90); 
+  SamList$LD90[i] <-  as.vector(ld90)
   ld95 <- dose.p(r, p = 0.95); 
   SamList$LD95[i] <-  as.numeric(ld95)
   SamList$IQR[i] <-  SamList$LD75[i] - SamList$LD25[i]
@@ -136,7 +150,7 @@ for (i in 1:NumSites) {
    N.overLD75 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld75)))))
    SamList$N.IQR[i]<-as.numeric(N.overLD25-N.overLD75)
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
-}
+
   ## Bootstrap the ld50 paramater ####
   BootSAM50 <- function(data, indices) {
    require(MASS)
@@ -162,7 +176,83 @@ for (i in 1:NumSites) {
   SamList$Ld50BootL95[i] <-  as.numeric(boot95.lower)
 
   })
-
+  ## Bootstrap the ld75 paramater ####
+  BootSAM75 <- function(data, indices) {
+   require(MASS)
+   bootdata <- data[indices, ]
+   SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
+   SizeMat <- as.data.frame(rbind(SizeMat))
+   SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
+   SizeMat$Total <- SizeMat$I + SizeMat$M
+   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+   model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+   #conRD <- -coef(model)[1]/coef(model)[2]
+   ld75 <- dose.p(model, p = 0.75)
+   return(ld75)
+  }
+  try({
+   
+   booted.SAM <- boot(subdat,statistic=BootSAM75, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
+   boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
+   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
+   
+   SamList$Ld75BootU95[i] <-  as.numeric(boot95.upper)
+   SamList$Ld75BootL95[i] <-  as.numeric(boot95.lower)
+   
+  })
+  
+  ## Bootstrap the ld85 paramater ####
+  BootSAM85 <- function(data, indices) {
+   require(MASS)
+   bootdata <- data[indices, ]
+   SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
+   SizeMat <- as.data.frame(rbind(SizeMat))
+   SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
+   SizeMat$Total <- SizeMat$I + SizeMat$M
+   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+   model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+   #conRD <- -coef(model)[1]/coef(model)[2]
+   ld85 <- dose.p(model, p = 0.85)
+   return(ld85)
+  }
+  try({
+   
+   booted.SAM <- boot(subdat,statistic=BootSAM85, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
+   boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
+   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
+   
+   SamList$Ld85BootU95[i] <-  as.numeric(boot95.upper)
+   SamList$Ld85BootL95[i] <-  as.numeric(boot95.lower)
+   
+  })
+  ## Bootstrap the ld90 paramater ####
+  BootSAM90 <- function(data, indices) {
+   require(MASS)
+   bootdata <- data[indices, ]
+   SizeMat <- table(bootdata$SPC_ShellLength, bootdata$Mat)
+   SizeMat <- as.data.frame(rbind(SizeMat))
+   SizeMat$ShellLength <- as.numeric(rownames(SizeMat))
+   SizeMat$Total <- SizeMat$I + SizeMat$M
+   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
+   model <-  glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
+   #conRD <- -coef(model)[1]/coef(model)[2]
+   ld90 <- dose.p(model, p = 0.9)
+   return(ld90)
+  }
+  try({
+   
+   booted.SAM <- boot(subdat,statistic=BootSAM90, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
+   boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
+   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
+   
+   SamList$Ld90BootU95[i] <-  as.numeric(boot95.upper)
+   SamList$Ld90BootL95[i] <-  as.numeric(boot95.lower)
+   
+  })
+  
   ## Bootstrap the ld95 paramater ####
   BootSAM95 <- function(data, indices) {
    require(MASS)

@@ -12,7 +12,7 @@ source("D:/GitCode/AbResearch/IL_funs.r")
 #source("D:/Fisheries Research/Abalone/SAM/MH growth code/abalonesubblks.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
-#load("D:/R_Stuff/SAM/Logistic/IL_output200916.RData")
+#load("D:/R_Stuff/SAM/Logistic/IL_output131016.RData")
 
 GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
 dim(GwthRaw)
@@ -22,7 +22,14 @@ summary(GwthRaw)
 SiteDrop<-c(802)
 pick <- which(GwthRaw$SiteId %in% SiteDrop)
 Gwth<-GwthRaw[-pick,]
-GwthRaw<-subset(GwthRaw)
+Gwth<-subset(Gwth)
+
+#Exclude odd data from Louisa Bay
+pick <- subset(Gwth, SiteName == "Louisa Bay")
+Gwth<-subset(Gwth, SiteName != "Louisa Bay")
+pick <- subset(pick, Lt >= 100)
+Gwth<-rbind(Gwth,pick)
+
 
 sitenames <-  read.csv("sitenames.csv", header=TRUE)
 sitenos <- sitenames$SiteId
@@ -77,14 +84,14 @@ sitechar <- sitechar[order(sitechar[,5]),]
    BaseCase <- c(NA,NA,model$model$estimate, model$model$minimum,NA)
    LtDL <- c(13,15)
    for (i in 1:nP) {
-      model <- fitIL(absite$Lt[-i],absite$DL[-i],SiteId=p,outliers=F,sitename=as.character(absite$SiteN[1]))
+      model <- fitIL(absite$Lt[-i],absite$DL[-i],SiteId=p,outliers=T,sitename=as.character(absite$SiteN[1]))
       ans <- unlist(c(absite[i,LtDL],model$model$estimate, model$model$minimum,BaseCase[numcol-1]-model$model$minimum))
       influen[i,] <- ans
    }
    impact <- influen[order(influen[,numcol],decreasing=TRUE),]
    impact <- rbind(BaseCase,impact)
    head(impact,30)
-   plot(model)
+  plot(model)
    q<-as.character(p)
    ILOutput[q,1]<-model$L50
    ILOutput[q,2]<-model$L95
@@ -92,17 +99,17 @@ sitechar <- sitechar[order(sitechar[,5]),]
    ILOutput[q,4]<-model$MaxSig
    ILOutput[q,5]<-absite$SiteN[1]
    
-   # jpeg(filename = paste("ILOut",absite$SiteN[1],".jpeg", sep='_'))
-   # print<-plotted
-   # dev.off()
+   jpeg(filename = paste("ILOut",absite$SiteN[1],".jpeg", sep='_'))
+   plot(model)
+   dev.off()
    
    # pick <- 6
    # hist(BaseCase[pick]-impact[,pick],breaks="Sturges")
 
+  
+  jpeg(filename = paste("ILCurve",absite$SiteN[1],".jpeg", sep='_'))
   plotsingleIL(model)
-  # jpeg(filename = paste("ILCurve",absite$SiteN[1],".jpeg", sep='_'))
-  # print<-plotted
-  # dev.off()
+  dev.off()
 }
 ILResults<-as.data.frame(ILOutput)
 ILResults<-setDT(ILResults, keep.rownames =T[])
@@ -110,5 +117,11 @@ names(ILResults)[names(ILResults)=='rn']<-"SiteId"
 ILResults<-as.data.frame(ILResults)
 
 ILResults<-left_join(ILResults, sitechar, by = "SiteId")
+sitenames$SiteId<-as.character(sitenames$SiteId)
+ILResults<-left_join(ILResults, sitenames[,c(2,4)], by = "SiteId")
 
-save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults.RData')
+
+
+save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults191016.RData')
+
+
