@@ -382,6 +382,13 @@ ggplot(GwthResults, aes(x=Zone, y=eLML50)) +
 #           Plots for     eLML   
 #########################
 #
+## Routine Outlier Removal: Unusual small LM50
+pick <- which(GwthResults$SiteCode =='780_2005_11')
+outlier <- GwthResults[pick,]
+GwthResults <- GwthResults[-pick,]
+
+
+
 # add ylimits for plots
 BlkeLMLmin<-ddply(GwthResults,.(BlockNo), summarize,  eLMLmin = min(eLML50.1y, na.rm=T))
 GwthResultsX<-left_join(GwthResults, BlkeLMLmin, by = 'BlockNo')

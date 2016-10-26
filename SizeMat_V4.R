@@ -11,7 +11,10 @@ library(plyr)
 library(lubridate)
 library(snow)
 
+source("D:/GitCode/AbResearch/SAM_Biplot.R")
 
+#Outputs for Biplots
+resdir<-'D:/Fisheries Research/Abalone/SAM/SAM_Biplots'
 
 ##-----------------------------
 ## Need to work out a way to combine the full sample with the top up sample (good grief)
@@ -105,8 +108,8 @@ NumSites <- nrow(SamList)
 NumSites
 
 #samdataT<-subset(samdata, SiteCode %in% KeepSits)
-
-i <- 577
+setwd('D:/Fisheries Research/Abalone/SAM/SAM_Biplots')
+#i <- 577
 #i<- "10_1988_8"
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
@@ -119,7 +122,7 @@ for (i in 1:NumSites) {
   SizeMat$Total <- SizeMat$I + SizeMat$M
   SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
   r <- glm(MatRatio ~ ShellLength, family=binomial(link = "logit"), data = SizeMat, weights = Total)
-
+  
   ld05 <- dose.p(r, p = 0.05); 
   SamList$LD05[i] <-  as.vector(ld05)
   ld25 <- dose.p(r, p = 0.25); 
@@ -137,7 +140,7 @@ for (i in 1:NumSites) {
   SamList$IQR[i] <-  SamList$LD75[i] - SamList$LD25[i]
   SamList$a[i] <- as.numeric (r$coef[1])
   SamList$b[i] <- as.numeric (r$coef[2])
-  
+   
   
   N.underLD05 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld05)))))
   SamList$N.underLD05[i] <-  as.numeric(N.underLD05)
@@ -150,7 +153,12 @@ for (i in 1:NumSites) {
    N.overLD75 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld75)))))
    SamList$N.IQR[i]<-as.numeric(N.overLD25-N.overLD75)
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
-
+ 
+  
+  jpeg(filename = paste("BiPlot",SamList$SiteCode[i],".jpeg", sep='_'))
+  plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
+  dev.off()
+  
   ## Bootstrap the ld50 paramater ####
   BootSAM50 <- function(data, indices) {
    require(MASS)

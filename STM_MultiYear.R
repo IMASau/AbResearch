@@ -11,6 +11,8 @@ source("D:/GitCode/AbResearch/Grwth_matrix.r")
 
 #Calculate SigMaxLD50 for each site
 SAMILResults$SigMaxLD50<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD50-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))
+#Calculate SigMaxL90 for each site
+SAMILResults$SigMaxLD90<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD90-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))
 
 Sites<-unique(SAMILResults$SiteCode)
 
@@ -61,7 +63,7 @@ for(i in Sites){
   L.LML3 <- Nt3df[pick,]
   choice$PPLM50.3yr<-sum(L.LML3$V1/10)/2
   
-  pick<-choice[,c(1,56:61)]  
+  pick<-choice[,c(1,57:62)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else
@@ -70,10 +72,6 @@ for(i in Sites){
 #pass back to GwthResults
 GwthResults<-join(SAMILResults, eLMLResults, by='SiteCode')
 
-
-
-#Calculate SigMaxL90 for each site
-SAMILResults$SigMaxLD90<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD90-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))
 
 #####
 #     L90% multiyear

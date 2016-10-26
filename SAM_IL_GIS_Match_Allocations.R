@@ -3,7 +3,7 @@
 library(car)
 library(MASS)
 library(boot)
-library(plyr)
+library(dplyr)
 library(dtplyr)
 library(gdata)
 library(ggplot2)
@@ -90,9 +90,10 @@ rm(maxSLsitecode)
 load('D:/R_Stuff/SAM/Logistic/ILResults191016.Rdata')
 
 IL.info<-ILResults
-names(IL.info)[names(IL.info)=='Latitude']<-"Latitude.IL"
-names(IL.info)[names(IL.info)=='Longitude']<-"Longitude.IL"
-names(IL.info)[names(IL.info)=='StatBlock']<-"BlockNo.IL"
+names(IL.info)[names(IL.info)=='Latitude']<-"Latitude"
+names(IL.info)[names(IL.info)=='Longitude']<-"Longitude"
+names(IL.info)[names(IL.info)=='Stat.Block']<-"BlockNo"
+names(IL.info)[names(IL.info)=='Sub.Block']<-"SubBlockNo"
 names(IL.info)[names(IL.info)=='NameSh']<-"GrowthSite"
 names(IL.info)[names(IL.info)=='SiteId']<-"SIT_Id"
 
@@ -116,34 +117,34 @@ IL.info$MaxDL<-as.numeric(as.character(IL.info$MaxDL))
 IL.info$MaxSig<-as.numeric(as.character(IL.info$MaxSig))
 
 # #================================================================
-# #                         Match SAM and Growth ID's
+# #                         Match SAM and Growth ID's EZ and WZ
 # #================================================================
-SAM.IL<-left_join(SamFilterIL,IL.info[,c(2:5,11,13)], by = 'GrowthSite')
-SAMSites<-subset(SAM.IL, is.na(MaxDL))
-SAMSites<-SAMSites[,1:50]
-SAMGwthSitesRAW<-subset(SAM.IL, !is.na(MaxDL))
-rm(SAM.IL)
-#write.csv(SAMGwthSites, file='GrwthSAMmatched.csv')
-
-
-SAMGwthSites<-subset(SAMGwthSitesRAW, LD50>=90)
+ZoneEW<-c("E", "W", "CW")
+SamFilterEW<-subset(SamFilterIL, Zone %in% ZoneEW )
+IL.infoEW<-subset(IL.info, Zone %in% ZoneEW )
+SAM.IL.EW<-left_join(SamFilterEW,IL.infoEW[,c(2:5,12)], by = 'GrowthSite')
+SAMSitesEW<-subset(SAM.IL.EW, is.na(MaxDL))
+SAMSitesEW<-SAMSitesEW[,c(1:50)]
+SAMGwthSitesEW<-subset(SAM.IL.EW, !is.na(MaxDL))
+rm(SAM.IL.EW)
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSites$LD50~SAMGwthSites$L50)
-fit<-lm(log(LD50)~L50, data=SAMGwthSites)
+boxcox(SAMGwthSitesEW$LD50^2~SAMGwthSitesEW$L50)
+fit<-lm(LD50^2~L50, data=SAMGwthSitesEW)
 summary(fit)
 
 anova(fit)
 par(mfrow = c(2,2))
 plot(fit)
+
 par(mfrow = c(1,1))
 
 # view the data l50 by ld50
-ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) + 
+ggplot(data = SAMGwthSitesEW, aes(x=L50,  y=LD50)) + 
  xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
  geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
  geom_text_repel(aes(label=GrowthSite), size=3)+
- geom_errorbar(aes(ymin=SAMGwthSites$Ld50BootL95, ymax=SAMGwthSites$Ld50BootU95),
+ geom_errorbar(aes(ymin=SAMGwthSitesEW$Ld50BootL95, ymax=SAMGwthSitesEW$Ld50BootU95),
                width=.2, colour = 'grey')+
  geom_point(aes(colour=Zone), size=3)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
@@ -159,25 +160,27 @@ ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) +
  theme(axis.title.y = element_text(size=14),
        axis.text.y  = element_text(size=14))
 
+
 ######################
-#                  MATCHING remaining SAM TO IL/SAM data
+#                  MATCHING remaining SAM TO IL/SAM data EZ and WZ
 #
 ######################
-ILchoice<-SAMGwthSites
-Samchoice<-subset(SAMSites, LD50 >=90)
+ILchoice<-SAMGwthSitesEW
+Samchoice<-SAMSitesEW
+#Samchoice<-subset(SAMSitesEW, LD50 >=90)
 Samchoice$match<-sapply(Samchoice$LD50,function(x)which.min(abs(x - ILchoice$LD50)))
 Samchoice$match<-as.numeric(Samchoice$match)
 ILchoice$match<-1:nrow(ILchoice)
 
 ILchoice$GwthLD50<-ILchoice$LD50
-SAMjoin<-left_join(Samchoice,ILchoice[,c(48,51:53,55:57)], by = 'match')
+SAMjoinEW<-left_join(Samchoice,ILchoice[,c(51:53,55,56)], by = 'match')
 
 # view the data l50 by ld50
-ggplot(data = SAMjoin, aes(x=L50,  y=LD50)) + 
+ggplot(data = SAMjoinEW, aes(x=L50,  y=LD50)) + 
  xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
  geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
- #geom_text_repel(aes(label=GrowthSite.y), size=3)+
- geom_errorbar(aes(ymin=SAMjoin$Ld50BootL95, ymax=SAMjoin$Ld50BootU95),
+ #geom_text_repel(aes(label=GrowthSite), size=3)+
+ geom_errorbar(aes(ymin=SAMjoinEW$Ld50BootL95, ymax=SAMjoinEW$Ld50BootU95),
                width=.2, colour = 'grey')+
  geom_point(aes(colour=Zone), size=3)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
@@ -193,8 +196,8 @@ ggplot(data = SAMjoin, aes(x=L50,  y=LD50)) +
  theme(axis.title.y = element_text(size=14),
        axis.text.y  = element_text(size=14))
 
-boxcox(SAMjoin$LD50^1.7~SAMjoin$L50)
-fit<-lm(LD50^1.7~L50, data=SAMjoin)
+boxcox(SAMjoinEW$LD50~SAMjoinEW$L50)
+fit<-lm(LD50~L50, data=SAMjoinEW)
 summary(fit)
 
 anova(fit)
@@ -202,6 +205,95 @@ par(mfrow = c(2,2))
 plot(fit)
 par(mfrow = c(1,1))
 
-SAMGwthSites$GwthLD50<-SAMGwthSites$LD50
-SAMILResults<-rbind.match.columns(SAMGwthSites,SAMjoin)
+# SAMGwthSites$GwthLD50<-SAMGwthSites$LD50
+SAMGwthSitesEW$GwthLD50<-SAMGwthSitesEW$LD50
 
+# SAMILResults<-rbind.match.columns(SAMGwthSites,SAMjoin)
+SAMILResultsEW<-rbind.match.columns(SAMGwthSitesEW,SAMjoinEW)
+
+#===================================================================
+# #                                BS AND NZ   
+# #                         Match SAM and Growth ID's
+#===================================================================
+ZoneNBS<-c("N", "BS")
+SamFilterNBS<-subset(SamFilterIL, Zone %in% ZoneNBS )
+IL.infoNBS<-subset(IL.info, Zone %in% ZoneNBS )
+SAM.IL.NBS<-left_join(SamFilterNBS,IL.infoNBS[,c(2:5,12)], by = 'GrowthSite')
+SAMSitesNBS<-subset(SAM.IL.NBS, is.na(MaxDL))
+SAMSitesNBS<-SAMSitesNBS[,c(1:50)]
+SAMGwthSitesNBS<-subset(SAM.IL.NBS, !is.na(MaxDL))
+rm(SAM.IL.NBS)
+
+# # ==================     LM     ================================= 
+boxcox(SAMGwthSitesNBS$LD50~SAMGwthSitesNBS$L50)
+fit<-lm(LD50~L50, data=SAMGwthSitesEW)
+summary(fit)
+
+anova(fit)
+par(mfrow = c(2,2))
+plot(fit)
+par(mfrow = c(1,1))
+
+# view the data l50 by ld50
+ggplot(data = SAMGwthSitesNBS, aes(x=L50,  y=LD50)) + 
+ xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
+ geom_text_repel(aes(label=GrowthSite), size=3)+
+ geom_errorbar(aes(ymin=SAMGwthSitesNBS$Ld50BootL95, ymax=SAMGwthSitesNBS$Ld50BootU95),
+               width=.2, colour = 'grey')+
+ geom_point(aes(colour=Zone), size=3)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.1, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+######################
+#                  MATCHING remaining SAM TO IL/SAM data in BSZ NZ
+#
+######################
+ILchoice<-SAMGwthSitesNBS
+Samchoice<-SAMSitesNBS
+#Samchoice<-subset(SAMSitesEW, LD50 >=90)
+Samchoice$match<-sapply(Samchoice$LD50,function(x)which.min(abs(x - ILchoice$LD50)))
+Samchoice$match<-as.numeric(Samchoice$match)
+ILchoice$match<-1:nrow(ILchoice)
+
+ILchoice$GwthLD50<-ILchoice$LD50
+SAMjoinNBS<-left_join(Samchoice,ILchoice[,c(51:53,55,56)], by = 'match')
+
+# view the data l50 by ld50
+ggplot(data = SAMjoinNBS, aes(x=L50,  y=LD50)) + 
+ xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
+ #geom_text_repel(aes(label=SIT_Name), size=3)+
+ geom_errorbar(aes(ymin=SAMjoinNBS$Ld50BootL95, ymax=SAMjoinNBS$Ld50BootU95),
+               width=.2, colour = 'grey')+
+ geom_point(aes(colour=Zone), size=3)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.1, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+
+# SAMGwthSites$GwthLD50<-SAMGwthSites$LD50
+SAMGwthSitesNBS$GwthLD50<-SAMGwthSitesNBS$LD50
+
+# SAMILResults<-rbind.match.columns(SAMGwthSites,SAMjoin)
+SAMILResultsNBS<-rbind.match.columns(SAMGwthSitesNBS,SAMjoinNBS)
+SAMILResults<-rbind(SAMILResultsEW,SAMILResultsNBS)
