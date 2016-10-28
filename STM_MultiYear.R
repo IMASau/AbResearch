@@ -63,7 +63,7 @@ for(i in Sites){
   L.LML3 <- Nt3df[pick,]
   choice$PPLM50.3yr<-sum(L.LML3$V1/10)/2
   
-  pick<-choice[,c(1,57:62)]  
+  pick<-choice[,c(1,27:32)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else
@@ -120,7 +120,7 @@ for(i in Sites){
   L.LML3 <- Nt3df[pick,]
   choice$PPLM90.3yr<-sum(L.LML3$V1/10)/2
   
-  pick<-choice[,c(1,57:62)]  
+  pick<-choice[,c(1,27:32)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else

@@ -68,7 +68,10 @@ SamResults$Ld90BootRange<-SamResults$Ld90BootU95-SamResults$Ld90BootL95
 SamResults$Ld95BootRange<-SamResults$Ld95BootU95-SamResults$Ld95BootL95
 
 #remove files which break metarules of <5% or >95% mature
-pick <- which(SamResults$PctL95 <5)
+SamResults$PctI<-SamResults$I/SamResults$n*100
+SamResults$PctM<-SamResults$M/SamResults$n*100
+
+pick <- which(SamResults$PctM <5 | SamResults$PctM >95)
 SamFilter <- SamResults[-pick,]
 SamFilter <- droplevels(SamFilter)
 pick <- which(SamFilter$PctL95 >95)

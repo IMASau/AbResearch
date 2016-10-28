@@ -1,5 +1,6 @@
 library(grDevices)
 library(data.table)
+library(plyr)
 library(dplyr)
 rm(list=ls())   # Cleanup the R console if required
 
@@ -29,6 +30,53 @@ pick <- subset(Gwth, SiteName == "Louisa Bay")
 Gwth<-subset(Gwth, SiteName != "Louisa Bay")
 pick <- subset(pick, Lt >= 100)
 Gwth<-rbind(Gwth,pick)
+
+####
+#              Format Seasonal growth sites 
+####
+
+SeasonSites<-c(172,171,170,159,59)
+SeaGwth<-subset(Gwth, SiteId %in% SeasonSites)
+Gwth<-subset(Gwth, !(SiteId %in% SeasonSites))
+
+
+#Remove all initial lengths with length =0
+SeaGwth<-subset(SeaGwth, Lt > 1)
+#Remove all recaps with length =0
+SeaGwth<-subset(SeaGwth, RecapL > 1)
+
+#FORMAT DATES
+SeaGwth$TagDate<-as.Date(SeaGwth$TagDate,  format = "%d/%m/%Y")
+SeaGwth$RecapDate<-as.Date(SeaGwth$RecapDate,  format = "%d/%m/%Y")
+
+#MAKE BLANK TAGS NA AND REMOVE
+SeaGwth$TAG_Id[SeaGwth$TAG_Id==""] <- NA
+SeaGwth<-SeaGwth[complete.cases(SeaGwth[,1]),]
+
+
+#Extract duplicate recaptures and keep 1st recaptures only
+Recap<-ddply(SeaGwth,.(TAG_Id), summarize, counts = length(TAG_Id))
+MultiRecap<-subset(Recap, counts > 1)
+MultiRecapID<-unique(MultiRecap$TAG_Id)
+
+MultiCaptures<-subset(SeaGwth, TAG_Id %in% MultiRecapID)
+MultiCaptures <- MultiCaptures[order(MultiCaptures$RecapDate),] 
+
+pick<-MultiCaptures %>% distinct(TAG_Id, .keep_all = TRUE)
+
+SeaGwth<-subset(SeaGwth, !(TAG_Id %in% MultiRecapID))
+
+SeaGwth<-rbind(SeaGwth, pick)
+
+Gwth<-subset(Gwth, !(TAG_Id %in% SeasonSites))
+
+Gwth<-rbind(Gwth, SeaGwth)
+
+
+Gwth$LtDiff<-Gwth$RecapL-Gwth$Lt
+range(Gwth$LtDiff)
+#remove all with LtDiff =<-5
+Gwth<-subset(Gwth, LtDiff >= -4)
 
 
 sitenames <-  read.csv("sitenames.csv", header=TRUE)
@@ -116,12 +164,56 @@ ILResults<-setDT(ILResults, keep.rownames =T[])
 names(ILResults)[names(ILResults)=='rn']<-"SiteId"
 ILResults<-as.data.frame(ILResults)
 
+sitechar<-left_join(sitenames, sitechar[,c(1,6:7)], by = "SiteId")
 ILResults<-left_join(ILResults, sitechar, by = "SiteId")
 sitenames$SiteId<-as.character(sitenames$SiteId)
-ILResults<-left_join(ILResults, sitenames[,c(2,4)], by = "SiteId")
 
 
 
-save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults191016.RData')
+save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults271016.RData')
+
+
+#### Seasonal growth sites 
+SeasonSites<-c(172,171,170,159,59)
+SeaGwth<-subset(Gwth, SiteId %in% SeasonSites)
+
+#Remove all initial lengths with length =0
+SeaGwth<-subset(SeaGwth, Lt > 1)
+#Remove all recaps with length =0
+SeaGwth<-subset(SeaGwth, RecapL > 1)
+
+#FORMAT DATES
+SeaGwth$TagDate<-as.Date(SeaGwth$TagDate,  format = "%d/%m/%Y")
+SeaGwth$RecapDate<-as.Date(SeaGwth$RecapDate,  format = "%d/%m/%Y")
+
+#MAKE BLANK TAGS NA AND REMOVE
+SeaGwth$TAG_Id[SeaGwth$TAG_Id==""] <- NA
+SeaGwth<-SeaGwth[complete.cases(SeaGwth[,1]),]
+
+
+#Extract duplicate recaptures and keep 1st recaptures only
+Recap<-ddply(SeaGwth,.(TAG_Id), summarize, counts = length(TAG_Id))
+MultiRecap<-subset(Recap, counts > 1)
+MultiRecapID<-unique(MultiRecap$TAG_Id)
+
+MultiCaptures<-subset(SeaGwth, TAG_Id %in% MultiRecapID)
+MultiCaptures <- MultiCaptures[order(MultiCaptures$RecapDate),] 
+
+pick<-MultiCaptures %>% distinct(TAG_Id, .keep_all = TRUE)
+
+SeaGwth<-subset(SeaGwth, !(TAG_Id %in% MultiRecapID))
+
+SeaGwth<-rbind(SeaGwth, pick)
+
+sitenos<-unique(as.numeric(SeaGwth$SiteId))
+
+SeaGwth$LtDiff<-SeaGwth$RecapL-SeaGwth$Lt
+range(SeaGwth$LtDiff)
+#remove all with LtDiff =<-5
+SeaGwth<-subset(SeaGwth, LtDiff >= -4)
+
+
+# subs<-sitechar[2:4,]
+# sitenos<-unique(as.numeric(subs$SiteId))
 
 

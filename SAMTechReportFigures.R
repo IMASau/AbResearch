@@ -9,14 +9,34 @@ library(multcompView)
 #sources
 source("D:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r") # source of the TukeyHSD letters in ggplots
 
-#########
-# LOAD      GwthResults050916.RData from R_stuff/SAM/Logistic
-#########
-keep(GwthResults, SamFilter, eLMLResults, eLMLResults75,  SAMILResults, sure = T)
+# function for computing mean, DS, max and min values in boxplots
+min.mean.sd.max <- function(x) {
+ r <- c(min(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), max(x))
+ names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+ r
+}
 
-GwthResults$PctL50<-GwthResults$N.underLD50/GwthResults$n*100
+#########
+# LOAD      SAMILResults271016.RData from R_stuff/SAM/Logistic
+#########
+#keep(GwthResults, SAMILResults, SamFilterIL, SamFilter,sure = T)
+
+
+#subset all gwthresults with <20 Immature
+#GwthResultst<-subset(GwthResults, I <20)
 
 GwthResults$Zone<-as.factor(GwthResults$Zone)
+
+
+#ADD MArket measure data MaxSL to gwthdata.
+MMMaxSL<-read.csv('MMBlockMaxSL.csv')
+colnames(MMMaxSL)[3]<-"MM_MaxSL"
+colnames(MMMaxSL)[4]<-"MM_q95SL"
+MMMaxSL<-MMMaxSL[,2:4]
+
+GwthResults<-left_join(GwthResults,MMMaxSL, by = 'BlockNo')
+
+
 
 ####RESULTS ANALYSIS
 
@@ -28,7 +48,7 @@ Usd_ld50ci<-mn_ld50ci+sd(GwthResults$Ld50BootRange, na.rm=T)
 Lsd_ld50ci<-mn_ld50ci-sd(GwthResults$Ld50BootRange, na.rm=T)
 
 #computation of the standard error of the mean
-sem<-sd(SamFilter$Ld50BootRange, na.rm=T)/sqrt(length(SamFilter$Ld50BootRange))
+sem<-sd(GwthResults$Ld50BootRange, na.rm=T)/sqrt(length(GwthResults$Ld50BootRange))
 #95% confidence intervals of the mean
 c(mn_ld50ci-2*sem,mn_ld50ci+2*sem)
 
@@ -60,7 +80,7 @@ ggplot(data = SamResults, aes(x=Ld50BootRange)) +
  xlab(bquote(~CI['Range']~'LM'['50%']))+
  #ylim(0,120)+
  geom_vline(xintercept=mean(SamResults$Ld50BootRange, na.rm=T), colour = 'red', linetype= 3, size=1.5)+
- geom_vline(xintercept=max(GwthResults$Ld50BootRange, na.rm=T),  linetype= 3, size=1.2)+
+ geom_vline(xintercept=max(SamFilterIL$Ld50BootRange, na.rm=T),  linetype= 3, size=1.2)+
  #geom_vline(xintercept=Lsd_ld50ci,  linetype= 3, size=1.2)+
  theme_bw()+
  #scale_fill_identity()+ #this makes sure the color follows the color argument above in aes()
@@ -90,11 +110,13 @@ tHSDlm
 ASM<-SamFilterIL
 
 
+
 #Boxplot by maturity L%
 ggplot(SamFilterIL, aes(x=Zone, y=LD50)) + 
   xlab("Zone") +  
   ylab(expression(paste(LM['50%']~'(mm)')))+
-  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+  #geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+ stat_summary(fun.data = min.mean.sd.max, geom = "boxplot", outlier.colour = "black", outlier.size = 3)+ 
   theme_bw()+#white background
   theme(legend.position="none",
         axis.title.x = element_text(size=14),
@@ -302,16 +324,16 @@ ASM<-CIRange
 #Boxplot by maturity L%
 ggplot(CIRange, aes(x=LM, y=CIRange)) + 
   xlab("Maturity Estimate") + ylab(expression(paste(CI['Range']~'(mm)')))+
- ylim(3,25)+
-  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
+ ylim(0,20)+
+ stat_summary(fun.data = min.mean.sd.max, geom = "boxplot", outlier.colour = "black", outlier.size = 3)+ 
   theme_bw()+#white background
   theme(legend.position="none",
         axis.title.x = element_text(size=14),
         axis.text.x  = element_text(size=14, angle = 90, hjust = 1),
         axis.title.y = element_text(size=14),
         axis.text.y  = element_text(size=14))+
-geom_text(data = generate_label_df(tHSDlm, "LM"), aes(x = plot.labels, y = 3, label = labels))
-ddply(CIRange,.(LM), summarize,  M = median(CIRange, na.rm=T))
+geom_text(data = generate_label_df(tHSDlm, "LM"), aes(x = plot.labels, y = 1, label = labels))
+ddply(CIRange,.(LM), summarize,  M = mean(CIRange, na.rm=T))
 
 #############################
 #   END -  Figure 6 L50 and L95 CIrange comparison
@@ -382,18 +404,12 @@ ggplot(GwthResults, aes(x=Zone, y=eLML50)) +
 #           Plots for     eLML   
 #########################
 #
-## Routine Outlier Removal: Unusual small LM50
-pick <- which(GwthResults$SiteCode =='780_2005_11')
-outlier <- GwthResults[pick,]
-GwthResults <- GwthResults[-pick,]
-
-
 
 # add ylimits for plots
 BlkeLMLmin<-ddply(GwthResults,.(BlockNo), summarize,  eLMLmin = min(eLML50.1y, na.rm=T))
 GwthResultsX<-left_join(GwthResults, BlkeLMLmin, by = 'BlockNo')
 
-BlkSLmax<-ddply(GwthResults,.(BlockNo), summarize,  BlkSLmax = max(SLq95, na.rm=T))
+BlkSLmax<-ddply(GwthResults,.(BlockNo), summarize,  Blk_SLmax = max(SLq95, na.rm=T))
 GwthResultsX<-left_join(GwthResultsX, BlkSLmax, by = 'BlockNo')
 
 setwd("D:/Fisheries Research/Abalone/SAM")
@@ -407,10 +423,13 @@ doPlot = function(LFPlot) {
   xlab("Block") +
   ylab(expression(paste('LM'['50%']~'+1 yrs (mm)')))+ 
   labs(title= dum$Zone, size=10)+
-  ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-  geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-  geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-  geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+  ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+  geom_boxplot()+
+  stat_summary(fun.y=mean, colour="blue", geom="point", 
+               shape=1, size=3)+
+    geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+  geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
   theme_bw()+
   theme(legend.title=element_blank(),
         legend.text = element_text(size=14),
@@ -419,8 +438,8 @@ doPlot = function(LFPlot) {
         axis.title.y = element_text(size=14),
         axis.text.y  = element_text(size=14),
         legend.position="none")
- ggsave(sprintf("50.1y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
-print(ggobj)
+#  ggsave(sprintf("50.1y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
+# print(ggobj)
 }
 lapply(unique(GwthResultsX$Zone), doPlot)
 
@@ -433,18 +452,21 @@ doPlot = function(LFPlot) {
     xlab("Block") +
     ylab(expression(paste('LM'['50%']~'+2 yrs (mm)')))+ 
     labs(title= dum$Zone, size=10)+
-    ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
+   ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+   geom_boxplot()+
+   stat_summary(fun.y=mean, colour="blue", geom="point", 
+                shape=1, size=3)+
+   geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+   geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text = element_text(size=14),
+         axis.title.x = element_text(size=14),
+         axis.text.x  = element_text(size=14),
+         axis.title.y = element_text(size=14),
+         axis.text.y  = element_text(size=14),
+         legend.position="none")
   ggsave(sprintf("50.2y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
   print(ggobj)
 }
@@ -459,18 +481,21 @@ doPlot = function(LFPlot) {
     xlab("Block") +
     ylab(expression(paste('LM'['50%']~'+3 yrs (mm)')))+ 
     labs(title= dum$Zone, size=10)+
-    ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
+   ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+   geom_boxplot()+
+   stat_summary(fun.y=mean, colour="blue", geom="point", 
+                shape=1, size=3)+
+   geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+   geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text = element_text(size=14),
+         axis.title.x = element_text(size=14),
+         axis.text.x  = element_text(size=14),
+         axis.title.y = element_text(size=14),
+         axis.text.y  = element_text(size=14),
+         legend.position="none")
   ggsave(sprintf("50.3y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
   print(ggobj)
 }
@@ -485,18 +510,21 @@ doPlot = function(LFPlot) {
     xlab("Block") +
     ylab(expression(paste('LM'['90%']~'+1 yrs (mm)')))+ 
     labs(title= dum$Zone, size=10)+
-    ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
+   ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+   geom_boxplot()+
+   stat_summary(fun.y=mean, colour="blue", geom="point", 
+                shape=1, size=3)+
+   geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+   geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text = element_text(size=14),
+         axis.title.x = element_text(size=14),
+         axis.text.x  = element_text(size=14),
+         axis.title.y = element_text(size=14),
+         axis.text.y  = element_text(size=14),
+         legend.position="none")
   ggsave(sprintf("90.1y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
   print(ggobj)
 }
@@ -511,18 +539,21 @@ doPlot = function(LFPlot) {
     xlab("Block") +
     ylab(expression(paste('LM'['90%']~'+2 yrs (mm)')))+ 
     labs(title= dum$Zone, size=10)+
-    ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
+   ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+   geom_boxplot()+
+   stat_summary(fun.y=mean, colour="blue", geom="point", 
+                shape=1, size=3)+
+   geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+   geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text = element_text(size=14),
+         axis.title.x = element_text(size=14),
+         axis.text.x  = element_text(size=14),
+         axis.title.y = element_text(size=14),
+         axis.text.y  = element_text(size=14),
+         legend.position="none")
   ggsave(sprintf("90.2y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
   print(ggobj)
 }
@@ -537,18 +568,21 @@ doPlot = function(LFPlot) {
     xlab("Block") +
     ylab(expression(paste('LM'['90%']~'+3 yrs (mm)')))+ 
     labs(title= dum$Zone, size=10)+
-    ylim(min(dum$eLMLmin-2), max(dum$BlkSLmax+2))+
-    geom_boxplot(outlier.colour = "black", outlier.size = 3)+
-    geom_point(data = dum, aes(y=BlkSLmax, x=as.factor(BlockNo)), shape =6)+
-    geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
-    theme_bw()+
-    theme(legend.title=element_blank(),
-          legend.text = element_text(size=14),
-          axis.title.x = element_text(size=14),
-          axis.text.x  = element_text(size=14),
-          axis.title.y = element_text(size=14),
-          axis.text.y  = element_text(size=14),
-          legend.position="none")
+   ylim(min(dum$eLMLmin-2), max(dum$MM_q95SL+2))+
+   geom_boxplot()+
+   stat_summary(fun.y=mean, colour="blue", geom="point", 
+                shape=1, size=3)+
+   geom_point(data = dum, aes(y=Blk_SLmax, x=as.factor(BlockNo)), shape =6)+
+   geom_point(data = dum, aes(y=MM_q95SL, x=as.factor(BlockNo)), shape =6, colour = "red")+
+   geom_hline(yintercept=dum$LML, colour = 'red', linetype= 3)+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text = element_text(size=14),
+         axis.title.x = element_text(size=14),
+         axis.text.x  = element_text(size=14),
+         axis.title.y = element_text(size=14),
+         axis.text.y  = element_text(size=14),
+         legend.position="none")
   ggsave(sprintf("90.3y_%s_eLMLplot.tiff", LFPlot, width = 4, height = 6, units = "cm"))
   print(ggobj)
 }
@@ -566,7 +600,7 @@ lapply(unique(GwthResultsX$Zone), doPlot)
 #                           1Yr
 
 ggplot(data = GwthResults, aes(x=PPLM50.1yr)) + 
- xlab(expression(paste('Pct. Popn. Prt. LM'['50%'])))+
+ xlab(expression(paste('Pct. Popn. Prt. LM'['50%']~'+1 yr (mm)')))+
  ylab("Number of sites") +
  xlim(0,50)+
  ylim(0,70)+
@@ -584,7 +618,7 @@ ggplot(data = GwthResults, aes(x=PPLM50.1yr)) +
 #                           2Yr
 
 ggplot(data = GwthResults, aes(x=PPLM50.2yr)) + 
-  xlab(expression(paste('Pct. Popn. Prt. LM'['50%'])))+
+  xlab(expression(paste('Pct. Popn. Prt. LM'['50%']~'+2 yrs (mm)')))+
   ylab("Number of sites") +
   xlim(0,50)+
   ylim(0,70)+
@@ -602,7 +636,7 @@ ggplot(data = GwthResults, aes(x=PPLM50.2yr)) +
 #                           3Yr
 
 ggplot(data = GwthResults, aes(x=PPLM50.3yr)) + 
-  xlab(expression(paste('Pct. Popn. Prt. LM'['50%'])))+
+  xlab(expression(paste('Pct. Popn. Prt. LM'['50%']~'+3 yrs (mm)')))+
   ylab("Number of sites") +
   xlim(0,50)+
   ylim(0,70)+
@@ -627,7 +661,7 @@ ggplot(data = GwthResults, aes(x=PPLM50.3yr)) +
 #                           1Yr
 
 ggplot(data = GwthResults, aes(x=PPLM90.1yr)) + 
-  xlab(expression(paste('Pct. Popn. Prt. LM'['90%'])))+
+  xlab(expression(paste('Pct. Popn. Prt. LM'['90%']~'+1 yr (mm)')))+
   ylab("Number of sites") +
   xlim(0,50)+
   ylim(0,70)+
@@ -645,7 +679,7 @@ ggplot(data = GwthResults, aes(x=PPLM90.1yr)) +
 #                           2Yr
 
 ggplot(data = GwthResults, aes(x=PPLM90.2yr)) + 
-  xlab(expression(paste('Pct. Popn. Prt. LM'['90%'])))+
+  xlab(expression(paste('Pct. Popn. Prt. LM'['90%']~'+2 yrs (mm)')))+
   ylab("Number of sites") +
   xlim(0,50)+
   ylim(0,70)+
@@ -663,7 +697,7 @@ ggplot(data = GwthResults, aes(x=PPLM90.2yr)) +
 #                           3Yr
 
 ggplot(data = GwthResults, aes(x=PPLM90.3yr)) + 
-  xlab(expression(paste('Pct. Popn. Prt. LM'['90%'])))+
+  xlab(expression(paste('Pct. Popn. Prt. LM'['90%']~'+3 yrs (mm)')))+
   ylab("Number of sites") +
   xlim(0,50)+
   ylim(0,70)+
@@ -678,57 +712,5 @@ ggplot(data = GwthResults, aes(x=PPLM90.3yr)) +
         legend.position="none")+
   facet_grid(Zone~ .)
 
-
-
-#BY Block
-
-
-
-doPlot = function(LFPlot) {
- dum = subset(GwthResults, Zone == LFPlot)
- ggobj = ggplot(data = dum, aes(x=PPLM50)) + 
-  xlab(expression(paste('Pct Popn. Prt. LM'['50%'])))+
-  ylab("Number of sites") +
-  xlim(0,50)+
-  ylim(0,12)+
-  #ylim(min(length(dum$PPLM50))+
-  geom_histogram(breaks=seq(0, 50, by = 5), binwidth=5)+
-  theme_bw()+
-  theme(legend.title=element_blank(),
-        legend.text = element_text(size=14),
-        axis.title.x = element_text(size=14),
-        axis.text.x  = element_text(size=14),
-        axis.title.y = element_text(size=14),
-        axis.text.y  = element_text(size=14),
-        legend.position="none")+
-  facet_grid(BlockNo~ .)
- print(ggobj)
-}
-lapply(unique(GwthResults$Zone), doPlot)
-
-#EZ
-
-
-
-################
-# LM90
-################
-
-#HISTO of percentage protection
-ggplot(data = GwthResults, aes(x=PPLM90)) + 
- xlab(expression(paste('Pct. Popn. Prt. LM'['90%'])))+
- ylab("Number of sites") +
- xlim(0,50)+
- ylim(0,60)+
- geom_histogram(breaks=seq(0, 50, by = 5), binwidth=5)+
- theme_bw()+
- theme(legend.title=element_blank(),
-       legend.text = element_text(size=14),
-       axis.title.x = element_text(size=14),
-       axis.text.x  = element_text(size=14),
-       axis.title.y = element_text(size=14),
-       axis.text.y  = element_text(size=14),
-       legend.position="none")+
- facet_grid(Zone~ .)
 
 

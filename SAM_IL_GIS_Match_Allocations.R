@@ -3,7 +3,7 @@
 library(car)
 library(MASS)
 library(boot)
-library(dplyr)
+library(plyr)
 library(dtplyr)
 library(gdata)
 library(ggplot2)
@@ -31,20 +31,17 @@ rbind.match.columns <- function(input1, input2) {
 
 #################################################################
 # # LOAD IL_SAM_GIS match DATA
-Sam.GIS.IL<-read.csv('D:/R_Stuff/SAM/Logistic/Sam_ILRefined_GIS_Match_131016.csv', header =T)
-
-Sam.match.IL<-Sam.GIS.IL[,c(2,3)]
-
-
+GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =T)
+# 
+# 
 load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
-
-SamFilterIL<-join(SamFilter, Sam.match.IL, by='SiteCode')
-keep(SamFilterIL, SamFilter, SamResults, BlckPop, Sam.GIS.IL, rbind.match.columns, sure=T)
-
+# 
+SamFilterIL<-join(SamFilter, GIS.IL, by='SiteCode')
+keep(SamFilterIL, SamFilter, SamResults, BlckPop, GIS.IL, rbind.match.columns, sure=T)
 SamFilterIL<-subset(SamFilterIL, Ld50BootRange <=20)
 
 #recode database subblock errors
-SamFilterIL$SubBlockNo[Sam.GIS.IL$SubBlockNo==11] <- "11A"
+SamFilterIL$SubBlockNo[SamFilterIL$SubBlockNo==11] <- "11A"
 
 SamFilterIL$Ld50BootRangeLog<-log(SamFilterIL$Ld50BootRange)
 hist(SamFilterIL$Ld50BootRangeLog)
@@ -57,6 +54,19 @@ hist(SamFilterIL$Ld50BootRange)
 max(SamFilterIL$Ld50BootRange)
 
 SamFilterIL$Ld50BootRangeLog<-NULL
+
+# add % under Lm 50
+SamFilterIL$PctL50<-SamFilterIL$N.underLD50/SamFilterIL$n*100
+
+# add % under LM05
+SamFilterIL$PctLM05<-SamFilterIL$N.underLD05/SamFilterIL$n*100
+
+# % I  and % M
+SamFilterIL$Pct.I<-SamFilterIL$I/SamFilterIL$n*100
+SamFilterIL$Pct.M<-SamFilterIL$M/SamFilterIL$n*100
+
+pick <- which(SamFilterIL$Pct.M <10 | SamFilterIL$Pct.M >90)
+SamFilterIL <- SamFilterIL[-pick,]
 
 # # #================================================================
 # # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
@@ -87,7 +97,7 @@ rm(maxSLsitecode)
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
-load('D:/R_Stuff/SAM/Logistic/ILResults191016.Rdata')
+load('D:/R_Stuff/SAM/Logistic/ILResults271016.RData')
 
 IL.info<-ILResults
 names(IL.info)[names(IL.info)=='Latitude']<-"Latitude"
@@ -105,7 +115,7 @@ IL.info$Zone[IL.info$BlockNo %in% c(seq(5,5,1))] <- "N"
 IL.info$Zone[IL.info$BlockNo %in%  c(1, 2, 3, 4,47, 48, 49,39, 40)] <- "N" 
 IL.info$Zone[IL.info$BlockNo %in% c(seq(32, 38,1),seq(41,46,1), seq(50,57,1))] <- "BS"
 
-IL.exclude<- c(172,663,466,815,170,438,480,813,570,470,59,252,266,159,171,872,459) # see following file for exmaplations of exclusions D:\Fisheries Research\Abalone\SAM\Growth code\ILResultsOutliersEXCLUDE191016.csv
+IL.exclude<- c(172,663,466,815,438,480,813,570,470,252,266,170,171,159, 59, 872,459,662) # see following file for exmaplations of exclusions D:\Fisheries Research\Abalone\SAM\Growth code\ILResultsOutliersEXCLUDE191016.csv
 IL.info<-IL.info[!is.element(IL.info$SIT_Id,IL.exclude),]
 
 
@@ -124,7 +134,7 @@ SamFilterEW<-subset(SamFilterIL, Zone %in% ZoneEW )
 IL.infoEW<-subset(IL.info, Zone %in% ZoneEW )
 SAM.IL.EW<-left_join(SamFilterEW,IL.infoEW[,c(2:5,12)], by = 'GrowthSite')
 SAMSitesEW<-subset(SAM.IL.EW, is.na(MaxDL))
-SAMSitesEW<-SAMSitesEW[,c(1:50)]
+SAMSitesEW<-SAMSitesEW[,c(1:53)]
 SAMGwthSitesEW<-subset(SAM.IL.EW, !is.na(MaxDL))
 rm(SAM.IL.EW)
 
@@ -173,7 +183,7 @@ Samchoice$match<-as.numeric(Samchoice$match)
 ILchoice$match<-1:nrow(ILchoice)
 
 ILchoice$GwthLD50<-ILchoice$LD50
-SAMjoinEW<-left_join(Samchoice,ILchoice[,c(51:53,55,56)], by = 'match')
+SAMjoinEW<-left_join(Samchoice[,c(1,6,9,16:17,28:35,40,41,44,46,52:54)],ILchoice[,c(48,54:56,58,59)], by = 'match')
 
 # view the data l50 by ld50
 ggplot(data = SAMjoinEW, aes(x=L50,  y=LD50)) + 
@@ -196,7 +206,7 @@ ggplot(data = SAMjoinEW, aes(x=L50,  y=LD50)) +
  theme(axis.title.y = element_text(size=14),
        axis.text.y  = element_text(size=14))
 
-boxcox(SAMjoinEW$LD50~SAMjoinEW$L50)
+boxcox(SAMjoinEW$LD50^2.5~SAMjoinEW$L50)
 fit<-lm(LD50~L50, data=SAMjoinEW)
 summary(fit)
 
@@ -220,13 +230,13 @@ SamFilterNBS<-subset(SamFilterIL, Zone %in% ZoneNBS )
 IL.infoNBS<-subset(IL.info, Zone %in% ZoneNBS )
 SAM.IL.NBS<-left_join(SamFilterNBS,IL.infoNBS[,c(2:5,12)], by = 'GrowthSite')
 SAMSitesNBS<-subset(SAM.IL.NBS, is.na(MaxDL))
-SAMSitesNBS<-SAMSitesNBS[,c(1:50)]
+SAMSitesNBS<-SAMSitesNBS[,c(1:53)]
 SAMGwthSitesNBS<-subset(SAM.IL.NBS, !is.na(MaxDL))
 rm(SAM.IL.NBS)
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSitesNBS$LD50~SAMGwthSitesNBS$L50)
-fit<-lm(LD50~L50, data=SAMGwthSitesEW)
+boxcox(SAMGwthSitesNBS$LD50^-3~SAMGwthSitesNBS$L50)
+fit<-lm(LD50^-3~L50, data=SAMGwthSitesEW)
 summary(fit)
 
 anova(fit)
@@ -255,11 +265,19 @@ ggplot(data = SAMGwthSitesNBS, aes(x=L50,  y=LD50)) +
  theme(axis.title.y = element_text(size=14),
        axis.text.y  = element_text(size=14))
 
+
+#ADD EW SAMGwthSites to a maximum LM50% of 120 mm which is the max found in NZ BSZ
+range(SAMSitesNBS$LD50)
+SAMGwthSitesSub<-subset(SAMGwthSitesEW, LD50 <121)
+
+SAMGwthSitesNBS$GwthLD50<-SAMGwthSitesNBS$LD50
+
+SAMGwthSitesMix<-rbind(SAMGwthSitesNBS, SAMGwthSitesSub)
 ######################
 #                  MATCHING remaining SAM TO IL/SAM data in BSZ NZ
 #
 ######################
-ILchoice<-SAMGwthSitesNBS
+ILchoice<-SAMGwthSitesMix
 Samchoice<-SAMSitesNBS
 #Samchoice<-subset(SAMSitesEW, LD50 >=90)
 Samchoice$match<-sapply(Samchoice$LD50,function(x)which.min(abs(x - ILchoice$LD50)))
@@ -267,7 +285,8 @@ Samchoice$match<-as.numeric(Samchoice$match)
 ILchoice$match<-1:nrow(ILchoice)
 
 ILchoice$GwthLD50<-ILchoice$LD50
-SAMjoinNBS<-left_join(Samchoice,ILchoice[,c(51:53,55,56)], by = 'match')
+SAMjoinNBS<-left_join(Samchoice[,c(1,6,9,16:17,28:35,40,41,44,46,52:54)],ILchoice[,c(48,54:56,58,59)], by = 'match')
+
 
 # view the data l50 by ld50
 ggplot(data = SAMjoinNBS, aes(x=L50,  y=LD50)) + 
@@ -291,8 +310,6 @@ ggplot(data = SAMjoinNBS, aes(x=L50,  y=LD50)) +
        axis.text.y  = element_text(size=14))
 
 
-# SAMGwthSites$GwthLD50<-SAMGwthSites$LD50
-SAMGwthSitesNBS$GwthLD50<-SAMGwthSitesNBS$LD50
 
 # SAMILResults<-rbind.match.columns(SAMGwthSites,SAMjoin)
 SAMILResultsNBS<-rbind.match.columns(SAMGwthSitesNBS,SAMjoinNBS)
