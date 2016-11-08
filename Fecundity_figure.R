@@ -109,7 +109,7 @@ coef(mdl2)
   # lines(maxFcdSix$SL,  exp(coef(mdl2)[1]+maxFcdSix$SL*coef(mdl2)[2]), col='blue')
 
 # 
-eSL<-seq(105,150,2)
+eSL<-seq(105,151,2)
 num<-unique(eSL)
 if (exists("y1")) 
   rm(y1)
@@ -123,30 +123,22 @@ for(n in num){
 FCD_xy<-data.frame(eSL, y1)
 colnames(FCD_xy) <- c("eSL", "FcD")
 
-load('D:/R_Stuff/SAM/Logistic/DeterGwthRslts.RData')
-keep(D.GwthResults, maxFcdSix, maxFcd, Fcd, sure=T)
-geoIIIsites<-c('813','418', '37', '420', '247', '39')
-geoIII<-subset(D.GwthResults, SIT_Id %in% geoIIIsites)
-eLML50.1<-mean(geoIII$eLML.LM50.1)
-eLML50.2<-mean(geoIII$eLML.LM50.2)
-eLML50.3<-mean(geoIII$eLML.LM50.3)
+load('D:/R_Stuff/SAM/Logistic/GeoIIIGTM021116.RData')
+#keep(George, Fcd, sure=T)
+eLML50.1<-mean(George$eLML50.1y)
+eLML50.2<-mean(George$eLML50.2y)
+eLML50.3<-mean(George$eLML50.3y)
 
-eLML90.2<-mean(geoIII$eLML.LM90.2)
-
-LD50<-mean(geoIII$LD50)
+LD50<-mean(George$LD50)
 #LD90<-mean(geoIII$LD90)
 
 
-F.eLMLm50.1<-exp(coef(mdl1)[1]+eLML50.1*coef(mdl1)[2])
-F.eLMLm50.2<-exp(coef(mdl1)[1]+eLML50.2*coef(mdl1)[2])
-F.eLMLm50.3<-exp(coef(mdl1)[1]+eLML50.3*coef(mdl1)[2])
+F.eLML50.1<-exp(coef(mdl2)[1]+eLML50.1*coef(mdl2)[2])
+F.eLML50.2<-exp(coef(mdl2)[1]+eLML50.2*coef(mdl2)[2])
+F.eLML50.3<-exp(coef(mdl2)[1]+eLML50.3*coef(mdl2)[2])
 
-F.LML<-exp(coef(mdl1)[1]+138*coef(mdl1)[2])
-F.LM50<-exp(coef(mdl1)[1]+LD50*coef(mdl1)[2])
-F.LM50<-exp(coef(mdl1)[1]+LD50*coef(mdl1)[2])
-F.LM90<-exp(coef(mdl1)[1]+LD90*coef(mdl1)[2])
-
-F.eLMLm90<-exp(coef(mdl1)[1]+eLML90*coef(mdl1)[2])
+F.LML<-exp(coef(mdl2)[1]+138*coef(mdl2)[2])
+F.LM50<-exp(coef(mdl2)[1]+LD50*coef(mdl2)[2])
 
 #Figure from http://stackoverflow.com/questions/18305852/power-regression-in-r-similar-to-excel
 
@@ -166,9 +158,9 @@ ggplot(data = maxFcdSix, aes(x=SL,  y=CountsM)) +
   # 
   geom_segment(aes(x = 138, y = F.LML+0.7, xend = 138, yend = F.LML),colour = 'lightblue', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
   geom_segment(aes(x = LD50, y = F.LM50+0.7, xend = LD50, yend = F.LM50), colour = 'grey', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
-  geom_segment(aes(x = eLML50.1, y = F.eLMLm50.1+0.7, xend = eLML50.1, yend = F.eLMLm50.1), colour = 'red', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
-  geom_segment(aes(x = eLML50.2, y = F.eLMLm50.2+0.7, xend = eLML50.2, yend = F.eLMLm50.2), colour = 'orange', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
-  geom_segment(aes(x = eLML50.3, y = F.eLMLm50.3+0.7, xend = eLML50.3, yend = F.eLMLm50.3), colour = 'green', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
+  geom_segment(aes(x = eLML50.1, y = F.eLML50.1+0.7, xend = eLML50.1, yend = F.eLML50.1), colour = 'red', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
+  geom_segment(aes(x = eLML50.2, y = F.eLML50.2+0.7, xend = eLML50.2, yend = F.eLML50.2), colour = 'orange', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
+  geom_segment(aes(x = eLML50.3, y = F.eLML50.3+0.7, xend = eLML50.3, yend = F.eLML50.3), colour = 'green', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
   
   #geom_segment(aes(x = eLML90, y = F.eLMLm90+0.7, xend = eLML90, yend = F.eLMLm90), colour = 'green', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+
   # geom_segment(aes(x = eLML85, y = F.eLMLm85+0.7, xend = eLML85, yend = F.eLMLm85), colour = 'green', size = 1.2, arrow = arrow(length = unit(0.2, "cm")))+

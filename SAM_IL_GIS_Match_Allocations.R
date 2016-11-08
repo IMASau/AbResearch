@@ -11,7 +11,7 @@ library(ggrepel)
 library(multcompView)
 library(devtools)
 library(lubridate)
-
+library(dplyr)
 #######RBIND ALL SUBSETS (function below for unmatch columns)
 
 rbind.match.columns <- function(input1, input2) {
@@ -314,3 +314,106 @@ ggplot(data = SAMjoinNBS, aes(x=L50,  y=LD50)) +
 # SAMILResults<-rbind.match.columns(SAMGwthSites,SAMjoin)
 SAMILResultsNBS<-rbind.match.columns(SAMGwthSitesNBS,SAMjoinNBS)
 SAMILResults<-rbind(SAMILResultsEW,SAMILResultsNBS)
+
+
+
+######################
+#                  MATCHING remaining SAM TO IL/SAM data all data
+######################
+
+SAM.IL<-left_join(SamFilterIL, IL.info[,c(2:5,12)], by = 'GrowthSite')
+SAMGwthSites<-subset(SAM.IL, !is.na(MaxDL))
+rm(SAM.IL)
+
+boxcox(SAMGwthSites$LD50~SAMGwthSites$L50)
+fit<-lm(log(LD50)~L50, data=SAMGwthSites)
+summary(fit)
+
+anova(fit)
+par(mfrow = c(2,2))
+plot(fit)
+
+par(mfrow = c(1,1))
+
+# view the data l50 by ld50
+ggplot(data = SAMGwthSites, aes(x=L50,  y=LD50)) + 
+ xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
+ geom_text_repel(aes(label=GrowthSite), size=4, colour= 'grey')+
+ geom_errorbar(aes(ymin=SAMGwthSites$Ld50BootL95, ymax=SAMGwthSites$Ld50BootU95),
+               width=.2, colour = 'grey')+
+ geom_point(aes(colour=Zone), size=3)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.1, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+
+#filter out match which are > confidnece interval range.
+
+SAMjoin<-rbind(SAMjoinEW, SAMjoinNBS)
+SAMjoin$LD50Diff<-SAMjoin$LD50-SAMjoin$GwthLD50
+range(SAMjoin$LD50Diff)
+hist(SAMjoin$LD50Diff)
+limit<-0-mean(SAMjoin$Ld50BootRange)/2
+
+SAMjoin<-subset(SAMjoin, LD50Diff >= limit)
+mean(SAMjoin$LD50Diff)
+sd(SAMjoin$LD50Diff)
+
+
+ggplot(data = SAMjoin, aes(x=L50,  y=LD50)) + 
+ xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
+ geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
+ #geom_text_repel(aes(label=GrowthSite), size=4, colour= 'grey')+
+ geom_errorbar(aes(ymin=SAMjoin$Ld50BootL95, ymax=SAMjoin$Ld50BootU95),
+               width=.2, colour = 'grey')+
+ geom_point(aes(colour=Zone), size=3)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ #scale_color_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.1, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+boxcox(SAMjoin$LD50~SAMjoin$L50)
+fit<-lm(LD50~L50+Latitude, data=SAMjoin)
+summary(fit)
+
+anova(fit)
+par(mfrow = c(2,2))
+plot(fit)
+
+par(mfrow = c(1,1))
+
+####Histogram 
+ggplot(data = F.GwthResults, aes(x=LD50Diff)) + 
+ geom_histogram(bins = 30)+
+ xlab(expression(paste('LM'['50%']~'Differences (mm)')))+
+ #ylim(0,120)+
+ #geom_vline(xintercept=mean(SamResults$Ld50BootRange, na.rm=T), colour = 'red', linetype= 3, size=1.5)+
+ #geom_vline(xintercept=max(SamFilterIL$Ld50BootRange, na.rm=T),  linetype= 3, size=1.2)+
+ #geom_vline(xintercept=Lsd_ld50ci,  linetype= 3, size=1.2)+
+ theme_bw()+
+ #scale_fill_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.9, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))

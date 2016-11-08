@@ -43,7 +43,7 @@ for(i in Sites){
   Nt1df$Length<-midpts
   pick<-which(Nt1df$V1 > 0)
   Nt1df <- Nt1df[pick,]
-  pick<-which(Nt1df$Length >= LML)
+  pick<-which(Nt1df$Length <= LML)
   L.LML1 <- Nt1df[pick,]
   choice$PPLM50.1yr<-sum(L.LML1$V1/10)/2
   #% pp 2yr
@@ -51,7 +51,7 @@ for(i in Sites){
   Nt2df$Length<-midpts
   pick<-which(Nt2df$V1 > 0)
   Nt2df <- Nt2df[pick,]
-  pick<-which(Nt2df$Length >= LML)
+  pick<-which(Nt2df$Length <= LML)
   L.LML2 <- Nt2df[pick,]
   choice$PPLM50.2yr<-sum(L.LML2$V1/10)/2
   #% pp 3yr
@@ -59,7 +59,7 @@ for(i in Sites){
   Nt3df$Length<-midpts
   pick<-which(Nt3df$V1 > 0)
   Nt3df <- Nt3df[pick,]
-  pick<-which(Nt3df$Length >= LML)
+  pick<-which(Nt3df$Length <= LML)
   L.LML3 <- Nt3df[pick,]
   choice$PPLM50.3yr<-sum(L.LML3$V1/10)/2
   
@@ -100,7 +100,7 @@ for(i in Sites){
   Nt1df$Length<-midpts
   pick<-which(Nt1df$V1 > 0)
   Nt1df <- Nt1df[pick,]
-  pick<-which(Nt1df$Length >= LML)
+  pick<-which(Nt1df$Length <= LML)
   L.LML1 <- Nt1df[pick,]
   choice$PPLM90.1yr<-sum(L.LML1$V1/10)/2
   #% pp 2yr
@@ -108,7 +108,7 @@ for(i in Sites){
   Nt2df$Length<-midpts
   pick<-which(Nt2df$V1 > 0)
   Nt2df <- Nt2df[pick,]
-  pick<-which(Nt2df$Length >= LML)
+  pick<-which(Nt2df$Length <= LML)
   L.LML2 <- Nt2df[pick,]
   choice$PPLM90.2yr<-sum(L.LML2$V1/10)/2
   #% pp 3yr
@@ -116,7 +116,7 @@ for(i in Sites){
   Nt3df$Length<-midpts
   pick<-which(Nt3df$V1 > 0)
   Nt3df <- Nt3df[pick,]
-  pick<-which(Nt3df$Length >= LML)
+  pick<-which(Nt3df$Length <= LML)
   L.LML3 <- Nt3df[pick,]
   choice$PPLM90.3yr<-sum(L.LML3$V1/10)/2
   
