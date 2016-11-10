@@ -37,24 +37,11 @@ GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =
 load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
 # 
 SamFilterIL<-join(SamFilter, GIS.IL, by='SiteCode')
-keep(SamFilterIL, SamFilter, SamResults, BlckPop, GIS.IL, rbind.match.columns, sure=T)
-q98<-quantile(SamFilterIL$Ld50BootRange, 0.98, na.rm=T)
-SamFilterIL<-subset(SamFilterIL, Ld50BootRange <=q98)
-
 #recode database subblock errors
 SamFilterIL$SubBlockNo[SamFilterIL$SubBlockNo==11] <- "11A"
-
-SamFilterIL$Ld50BootRangeLog<-log(SamFilterIL$Ld50BootRange)
-hist(SamFilterIL$Ld50BootRangeLog)
-mean(SamFilterIL$Ld50BootRangeLog)
-sd(SamFilterIL$Ld50BootRangeLog)
-SAMLd50SD<-mean(SamFilterIL$Ld50BootRangeLog, na.rm = T)+ sd(SamFilterIL$Ld50BootRangeLog, na.rm = T)
-
-SamFilterIL<-subset(SamFilterIL, Ld50BootRangeLog <= SAMLd50SD)
-hist(SamFilterIL$Ld50BootRange)
-max(SamFilterIL$Ld50BootRange)
-
-SamFilterIL$Ld50BootRangeLog<-NULL
+keep(SamFilterIL, SamFilter, SamResults, BlckPop, GIS.IL, rbind.match.columns, sure=T)
+q975<-quantile(SamFilterIL$Ld50BootRange, 0.975, na.rm=T)
+SamFilterIL<-subset(SamFilterIL, Ld50BootRange <=q975)
 
 # add % under Lm 50
 SamFilterIL$PctL50<-SamFilterIL$N.underLD50/SamFilterIL$n*100
@@ -66,8 +53,47 @@ SamFilterIL$PctLM05<-SamFilterIL$N.underLD05/SamFilterIL$n*100
 SamFilterIL$Pct.I<-SamFilterIL$I/SamFilterIL$n*100
 SamFilterIL$Pct.M<-SamFilterIL$M/SamFilterIL$n*100
 
-pick <- which(SamFilterIL$Pct.M <10 | SamFilterIL$Pct.M >90)
+
+#remove top and bottom 5%
+pick <- which(SamFilterIL$Pct.M <5 | SamFilterIL$Pct.M >95)
 SamFilterIL <- SamFilterIL[-pick,]
+
+#remove outliers
+pick <- which(SamFilterIL$Pct.M <85 & SamFilterIL$Ld50BootRange >10)
+SamFilterIL <- SamFilterIL[-pick,]
+
+#remove outliers
+pick <- which(SamFilterIL$Pct.M <30) 
+SamFilterIL <- SamFilterIL[-pick,]
+
+
+mean(SamFilterIL$Ld50BootRange)
+range(SamFilterIL$Ld50BootRange)
+ggplot(data = SamFilterIL, aes(x=Pct.M,  y=Ld50BootRange)) + 
+ geom_point()+
+ xlab("% mature") + ylab(bquote(~CI['Range']~'LM'['50%']))+
+ geom_hline(yintercept=median(SamFilterIL2$Ld50BootRange), colour = 'red', linetype= 3, size=1.5)+
+ geom_hline(yintercept=mean(SamFilterIL2$Ld50BootRange), colour = 'green', linetype= 3, size=1.5)+
+ 
+ geom_hline(yintercept=SAMLd50SD, colour = 'blue', linetype= 3, size=1.5)+
+  theme_bw()+
+ theme(legend.position=c(0.9, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
+
+
+
+SAMLd50SD<-median(SamFilterIL$Ld50BootRange, na.rm = T)+ sd(SamFilterIL$Ld50BootRange, na.rm = T)
+
+SamFilterIL<-subset(SamFilterIL, Ld50BootRange <= SAMLd50SD)
+hist(SamFilterIL$Ld50BootRange)
+max(SamFilterIL$Ld50BootRange) # used in figure above
+
+
 
 # # #================================================================
 # # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
@@ -367,6 +393,8 @@ hist(SAMjoin$LD50Diff)
 limit<-0-mean(SAMjoin$Ld50BootRange)/2
 
 SAMjoin<-subset(SAMjoin, LD50Diff >= limit)
+hist(SAMjoin$LD50Diff)
+
 mean(SAMjoin$LD50Diff)
 sd(SAMjoin$LD50Diff)
 

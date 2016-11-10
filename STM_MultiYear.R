@@ -4,9 +4,16 @@
 #
 #================================================================
 # #
-# #                           Uses outputs from Growth_data_Allocation_SAM
+# #                           Calculate the Size transition matrix and eLML
 # #
-# #================================================================
+# #==============================================================
+myWorkDrive <- "D:/"  ## Craig and Hugh
+myWorkFolder <- "R_Stuff/SAM/Logistic"
+myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
+setwd(myWorkPath)
+
+#load("D:/R_Stuff/SAM/Logistic/SAMILRESULTS_2016-11-10.RData")
+
 source("D:/GitCode/AbResearch/Grwth_matrix.r")
 
 #Calculate SigMaxLD50 for each site
@@ -63,7 +70,7 @@ for(i in Sites){
   L.LML3 <- Nt3df[pick,]
   choice$PPLM50.3yr<-sum(L.LML3$V1/10)/2
   
-  pick<-choice[,c(1,27:32)]  
+  pick<-choice[,c(1,25:30)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else
@@ -120,7 +127,7 @@ for(i in Sites){
   L.LML3 <- Nt3df[pick,]
   choice$PPLM90.3yr<-sum(L.LML3$V1/10)/2
   
-  pick<-choice[,c(1,27:32)]  
+  pick<-choice[,c(1,25:30)]
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else
@@ -128,3 +135,7 @@ for(i in Sites){
 }
 #pass back to GwthResults
 GwthResults<-join(GwthResults, eLMLResults, by='SiteCode')
+
+#save Rfile
+outFile <- paste(myWorkPath,"/GWTHRESULTS_",format(Sys.time(), "%Y-%m-%d"),".RData",sep ="")
+save.image(file = outFile)

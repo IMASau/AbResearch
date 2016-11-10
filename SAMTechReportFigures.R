@@ -23,22 +23,8 @@ min.mean.sd.max <- function(x) {
 #keep(GwthResults, SAMILResults, SamFilterIL, SamFilter,sure = T)
 
 
-#subset all gwthresults with <20 Immature
-#GwthResultst<-subset(GwthResults, I <20)
 
 GwthResults$Zone<-as.factor(GwthResults$Zone)
-
-
-#ADD MArket measure data MaxSL to gwthdata.
-MMMaxSL<-read.csv('D:/Fisheries Research/Abalone/SAM/MMBlockMaxSL.csv')
-colnames(MMMaxSL)[3]<-"MM_MaxSL"
-colnames(MMMaxSL)[4]<-"MM_q95SL"
-MMMaxSL<-MMMaxSL[,2:4]
-
-GwthResults<-left_join(GwthResults,MMMaxSL, by = 'BlockNo')
-
-
-
 ####RESULTS ANALYSIS
 
 #                    HISTOGRAM CI RANGE
@@ -75,23 +61,7 @@ ggplot(data = GwthResults, aes(x=Ld50BootRange)) +
 
 max_ld50ci<-max(GwthResults$Ld50BootRange, na.rm=T)
 
-####Histogram of CIrangeL50
-ggplot(data = SamResults, aes(x=Ld50BootRange)) + 
- geom_histogram(bins = 30)+
- xlab(bquote(~CI['Range']~'LM'['50%']))+
- #ylim(0,120)+
- geom_vline(xintercept=mean(SamResults$Ld50BootRange, na.rm=T), colour = 'red', linetype= 3, size=1.5)+
- geom_vline(xintercept=max(SamFilterIL$Ld50BootRange, na.rm=T),  linetype= 3, size=1.2)+
- #geom_vline(xintercept=Lsd_ld50ci,  linetype= 3, size=1.2)+
- theme_bw()+
- #scale_fill_identity()+ #this makes sure the color follows the color argument above in aes()
- theme(legend.position=c(0.9, 0.8))+
- theme(legend.title=element_blank())+
- theme(legend.text = element_text(size=14))+
- theme(axis.title.x = element_text(size=14),
-       axis.text.x  = element_text(size=14))+
- theme(axis.title.y = element_text(size=14),
-       axis.text.y  = element_text(size=14))
+
 
 #############################
 #  l50% by zone figure and ANOVA
@@ -387,6 +357,13 @@ ggplot(data=GwthResults, aes(x=Mrange,  y=Ld50BootRange, color=ifelse(Ld50BootRa
 #$$$$$$$$$$                   ELML                             $$$$
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+#ADD MArket measure data MaxSL to gwthdata.
+MMMaxSL<-read.csv('D:/Fisheries Research/Abalone/SAM/MMBlockMaxSL.csv')
+colnames(MMMaxSL)[3]<-"MM_MaxSL"
+colnames(MMMaxSL)[4]<-"MM_q95SL"
+MMMaxSL<-MMMaxSL[,2:4]
+
+GwthResults<-left_join(GwthResults,MMMaxSL, by = 'BlockNo')
 
 
 #filter out match which are > confidnece interval range.
@@ -399,6 +376,23 @@ F.GwthResults<-subset(GwthResults, LD50Diff >= limit)
 mean(F.GwthResults$LD50Diff)
 sd(F.GwthResults$LD50Diff)
 
+####Histogram 
+ggplot(data = F.GwthResults, aes(x=LD50Diff)) + 
+ geom_histogram(bins = 30)+
+ xlab(expression(paste('LM'['50%']~'Differences (mm)')))+
+ #ylim(0,120)+
+ #geom_vline(xintercept=mean(SamResults$Ld50BootRange, na.rm=T), colour = 'red', linetype= 3, size=1.5)+
+ #geom_vline(xintercept=max(SamFilterIL$Ld50BootRange, na.rm=T),  linetype= 3, size=1.2)+
+ #geom_vline(xintercept=Lsd_ld50ci,  linetype= 3, size=1.2)+
+ theme_bw()+
+ #scale_fill_identity()+ #this makes sure the color follows the color argument above in aes()
+ theme(legend.position=c(0.9, 0.8))+
+ theme(legend.title=element_blank())+
+ theme(legend.text = element_text(size=14))+
+ theme(axis.title.x = element_text(size=14),
+       axis.text.x  = element_text(size=14))+
+ theme(axis.title.y = element_text(size=14),
+       axis.text.y  = element_text(size=14))
 
 
 #########################
@@ -712,7 +706,7 @@ lapply(unique(GwthResultsT$Zone), doPlot)
 
 
 
-GwthSumStats<-ddply(GwthResultsX,.(Zone), summarize,  n = length(SiteCode), 
+GwthSumStats<-ddply(GwthResultsX,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
                      eLML50.1y = mean(eLML50.1y, na.rm=T), sd.eLML50.1y = sd(eLML50.1y, na.rm=T),
                      eLML50.2y = mean(eLML50.2y, na.rm=T), sd.eLML50.2y = sd(eLML50.2y, na.rm=T),
                      eLML50.3y = mean(eLML50.3y, na.rm=T), sd.eLML50.3y = sd(eLML50.3y, na.rm=T),
@@ -727,8 +721,12 @@ GwthSumStats<-ddply(GwthResultsX,.(Zone), summarize,  n = length(SiteCode),
                      PPLM90.2y = mean(PPLM90.2yr, na.rm=T), sd.PPLM90.2y = sd(PPLM90.2yr, na.rm=T),
                      PPLM90.3y = mean(PPLM90.3yr, na.rm=T), sd.PPLM90.3y = sd(PPLM90.3yr, na.rm=T),
                      SLmax.q95 = max(SLq95, na.rm=T),
-                     MMSLmax.q95 = max(MM_q95SL, na.rm=T))
+                     MMSLmax.q95 = max(MM_q95SL, na.rm=T),
+                    LML = max(LML))
 
 GwthSumStats$MAxSLDiff<-GwthSumStats$MMSLmax.q95-GwthSumStats$SLmax.q95
 
+GwthSumStats$LMLdiff2y<-GwthSumStats$eLML50.2y-GwthSumStats$LML
 
+
+GwthSumStats[,c(1,2,6,28,29,30,31,32)]

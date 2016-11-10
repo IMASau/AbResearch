@@ -1,5 +1,14 @@
 #use latest SamFilter as precusror to this file 
-# currently SamFilter050916.RData 
+# currently SamFilter050916.RData ## SET THE WORKING AND RESULTS DIRECTORIES
+myWorkDrive <- "D:/"  ## Craig and Hugh
+
+
+myWorkFolder <- "R_Stuff/SAM/Logistic"
+myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
+setwd(myWorkPath)
+
+load("D:/R_Stuff/SAM/Logistic/SAM_FILTER_2016-11-10.RData")
+
 library(car)
 library(MASS)
 library(boot)
@@ -12,6 +21,7 @@ library(multcompView)
 library(devtools)
 library(lubridate)
 library(dplyr)
+
 #######RBIND ALL SUBSETS (function below for unmatch columns)
 
 rbind.match.columns <- function(input1, input2) {
@@ -30,48 +40,12 @@ rbind.match.columns <- function(input1, input2) {
 }
 
 #################################################################
-# # LOAD IL_SAM_GIS match DATA
-GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =T)
-# 
-# 
-load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
-# 
-SamFilterIL<-join(SamFilter, GIS.IL, by='SiteCode')
-keep(SamFilterIL, SamFilter, SamResults, BlckPop, GIS.IL, rbind.match.columns, sure=T)
-q98<-quantile(SamFilterIL$Ld50BootRange, 0.98, na.rm=T)
-SamFilterIL<-subset(SamFilterIL, Ld50BootRange <=q98)
-
-#recode database subblock errors
-SamFilterIL$SubBlockNo[SamFilterIL$SubBlockNo==11] <- "11A"
-
-SamFilterIL$Ld50BootRangeLog<-log(SamFilterIL$Ld50BootRange)
-hist(SamFilterIL$Ld50BootRangeLog)
-mean(SamFilterIL$Ld50BootRangeLog)
-sd(SamFilterIL$Ld50BootRangeLog)
-SAMLd50SD<-mean(SamFilterIL$Ld50BootRangeLog, na.rm = T)+ sd(SamFilterIL$Ld50BootRangeLog, na.rm = T)
-
-SamFilterIL<-subset(SamFilterIL, Ld50BootRangeLog <= SAMLd50SD)
-hist(SamFilterIL$Ld50BootRange)
-max(SamFilterIL$Ld50BootRange)
-
-SamFilterIL$Ld50BootRangeLog<-NULL
-
-# add % under Lm 50
-SamFilterIL$PctL50<-SamFilterIL$N.underLD50/SamFilterIL$n*100
-
-# add % under LM05
-SamFilterIL$PctLM05<-SamFilterIL$N.underLD05/SamFilterIL$n*100
-
-# % I  and % M
-SamFilterIL$Pct.I<-SamFilterIL$I/SamFilterIL$n*100
-SamFilterIL$Pct.M<-SamFilterIL$M/SamFilterIL$n*100
-
-pick <- which(SamFilterIL$Pct.M <10 | SamFilterIL$Pct.M >90)
-SamFilterIL <- SamFilterIL[-pick,]
 
 # # #================================================================
 # # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
 # # #================================================================
+load('D:/R_Stuff/SAM/Logistic/BlckPop.RData')
+
 SiteCodes<-unique(SamFilterIL$SiteCode)
 pick <- which(BlckPop$SiteCode %in% SiteCodes)
 BlckPopFilter<-BlckPop[pick,]
@@ -88,12 +62,6 @@ maxSLsitecode<-ddply(BlckPopFilter,.(SiteCode), summarize,
 #
 SamFilterIL<-left_join(SamFilterIL,maxSLsitecode, by = 'SiteCode')
 rm(maxSLsitecode)
-
-#drop SAM observations with odd low LD50
-# OddLook<-subset(SamFilterIL, LD50 < 100 & SLmax > 183)
-# OddSiteCodes<-unique(OddLook$SiteCode)
-# pick <- which(SamFilterIL$SiteCode %in% OddSiteCodes)
-# SamFilterIL<-SamFilterIL[-pick,]
 
 # #================================================================
 # #                         load Growth parameters
@@ -135,19 +103,18 @@ SamFilterEW<-subset(SamFilterIL, Zone %in% ZoneEW )
 IL.infoEW<-subset(IL.info, Zone %in% ZoneEW )
 SAM.IL.EW<-left_join(SamFilterEW,IL.infoEW[,c(2:5,12)], by = 'GrowthSite')
 SAMSitesEW<-subset(SAM.IL.EW, is.na(MaxDL))
-SAMSitesEW<-SAMSitesEW[,c(1:53)]
+SAMSitesEW<-SAMSitesEW[,c(1:52)]
 SAMGwthSitesEW<-subset(SAM.IL.EW, !is.na(MaxDL))
 rm(SAM.IL.EW)
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSitesEW$LD50^2~SAMGwthSitesEW$L50)
-fit<-lm(LD50^2~L50, data=SAMGwthSitesEW)
+boxcox(SAMGwthSitesEW$LD50^3~SAMGwthSitesEW$L50)
+fit<-lm(LD50^3~L50, data=SAMGwthSitesEW)
 summary(fit)
 
 anova(fit)
 par(mfrow = c(2,2))
 plot(fit)
-
 par(mfrow = c(1,1))
 
 # view the data l50 by ld50
@@ -184,7 +151,7 @@ Samchoice$match<-as.numeric(Samchoice$match)
 ILchoice$match<-1:nrow(ILchoice)
 
 ILchoice$GwthLD50<-ILchoice$LD50
-SAMjoinEW<-left_join(Samchoice[,c(1,6,9,16:17,28:35,40,41,44,46,52:54)],ILchoice[,c(48,54:56,58,59)], by = 'match')
+SAMjoinEW<-left_join(Samchoice[,c(1,6,9,16:17,29:33,39:42,46,47,51:53)],ILchoice[,c(53:55,57:58)], by = 'match')
 
 # view the data l50 by ld50
 ggplot(data = SAMjoinEW, aes(x=L50,  y=LD50)) + 
@@ -207,8 +174,8 @@ ggplot(data = SAMjoinEW, aes(x=L50,  y=LD50)) +
  theme(axis.title.y = element_text(size=14),
        axis.text.y  = element_text(size=14))
 
-boxcox(SAMjoinEW$LD50^2.5~SAMjoinEW$L50)
-fit<-lm(LD50~L50, data=SAMjoinEW)
+boxcox(SAMjoinEW$LD50^3~SAMjoinEW$L50)
+fit<-lm(LD50^3~L50, data=SAMjoinEW)
 summary(fit)
 
 anova(fit)
@@ -231,13 +198,13 @@ SamFilterNBS<-subset(SamFilterIL, Zone %in% ZoneNBS )
 IL.infoNBS<-subset(IL.info, Zone %in% ZoneNBS )
 SAM.IL.NBS<-left_join(SamFilterNBS,IL.infoNBS[,c(2:5,12)], by = 'GrowthSite')
 SAMSitesNBS<-subset(SAM.IL.NBS, is.na(MaxDL))
-SAMSitesNBS<-SAMSitesNBS[,c(1:53)]
+SAMSitesNBS<-SAMSitesNBS[,c(1:52)]
 SAMGwthSitesNBS<-subset(SAM.IL.NBS, !is.na(MaxDL))
 rm(SAM.IL.NBS)
 
 # # ==================     LM     ================================= 
-boxcox(SAMGwthSitesNBS$LD50^-3~SAMGwthSitesNBS$L50)
-fit<-lm(LD50^-3~L50, data=SAMGwthSitesEW)
+boxcox(SAMGwthSitesNBS$LD50^-1~SAMGwthSitesNBS$L50)
+fit<-lm(LD50^-1~L50, data=SAMGwthSitesEW)
 summary(fit)
 
 anova(fit)
@@ -286,7 +253,7 @@ Samchoice$match<-as.numeric(Samchoice$match)
 ILchoice$match<-1:nrow(ILchoice)
 
 ILchoice$GwthLD50<-ILchoice$LD50
-SAMjoinNBS<-left_join(Samchoice[,c(1,6,9,16:17,28:35,40,41,44,46,52:54)],ILchoice[,c(48,54:56,58,59)], by = 'match')
+SAMjoinNBS<-left_join(Samchoice[,c(1,6,9,16:17,29:33,39:42,46,47,51:53)],ILchoice[,c(53:55,57:58)], by = 'match')
 
 
 # view the data l50 by ld50
@@ -367,13 +334,15 @@ hist(SAMjoin$LD50Diff)
 limit<-0-mean(SAMjoin$Ld50BootRange)/2
 
 SAMjoin<-subset(SAMjoin, LD50Diff >= limit)
+hist(SAMjoin$LD50Diff)
+
 mean(SAMjoin$LD50Diff)
 sd(SAMjoin$LD50Diff)
 
 
 ggplot(data = SAMjoin, aes(x=L50,  y=LD50)) + 
  xlab(bquote(''~L50['']~'(mm)')) + ylab(bquote(''~LM['50%']~'(mm)'))+
- geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
+ #geom_smooth(method=lm, se=F, color='grey', fullrange=F, size=1.2)+
  #geom_text_repel(aes(label=GrowthSite), size=4, colour= 'grey')+
  geom_errorbar(aes(ymin=SAMjoin$Ld50BootL95, ymax=SAMjoin$Ld50BootU95),
                width=.2, colour = 'grey')+
@@ -392,7 +361,7 @@ ggplot(data = SAMjoin, aes(x=L50,  y=LD50)) +
        axis.text.y  = element_text(size=14))
 
 boxcox(SAMjoin$LD50~SAMjoin$L50)
-fit<-lm(LD50~L50+Latitude, data=SAMjoin)
+fit<-lm(LD50~L50, data=SAMjoin)
 summary(fit)
 
 anova(fit)
@@ -400,6 +369,11 @@ par(mfrow = c(2,2))
 plot(fit)
 
 par(mfrow = c(1,1))
+
+#save Rfile
+outFile <- paste(myWorkPath,"/SAMILRESULTS_",format(Sys.time(), "%Y-%m-%d"),".RData",sep ="")
+save.image(file = outFile)
+
 
 ####Histogram 
 ggplot(data = F.GwthResults, aes(x=LD50Diff)) + 

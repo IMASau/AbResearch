@@ -1,5 +1,5 @@
 ## Plot the logistic curve
-plotgraph <- function(indat,LM50,Site,scN)#,savefile=F) {
+plotgraph <- function(indat,LM50,Site,scN){ #},savefile=F) {
  # if (savefile) {
  #  graphfile <- paste(resdir,Site,"_Maturity.tiff",sep="")
  #  if (file.exists(graphfile)) file.remove(graphfile)
