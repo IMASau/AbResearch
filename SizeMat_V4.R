@@ -1,4 +1,4 @@
-setwd('D:\\R_Stuff\\Logistic')
+setwd('D:/R_Stuff/SAM/Logistic')
 library(MASS)
 library(gdata)
 library(doBy)
@@ -30,7 +30,7 @@ library(snow)
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
 ## SEX = I, T, M, or F
-infileNew <- "D:\\R_Stuff\\Logistic/SAMExport2016.csv"
+infileNew <- "D:/R_Stuff/SAM/Logistic/SAMExport2016.csv"
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
@@ -84,16 +84,20 @@ SamList$IQR <- as.numeric(NA)
 SamList$N.underLD05 <- as.numeric(NA)
 SamList$N.underLD50 <- as.numeric(NA)
 SamList$N.overLD95 <- as.numeric(NA)
+SamList$N.IQR <- as.numeric(NA)
 SamList$Ld50BootU95 <- as.numeric(NA)
 SamList$Ld50BootL95 <- as.numeric(NA)
 SamList$Ld95BootU95 <- as.numeric(NA)
 SamList$Ld95BootL95 <- as.numeric(NA)
+SamList$a <- as.numeric(NA)
+SamList$b <- as.numeric(NA)
 
 
 NumSites <- nrow(SamList)
 NumSites
 
 i <- 400
+#i<- "10_1988_8"
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
   subdat <- droplevels(subset(samdata, samdata$SiteCode == SamList$SiteCode[i]))
@@ -117,16 +121,22 @@ for (i in 1:NumSites) {
   ld95 <- dose.p(r, p = 0.95); 
   SamList$LD95[i] <-  as.numeric(ld95)
   SamList$IQR[i] <-  SamList$LD75[i] - SamList$LD25[i]
+  SamList$a[i] <- as.numeric (r$coef[1])
+  SamList$b[i] <- as.numeric (r$coef[2])
   
   
   N.underLD05 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld05)))))
   SamList$N.underLD05[i] <-  as.numeric(N.underLD05)
-  N.underLD50 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld50)))))
+    N.underLD50 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength < as.integer(as.vector(ld50)))))
   SamList$N.underLD50[i] <-  as.numeric(N.underLD50)
    N.overLD95 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld95)))))
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
-
-  
+  SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
+   N.overLD25 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld25)))))
+   N.overLD75 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld75)))))
+   SamList$N.IQR[i]<-as.numeric(N.overLD25-N.overLD75)
+  SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
+}
   ## Bootstrap the ld50 paramater ####
   BootSAM50 <- function(data, indices) {
    require(MASS)
