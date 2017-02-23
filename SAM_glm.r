@@ -2,7 +2,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/Fisheries Research/Abalone/SeasonalSAM"
+wkdir <- "D:/Fisheries Research/Abalone"
 setwd(wkdir)
 
 ## Load raw csv file
@@ -27,8 +27,6 @@ samdata <- droplevels(samdata)
 # Simplify Maturity classes
 samdata$Mat <- NA
 samdata$Mat <- ifelse(samdata$Sex=="I", c("I"), c("M"))
-#samdata$Mat <- ifelse(samdata$Gnd_Score<=1, c("I"), c("M"))
-
 
 # Code Season and Site
 samdata$Season <- samdata$SamplePeriod
@@ -71,7 +69,7 @@ pick <- which(samdata$Length > 130)
 samdata$SizeC[pick] <- "Large"
 
 ## Calculate Base cases for each site.
-columns <- c("LM50","IQ","a","b","smallN","mediumN","largeN","totalN")
+columns <- c("LM50", "LM75", "LM95","IQ","a","b","smallN","mediumN","largeN","totalN")
 BaseResults <- matrix(0,nrow=NSR,ncol=length(columns),dimnames=list(RegionSeasonVec,columns))
 for (pSite in 1:NSR) {
  Site <- RegionSeasonVec[pSite]
@@ -92,9 +90,11 @@ for (pSite in 1:NSR) {
  SizeMat$MatRatio <- SizeMat$M/SizeMat$Total
   out <- doLogistic(SizeMat)
  BaseResults[pSite,1] <- out$LM50
- BaseResults[pSite,2] <- out$IQ
+ BaseResults[pSite,2] <- out$LM75
+ BaseResults[pSite,3] <- out$LM95
+ BaseResults[pSite,4] <- out$IQ
  model <- out$Model
- BaseResults[pSite,3:4] <- model$coef
+ BaseResults[pSite,5:6] <- model$coef
  scN <- numeric(3)
  pick <- which(SizeMat$Length <= 90)
  scN[1] <- sum(SizeMat$Total[pick],na.rm=T)
@@ -102,7 +102,7 @@ for (pSite in 1:NSR) {
  scN[2] <- sum(SizeMat$Total[pick],na.rm=T)
  pick <- which(SizeMat$Length > 130)
  scN[3] <- sum(SizeMat$Total[pick],na.rm=T)
- BaseResults[pSite,5:8] <- c(scN,sum(scN))
+ BaseResults[pSite,7:10] <- c(scN,sum(scN))
  plotgraph(SizeMat,out$LM50,Site,scN,savefile=F)
 }
 BaseResults
@@ -118,10 +118,7 @@ outCompare$SigSeason
 outCompare$Sigregion
 outCompare$SigInteract
 
-anova(model, test="Chisq")
-anova(model, test="Cp")
-anova(model, test="LRT")
-anova(model, test="Cp")
+
 
 source("D:\\Students\\Carly Giosio/carly_utils.R")
 plotgraph(SizeMat,out$LM50,Site,scN,savefile=F)
