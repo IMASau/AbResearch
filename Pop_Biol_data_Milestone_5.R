@@ -1,63 +1,56 @@
 #clear environment
-#rm(list=ls(all=TRUE))
+rm(list=ls(all=TRUE))
+library(lattice)
+library(latticeExtra)
+library(grid)
+library(gridBase)
+library(plyr)
 library(dplyr)
 library(ggplot2)
 library(scales)
+library(extrafont)
+library(extrafontdb)
 library(scales)
-library(tidyr)
-library(gdata)
-library(xlsx)
+library(reshape2)
 
-juv <- read.xlsx(
- "D:/Fisheries Research/Abalone/AbResearchData/pop/2017/Juvenile_data_2016.xlsx",
- sheetName = "AllSites", col.names = TRUE
-)
+setwd('F:/FRDC 7. Abalone recruitment/Data')
 
-colnames(juv) <- tolower(colnames(juv))
-juv <- rename(juv, survdate = date)
-juv$string <- as.factor(juv$string)
-juv$plate <- as.factor(juv$plate)
-
-
-juv.sl <- filter(juv, !is.na(ab_sl))
-
-#juv$ab_sl <- NAToUnknown(x = juv$ab_sl, unknown = 0)
+JUV<-read.csv('Juvenile_data_19_08_2016.csv', header = T )
 
 # #replace NA with 0
-# juv[is.na(juv)] <- 0
-# summary(juv)
+# JUV[is.na(JUV)] <- 0
+# summary(JUV)
 
-juv<-juv[1:6]
+JUV<-JUV[1:6]
 #remove NA's
-juv <- juv[complete.cases(juv[,5]),]
-summary(juv)
-
-
+JUV<-JUV[complete.cases(JUV[,5]),]
+summary(JUV)
+JUV$String<-as.factor(JUV$String)
+JUV$Plate<-as.factor(JUV$Plate)
 # SORTING OUT THE DATES SO THEY ARE IN USEFUL FORMAT
-#juv$survdate<-as.survdate(juv$survdate, origin, format="%d/%m/%y")
-# juv$survdate <- strptime(as.character(juv$survdate), "%d/%m/%Y")
-# juv$survdate <- format(juv$survdate, "%d/%b/%Y")
-# juv$survdate <- as.date(juv$survdate, format="%d/%b/%Y")
+#JUV$Date<-as.Date(JUV$Date, origin, format="%d/%m/%y")
+JUV$newDate<-strptime(as.character(JUV$Date), "%d/%m/%Y")
+JUV$newDate<-format(JUV$newDate, "%d/%b/%Y")
+JUV$newDate<-as.Date(JUV$newDate, format="%d/%b/%Y")
 
 
 
-# Betsey<-droplevels(subset(juv, location== "BI" & string== "2"))
-# Betsey10<-droplevels(subset(Betsey, plate >=5))
-# Betsey10<-droplevels(subset(Betsey10, plate <=7))
+# Betsey<-droplevels(subset(JUV, Location== "BI" & String== "2"))
+# Betsey10<-droplevels(subset(Betsey, Plate >=5))
+# Betsey10<-droplevels(subset(Betsey10, Plate <=7))
 
 # #remove NAs
 # Betsey10[complete.cases(Betsey10[,5]),]
 
 
-ggplot(juv.sl, aes(x=ab_sl, color=location))+
+ggplot(JUV, aes(x=Ab_SL, color=Location))+
   geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
   scale_x_continuous(limits=c(0, 150))+
   
   xlab("Shell Length (mm)") + ylab("Frequency") +
   theme_bw()
 
-
-ggplot(juv.sl, aes(x=ab_sl)) + 
+ggplot(JUV, aes(x=Ab_SL)) + 
   ylab("Frequency") +
   xlab("Shell Length (mm)")+
   geom_histogram(alpha = 0.2, binwidth = 5)+
@@ -65,63 +58,49 @@ ggplot(juv.sl, aes(x=ab_sl)) +
   #labs(title= Yeardum$SubBlockNo, size=10)+
   #geom_histogram(binwidth=50)+
   theme_bw()+
-  facet_grid(. ~ location)
+  facet_grid(. ~ Location)
 
-ab_count <- ddply(juv, "survdate", summarise, ab_ct = length(ab_sl))
+#Ab_count <- ddply(JUV, "Date", summarise, Ab_ct = length(Ab_SL))
 
-## Because sites were surveyed on different days, can't do a fully crossed complete() function
-ab_count <- filter(juv, !is.na(ab_sl)) %>% group_by(location, survdate, string) %>%
-summarise(ab_ct =n()) %>% as.data.frame()
- 
-complete(location, string, plate, fill = list(ab_ct = 0)) %>%
- 
-
-
-#rearregage DF giving number of juveniles by location, survdate and string.
-Pick <- aggregate(x = juv, by = list(juv$location, juv$survdate, juv$string), FUN = "length")
+#rearregage DF giving number of juveniles by location, date and String.
+Pick<-aggregate(x = JUV, by = list(JUV$Location, JUV$newDate, JUV$String), FUN = "length")
 Pick<-Pick[1:4]
-names(Pick)[names(Pick)=="Group.2"] <- "survdate"
+names(Pick)[names(Pick)=="Group.2"] <- "Date"
 names(Pick)[names(Pick)=="Group.1"] <- "Site"
-names(Pick)[names(Pick)=="Group.3"] <- "string"
-names(Pick)[names(Pick)=="location"] <- "Ab_Sum"
+names(Pick)[names(Pick)=="Group.3"] <- "String"
+names(Pick)[names(Pick)=="Location"] <- "Ab_Sum"
 
-ggplot(ab_count, aes(y=ab_ct, x=survdate)) +
+ggplot(Pick, aes(y=Ab_Sum, x=Date)) +
   geom_bar(stat="identity")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  facet_grid(. ~ location)
+  facet_grid(. ~ Site)
 
-#ggplot(Pick, aes(Ab_Sum, fill=survdate)) + geom_bar(position="dodge")
+#ggplot(Pick, aes(Ab_Sum, fill=Date)) + geom_bar(position="dodge")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~BY SITE ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#rearregage DF giving number of juveniles by location and survdate.
+#rearregage DF giving number of juveniles by location and date.
 BI<-droplevels(subset(Pick, Pick$Site=="BI"))
-BI$survdate<-as.factor(BI$survdate)
+BI$Date<-as.factor(BI$Date)
 
-ab_count <- filter(juv, !is.na(ab_sl) & location =='BI') %>% group_by(location, survdate, string) %>%
- summarise(ab_ct =n()) %>% as.data.frame()
-
-
-ggplot(ab_count, aes(y=ab_ct, x=survdate, fill=string)) +
+ggplot(BI, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("Betsey Island")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   scale_fill_grey(start = 0.3, end = 0.7)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
         text = element_text(size=16),
-        legend.position=c(.95,.88))
-
-+
+        legend.position=c(.95,.88))+
  # scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
 
 GIII<-droplevels(subset(Pick, Pick$Site=="GIII"))
 
-ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(GIII, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("George 3rd Rock")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   ylim(0,50)+
@@ -134,9 +113,9 @@ ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
 
 BR_B<-droplevels(subset(Pick, Pick$Site=="BR_B"))
 
-ggplot(BR_B, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(BR_B, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("Black Reef Boulder")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   ylim(0,50)+
@@ -151,9 +130,9 @@ ggplot(BR_B, aes(y=Ab_Sum, x=survdate, fill=string)) +
 
 BR_S<-droplevels(subset(Pick, Pick$Site=="BR_S"))
 
-ggplot(BR_S, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(BR_S, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("Black Reef Slab")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   ylim(0,50)+
@@ -166,9 +145,9 @@ ggplot(BR_S, aes(y=Ab_Sum, x=survdate, fill=string)) +
 
 SP<-droplevels(subset(Pick, Pick$Site=="SP"))
 
-ggplot(SP, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(SP, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("Seymour Point")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   ylim(0,50)+
@@ -181,9 +160,9 @@ ggplot(SP, aes(y=Ab_Sum, x=survdate, fill=string)) +
 
 TG<-droplevels(subset(Pick, Pick$Site=="TG"))
 
-ggplot(TG, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(TG, aes(y=Ab_Sum, x=Date, fill=String)) +
   ggtitle("The Gardens")+
-  xlab("Sample date") + 
+  xlab("Sample Date") + 
   ylab("Blacklip Abalone Abundance") +
   geom_bar(stat="identity")+
   ylim(0,50)+

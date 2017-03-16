@@ -5,14 +5,19 @@ library(tidyr)
 
 temp <- read.xlsx(
  "D:/Fisheries Research/Abalone/AbResearchData/pop/2017/Ab_pop_bio_Lenght_density_2016.xlsx",
- sheetName = "BR-Slab",
+ sheetName = "Betsey Island",
  col.names = TRUE
 )
 
-dat <- filter(temp, Length > 137) %>%
- group_by(Date, String, Transect) %>%
- summarise(count = n())  %>% 
- complete(Date, String, Transect, fill = list(count = 0)) %>% data.frame()
+temp$ Transect <- as.factor(temp$Transect)
+
+## Filter for legal biomass
+#dat <- filter(temp, Length > 137) %>%
+ 
+dat <- temp %>% group_by(String, Date, Transect) %>%
+ summarise(count = n()) %>% 
+ complete(String, Date, Transect, fill = list(count = 0)) %>% data.frame()
+
 dat$abs <- dat$count/15
 
 
