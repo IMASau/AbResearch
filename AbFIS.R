@@ -11,7 +11,7 @@ temp <- read.xlsx(
 
 dat <- filter(temp, Length > 137) %>%
  group_by(Date, String, Transect) %>%
- summarise(count = n()) %>% 
+ summarise(count = n())  %>% 
  complete(Date, String, Transect, fill = list(count = 0)) %>% data.frame()
 dat$abs <- dat$count/15
 
