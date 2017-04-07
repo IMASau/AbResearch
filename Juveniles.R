@@ -26,6 +26,7 @@ juv$plate <- as.factor(juv$plate)
 juv$location <- gsub( "_", "", juv$location)
 unique(juv$location)
 
+
 ### Prepare dataframes for length frequency and abundance analyses ----
 
 ## A. Extract records with abs for length frequency analysis ----
@@ -46,6 +47,7 @@ pick <- which(juv.sl$location == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
 
+unique(juv.sl$survdate)
 
 
 ## B. Extract and prepare records with abs for abudnance analyses ----
@@ -69,7 +71,7 @@ dat <- filter(juv, ab_sl <= 100) %>%
 dat$absm <- dat$ab_n * (1/platearea)
 
 ## unpack survindex var
-abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("location", "survdate", "string","plate"), convert = TRUE), ab_count$survindex, ab_count$ab_n, ab_count$absm)
+abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("location", "survdate", "string","plate"), convert = TRUE), dat$survindex, dat$ab_n, dat$absm)
 
 abcounts$survdate <- as.Date(strptime(abcounts$survdate, "%Y-%m-%d"))
 abcounts$sampyear <- year(abcounts$survdate) 
@@ -123,6 +125,16 @@ ggplot(juv.sl, aes(x=ab_sl, color=location)) +
  #geom_histogram(binwidth=50)+
  theme_bw()+
  facet_grid(location ~ yr.season)
+
+
+ggplot(juv.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 5)+
+ geom_density(alpha=.2) +
+ theme_bw()+
+ facet_grid(location ~ yr.season)
+
 
 ##------------------------------------------------------##
 
