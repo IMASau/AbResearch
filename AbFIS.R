@@ -4,13 +4,14 @@ library(scales)
 library(scales)
 library(tidyr)
 library(gdata)
-library(xlsx)
+library(openxlsx)
 library(lubridate)
 bigabs <- read.xlsx(
- "D:/Fisheries Research/Abalone/AbResearchData/pop/2017/Ab_pop_bio_Lenght_density_2016.xlsx",
- sheetName = "AllSites",
- col.names = TRUE
-)
+ "D:/Owncloud/Fisheries Research/Abalone/AbResearchData/pop/2017/Ab_pop_bio_Lenght_density_working.xlsx",
+ sheet = "AllSites",
+ detectDates = TRUE)
+
+source("D:/GitCode/AbResearch/getSeason.r")
 
 ## convert var names to lowor case
 colnames(bigabs) <- tolower(colnames(bigabs))
@@ -49,7 +50,7 @@ bigabcounts$season <- as.factor(bigabcounts$season)
 bigabcounts$season <- ordered(bigabcounts$season, levels=c("Summer","Winter","Spring"))
 bigabcounts$yr.season <- interaction(bigabcounts$sampyear,bigabcounts$season)
 bigabcounts$yr.season <-
- ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring"))
+ ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
 pick <- which(bigabcounts$location == "TG")
 bigabcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts$yr.season[pick])
 bigabcounts$yr.season <- droplevels(bigabcounts$yr.season) 
@@ -85,8 +86,8 @@ mydatsl$season <- as.factor(mydatsl$season)
 mydatsl$season <- ordered(mydatsl$season, levels=c("Summer","Winter","Spring"))
 mydatsl$yr.season <- interaction(mydatsl$sampyear,mydatsl$season)
 mydatsl$yr.season <-
- ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring"))
-pick <- which(mydatsl$location == "TG")
+ ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
+pick <- which(mydatsl$site == "TG")
 mydatsl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", mydatsl$yr.season[pick])
 mydatsl$yr.season <- droplevels(mydatsl$yr.season)
 
@@ -100,6 +101,24 @@ ggplot(mydatsl, aes(x=sllength, color=site)) +
  geom_density(alpha=.2) +
  theme_bw()+
  facet_grid(site ~ yr.season)
+
+
+
+## Length frequency by site
+
+TG.sl.big <- droplevels(subset(mydatsl, site=="BRS"))
+
+
+ggplot(TG.sl.big, aes(x=sllength)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.5, binwidth = 10, fill = "blue", col=I("black"))+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
 
 
 

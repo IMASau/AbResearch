@@ -6,15 +6,15 @@ library(scales)
 library(scales)
 library(tidyr)
 library(gdata)
-library(xlsx)
+library(openxlsx)
 library(lubridate)
 
 source("D:/GitCode/AbResearch/getSeason.r")
 
 juv <- read.xlsx(
- "D:/Fisheries Research/Abalone/AbResearchData/pop/2017/Juvenile_data_2016.xlsx",
- sheetName = "AllSites", col.names = TRUE
-)
+ "D:/Owncloud/Fisheries Research/Abalone/AbResearchData/pop/2017/Juvenile_data_working.xlsx",
+ sheet = "AllSites",
+ detectDates = TRUE)
 
 ## convert var names to lowor case
 colnames(juv) <- tolower(colnames(juv))
@@ -34,7 +34,7 @@ juv.sl <- filter(juv, !is.na(ab_sl))
 
 ## construct  date, quarter and season variables ----
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
-juv.sl$sampyear <- year(juv.sl$survdate) 
+juv.sl$sampyear <- as.factor(year(juv.sl$survdate)) 
 juv.sl$season <- getSeason(juv.sl$survdate) 
 ## recode autumn samples as summer
 juv.sl$season <- gsub( "Autumn", "Summer", juv.sl$season)
@@ -42,13 +42,13 @@ juv.sl$season <- as.factor(juv.sl$season)
 juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring"))
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
 juv.sl$yr.season <-
- ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring"))
+ ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
 pick <- which(juv.sl$location == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
 
 unique(juv.sl$survdate)
-
+unique(juv.sl$yr.season)
 
 ## B. Extract and prepare records with abs for abudnance analyses ----
 #juv$ab_sl <- NAToUnknown(x = juv$ab_sl, unknown = 0)
@@ -74,7 +74,7 @@ dat$absm <- dat$ab_n * (1/platearea)
 abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("location", "survdate", "string","plate"), convert = TRUE), dat$survindex, dat$ab_n, dat$absm)
 
 abcounts$survdate <- as.Date(strptime(abcounts$survdate, "%Y-%m-%d"))
-abcounts$sampyear <- year(abcounts$survdate) 
+abcounts$sampyear <- as.factor(year(abcounts$survdate)) 
 abcounts$season <- getSeason(abcounts$survdate) 
 ## recode autumn samples as summer
 abcounts$season <- gsub( "Autumn", "Summer", abcounts$season)
@@ -82,7 +82,7 @@ abcounts$season <- as.factor(abcounts$season)
 abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring"))
 abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring"))
+ ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
 pick <- which(abcounts$location == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
@@ -102,7 +102,7 @@ levels(abcounts$yr.season)
 
 ## Figures for length frequency analyses ####
 
-ggplot(ab_count, aes(y=ab_ct, x=survdate)) +
+ggplot(abcounts, aes(y=absm, x=yr.season)) +
   geom_bar(stat="identity")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
@@ -111,8 +111,24 @@ ggplot(ab_count, aes(y=ab_ct, x=survdate)) +
 #ggplot(Pick, aes(Ab_Sum, fill=survdate)) + geom_bar(position="dodge")
 
 
-ggplot(juv.sl, aes(x=ab_sl, group=location, color=location))+
- geom_histogram(stat = "bin", colour="grey", binwidth = 5, stack=FALSE)+
+## Frequency distribution of N by plate 
+cnt.dat <- droplevels(subset(abcounts, location=="BI"))
+
+ggplot(cnt.dat, aes(x=ab_n, color=location)) + 
+ ylab("Frequency") +
+ xlab("N")+
+ geom_histogram(alpha = 0.2, binwidth = 1)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+
+
+
+ggplot(juv.sl, aes(x=ab_sl, group=as.factor(location), color=as.factor(location))) +
+ geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
  scale_x_continuous(limits=c(0, 150))
  
 
@@ -172,9 +188,9 @@ ggplot(abcounts, aes(x=yr.season, y=absm, group = string)) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
  facet_grid(location ~ . )
 
+betsey <- droplevels(subset(abcounts, abcounts$location=="BI"))
 
-
-ggplot(betsey, aes(y=absm, x=yr.season, fill=string)) +
+ggplot(betsey, aes(y=ab_n, x=yr.season, fill=string)) +
   ggtitle("Betsey Island")+
   xlab("Sample date") + 
   ylab("Blacklip Abalone Abundance") +
@@ -183,12 +199,12 @@ ggplot(betsey, aes(y=absm, x=yr.season, fill=string)) +
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
         text = element_text(size=16),
-        legend.position=c(.95,.88))
+        legend.position=c(.95,.88)) +
+ facet_grid(sampyear ~ season)
 
-+
- # scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
+#  +scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
 
-GIII<-droplevels(subset(Pick, Pick$Site=="GIII"))
+GIII<-droplevels(subset(Pick, Pick$Site=="G3"))
 
 ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
   ggtitle("George 3rd Rock")+
@@ -200,8 +216,9 @@ ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
         text = element_text(size=16),
-        legend.position=c(.95,.88))+
-  scale_x_discrete(limits=c("11 Aug", "21 Sep", "13 Oct"))
+        legend.position=c(.95,.88))
+
+# scale_x_discrete(limits=c("11 Aug", "21 Sep", "13 Oct"))
 
 BR_B<-droplevels(subset(Pick, Pick$Site=="BR_B"))
 
@@ -264,4 +281,100 @@ ggplot(TG, aes(y=Ab_Sum, x=survdate, fill=string)) +
         text = element_text(size=16),
         legend.position=c(.1,.87))+
   scale_x_discrete(limits=c("29 Jul", "20 Aug", "09 Sep"))
+
+## Length frequency by site
+
+TG.sl <- droplevels(subset(juv.sl, location=="TG"))
+
+
+ggplot(TG.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.2, binwidth = 5)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+
+BI.sl <- droplevels(subset(juv.sl, location=="BI"))
+
+ggplot(BI.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.2, binwidth = 5)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+
+BRS.sl <- droplevels(subset(juv.sl, location=="BRS"))
+
+ggplot(BRS.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+
+BRB.sl <- droplevels(subset(juv.sl, location=="BRB"))
+
+ggplot(BRB.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+
+GIII.sl <- droplevels(subset(juv.sl, location=="G3"))
+
+ggplot(GIII.sl, aes(x=ab_sl)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+SP.sl <- droplevels(subset(juv.sl, location=="SP"))
+
+ggplot(SP.sl, aes(x=ab_sl, color=location)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.2, binwidth = 5)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(sampyear ~ season)
+
+##-----------------------------------------------------------------
+## AbCounts by plate
+
+betsey <- subset(abcounts, abcounts$location=="BRB")
+BI.yr1 <- filter(betsey, yr.season == "2016.Summer") %>%
+ group_by(string, plate) %>%
+ summarise(cnts = sum(ab_n))
+
+BI.yr2 <- filter(betsey, yr.season == "2017.Summer") %>%
+ group_by(string, plate) %>%
+ summarise(cnts = sum(ab_n))
+
+dat <- left_join(BI.yr1, BI.yr2,by = c("string", "plate"))
+
+plot(dat$cnts.x, dat$cnts.y, col=dat$string)
+
 
