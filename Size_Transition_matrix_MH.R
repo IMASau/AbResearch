@@ -37,14 +37,18 @@ findmedL <- function(x) { # A function to find the median length from a vector o
 
 
 
-# # empirical LML
-# # Example R code to conduct such a calculation using inverse logistic growth
-# invlog <- function(x,y,z,L) { # calculates the expected growth increment for length L
-#   ans <- x/(1+exp(log(19)*(L-y)/(z-y)))
-#   return(ans)
-# }
-# param <- c(MaxDL,L50,L95,SigMax) # MaxDL, L50, L95, SigMax
-# Lm50 <- median(results[,"SaM"]) # estimated size at 50% maturity
-# oneyear <- Lm50 + invlog(param[1], param[2], param[3], Lm50)
-# eLML <- oneyear + invlog(param[1], param[2], param[3], oneyear)
-# print(eLML) # deterministic empirical LML
+# empirical LML
+# Example R code to conduct such a calculation using inverse logistic growth
+invlog <- function(x,y,z,L) { # calculates the expected growth increment for length L
+  ans <- x/(1+exp(log(19)*(L-y)/(z-y)))
+  return(ans)
+}
+param <- c(MaxDL,L50,L95,SigMax) # MaxDL, L50, L95, SigMax
+Lm50 <- median(results[,"SaM"]) # estimated size at 50% maturity
+oneyear <- Lm50 + invlog(param[1], param[2], param[3], Lm50)
+eLML <- oneyear + invlog(param[1], param[2], param[3], oneyear)
+print(eLML) # deterministic empirical LML (SAM + 2 years)
+
+eLML <- eLML + invlog(param[1], param[2], param[3], eLML)
+print(eLML) # deterministic empirical LML (SAM + 3 years)
+

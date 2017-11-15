@@ -5,7 +5,7 @@ rm(list=ls(all=TRUE))
 myWorkDrive <- "D:/"  ## Craig and Hugh
 
 
-myWorkFolder <- "R_Stuff/SAM/Logistic"
+myWorkFolder <- "R_Stuff/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
@@ -70,47 +70,52 @@ SamResults$Ld95BootRange<-SamResults$Ld95BootU95-SamResults$Ld95BootL95
 #DT Seasonal SAM MSc used the same sites for SAM work between 1999-2001. There is some concern that by resampling the same sites continuously for 
 #for 2.5 years there might be effects on the L50 outside of those found at all other sites. Therefore all but the 1st samples in 1999 and 2000 are removed.
 
-DT_MSc<-c(171, 172)
-pick <- which(SamResults$SIT_Id == DT_MSc)
-DT_MSc<-SamResults[pick,]
+# DT_MSc<-c(171, 172)
+# pick <- which(SamResults$SIT_Id == DT_MSc)
+# DT_MSc<-SamResults[pick,]
+# 
+# pick <- which(DT_MSc$FishYear == 2001)
+# DT_MSc<-DT_MSc[-pick,]
+# DT_MSc[order(as.Date(DT_MSc$SAM_Date, format="%d/%m/%Y")),]
+# 
+# 
+# Sites<-unique(DT_MSc$SIT_Name)
+# if (exists("DT_out")) 
+#   rm(DT_out)
+# 
+# for(d in Sites){
+#   choice<-subset(DT_MSc, SIT_Name == d)
+#   pick<-plyr::ddply(choice, ("FishYear"), .fun= function(x) head(x,1))
+#   if (exists("DT_out"))
+#     DT_out <- rbind(DT_out, pick)
+#   else
+#     DT_out <- pick
+# }
 
-pick <- which(DT_MSc$FishYear == 2001)
-DT_MSc<-DT_MSc[-pick,]
-DT_MSc[order(as.Date(DT_MSc$SAM_Date, format="%d/%m/%Y")),]
+## NEw version of removing DT's MSC study sites
+pick <- which(SamResults$SIT_Id %in% c(171,172))
+DT_MSc <- SamResults[pick,]
+SamResults <-SamResults[-pick,]
 
-
-Sites<-unique(DT_MSc$SIT_Name)
-if (exists("DT_out")) 
-  rm(DT_out)
-
-for(d in Sites){
-  choice<-subset(DT_MSc, SIT_Name == d)
-  pick<-ddply(choice,.(FishYear),function(x) head(x,1))
-  if (exists("DT_out"))
-    DT_out <- rbind(DT_out, pick)
-  else
-    DT_out <- pick
-}
+DT_out <- subset(DT_MSc, SiteCode %in% c("172_2010_10", "171_2005_10"))
 
 #Remove all DT_MSc sites and replace with DT_out
-
-SamFilter<-droplevels(subset(SamResults, SIT_Id != 171))
-SamFilter<-droplevels(subset(SamResults, SIT_Id != 172))
-
-SamFilter<-rbind(SamFilter, DT_out)
-
-# save(SamResults, file="SamResults.Rdata")
-# write.csv(SamResults, file='SamResultsLatLong.csv')
-
-rm(choice, DT_MSc, DT_out, pick)
+SamFilter <- rbind(SamResults, DT_out)
 
 #remove duplicate records
 
-SamFilter<-SamFilter[!duplicated(SamFilter[,1]),]
+SamFilter <- SamFilter[!duplicated(SamFilter[,1]),]
 
-ddply(SamFilter,.(Zone), summarize,  n = length(SiteCode), 
-      mn.LD50 = mean(LD50, na.rm=T), mn.LCI50 = mean(Ld50BootL95, na.rm=T), mn.UCI50 = mean(Ld50BootU95, na.rm=T)
-      , LD50Range = mean(Ld50BootRange, na.rm=T))
+
+group_by(SamFilter, Zone) %>%
+ summarise(
+  n = n(),
+  mn.LD50 = mean(LD50, na.rm = T),
+  mn.LCI50 = mean(Ld50BootL95, na.rm = T),
+  mn.UCI50 = mean(Ld50BootU95, na.rm = T),
+  LD50Range = mean(Ld50BootRange, na.rm = T)
+ ) %>%
+ as.data.frame()
 
 # # LOAD IL_SAM_GIS match DATA
 GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =T)

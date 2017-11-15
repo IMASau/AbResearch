@@ -20,8 +20,6 @@ bigabs <- rename(bigabs, sllength = length)
 bigabs$string <- as.factor(bigabs$string)
 #bigabs$transect <- as.factor(bigabs$transect)
 
-## Filter for legal biomass
-#dat <- filter(temp, sllength > 137) %>%
 bigabs <- filter(bigabs, !is.na(sllength))
 
 bigabs$survindex <- as.factor(paste(bigabs$site, bigabs$survdate, bigabs$string, bigabs$transect, sep="_"))
@@ -29,12 +27,25 @@ bigabs$survindex <- as.factor(paste(bigabs$site, bigabs$survdate, bigabs$string,
 #dat <- filter(juv, ab_sl >=75 & ab_sl < 100) %>%
 #dat <- filter(juv, ab_sl <25 ) %>% 
 #dat <- filter(juv, ab_sl <= 100) %>% 
+
+## Filter for legal biomass
+#dat <- filter(temp, sllength > 137) %>%
  
- bigabdat <- group_by(bigabs, survindex) %>%
- summarise(ab_n =n()) %>%  #as.data.frame()
+
+ bigabdat <- bigabs %>% filter(sllength > 137) %>%
+  group_by(survindex) %>%
+ summarise(ab_n = n()) %>%  #as.data.frame()
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
 
+## All abs greater than 100mm 
+ bigabdat <- bigabs %>% #filter(sllength > 137) %>%
+  group_by(survindex) %>%
+  summarise(ab_n = n()) %>%  #as.data.frame()
+  complete(survindex, fill = list(ab_n = 0)) %>%
+  as.data.frame()
+ 
+ 
 ## calculate abs per square metre 
  bigabdat$absm <- bigabdat$ab_n / 15
 
@@ -58,14 +69,14 @@ bigabcounts$yr.season <- droplevels(bigabcounts$yr.season)
 
 
 unique(bigabcounts$site)
-mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG")) #, "MB", "T"))
 
 
 mydat$string <- as.factor(mydat$string)
 
 ggplot(mydat, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  theme_bw() +
- xlab("Season") + ggtitle("Abalone observed during transsect surveys") +
+ xlab("Season") + ggtitle("Abalone observed during transect surveys") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
  coord_cartesian(ylim = c(0, 5)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
@@ -74,8 +85,12 @@ ggplot(mydat, aes(x=yr.season, y=absm, group = string)) +
  facet_grid(site ~ . )
 
 
+summary(bigabs$sllength)
+hist(bigabs$sllength)
+subset(bigabs, sllength > 200)
 
-mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+
+mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","GIII", "SP", "TG", "MB", "T"))
 ## construct  date, quarter and season variables ----
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
 mydatsl$sampyear <- year(mydatsl$survdate) 
@@ -93,16 +108,39 @@ mydatsl$yr.season <- droplevels(mydatsl$yr.season)
 
 
 
+ggplot(mydatsl, aes(x=sllength, color=site)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.2, binwidth = 10)+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ theme_bw()+
+ facet_grid(site ~ yr.season)
+
+
 
 ggplot(mydatsl, aes(x=sllength, color=site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 5)+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 10)+
  geom_density(alpha=.2) +
  theme_bw()+
  facet_grid(site ~ yr.season)
 
 
+ggplot(mydatsl, aes(x=sllength)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 10)+
+ geom_density(alpha=.2) +
+ theme_bw()+
+ facet_grid( ~ yr.season)
+
+
+##------------------------------------------------------##
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~BY SITE ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Length frequency by site
 
@@ -118,6 +156,21 @@ ggplot(TG.sl.big, aes(x=sllength)) +
  #geom_histogram(binwidth=50)+
  theme_bw()+
  facet_grid(sampyear ~ season)
+
+
+
+plotdat <- droplevels(subset(mydat, mydat$site=="BRS"))
+
+ggplot(plotdat, aes(x=yr.season, y=absm, group = string)) + 
+ aes(colour = string) +  theme_bw() +
+ xlab("Season") + ggtitle("Abalone observed during transect surveys") +
+ ylab(bquote('Abalone Abundance ('*~m^2*')')) +
+ coord_cartesian(ylim = c(0, 2)) +
+ stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
+ stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
+ stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1)
+
+
 
 
 

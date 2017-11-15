@@ -59,13 +59,21 @@ platearea <- 0.503 #  var for planar area of reef covered by juvenile collector
 
 juv$survindex <- as.factor(paste(juv$location, juv$survdate, juv$string, juv$plate, sep="_"))
 
-#dat <- filter(juv, ab_sl >=75 & ab_sl < 100) %>%
-#dat <- filter(juv, ab_sl <25 ) %>% 
-dat <- filter(juv, ab_sl <= 100) %>% 
+## Subset by size ------------------##
+#dat <- filter(juv, ab_sl >=25 & ab_sl < 100) %>%
+dat <- filter(juv, ab_sl <25 ) %>% 
+#dat <- filter(juv, ab_sl <= 100) %>%
  group_by(survindex) %>%
  summarise(ab_n =n()) %>%  #as.data.frame()
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
+
+## USe all data -------------------##
+dat <- group_by(juv, survindex) %>%
+ summarise(ab_n =n()) %>%  #as.data.frame()
+ complete(survindex, fill = list(ab_n = 0)) %>%
+ as.data.frame()
+
 
 ## calculate abs per square metre 
 dat$absm <- dat$ab_n * (1/platearea)
@@ -126,7 +134,6 @@ ggplot(cnt.dat, aes(x=ab_n, color=location)) +
 
 
 
-
 ggplot(juv.sl, aes(x=ab_sl, group=as.factor(location), color=as.factor(location))) +
  geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
  scale_x_continuous(limits=c(0, 150))
@@ -135,7 +142,7 @@ ggplot(juv.sl, aes(x=ab_sl, group=as.factor(location), color=as.factor(location)
 ggplot(juv.sl, aes(x=ab_sl, color=location)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- geom_histogram(alpha = 0.2, binwidth = 5)+
+ geom_histogram(alpha = 0.5, binwidth = 10)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
@@ -146,10 +153,19 @@ ggplot(juv.sl, aes(x=ab_sl, color=location)) +
 ggplot(juv.sl, aes(x=ab_sl, color=location)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 5)+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 10)+
  geom_density(alpha=.2) +
  theme_bw()+
  facet_grid(location ~ yr.season)
+
+ggplot(juv.sl, aes(x=ab_sl)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 25)+
+ geom_density(alpha=.2) +
+ theme_bw()+
+ facet_grid( ~ yr.season)
+
 
 
 ##------------------------------------------------------##
@@ -364,17 +380,12 @@ ggplot(SP.sl, aes(x=ab_sl, color=location)) +
 ##-----------------------------------------------------------------
 ## AbCounts by plate
 
-betsey <- subset(abcounts, abcounts$location=="BRB")
-BI.yr1 <- filter(betsey, yr.season == "2016.Summer") %>%
- group_by(string, plate) %>%
- summarise(cnts = sum(ab_n))
+mysite <- "BRS"
+plotdat <- filter(abcounts, location==mysite) %>%
+ group_by(string, yr.season, plate) %>%
+ summarise(cnts = sum(ab_n)) %>%
+ spread(yr.season, cnts)
 
-BI.yr2 <- filter(betsey, yr.season == "2017.Summer") %>%
- group_by(string, plate) %>%
- summarise(cnts = sum(ab_n))
-
-dat <- left_join(BI.yr1, BI.yr2,by = c("string", "plate"))
-
-plot(dat$cnts.x, dat$cnts.y, col=dat$string)
+pairs(plotdat[3:9],panel=panel.smooth,main = paste0("Site: ",mysite))
 
 
