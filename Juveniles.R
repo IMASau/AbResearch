@@ -12,8 +12,8 @@ library(lubridate)
 source("D:/GitCode/AbResearch/getSeason.r")
 
 juv <- read.xlsx(
- "D:/Owncloud/Fisheries Research/Abalone/AbResearchData/pop/2017/Juvenile_data_working.xlsx",
- sheet = "AllSites",
+ "D:/Owncloud/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
+ sheet = "Juv",
  detectDates = TRUE)
 
 ## convert var names to lowor case
@@ -25,6 +25,18 @@ juv$plate <- as.factor(juv$plate)
 
 juv$location <- gsub( "_", "", juv$location)
 unique(juv$location)
+
+## Checking for outliers ####
+filter(juv, !is.na(ab_sl)) %>%
+ ggplot() +
+ geom_histogram(mapping = aes(x = ab_sl), binwidth = 5)
+
+filter(juv, !is.na(ab_sl)) %>%
+ count(cut_width(ab_sl, 5))
+
+filter(juv, !is.na(ab_sl)) %>%
+ ggplot(aes(x=location, y=ab_sl)) +
+ geom_boxplot()
 
 
 ### Prepare dataframes for length frequency and abundance analyses ----
@@ -41,8 +53,9 @@ juv.sl$season <- gsub( "Autumn", "Summer", juv.sl$season)
 juv.sl$season <- as.factor(juv.sl$season)
 juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring"))
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
+levels(juv.sl$yr.season)
 juv.sl$yr.season <-
- ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
+ ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
 pick <- which(juv.sl$location == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
@@ -61,18 +74,18 @@ juv$survindex <- as.factor(paste(juv$location, juv$survdate, juv$string, juv$pla
 
 ## Subset by size ------------------##
 #dat <- filter(juv, ab_sl >=25 & ab_sl < 100) %>%
-dat <- filter(juv, ab_sl <25 ) %>% 
-#dat <- filter(juv, ab_sl <= 100) %>%
+#dat <- filter(juv, ab_sl <25 ) %>% 
+dat <- filter(juv, ab_sl <= 100) %>%
  group_by(survindex) %>%
  summarise(ab_n =n()) %>%  #as.data.frame()
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
 
-## USe all data -------------------##
-dat <- group_by(juv, survindex) %>%
- summarise(ab_n =n()) %>%  #as.data.frame()
- complete(survindex, fill = list(ab_n = 0)) %>%
- as.data.frame()
+# ## USe all data -------------------##
+# dat <- group_by(juv, survindex) %>%
+#  summarise(ab_n =n()) %>%  #as.data.frame()
+#  complete(survindex, fill = list(ab_n = 0)) %>%
+#  as.data.frame()
 
 
 ## calculate abs per square metre 
@@ -90,7 +103,7 @@ abcounts$season <- as.factor(abcounts$season)
 abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring"))
 abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter"))
+ ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
 pick <- which(abcounts$location == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
@@ -120,7 +133,7 @@ ggplot(abcounts, aes(y=absm, x=yr.season)) +
 
 
 ## Frequency distribution of N by plate 
-cnt.dat <- droplevels(subset(abcounts, location=="BI"))
+cnt.dat <- droplevels(subset(abcounts, location=="BRB"))
 
 ggplot(cnt.dat, aes(x=ab_n, color=location)) + 
  ylab("Frequency") +
@@ -130,7 +143,7 @@ ggplot(cnt.dat, aes(x=ab_n, color=location)) +
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
  theme_bw()+
- facet_grid(sampyear ~ season)
+ facet_grid(yr.season ~ string)
 
 
 
@@ -198,11 +211,11 @@ ggplot(abcounts, aes(x=yr.season, y=absm, group = string)) +
  aes(colour = string) +  theme_bw() +
  xlab("Season") + ggtitle("Shell length 0mm to 100mm") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
- coord_cartesian(ylim = c(0, 15)) +
+# coord_cartesian(ylim = c(0, 15)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(location ~ . )
+ facet_grid(location ~ ., scales = "free_y" )
 
 betsey <- droplevels(subset(abcounts, abcounts$location=="BI"))
 
@@ -386,6 +399,14 @@ plotdat <- filter(abcounts, location==mysite) %>%
  summarise(cnts = sum(ab_n)) %>%
  spread(yr.season, cnts)
 
-pairs(plotdat[3:9],panel=panel.smooth,main = paste0("Site: ",mysite))
+pairs(plotdat[3:10],panel=panel.smooth,main = paste0("Site: ",mysite))
+
+
+plotdat2 <- filter(abcounts, location==mysite) %>%
+ mutate(stringdex = paste0(string,'_',plate)) %>%
+ group_by(stringdex) %>%
+ summarise(cnts = sum(ab_n)) 
+ 
+hist(plotdat2$cnts, breaks = 5)
 
 
