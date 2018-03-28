@@ -21,7 +21,11 @@ bigabs$string <- as.factor(bigabs$string)
 #bigabs$transect <- as.factor(bigabs$transect)
 
 bigabs$site <- recode(bigabs$site, BR_S = "BRS", BR_B = "BRB", .default = bigabs$site)
+bigabs$site <- recode(bigabs$site, GIII = "G3", .default = bigabs$site)
 
+bigabs$string  <- gsub( "Kar", "1", bigabs$string )
+bigabs$string  <- gsub( "Juv", "2", bigabs$string )
+table(bigabs$site, bigabs$string)
 
 filter(bigabs, !is.na(sllength)) %>%
 ggplot() +
@@ -44,14 +48,15 @@ bigabs$survindex <- as.factor(paste(bigabs$site, bigabs$survdate, bigabs$string,
 #dat <- filter(juv, ab_sl <= 100) %>% 
 
 ## Filter for legal biomass
- # bigabdat <- bigabs %>% filter(sllength > 137) %>%
- #  group_by(survindex) %>%
- # summarise(ab_n = n()) %>%  #as.data.frame()
- # complete(survindex, fill = list(ab_n = 0)) %>%
- # as.data.frame()
+ bigabdat <- bigabs %>% filter(sllength <= 137) %>%
+# bigabdat <- bigabs %>%
+  group_by(survindex) %>%
+  summarise(ab_n = n()) %>%  #as.data.frame()
+  complete(survindex, fill = list(ab_n = 0)) %>%
+  as.data.frame()
 
 ## All abs greater than 100mm 
- bigabdat <- bigabs %>% filter(sllength > 100) %>%
+ bigabdat <- bigabs %>% filter(sllength >= 138) %>%
   group_by(survindex) %>%
   summarise(ab_n = n()) %>%  #as.data.frame()
   complete(survindex, fill = list(ab_n = 0)) %>%
@@ -68,40 +73,51 @@ bigabcounts$survdate <- as.Date(strptime(bigabcounts$survdate, "%Y-%m-%d"))
 bigabcounts$sampyear <- year(bigabcounts$survdate) 
 bigabcounts$season <- getSeason(bigabcounts$survdate) 
 ## recode autumn samples as summer
+table(bigabcounts$site,bigabcounts$season)
 bigabcounts$season <- gsub( "Autumn", "Summer", bigabcounts$season)
 bigabcounts$season <- as.factor(bigabcounts$season)
 bigabcounts$season <- ordered(bigabcounts$season, levels=c("Summer","Winter","Spring"))
 bigabcounts$yr.season <- interaction(bigabcounts$sampyear,bigabcounts$season)
 bigabcounts$yr.season <-
  ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
-pick <- which(bigabcounts$location == "TG")
+
+# Adjust misclassified seasons
+pick <- which(bigabcounts$site == "TG")
+bigabcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts$yr.season[pick])
+bigabcounts$yr.season <- droplevels(bigabcounts$yr.season) 
+
+# Adjust misclassified seasons
+pick <- which(bigabcounts$site == "BI")
 bigabcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts$yr.season[pick])
 bigabcounts$yr.season <- droplevels(bigabcounts$yr.season) 
 
 
 unique(bigabcounts$site)
-mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG")) #, "MB", "T"))
+mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","G3", "SP", "TG")) #, "MB", "T"))
 
+unique(bigabcounts$site)
 
 mydat$string <- as.factor(mydat$string)
 
 ggplot(mydat, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  theme_bw() +
- xlab("Season") + ggtitle("Abalone ( > 100mm) observed during transect surveys") +
+ # xlab("Season") + #ggtitle("Abalone (>=138) observed during transect surveys") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
+ theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 # coord_cartesian(ylim = c(0, 5)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(site ~ . , scales = "free")
+ facet_grid(site ~ . , scales = "free") 
 
+table(mydat$site,mydat$yr.season)
 
 summary(bigabs$sllength)
 hist(bigabs$sllength)
 subset(bigabs, sllength > 200)
 
 
-mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","GIII", "SP", "TG", "MB", "T"))
+mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","G3", "SP", "TG", "MB", "T"))
 ## construct  date, quarter and season variables ----
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
 mydatsl$sampyear <- year(mydatsl$survdate) 
@@ -123,10 +139,11 @@ ggplot(mydatsl, aes(x=sllength, color=site)) +
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  geom_histogram(alpha = 0.2, binwidth = 10)+
+ theme_bw()+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
- theme_bw()+
  facet_grid(site ~ yr.season)
 
 
