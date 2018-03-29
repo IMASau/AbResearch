@@ -484,7 +484,7 @@ filter(abcounts, site==mysite) %>%
 ## power analysis and sample size
 ## 
 
-mysite <- "BRS"
+mysite <- "BRB"
 dat1 <- droplevels(filter(abcounts, site==mysite & yr.season == "2016.Summer" & string ==1)) %>%
   as.data.frame()
 
@@ -502,12 +502,23 @@ group_by(dat.ef, yr.season) %>%
 
 ## Using the effsize package
 t.test(dat1$absm, dat2$absm)
+cohen.d(dat2$absm, dat1$absm, pooled=TRUE, conf.level=0.95)
 coh.d <- cohen.d(dat.ef$absm ~ dat.ef$yr.season, pooled=TRUE, conf.level=0.95)
 coh.d
 
+tidy(coh.d$conf.int)
+
+
+
+
 ## http://genomicsclass.github.io/book/pages/power_calculations.html
-diff <- mean(dat1$absm) - mean(dat2$absm)
+m1 <- mean(dat1$absm) 
+m2 <- mean(dat2$absm)
+round(c(m1, m2),2)
+
+diff <- m1 - m2 
 diff
+
 
 t.test(dat1$absm, dat2$absm)
 t.test(dat1$absm, dat2$absm)$conf.int / mean(dat2$absm) * 100
@@ -523,7 +534,7 @@ diff / sd_pool
 # Find the minimum detectable difference with 50 samples, same distribution
 # parameters, alpha=0.05 and power=0.95:
 mdd <- power.t.test(n=N, delta=NULL, sd=sd_pool, sig.level=0.05, power=0.95, type="two.sample", alternative = "two.sided")
-
+mdd
 
 ## https://stats.idre.ucla.edu/r/dae/power-analysis-for-two-group-independent-sample-t-test/
 deltaseq <- data.frame(iter = seq(2.0, 5.0, 0.1))
@@ -637,7 +648,12 @@ boulder.sl <- filter(boulders, ab_sl > 0 & sampleperiod == 2)
 
 filter(boulders, ab_sl > 0 & sampleperiod == 2) %>%
  ggplot(aes(x=interaction(patch, site ), y=ab_sl)) +
- geom_boxplot()
+ geom_boxplot() +
+ theme_bw() +
+ theme(text = element_text(size=16)) + 
+ scale_y_continuous(breaks = seq(0,160, 20)) +
+ ylab("Shell length") +
+ xlab("Site")
 
 filter(boulders, ab_sl > 0 & sampleperiod == 2) %>%
  group_by(site, patch) %>%
