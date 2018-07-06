@@ -4,7 +4,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "c:/CloudStor/R_Stuff/SAM"
+wkdir <- "D:/R_Stuff/SAM"
 setwd(wkdir)
 
 

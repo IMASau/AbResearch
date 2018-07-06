@@ -15,7 +15,7 @@ myWorkFolder <- "R_Stuff/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
-#load("c:/CloudStor/R_Stuff/Logistic/SAMILRESULTS.RData")
+#load("D:/R_Stuff/Logistic/SAMILRESULTS.RData")
 
 source("D:/GitCode/AbResearch/Grwth_matrix.r")
 

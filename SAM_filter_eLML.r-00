@@ -2,7 +2,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "c:/CloudStor/R_Stuff/SAM"
+wkdir <- "D:/R_Stuff/SAM"
 setwd(wkdir)
 
 
@@ -17,7 +17,7 @@ library(multcompView)
 library(devtools)
 #sources
 
-load ('c:/CloudStor/R_Stuff/SAM/SAM2016_April.RData') #SAM2016_April
+load ('D:/R_Stuff/SAM/SAM2016_April.RData') #SAM2016_April
 # keep(SamResults, sure =T)
 
 #rename columns
@@ -112,7 +112,7 @@ rm(choice, DT_MSc, DT_out, pick)
 SamFilter<-SamFilter[!duplicated(SamFilter[,1]),]
 
 #Add SamNIQR to SamFilter
-load('c:/CloudStor/R_Stuff/SAM/Logistic/SamN_IQR.RData')
+load('D:/R_Stuff/SAM/Logistic/SamN_IQR.RData')
 SamFilter<-left_join(SamFilter, SamNIQR, by = "SiteCode") 
 SamFilter$PctIQR<-SamFilter$N.IQR/SamFilter$n*100
 

@@ -269,7 +269,7 @@ doPlot = function(LFPlot) {
 lapply(unique(Pick.GwthRsts$Zone), doPlot)
 
 
-save(Pick.GwthRsts, file='c:/CloudStor/R_Stuff/SAM/Logistic/DeterGwthRslts.RData')
+save(Pick.GwthRsts, file='D:/R_Stuff/SAM/Logistic/DeterGwthRslts.RData')
 
 eLMLBlockSumStats<-ddply(Pick.GwthRsts,.(BlockNo, Zone), summarize,  n = length(SiteCode), 
                          eLML.LM90.3 = mean(eLML.LM90.3, na.rm=T), eLML90.3.IQ = quantile(eLML.LM90.3, 0.75, na.rm=T)- quantile(eLML.LM90.3, 0.25, na.rm=T),

@@ -12,7 +12,7 @@ source("D:/GitCode/AbResearch/IL_funs.r")
 #source("D:/Fisheries Research/Abalone/SAM/MH growth code/abalonesubblks.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
-#load("c:/CloudStor/R_Stuff/SAM/Logistic/IL_output200916.RData")
+#load("D:/R_Stuff/SAM/Logistic/IL_output200916.RData")
 
 GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
 dim(GwthRaw)
@@ -111,4 +111,4 @@ ILResults<-as.data.frame(ILResults)
 
 ILResults<-left_join(ILResults, sitechar, by = "SiteId")
 
-save(ILResults, file='c:/CloudStor/R_Stuff/SAM/Logistic/ILResults.RData')
+save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults.RData')

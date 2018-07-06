@@ -158,7 +158,7 @@ cputime
 print(Sys.time()-strt)
 Sys.time()
 
-save.image(paste0("c:/CloudStor/R_Stuff/genetics/BlpermuteN",resampN))
+save.image(paste0("D:/R_Stuff/genetics/BlpermuteN",resampN))
 
 ## boot.ppfst(dat=dat,nboot=100,quant=c(0.025,0.975),diploid=TRUE,dig=4,...)
 
@@ -301,8 +301,8 @@ cputime
 print(Sys.time()-strt)
 Sys.time()
 
-#save.image(paste0("c:/CloudStor/R_Stuff/genetics/permuteSite",resampN))
-save.image("c:/CloudStor/R_Stuff/genetics/permuteSiteBl10")
+#save.image(paste0("D:/R_Stuff/genetics/permuteSite",resampN))
+save.image("D:/R_Stuff/genetics/permuteSiteBl10")
 
 
 ## End permute by region

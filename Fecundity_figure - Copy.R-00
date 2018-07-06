@@ -127,7 +127,7 @@ ggplot(data = maxFcd, aes(x=SL,  y=CountsM)) +
         axis.text.y  = element_text(size=14))
 
 # 
-# load("c:/CloudStor/R_Stuff/SAM/Logistic/GrthResults130916.RData")
+# load("D:/R_Stuff/SAM/Logistic/GrthResults130916.RData")
 # geoIIIsites<-c('813','418', '37', '420', '247', '39')
 # geoIII<-subset(GwthResults, SIT_Id %in% geoIIIsites)
 # gIIIeLML<-mean(geoIII$eLML)

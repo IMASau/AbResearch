@@ -2,7 +2,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/R_Stuff/SAM"
+wkdir <- "c:/CloudStor/R_Stuff/SAM"
 setwd(wkdir)
 
 ## Load raw csv file
