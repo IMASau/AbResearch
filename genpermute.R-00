@@ -12,11 +12,11 @@ library(doParallel)
 library(R.utils)
 library(gdata)
 
-setwd("c:/CloudStor/Fisheries Research/Abalone/GenPermute")
+setwd("D:/OwnCloud/Fisheries Research/Abalone/GenPermute")
 
 ## Get data in ####
 # greens <- read.xlsx(
-#  "c:/CloudStor/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levels.xlsx",
+#  "D:/OwnCloud/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levels.xlsx",
 #  sheet = "Tip & HS as one location +vic"
 # )
 # ## Convert all loci from chr to num
@@ -24,13 +24,13 @@ setwd("c:/CloudStor/Fisheries Research/Abalone/GenPermute")
 #  greens %>% mutate_all(funs(type.convert(as.character(.)))) %>% as.data.frame()
 
 # # read greenlip data file into R for use in heirfstat
- data <- read.table("c:/CloudStor/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
+ data <- read.table("D:/OwnCloud/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
 ## convert all NAs to 0
 data <- NAToUnknown(x = data, unknown = 0)
 
 
 # read blacklip data file into R for use in heirfstat
-data.bl <- read.table("c:/CloudStor/Fisheries Research/Abalone/GenPermute/blacklip for hierfst.txt",header=TRUE)
+data.bl <- read.table("D:/OwnCloud/Fisheries Research/Abalone/GenPermute/blacklip for hierfst.txt",header=TRUE)
 
 data <- data.bl
 names(data)
