@@ -4,12 +4,12 @@ library(dplyr)
 library(lme4)
 
 dat <- read.xlsx(
- "D:/OwnCloud/Contracts/VICFish/FISData.xlsx",
+ "c:/CloudStor/Contracts/VICFish/FISData.xlsx",
  sheetName = "Data",
  col.names = TRUE
 )
 
-infile <- "D:/OwnCloud/Contracts/VICFish/1. FIS Review/FISData.csv"
+infile <- "c:/CloudStor/Contracts/VICFish/1. FIS Review/FISData.csv"
 dat <- read.csv(infile,header=T) 
 
 yearlist <- sample(unique(dat$QuotaYear), 6)

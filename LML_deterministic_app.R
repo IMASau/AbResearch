@@ -4,7 +4,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/R_Stuff/SAM"
+wkdir <- "c:/CloudStor/R_Stuff/SAM"
 setwd(wkdir)
 
 
@@ -19,7 +19,7 @@ library(gdata)
 library(ggplot2)
 library(multcompView)
 #sources
-source("D:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r")
+source("C:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r")
 
 
 LML<-SamResults[,c(1,21:22,24, 26:27,6,8,13:16)]

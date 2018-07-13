@@ -8,7 +8,7 @@
 
 library("hierfstat")
 
-setwd("D:/OwnCloud/Fisheries Research/Abalone/GenPermute")  # Set the working directory
+setwd("c:/CloudStor/Fisheries Research/Abalone/GenPermute")  # Set the working directory
 dat <- read.table("Microsatellite_data.txt", header=TRUE,  na.strings="?", dec=".", check.names=FALSE) # read in data
 head(dat)
 

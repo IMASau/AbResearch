@@ -20,7 +20,7 @@ library(multcompView)
 library(devtools)
 #sources
 
-load ("D:/R_Stuff/SAM/Logistic/SamResults131016.RData")
+load ("c:/CloudStor/R_Stuff/SAM/Logistic/SamResults131016.RData")
 
 #rename columns
 #SamResults<-rename(SamResults, c("SIT_Latitude"="Latitude", "SIT_Longitude"="Longitude", "SIT_StatBlock"="BlockNo", "SIT_SubBlock"="SubBlockNo"))
@@ -121,7 +121,7 @@ group_by(SamFilter, Zone) %>%
 GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =T)
 # 
 # 
-#load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
+#load('c:/CloudStor/R_Stuff/SAM/Logistic/SamFilter131016.RData')
 # 
 SamFilterIL<-join(SamFilter, GIS.IL, by='SiteCode')
 
@@ -183,7 +183,7 @@ tHSDlm
 ASM<-SamFilterIL
 
 
-source("D:/GitCode/AbResearch/SAMTechReportFigures.R") # source of mean boxplots in ggplots
+source("C:/GitCode/AbResearch/SAMTechReportFigures.R") # source of mean boxplots in ggplots
 
 
 ggplot(SamFilterIL, aes(x=Pct.M.cut, y=Ld50BootRange)) + 

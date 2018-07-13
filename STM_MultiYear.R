@@ -15,9 +15,9 @@ myWorkFolder <- "R_Stuff/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
-#load("D:/R_Stuff/Logistic/SAMILRESULTS.RData")
+#load("c:/CloudStor/R_Stuff/Logistic/SAMILRESULTS.RData")
 
-source("D:/GitCode/AbResearch/Grwth_matrix.r")
+source("C:/GitCode/AbResearch/Grwth_matrix.r")
 
 #Calculate SigMaxLD50 for each site
 SAMILResults$SigMaxLD50<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD50-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))

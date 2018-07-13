@@ -33,7 +33,7 @@ rbind.match.columns <- function(input1, input2) {
 
 
 # LOAD SAM DATA
-load('D:/R_Stuff/SAM/Logistic/SamFilter190916.RData ')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/SamFilter190916.RData ')
 keep(SamFilterCI, SamFilter, SamResults, sure=T)
 #recode database subblock errors
 SamFilter$SubBlockNo[SamFilter$SubBlockNo==11] <- "11A"
@@ -47,7 +47,7 @@ SamFilterIL<-SamFilter
 # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
 # #================================================================
 
-infileNew <- "D:/R_Stuff/SAM/Logistic/SAMExport2016.csv"
+infileNew <- "c:/CloudStor/R_Stuff/SAM/Logistic/SAMExport2016.csv"
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
@@ -81,7 +81,7 @@ rm(BlckPop, BlckPopNew, SLSubBlockSum)
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
-load('D:/R_Stuff/SAM/Logistic/ILResults.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/ILResults.RData')
 
 IL.info<-ILResults
 names(IL.info)[names(IL.info)=='Latitude']<-"Latitude.IL"

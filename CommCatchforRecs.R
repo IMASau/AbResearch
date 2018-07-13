@@ -1,5 +1,5 @@
 
-setwd('D:/R_Stuff/AutoAssess')
+setwd('c:/CloudStor/R_Stuff/AutoAssess')
 ## Manually choose .rdata file	
 myFile <- file.choose()
 load(myFile)

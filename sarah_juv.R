@@ -9,7 +9,7 @@ library(gdata)
 library(xlsx)
 library(lubridate)
 
-source("D:/GitCode/AbResearch/getSeason.r")
+source("C:/GitCode/AbResearch/getSeason.r")
 
 juv <- read.xlsx(
  "D:/Fisheries Research/Abalone/AbResearchData/pop/2017/Juvenile_data_2016.xlsx",

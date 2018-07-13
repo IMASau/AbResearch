@@ -31,10 +31,10 @@ rbind.match.columns <- function(input1, input2) {
 
 #################################################################
 # # LOAD SAM DATA
-# load('D:/R_Stuff/SAM/Logistic/SamFilter190916.RData ')
+# load('c:/CloudStor/R_Stuff/SAM/Logistic/SamFilter190916.RData ')
 # SamFiltered<-left_join(SamListKeep, SamFilter[,c(1,17:22,28:30)], by = "SiteCode")
 
-load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/SamFilter131016.RData')
 keep(SamFilter, SamResults, BlckPop, sure=T)
 #recode database subblock errors
 SamFilter$SubBlockNo[SamFilter$SubBlockNo==11] <- "11A"
@@ -71,7 +71,7 @@ rm(SLSubBlockSum)
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
-load('D:/R_Stuff/SAM/Logistic/ILResults131016.Rdata')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/ILResults131016.Rdata')
 
 IL.info<-ILResults
 names(IL.info)[names(IL.info)=='Latitude']<-"Latitude.IL"

@@ -1,7 +1,7 @@
 library(plyr)
 library(data.table)
 library(dplyr)
-load("D:/R_Stuff/AutoAssess/MM_AnalysisOutput060716.RData")
+load("c:/CloudStor/R_Stuff/AutoAssess/MM_AnalysisOutput060716.RData")
 unique(compiled.df$zone_fishery_code)
 #Drop Greenlip records
 blk_cd<-subset(compiled.df, zone_fishery_code != "AQG")

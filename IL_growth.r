@@ -7,12 +7,12 @@ setwd("D:/Fisheries Research/Abalone/SAM/Growth code")
 #source("C:/A_CSIRO/Rcode/CEUtils/lm_utils.r")
 #source("C:/A_CSIRO/Rcode/CEUtils/abalone_utils.r")
 #source("C:/A_CSIRO/Rcode/CEUtils/abdata_utils.r")
-source("D:/GitCode/AbResearch/ab_funs1.r")
-source("D:/GitCode/AbResearch/IL_funs.r")
+source("C:/GitCode/AbResearch/ab_funs1.r")
+source("C:/GitCode/AbResearch/IL_funs.r")
 #source("D:/Fisheries Research/Abalone/SAM/MH growth code/abalonesubblks.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
-#load("D:/R_Stuff/SAM/Logistic/IL_output200916.RData")
+#load("c:/CloudStor/R_Stuff/SAM/Logistic/IL_output200916.RData")
 
 GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
 dim(GwthRaw)
@@ -111,4 +111,4 @@ ILResults<-as.data.frame(ILResults)
 
 ILResults<-left_join(ILResults, sitechar, by = "SiteId")
 
-save(ILResults, file='D:/R_Stuff/SAM/Logistic/ILResults.RData')
+save(ILResults, file='c:/CloudStor/R_Stuff/SAM/Logistic/ILResults.RData')

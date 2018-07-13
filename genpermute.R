@@ -12,11 +12,11 @@ library(doParallel)
 library(R.utils)
 library(gdata)
 
-setwd("D:/OwnCloud/Fisheries Research/Abalone/GenPermute")
+setwd("c:/CloudStor/Fisheries Research/Abalone/GenPermute")
 
 ## Get data in ####
 # greens <- read.xlsx(
-#  "D:/OwnCloud/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levels.xlsx",
+#  "c:/CloudStor/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levels.xlsx",
 #  sheet = "Tip & HS as one location +vic"
 # )
 # ## Convert all loci from chr to num
@@ -24,13 +24,13 @@ setwd("D:/OwnCloud/Fisheries Research/Abalone/GenPermute")
 #  greens %>% mutate_all(funs(type.convert(as.character(.)))) %>% as.data.frame()
 
 # # read greenlip data file into R for use in heirfstat
- data <- read.table("D:/OwnCloud/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
+ data <- read.table("c:/CloudStor/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
 ## convert all NAs to 0
 data <- NAToUnknown(x = data, unknown = 0)
 
 
 # read blacklip data file into R for use in heirfstat
-data.bl <- read.table("D:/OwnCloud/Fisheries Research/Abalone/GenPermute/blacklip for hierfst.txt",header=TRUE)
+data.bl <- read.table("c:/CloudStor/Fisheries Research/Abalone/GenPermute/blacklip for hierfst.txt",header=TRUE)
 
 data <- data.bl
 names(data)
@@ -158,7 +158,7 @@ cputime
 print(Sys.time()-strt)
 Sys.time()
 
-save.image(paste0("D:/R_Stuff/genetics/BlpermuteN",resampN))
+save.image(paste0("c:/CloudStor/R_Stuff/genetics/BlpermuteN",resampN))
 
 ## boot.ppfst(dat=dat,nboot=100,quant=c(0.025,0.975),diploid=TRUE,dig=4,...)
 
@@ -301,8 +301,8 @@ cputime
 print(Sys.time()-strt)
 Sys.time()
 
-#save.image(paste0("D:/R_Stuff/genetics/permuteSite",resampN))
-save.image("D:/R_Stuff/genetics/permuteSiteBl10")
+#save.image(paste0("c:/CloudStor/R_Stuff/genetics/permuteSite",resampN))
+save.image("c:/CloudStor/R_Stuff/genetics/permuteSiteBl10")
 
 
 ## End permute by region

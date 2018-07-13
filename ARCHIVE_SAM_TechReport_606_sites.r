@@ -2,7 +2,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/R_Stuff/SAM"
+wkdir <- "c:/CloudStor/R_Stuff/SAM"
 setwd(wkdir)
 
 ## Load raw csv file
@@ -17,9 +17,9 @@ library(gdata)
 library(ggplot2)
 library(multcompView)
 #sources
-source("D:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r")
+source("C:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r")
 
-source("D:/GitCode/AbResearch/SAM_utils_TechReport.R")
+source("C:/GitCode/AbResearch/SAM_utils_TechReport.R")
 
 
 # load D:\R_Stuff\SAM    SAM2016_April  SAM_TechReport230816.RData

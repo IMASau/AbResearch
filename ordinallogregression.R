@@ -5,7 +5,7 @@ require(Hmisc)
 require(reshape2)
 library(lattice)
 
-load("D:/GitCode/AbResearch/OrdLogRegData.RData")
+load("C:/GitCode/AbResearch/OrdLogRegData.RData")
 
 ###########################################################COMMERCIAL FISH SEASON
 # 

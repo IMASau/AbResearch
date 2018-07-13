@@ -34,7 +34,7 @@ rbind.match.columns <- function(input1, input2) {
 GIS.IL<-read.csv('D:/Fisheries Research/Abalone/SAM/IL_GIS_291016.csv', header =T)
 # 
 # 
-load('D:/R_Stuff/SAM/Logistic/SamFilter131016.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/SamFilter131016.RData')
 # 
 SamFilterIL<-join(SamFilter, GIS.IL, by='SiteCode')
 keep(SamFilterIL, SamFilter, SamResults, BlckPop, GIS.IL, rbind.match.columns, sure=T)
@@ -98,7 +98,7 @@ rm(maxSLsitecode)
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
-load('D:/R_Stuff/SAM/Logistic/ILResults271016.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/ILResults271016.RData')
 
 IL.info<-ILResults
 names(IL.info)[names(IL.info)=='Latitude']<-"Latitude"

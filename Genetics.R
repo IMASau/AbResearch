@@ -34,7 +34,7 @@ allele.count(FullSet[,2:31])
 
 
 # read data file into R for use in heirfstat
-data <- read.table("D:/OwnCloud/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
+data <- read.table("c:/CloudStor/Fisheries Research/Abalone/GenPermute/greenlip hierfst/3levelfinal.txt",header=TRUE)
 
 
 #define and name data frame that contains only loci information

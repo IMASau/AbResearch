@@ -7,7 +7,7 @@ myWorkFolder <- "R_Stuff/SAM/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
-load("D:/R_Stuff/SAM/Logistic/SAM_FILTER_2016-11-10.RData")
+load("c:/CloudStor/R_Stuff/SAM/Logistic/SAM_FILTER_2016-11-10.RData")
 
 library(car)
 library(MASS)
@@ -44,7 +44,7 @@ rbind.match.columns <- function(input1, input2) {
 # # #================================================================
 # # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
 # # #================================================================
-load('D:/R_Stuff/SAM/Logistic/BlckPop.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/BlckPop.RData')
 
 SiteCodes<-unique(SamFilterIL$SiteCode)
 pick <- which(BlckPop$SiteCode %in% SiteCodes)
@@ -66,7 +66,7 @@ rm(maxSLsitecode)
 # #================================================================
 # #                         load Growth parameters
 # #================================================================
-load('D:/R_Stuff/SAM/Logistic/ILResults271016.RData')
+load('c:/CloudStor/R_Stuff/SAM/Logistic/ILResults271016.RData')
 
 IL.info<-ILResults
 names(IL.info)[names(IL.info)=='Latitude']<-"Latitude"

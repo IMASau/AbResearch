@@ -10,7 +10,7 @@ library(effsize)
 library(openxlsx)
 
 
-source("D:/GitCode/AbResearch/getSeason.r")
+source("C:/GitCode/AbResearch/getSeason.r")
 juv <- read.xlsx(
  "D:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
  sheet = "Juv",
