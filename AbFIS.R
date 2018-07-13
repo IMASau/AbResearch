@@ -11,7 +11,7 @@ bigabs <- read.xlsx(
  sheet = "FIS",
  detectDates = TRUE)
 
-source("D:/GitCode/AbResearch/getSeason.r")
+source("C:/GitCode/AbResearch/getSeason.r")
 
 ## convert var names to lowor case
 colnames(bigabs) <- tolower(colnames(bigabs))

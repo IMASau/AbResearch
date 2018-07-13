@@ -13,7 +13,7 @@ library(MASS)
 library(boot)
 library(dplyr)
 library(plyr)
-source("D:/GitCode/AbResearch/SAM_utils.R")
+source("C:/GitCode/AbResearch/SAM_utils.R")
 
 alldata <- read.csv(infile,header=T)
 dim(alldata)

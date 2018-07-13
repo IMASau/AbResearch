@@ -11,7 +11,7 @@ infile <- "DataForExport.csv"
 library(car)
 library(MASS)
 library(boot)
-source("D:/GitCode/AbResearch/SAM_utils.R")
+source("C:/GitCode/AbResearch/SAM_utils.R")
 
 samdata <- read.csv(infile,header=T)
 dim(samdata)

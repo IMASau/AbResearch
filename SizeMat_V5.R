@@ -10,7 +10,7 @@ library(tidyr)
 library(lubridate)
 library(snow)
 
-source("D:/GitCode/AbResearch/SAM_Biplot.R")
+source("C:/GitCode/AbResearch/SAM_Biplot.R")
 
 #Outputs for Biplots
 resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_Biplots'

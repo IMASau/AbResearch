@@ -11,7 +11,7 @@ library(multcompView)
 load("c:/CloudStor/R_Stuff/SAM/Logistic/GWTHRESULTS_2016-11-10.RData")
 
 #sources
-source("D:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r") # source of the TukeyHSD letters in ggplots
+source("C:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r") # source of the TukeyHSD letters in ggplots
 
 # function for computing mean, DS, max and min values in boxplots
 min.mean.sd.max <- function(x) {

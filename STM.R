@@ -7,7 +7,7 @@
 # #                           Uses outputs from Growth_data_Allocation_SAM
 # #
 # #================================================================
-source("D:/GitCode/AbResearch/Grwth_matrix.r")
+source("C:/GitCode/AbResearch/Grwth_matrix.r")
 
 #Calculate SigMax for each site
 SAMILResults$SigMax<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD50-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))
