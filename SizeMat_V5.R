@@ -1,4 +1,4 @@
-setwd('D:/R_Stuff/SAM/Logistic')
+setwd('D:/R_Stuff/Logistic')
 library(MASS)
 library(gdata)
 library(doBy)
@@ -7,13 +7,14 @@ library(boot)
 library(car)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 library(lubridate)
 library(snow)
 
 source("D:/GitCode/AbResearch/SAM_Biplot.R")
 
 #Outputs for Biplots
-resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_Biplots'
+resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_plots'
 setwd <- resdir
 ##-----------------------------
 ## Need to work out a way to combine the full sample with the top up sample (good grief)
@@ -158,9 +159,25 @@ for (i in 1:NumSites) {
   SamList$N.overLD95[i] <-  as.numeric(N.overLD95)
  
   
-  png(filename = paste("BiPlot",SamList$SiteCode[i],".png", sep='_'))
+  ## 
+  fname <- paste("logregplot",SamList$SiteCode[i], sep='_')
+  writeName <- paste(resdir,"/",fname, sep ="")
+  pdfName <- paste(writeName,".pdf", sep ="")
+  wmfName <- paste(writeName,".wmf", sep ="")
+  
+  logistic.graph <- plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
+
+  # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # 
+  pdf(pdfName,width=6.5,height=6.5)
   plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
   dev.off()
+  
+  win.metafile(wmfName,width=6.5,height=6.5)
+  plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
+  dev.off()
+
   
   ## Bootstrap the ld50 paramater ####
   BootSAM50 <- function(data, indices) {
@@ -178,7 +195,7 @@ for (i in 1:NumSites) {
   }
   try({
 
-  booted.SAM <- boot(subdat,statistic=BootSAM50, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SAM <- boot(subdat,statistic=BootSAM50, R= 1000, parallel = "snow", ncpus = 8)
   booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
@@ -203,7 +220,7 @@ for (i in 1:NumSites) {
   }
   try({
    
-   booted.SAM <- boot(subdat,statistic=BootSAM75, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM <- boot(subdat,statistic=BootSAM75, R= 1000, parallel = "snow", ncpus = 8)
    booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
    boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
    boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
@@ -229,7 +246,7 @@ for (i in 1:NumSites) {
   }
   try({
    
-   booted.SAM <- boot(subdat,statistic=BootSAM85, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM <- boot(subdat,statistic=BootSAM85, R= 1000, parallel = "snow", ncpus = 8)
    booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
    boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
    boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
@@ -254,7 +271,7 @@ for (i in 1:NumSites) {
   }
   try({
    
-   booted.SAM <- boot(subdat,statistic=BootSAM90, R= 1000, parallel = "snow", ncpus = 3)
+   booted.SAM <- boot(subdat,statistic=BootSAM90, R= 1000, parallel = "snow", ncpus = 8)
    booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
    boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
    boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
@@ -280,7 +297,7 @@ for (i in 1:NumSites) {
   }
   try({
 
-  booted.SAM <- boot(subdat,statistic=BootSAM95, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SAM <- boot(subdat,statistic=BootSAM95, R= 1000, parallel = "snow", ncpus = 8)
   booted.SAM.CI <- boot.ci(booted.SAM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SAM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SAM.CI$bca[5],nsmall = 2)
@@ -292,9 +309,9 @@ for (i in 1:NumSites) {
 
 }
 SiteNames <- unique(samdata[,c(1:7,14)])
-SamResults <- join(SamList, SiteNames, by="SiteCode", type="inner")
+SamResults <- inner_join(SamList, SiteNames, by="SiteCode")
 
-write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheet="SAM")
+write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx")
 
 
 ##Size at Emergence ####
@@ -371,7 +388,25 @@ for (i in 1:NumSites) {
   N.overLD95 <-  nrow(droplevels(subset(subdat, subdat$SPC_ShellLength >= as.integer(as.vector(ld95)))))
   ShellList$N.overLD95[i] <-  as.numeric(N.overLD95)
   
-
+  ## 
+  fname <- paste("logregplot_em",SamList$SiteCode[i], sep='_')
+  writeName <- paste(resdir,"/",fname, sep ="")
+  pdfName <- paste(writeName,".pdf", sep ="")
+  wmfName <- paste(writeName,".wmf", sep ="")
+  
+   # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # 
+  pdf(pdfName,width=6.5,height=6.5)
+  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  dev.off()
+  
+  win.metafile(wmfName,width=6.5,height=6.5)
+  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  dev.off()
+  
+  
+  
   ## Bootstrap the ld50 paramater
   BootSEM50 <- function(data, indices) {
    require(MASS)
@@ -387,7 +422,7 @@ for (i in 1:NumSites) {
    return(ld50)
   }
  try({
-  booted.SEM <- boot(subdat,statistic=BootSEM50, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SEM <- boot(subdat,statistic=BootSEM50, R= 1000, parallel = "snow", ncpus = 8)
   booted.SEM.CI <- boot.ci(booted.SEM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SEM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SEM.CI$bca[5],nsmall = 2)
@@ -411,7 +446,7 @@ for (i in 1:NumSites) {
    return(ld95)
   }
  try({
-  booted.SEM <- boot(subdat,statistic=BootSEM95, R= 1000, parallel = "snow", ncpus = 3)
+  booted.SEM <- boot(subdat,statistic=BootSEM95, R= 1000, parallel = "snow", ncpus = 8)
   booted.SEM.CI <- boot.ci(booted.SEM,type="bca",conf = c(0.95))
   boot95.lower <- format(booted.SEM.CI$bca[4],nsmall = 2)
   boot95.upper <- format(booted.SEM.CI$bca[5],nsmall = 2)
