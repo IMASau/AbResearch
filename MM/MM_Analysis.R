@@ -1,22 +1,25 @@
-####MARKET MEASURE ANALYSIS######################
+## MARKET MEASURE ANALYSIS
+## Original code by Hugh Jones 2015
 
 
 library(RODBC)
 library(R.utils)
+library(tidyverse)
 library(lubridate)
-library(plyr)
+
 library(rgdal)
 library(sp)
 library(maptools)
 library(tools)
-#library(xlsx)
-library(lubridate)
+library(openxlsx)
+
 
 
 
 setwd('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring')
 
-#extract FactoryEmeasure data from research Database table FactoryEmeasure
+## Extract FactoryEmeasure data from research Database table FactoryEmeasure ####
+## query retreiveing data from the Access front end file ####
 channel <- odbcConnect('ASD_App2k')
 sql <- "SELECT 
 mb.CSA_Docket,
@@ -33,36 +36,37 @@ Order BY mb.CSA_CatchDate"
 m.measure.00.07 <- sqlQuery(channel, sql)
 close(channel)
 
+## ## query retreiveing data from the Access data file ####
+channel <-
+ odbcConnect('Asd_data')
+sql <-
+ "SELECT FactoryEmeasure.[Sequence number],
+FactoryEmeasure.[Docket number],
+FactoryEmeasure.Length,
+FactoryEmeasure.Time,
+FactoryEmeasure.Date,
+FactoryEmeasure.block,
+FactoryEmeasure.zone,
+FactoryEmeasure.diver,
+FactoryEmeasure.Factory,
+FactoryEmeasure.[est blips],
+FactoryEmeasure.[est glips],
+FactoryEmeasure.[landed weight],
+FactoryEmeasure.[sample quality]
+FROM FactoryEmeasure;"
+MM <-
+ sqlQuery(channel, sql)
+close(channel)
 
-
-
-
-
-#extract FactoryEmeasure data from research Database table FactoryEmeasure
-                                           channel <- odbcConnect('Asd_data')
-                                           sql <- "SELECT FactoryEmeasure.[Sequence number], 
-                                                         FactoryEmeasure.[Docket number], 
-                                                         FactoryEmeasure.Length, 
-                                                         FactoryEmeasure.Time, 
-                                                         FactoryEmeasure.Date, 
-                                                         FactoryEmeasure.block, 
-                                                         FactoryEmeasure.zone, 
-                                                         FactoryEmeasure.diver, 
-                                                         FactoryEmeasure.Factory, 
-                                                         FactoryEmeasure.[est blips], 
-                                                         FactoryEmeasure.[est glips], 
-                                                         FactoryEmeasure.[landed weight], 
-                                                         FactoryEmeasure.[sample quality]
-                                                   FROM FactoryEmeasure;"
-                                           MM <- sqlQuery(channel, sql)
-                                           close(channel)
+##--------------------------------------------------------------------------##
    
    #quick look and summary of data                                       
-   MM$Year<-substr(MM$Date, 1, 4)
+   MM$Year <- substr(MM$Date, 1, 4)
    MM$Year<-as.numeric(MM$Year)
    
    #subsetting for compariosn to other MM datasources
-   subMM<-(droplevels(subset(MM, MM$Year<=2011 & MM$Year>=2006)))
+   subMM <- (droplevels(subset(MM, MM$Year <= 2011 &
+                                MM$Year >= 2006)))
    unique(subMM$Factory)
    range(subMM$Year)
    

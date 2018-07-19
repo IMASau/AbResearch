@@ -1,3 +1,6 @@
+## MARKET MEASURE ANALYSIS
+## Original code by Hugh Jones 2015
+
 library(rgdal)
 library(sp)
 library(maptools)
@@ -17,26 +20,46 @@ setwd("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measur
 
 
 #loop through the WkDir subfolders and extract all.CSV file names
-MM_files<-c()
+MM_files <- c()
 #change the grep to search based on folder names
-  for (dir_finals in grep('MK Haulage',list.files(path='.',all.files=FALSE,full.names=TRUE),value=TRUE))  
-  {
-    MM_files<-c(MM_files,grep('.CSV',list.files(path = dir_finals, all.files = FALSE, full.names = TRUE, recursive = TRUE),value=TRUE) )
-  }
+for (dir_finals in grep('MK Haulage',
+                        list.files(
+                         path = '.',
+                         all.files = FALSE,
+                         full.names = TRUE
+                        ),
+                        value = TRUE))
+{
+ MM_files <-
+  c(MM_files, grep(
+   '.CSV',
+   list.files(
+    path = dir_finals,
+    all.files = FALSE,
+    full.names = TRUE,
+    recursive = TRUE
+   ),
+   value = TRUE
+  ))
+}
 
-all_data<-NULL
+all_data <- NULL
 for (file in MM_files)
 {
-  helper<- function(file,df)
+ helper <- function(file, df)
+ {
+  data <- read.csv(file, header = FALSE)
+  data$file_name <- file
+  if (is.null(df))
   {
-    data<-read.csv(file,header=FALSE)
-    data$file_name<-file
-    if (is.null(df)) 
-    { df <- data } else { df<-rbind(data,df)}
-    return(df)
+   df <- data
+  } else {
+   df <- rbind(data, df)
   }
-  
-  try(all_data<-helper(file,all_data))
+  return(df)
+ }
+ 
+ try(all_data <- helper(file, all_data))
 }
 head(all_data)
 
