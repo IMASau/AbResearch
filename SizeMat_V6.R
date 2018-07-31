@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 setwd('D:/R_Stuff/Logistic')
+=======
+setwd('c:/CloudStor/R_Stuff/SAM/Logistic')
+>>>>>>> origin/master
 library(MASS)
 library(gdata)
 library(doBy)
@@ -11,7 +15,7 @@ library(ggplot2)
 library(lubridate)
 library(snow)
 
-source("D:/GitCode/AbResearch/SAM_Biplot.R")
+source("C:/GitCode/AbResearch/SAM_Biplot.R")
 
 #Outputs for Biplots
 resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_plots'
@@ -33,7 +37,7 @@ setwd <- resdir
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
 ## SEX = I, T, M, or F
-infileNew <- "D:/R_Stuff/Logistic/SAMExport2016.csv"
+infileNew <- "c:/CloudStor/R_Stuff/Logistic/SAMExport2016.csv"
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
