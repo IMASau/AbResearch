@@ -1,5 +1,8 @@
 compiled.df.backup <-  compiled.df
-
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(tidyverse)
 
 df <- data.frame(x = c("x: 123", "y: error: 7"))
 df %>% separate(x, c("key", "value", "third"), ": ", extra = "merge")
@@ -21,12 +24,22 @@ compiled.df$fishyear2 <- year(compiled.df$msr.date)
 ## grepl ("9" ...  finds all rows with a 9 in the blocklist column (e.g. 9, 19, 29 etc)
 ## So this is not what we want
 
+##Jaime interpretation - filter out data where blocklist column contains 
+##block 9 and where the shell length column is between 132-200 mm
+
+##possible solution to review
+##https://suzan.rbind.io/2018/02/dplyr-tutorial-3/
+
 
 
 ## Filter data by block
 x <- c("10", "9", "11")
-plotdat <- filter(compiled.df, grepl("9", blocklist), between(shell.length, 132, 200) )
+plotdat <- filter(compiled.df, grepl('9', blocklist), between(shell.length, 132, 200) )
 plotdat <- filter(compiled.df, grepl(paste(x, collapse = "|"), blocklist), between(shell.length, 132, 200) )
+
+plotdat <- filter(compiled.df, any_vars(.=9), between(shell.length, 132, 200) )
+
+
 unique(plotdat$blocklist)
 
 ggplot(plotdat) + geom_histogram(aes(x=shell.length, group = fishyear2)) + facet_grid(~ fishyear2)
