@@ -37,8 +37,10 @@ x <- c("10", "9", "11")
 plotdat <- filter(compiled.df, grepl('9', blocklist), between(shell.length, 132, 200) )
 plotdat <- filter(compiled.df, grepl(paste(x, collapse = "|"), blocklist), between(shell.length, 132, 200) )
 
-plotdat <- filter(compiled.df, any_vars(.=9), between(shell.length, 132, 200) )
-
+## Filter data by block: possible solution
+plotdat <-
+ compiled.df %>% filter_at(vars(bl1, bl2, bl3, bl4, bl5), any_vars(. == 9)) %>% filter(between(shell.length, 132, 200)) 
+                                     
 
 unique(plotdat$blocklist)
 
