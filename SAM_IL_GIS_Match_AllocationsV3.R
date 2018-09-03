@@ -1,6 +1,6 @@
 #use latest SamFilter as precusror to this file 
 # currently SamFilter050916.RData ## SET THE WORKING AND RESULTS DIRECTORIES
-myWorkDrive <- "D:/"  ## Craig and Hugh
+myWorkDrive <- "C:/"  ## Craig and Hugh
 
 
 myWorkFolder <- "R_Stuff/SAM/Logistic"
@@ -9,18 +9,17 @@ setwd(myWorkPath)
 
 load("c:/CloudStor/R_Stuff/SAM/Logistic/SAM_FILTER_2016-11-10.RData")
 
+library(tidyverse)
 library(car)
 library(MASS)
 library(boot)
-library(plyr)
 library(dtplyr)
 library(gdata)
-library(ggplot2)
 library(ggrepel)
 library(multcompView)
 library(devtools)
 library(lubridate)
-library(dplyr)
+
 
 #######RBIND ALL SUBSETS (function below for unmatch columns)
 
@@ -44,7 +43,7 @@ rbind.match.columns <- function(input1, input2) {
 # # #================================================================
 # # #                         ADD IN SL DATA from raw SAM database file to SAMfilter
 # # #================================================================
-load('c:/CloudStor/R_Stuff/SAM/Logistic/BlckPop.RData')
+load('c:/CloudStor/R_Stuff/BlckPop.RData')
 
 SiteCodes<-unique(SamFilterIL$SiteCode)
 pick <- which(BlckPop$SiteCode %in% SiteCodes)
