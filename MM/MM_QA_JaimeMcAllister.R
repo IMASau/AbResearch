@@ -49,3 +49,9 @@ unique(tfsmargate$Docket) ##[140] = 0, [468, 469, 471, 474, 476, 477] = have add
 
 str(tfssmithton) ##good but [10] = 0
 unique(tfssmithton$Docket)
+
+class(all_data$Date)
+all_data_backup <- all_data
+#all_data <- all_data_backup
+all_data$Date.2 <- as.Date(all_data$Date, format = "%d/%m/%Y")
+unique(all_data$Date)
