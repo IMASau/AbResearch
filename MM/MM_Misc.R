@@ -1,51 +1,48 @@
-compiled.df.backup <-  compiled.df
+## Load packages
 library(dplyr)
 library(lubridate)
 library(tidyr)
 library(tidyverse)
+library(splitstackshape)
 
-df <- data.frame(x = c("x: 123", "y: error: 7"))
-df %>% separate(x, c("key", "value", "third"), ": ", extra = "merge")
-df %>% separate(x, into=c("key", "value", "third"), sep= ":", fill= "right" )
+## Make a quick back-up copy of compiled.df to refresh data frame
+compiled.df.backup <-  compiled.df
+#compiled.df <- compiled.df.backup
 
-#colnames(compiled.df) <- tolower(colnames(compiled.df))
+## Tidy-up and format some of the data for the compiled.df
 
-compiled.df  <- compiled.df %>% separate(blocklist, into=c("bl1", "bl2", "bl3", "bl4", "bl5"), sep = ", " , fill= "right", remove = FALSE ) %>%
- as.data.frame()
+# The compiled.df contains some records with no docket.numbers but do have measure date, processorname and 
+# sub-block information.  These arise from MM.00.07 data and are represented by 'below' and '27/03/' as the
+# docket number.  The shell length data can still be used given the above, however, the records can be removed 
+# if needed:
 
-## recode fishyear
-compiled.df$fishyear2 <- year(compiled.df$msr.date)
+compiled.df <- subset(compiled.df, !(docket.number %in% c('below', '27/03/')))
+compiled.df$docket.number <- as.numeric(compiled.df$docket.number)
 
+# Replace column names with lower case
+colnames(compiled.df) <- tolower(colnames(compiled.df))
 
-## see the link below
-##https://dplyr.tidyverse.org/reference/filter_all.html
-##work out a way to filter for multiple blocks on multiple columns
-##Note: the grepl function pulls out out nore records than we want e.g.
-## grepl ("9" ...  finds all rows with a 9 in the blocklist column (e.g. 9, 19, 29 etc)
-## So this is not what we want
+# Split compiled.df into sub-blocks
+compiled.df <- cSplit(compiled.df, 'blocklist', ',', drop = F)
 
-##Jaime interpretation - filter out data where blocklist column contains 
-##block 9 and where the shell length column is between 132-200 mm
+# Add column for fishing year
+compiled.df$fishyear <- year(compiled.df$msr.date)
 
-##possible solution to review
-##https://suzan.rbind.io/2018/02/dplyr-tutorial-3/
-
-
-
-## Filter data by block
-x <- c("10", "9", "11")
-plotdat <- filter(compiled.df, grepl('9', blocklist), between(shell.length, 132, 200) )
-plotdat <- filter(compiled.df, grepl(paste(x, collapse = "|"), blocklist), between(shell.length, 132, 200) )
-
-## Filter data by block: possible solution
+## Filter data for any combination containing block number (e.g. 9), and between 132-200 mm SL
 plotdat <-
- compiled.df %>% filter_at(vars(bl1, bl2, bl3, bl4, bl5), any_vars(. == 9)) %>% filter(between(shell.length, 132, 200)) 
-                                     
+ compiled.df %>% filter_at(vars(blocklist_1, blocklist_2, blocklist_3, blocklist_4, blocklist_5), 
+                           any_vars(. == 9)) %>% filter(between(shell.length, 132, 200)) 
 
-unique(plotdat$blocklist)
+# B&W plot by fishing year
+boxplot(shell.length ~ fishyear, plotdat, xlab = 'Year', ylab = 'Shell length (mm)')
 
-ggplot(plotdat) + geom_histogram(aes(x=shell.length, group = fishyear2)) + facet_grid(~ fishyear2)
-ggplot(plotdat) + geom_density(aes(x=shell.length, group = factor(fishyear2), colour = factor(fishyear2), alpha= 2)) + scale_fill_brewer(palette = "Dark2")
+plotdat$fishyear <- as.factor(plotdat$fishyear)
+bwplot(fishyear ~ shell.length, plotdat, ylab = 'Year', xlab = 'Shell length (mm)')
+
+
+
+ggplot(plotdat) + geom_histogram(aes(x=shell.length, group = fishyear)) + facet_grid(~ fishyear)
+ggplot(plotdat) + geom_density(aes(x=shell.length, group = factor(fishyear), colour = factor(fishyear), alpha= 2)) + scale_fill_brewer(palette = "Set1")
 
 
 table(compiled.df$fishyear, compiled.df$fishyear2)
