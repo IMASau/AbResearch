@@ -7,11 +7,11 @@
 # #                 Calculate the Size transition matrix and eLML
 # #
 # #==============================================================
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
 
-myWorkDrive <- "D:/"  ## Craig and Hugh
-myWorkFolder <- "R_Stuff/Logistic"
+
+myWorkDrive <- "C:/"  ## Craig and Hugh
+myWorkFolder <- "CloudStor/R_Stuff/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
@@ -27,8 +27,13 @@ SAMILResults$SigMaxLD50<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD50-S
 #Calculate SigMaxL95 for each site
 SAMILResults$SigMaxLD95<-SAMILResults$MaxDL/(1+exp((log(19)*(SAMILResults$LD95-SAMILResults$L50)/(SAMILResults$L95-SAMILResults$L50))))
 
-Sites<-unique(SAMILResults$SiteCode)
-# i <- "125_1988_8"
+Sites <- unique(SAMILResults$SiteCode)
+# i <- "125_1988_8" # Gardens Site 8
+# 
+# i <- "610_2003_11" # Mary Anne Reef, Recercher Bay
+# i <- "272_2001_3" # Point Hibbs
+# i <- "458_2002_2" # Black ISland, West Coast
+# 
 #####
 #     L50% multiyear
 #####
@@ -36,7 +41,7 @@ if (exists("eLMLResults"))
   rm(eLMLResults)
 
 for(i in Sites){
-  choice<-subset(SAMILResults, SiteCode == i)
+  choice <- subset(SAMILResults, SiteCode == i)
   param <- c(choice$MaxDL,choice$L50,choice$L95,choice$SigMaxLD50) # MaxDL, L50, L95, SigMax
   Lm50 <- choice$LD50 # estimated size at 50% maturity
   LML <- choice$LML
@@ -46,8 +51,8 @@ for(i in Sites){
   Nt <- numeric(105)
   Nt[trunc(Lm50/2)] <- 1000
   Nt1 <- G %*% Nt  #1 year growth post LM50
-  Nt2 <-G %*% (G %*% Nt) #2 year Grwoth post LM50
-  Nt3 <-G %*% (G %*% (G %*% Nt))  #3 year Grwoth post LM50
+  Nt2 <-G %*% (G %*% Nt) #2 year growth post LM50
+  Nt3 <-G %*% (G %*% (G %*% Nt))  #3 year growth post LM50
   choice$eLML50.1y<-(findmedL(Nt1))
   choice$eLML50.2y<-(findmedL(Nt2))
   choice$eLML50.3y<-(findmedL(Nt3))
@@ -203,5 +208,10 @@ Nt10df$Length<-midpts
 
 
 
-ggplot(Nt1df) + geom_line(aes(x=Length, y=V1), size=2) +   geom_vline(xintercept=Lm50, colour = 'red', size=1, linetype= 3) + xlim(100,200)
+ggplot(Nt2df) + geom_line(aes(x = Length, y = V1), size = 1) +   geom_vline(
+ xintercept = Lm50,
+ colour = 'red',
+ size = 1,
+ linetype = 3
+) + xlim(100, 200)
 
