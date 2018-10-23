@@ -7,7 +7,7 @@
 library(RODBC)
 library(R.utils)
 library(lubridate)
-#library(plyr)
+library(plyr)
 library(rgdal)
 library(sp)
 library(maptools)
@@ -789,6 +789,10 @@ keep(compiled.docket.00.07, compiled.docket.FeMM, compiled.docket.07.11, compile
 
 ###############################################################################################################
 
+
+
+
+
 names(compiled.docket.FeMM)
 names(compiled.docket.07.11)
 names(compiled.docket.00.07)
@@ -904,7 +908,7 @@ for(b in db.dup.dockets){
  }
 }
 
-#join unique FeMM dockets to the identifying information in docket.info from FILMS database
+#join unique FeMM dockets to the identifying information in docket.info from FILMS database####
 compiled.triples<-join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "unloading_date"), type ="inner")
 
 compiled.df<-rbind(compiled.uniq,compiled.dupes, compiled.triples)
