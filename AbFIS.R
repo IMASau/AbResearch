@@ -1,13 +1,12 @@
 library(dplyr)
 library(ggplot2)
 library(scales)
-library(scales)
 library(tidyr)
 library(gdata)
 library(openxlsx)
 library(lubridate)
 bigabs <- read.xlsx(
- "D:/Owncloud/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
+ "C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
  sheet = "FIS",
  detectDates = TRUE)
 
@@ -23,9 +22,13 @@ bigabs$string <- as.factor(bigabs$string)
 bigabs$site <- recode(bigabs$site, BR_S = "BRS", BR_B = "BRB", .default = bigabs$site)
 bigabs$site <- recode(bigabs$site, GIII = "G3", .default = bigabs$site)
 
+table(bigabs$site, bigabs$string)
 bigabs$string  <- gsub( "Kar", "1", bigabs$string )
 bigabs$string  <- gsub( "Juv", "2", bigabs$string )
-table(bigabs$site, bigabs$string)
+bigabs$string  <- gsub( "N", "1", bigabs$string )
+bigabs$string  <- gsub( "S", "2", bigabs$string )
+bigabs$string  <- gsub( "North", "1", bigabs$string )
+bigabs$string  <- gsub( "South", "2", bigabs$string )
 
 filter(bigabs, !is.na(sllength)) %>%
 ggplot() +
@@ -64,7 +67,7 @@ bigabs$survindex <- as.factor(paste(bigabs$site, bigabs$survdate, bigabs$string,
  
  
 ## calculate abs per square metre 
- bigabdat$absm <- bigabdat$ab_n / 15
+bigabdat$absm <- bigabdat$ab_n / 15
 
 ## unpack survindex var
 bigabcounts <- data.frame(separate(bigabdat, survindex, sep = "_", into = c("site", "survdate", "string","transect"), convert = TRUE), bigabdat$survindex, bigabdat$ab_n, bigabdat$absm)
@@ -74,16 +77,19 @@ bigabcounts$sampyear <- year(bigabcounts$survdate)
 bigabcounts$season <- getSeason(bigabcounts$survdate) 
 ## recode autumn samples as summer
 table(bigabcounts$site,bigabcounts$season)
+table(bigabcounts$sampyear,bigabcounts$season)
 bigabcounts$season <- gsub( "Autumn", "Summer", bigabcounts$season)
 bigabcounts$season <- as.factor(bigabcounts$season)
 bigabcounts$season <- ordered(bigabcounts$season, levels=c("Summer","Winter","Spring"))
 bigabcounts$yr.season <- interaction(bigabcounts$sampyear,bigabcounts$season)
+unique(bigabcounts$yr.season)
 bigabcounts$yr.season <-
- ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter"))
 
 # Adjust misclassified seasons
 pick <- which(bigabcounts$site == "TG")
 bigabcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts$yr.season[pick])
+
 bigabcounts$yr.season <- droplevels(bigabcounts$yr.season) 
 
 # Adjust misclassified seasons
@@ -95,7 +101,7 @@ bigabcounts$yr.season <- droplevels(bigabcounts$yr.season)
 unique(bigabcounts$site)
 mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","G3", "SP", "TG")) #, "MB", "T"))
 
-unique(bigabcounts$site)
+unique(mydat$site)
 
 mydat$string <- as.factor(mydat$string)
 
@@ -128,7 +134,7 @@ mydatsl$season <- as.factor(mydatsl$season)
 mydatsl$season <- ordered(mydatsl$season, levels=c("Summer","Winter","Spring"))
 mydatsl$yr.season <- interaction(mydatsl$sampyear,mydatsl$season)
 mydatsl$yr.season <-
- ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter"))
 pick <- which(mydatsl$site == "TG")
 mydatsl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", mydatsl$yr.season[pick])
 mydatsl$yr.season <- droplevels(mydatsl$yr.season)
@@ -184,7 +190,6 @@ ggplot(TG.sl.big, aes(x=sllength)) +
  #geom_histogram(binwidth=50)+
  theme_bw()+
  facet_grid(sampyear ~ season)
-
 
 
 plotdat <- droplevels(subset(mydat, mydat$site=="BI"))

@@ -1,25 +1,20 @@
-<<<<<<< HEAD
-setwd('D:/R_Stuff/Logistic')
-=======
-setwd('c:/CloudStor/R_Stuff/SAM/Logistic')
->>>>>>> origin/master
+setwd('C:/CloudStor/R_Stuff/Logistic')
+library(tidyverse)
 library(MASS)
 library(gdata)
 library(doBy)
 library(openxlsx)
 library(boot)
 library(car)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
 library(lubridate)
 library(snow)
 
 source("C:/GitCode/AbResearch/SAM_Biplot.R")
 
 #Outputs for Biplots
-resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_plots'
+resdir <- 'C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/SAM/SAM_plots'
 setwd <- resdir
+
 ##-----------------------------
 ## Need to work out a way to combine the full sample with the top up sample (good grief)
 ## Currently combining all data collected at the same site in the same month as a 'sample'
@@ -37,7 +32,7 @@ setwd <- resdir
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
 ## SEX = I, T, M, or F
-infileNew <- "c:/CloudStor/R_Stuff/Logistic/SAMExport2016.csv"
+infileNew <- "C:/CloudStor/R_Stuff/Logistic/SAMExport2016.csv"
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
@@ -169,18 +164,18 @@ for (i in 1:NumSites) {
   pdfName <- paste(writeName,".pdf", sep ="")
   wmfName <- paste(writeName,".wmf", sep ="")
   
-  logistic.graph <- plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
-
-  # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
-  # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # logistic.graph <- plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
   # 
-  pdf(pdfName,width=6.5,height=6.5)
-  plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
-  dev.off()
-  
-  win.metafile(wmfName,width=6.5,height=6.5)
-  plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
-  dev.off()
+  # # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
+  # # 
+  # pdf(pdfName,width=6.5,height=6.5)
+  # plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
+  # dev.off()
+  # 
+  # win.metafile(wmfName,width=6.5,height=6.5)
+  # plotgraph(SizeMat,SamList$LD50[i],SamList$SiteCode[i],SamList)#,savefile=T)
+  # dev.off()
 
   
   ## Bootstrap the ld50 paramater ####
@@ -315,7 +310,7 @@ for (i in 1:NumSites) {
 SiteNames <- unique(samdata[,c(1:7,14)])
 SamResults <- inner_join(SamList, SiteNames, by="SiteCode")
 
-write.xlsx(SamResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx")
+write.xlsx(SamResults, "C:/CloudStor/R_Stuff/Logistic/SamResultsBoot2018.xlsx")
 
 
 ##Size at Emergence ####
@@ -393,22 +388,22 @@ for (i in 1:NumSites) {
   ShellList$N.overLD95[i] <-  as.numeric(N.overLD95)
   
   ## 
-  fname <- paste("logregplot_em",SamList$SiteCode[i], sep='_')
-  writeName <- paste(resdir,"/",fname, sep ="")
-  pdfName <- paste(writeName,".pdf", sep ="")
-  wmfName <- paste(writeName,".wmf", sep ="")
-  
+  # fname <- paste("logregplot_em",SamList$SiteCode[i], sep='_')
+  # writeName <- paste(resdir,"/",fname, sep ="")
+  # pdfName <- paste(writeName,".pdf", sep ="")
+  # wmfName <- paste(writeName,".wmf", sep ="")
+  # 
    # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
   # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
   # 
-  pdf(pdfName,width=6.5,height=6.5)
-  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
-  dev.off()
-  
-  win.metafile(wmfName,width=6.5,height=6.5)
-  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
-  dev.off()
-  
+  # pdf(pdfName,width=6.5,height=6.5)
+  # plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  # dev.off()
+  # 
+  # win.metafile(wmfName,width=6.5,height=6.5)
+  # plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  # dev.off()
+  # 
   
   
   ## Bootstrap the ld50 paramater
@@ -461,10 +456,11 @@ for (i in 1:NumSites) {
 
 
 }
+
 SiteNames <- unique(shelldata[,c(1:7,14)])
 ShellResults <- merge(ShellList, SiteNames, by.x="SiteCode", by.Y="SiteCode", all.y=FALSE)
 
-write.xlsx(ShellResults, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
+write.xlsx(ShellResults, "C:/CloudStor/R_Stuff/Logistic/SemResultsBoot2018.xlsx", sheetName="SEM",  col.names=TRUE, row.names=TRUE, append=TRUE)
 
 ##Filter datasets to include only sites where there is a good spread of data
 samfilt <- subset(SamList, N.underLD05 >15 & N.overLD95 > 15)
@@ -482,7 +478,7 @@ matched <- join(samfilt,ShellList,by="SiteCode",type="inner")
 plot(matched$SAM.IQR ~ matched$SEM.IQR)
 plot(matched$SAM.LD95 ~ matched$SEM.LD95)
 
-write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheet="SAM_SEM")
+write.xlsx(matched, "C:/CloudStor/R_Stuff/Logistic/SamResultsBoot.xlsx", sheet="SAM_SEM")
 
  hist(SamList$LD50,breaks=10)
  hist(SamList$LD95,breaks=10)
@@ -494,5 +490,3 @@ write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheet="SAM_SEM
 
 SamList$LD50CR <- SamList$Ld50BootU95 - SamList$Ld50BootL95
 
-
->>>>>>> c158ea718d32d2b56f7a74c48579c20a0a26422b

@@ -12,7 +12,7 @@ library(openxlsx)
 
 source("C:/GitCode/AbResearch/getSeason.r")
 juv <- read.xlsx(
- "D:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
+ "C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
  sheet = "Juv",
  detectDates = TRUE)
 
@@ -56,7 +56,7 @@ juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring"))
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
 levels(juv.sl$yr.season)
 juv.sl$yr.season <-
- ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
 pick <- which(juv.sl$site == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
@@ -79,7 +79,7 @@ dat <- filter(juv, !is.na(ab_sl))  %>%
 #dat <- filter(juv, ab_sl <25 ) %>% 
 #dat <- filter(juv, ab_sl <= 100) %>%
  group_by(survindex) %>%
- summarise(ab_n =n()) %>%  #as.data.frame()
+ summarise(ab_n=n()) %>%  #as.data.frame()
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
 
@@ -105,7 +105,7 @@ abcounts$season <- as.factor(abcounts$season)
 abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring"))
 abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
 pick <- which(abcounts$site == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
@@ -125,7 +125,7 @@ levels(abcounts$yr.season)
 
 ## Figures for length frequency analyses ####
 
-ggplot(abcounts, aes(y=absm, x=yr.season)) +
+ggplot(abcounts, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
   geom_bar(stat="identity")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -283,7 +283,7 @@ ggplot(betsey, aes(y=ab_n, x=yr.season, fill=string)) +
 
 #  +scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
 
-GIII<-droplevels(subset(Pick, Pick$Site=="G3"))
+GIII <- droplevels(subset(Pick, Pick$Site=="G3"))
 
 ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
   ggtitle("George 3rd Rock")+

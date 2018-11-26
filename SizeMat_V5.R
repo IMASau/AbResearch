@@ -1,20 +1,18 @@
-setwd('D:/R_Stuff/Logistic')
+setwd('C:/CloudStor/R_Stuff/Logistic')
+library(tidyverse)
 library(MASS)
 library(gdata)
 library(doBy)
 library(openxlsx)
 library(boot)
 library(car)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
 library(lubridate)
 library(snow)
 
-source("D:/GitCode/AbResearch/SAM_Biplot.R")
+source("C:/GitCode/AbResearch/SAM_Biplot.R")
 
 #Outputs for Biplots
-resdir <- 'D:/Owncloud/Fisheries Research/Abalone/SAM/SAM_plots'
+resdir <- 'C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/SAM/SAM_plots'
 setwd <- resdir
 ##-----------------------------
 ## Need to work out a way to combine the full sample with the top up sample (good grief)
@@ -33,7 +31,7 @@ setwd <- resdir
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
 ## SEX = I, T, M, or F
-infileNew <- "D:/R_Stuff/Logistic/SAMExport2016.csv"
+infileNew <- "C:/CloudStor/R_Stuff/Logistic/SAMExport2016.csv"
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
@@ -61,12 +59,9 @@ samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M"))
 #samdata$Mat[samdata$SPC_GonadStage %in% c("0")] <- "I"
 
 ## Remove sites with no mature or no immature
-SamAssess <- samdata %>% 
- group_by(SiteCode, Mat) %>% 
- summarise(N = n()) %>% 
- spread(Mat, N)
+SamAssess <- samdata %>% group_by(SiteCode, Mat) %>%  summarise(reps = n()) %>% spread(Mat,reps) 
 
-SamList <- subset(SamAssess, (I >3 & M > 3))
+SamList <- subset(SamAssess, (I > 3 & M > 3))
 
 ## Remove sites with less than 150 records
 SamList <- droplevels(subset(SamList, (I + M)> 150, drop=TRUE))
@@ -397,13 +392,13 @@ for (i in 1:NumSites) {
    # ggsave(wmfName, plot=logistic.graph, units="cm",width=16,height=18)
   # ggsave(pdfName, plot=logistic.graph, units="cm",width=16,height=18)
   # 
-  pdf(pdfName,width=6.5,height=6.5)
-  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
-  dev.off()
-  
-  win.metafile(wmfName,width=6.5,height=6.5)
-  plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
-  dev.off()
+  # pdf(pdfName,width=6.5,height=6.5)
+  # plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  # dev.off()
+  # 
+  # win.metafile(wmfName,width=6.5,height=6.5)
+  # plotgraph(SizeShell,ShellList$LD50[i],ShellList$SiteCode[i],ShellList)#,savefile=T)
+  # dev.off()
   
   
   
@@ -491,4 +486,4 @@ write.xlsx(matched, "D:\\R_Stuff\\Logistic\\SamResultsBoot.xlsx", sheet="SAM_SEM
 SamList$LD50CR <- SamList$Ld50BootU95 - SamList$Ld50BootL95
 
 
->>>>>>> c158ea718d32d2b56f7a74c48579c20a0a26422b
+

@@ -8,7 +8,7 @@ library(grid)
 library(ggplot2)
 library(multcompView)
 
-load("c:/CloudStor/R_Stuff/SAM/Logistic/GWTHRESULTS_2016-11-10.RData")
+load("c:/CloudStor/R_Stuff/Logistic/GWTHRESULTS_2016-11-10.RData")
 
 #sources
 source("C:/GitCode/r-AbSpatialAnalyses/GraphsUtils.r") # source of the TukeyHSD letters in ggplots
