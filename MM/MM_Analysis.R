@@ -7,7 +7,7 @@
 library(RODBC)
 library(R.utils)
 library(lubridate)
-library(plyr)
+#library(plyr)
 library(rgdal)
 library(sp)
 library(maptools)
@@ -16,6 +16,7 @@ library(openxlsx)
 library(lubridate)
 library(gdata)
 library(dplyr)
+library(doBy)
 
 # Pull in newBlackCE dataframe from the catcheffort data output
 setwd('c:/CloudStor/R_Stuff/AutoAssess')
@@ -76,10 +77,10 @@ close(channel)
 e.processors<-c("RALPH'S TASMANIAN SEAFOOD PTY LTD","ABALONE TASMANIA PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "ADELAIDE BAY SEAFOODS PTY LTD")
 e.pro<-as.data.frame(e.processors)
 e.pro$DataSourceID<-c(1,2,3,4,5)
-Download.date<-join(Download.date, e.pro, by = "DataSourceID", type ="left")
+Download.date<-left_join(Download.date, e.pro, by = "DataSourceID")
 
 #join FeMM and Download.date
-FeMM<-join(FeMM, Download.date, by = "DownlaodEventID", type ="left")
+FeMM<-left_join(FeMM, Download.date, by = "DownlaodEventID")
 #rename columns out of SQL format
 colnames(FeMM) <- c("download.event", "measure.id", "Download.file", "record.number", "Zone", "entitlement.number", "docket.number","shell.length",
                     "msr.date", "msr.time", "dload.date", "datasource", "eprocessors") #, "msr.time","fishdate", "year")
@@ -99,9 +100,14 @@ FeMM<-droplevels(subset(FeMM, docket.number !=0))
   #          max number of animals and then if still multiple by first download date.
  #
 #
-n.per.docket<-ddply(FeMM,.(docket.number, dload.date, eprocessors), summarize,  n = length(shell.length), 
-                                                                                meanSL = round(mean(shell.length), 1),
-                                                                                minSL = round(min(shell.length), 1))
+#n.per.docket<-ddply(FeMM,.(docket.number, dload.date, eprocessors), summarize,  n = length(shell.length), 
+                                                                                #meanSL = round(mean(shell.length), 1),
+                                                                               # minSL = round(min(shell.length), 1))
+n.per.docket <- FeMM %>%
+ group_by(docket.number, dload.date, eprocessors) %>%
+ summarise(n = length(shell.length), 
+           meanSL = round(mean(shell.length), 1),
+           minSL = round(min(shell.length), 1))
 
 #loop to keep the duplicate record with the higher n of animals and then initial download date only
 db.dup.dockets<-unique(n.per.docket$docket.number)
@@ -125,7 +131,8 @@ n_occur <- data.frame(table(pick_db.docket$docket.number))
 range(n_occur$Freq)
 
 #subset db based on loop above
-FeMM.sub<-join(FeMM, pick_db.docket, by = c("docket.number", "dload.date"), type = "inner")
+#FeMM.sub<-inner_join(FeMM, pick_db.docket, by = c("docket.number", "dload.date"))
+FeMM.sub<-inner_join(FeMM, pick_db.docket)
 
 #
  #
@@ -145,7 +152,7 @@ docketinfo.2010<-droplevels(subset(docketinfo.2010, processorname %in% e.process
 #
 
 #join unique FeMM dockets to the identifying information in docket.info from FILMS database
-FeMM.docket.info<-join(pick_db.docket, docketinfo.2010, by = "docket.number", type ="left")
+FeMM.docket.info<-left_join(pick_db.docket, docketinfo.2010, by = "docket.number")
 
 #separate dupilicated dockets
 #how many times does each docket.number occur
@@ -163,7 +170,8 @@ docket.uniq<-as.data.frame(FeMM.docket.info[FeMM.docket.info$docket.number %in% 
   #
 #OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
   #
-Output1.unique<-join(FeMM.sub, docket.uniq, by = "docket.number", type = "inner")
+#Output1.unique<-inner_join(FeMM.sub, docket.uniq, by = "docket.number")
+Output1.unique<-inner_join(FeMM.sub, docket.uniq)
 
 #add columns to show date differences between ladning date and msr.Date and dload.Date
 Output1.unique$dload.date<-as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")
@@ -178,14 +186,17 @@ Output1.unique$dload.date.diff<-as.Date(Output1.unique$dload.date, format="yyyy-
 dload.date.false<-subset(Output1.unique, dload.date.diff <=-1)
 dload.date.f.unique<-unique(dload.date.false[c("docket.number", "eprocessors", "dload.date", "unloading_date",
                                                "dload.date.diff", "msr.date.diff")])
-Output.error.date<-join(dload.date.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
+#Output.error.date<-join(dload.date.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
+Output.error.date<-left_join(dload.date.f.unique, docketinfo.2010,  by = "docket.number")
 
 #Dockets with issues in that eprocessor is not processorID
 epro.proID.false<-as.data.frame(Output1.unique[Output1.unique$eprocessors != Output1.unique$processorname,])
 epro.proID.false<-epro.proID.false[!is.na(epro.proID.false$docket.number),]
 epro.proID.f.unique<-unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "unloading_date","msr.date",
                                                "dload.date.diff", "msr.date.diff")])
-Output.error.epro<-join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
+#Output.error.epro<-join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
+Output.error.epro<-left_join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number")
+
 
 #remove the dockets with issues
 Output1.unique<-Output1.unique[!(Output1.unique$docket.number %in% dload.date.f.unique$docket.number),]
@@ -214,7 +225,8 @@ docket.epro.uniq<-as.data.frame(docket.epro[docket.epro$docket.number %in% n_occ
  #
 #OUTPUT 2 = create new dataframe joining the FeMMsub to docket.epro.uniq only keeping common docket data to both
  #
-Output2.epro<-join(FeMM.sub, docket.epro.uniq, by = "docket.number", type = "inner")
+#Output2.epro<-join(FeMM.sub, docket.epro.uniq, by = "docket.number", type = "inner")
+Output2.epro<-inner_join(FeMM.sub, docket.epro.uniq)
 
 #add columns to show date differences between ladning date and msr.Date and dload.Date
 Output2.epro$dload.date<-as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")
@@ -256,7 +268,9 @@ range(n_occur$Freq)
 #
  #OUTPUT 3 = create new dataframe joining the FeMM to docket.dupes.uniq only keeping common docket data to both
 #
-Output3.dble<-join(FeMM.sub, pick.dble.docket, by = "docket.number", type = "inner")
+#Output3.dble<-join(FeMM.sub, pick.dble.docket, by = "docket.number", type = "inner")
+Output3.dble<-inner_join(FeMM.sub, pick.dble.docket)
+
 
 #add columns to show date differences between ladning date and msr.Date and dload.Date
 Output3.dble$dload.date<-as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")
@@ -301,7 +315,7 @@ summary(Output.error.docket) # is records with non-matching docket.numbers from 
 ###############################################################################################################
 
 keep(compiled.docket.FeMM, Output.error.docket, Output.error.epro, Output.error.date, docketinfo, sure=T)
-
+#saveRDS(compiled.docket.FeMM, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.FeMM.RDS')
 
 ###############################################################################################################
 #
@@ -357,20 +371,21 @@ colnames(eproname)<-c("e.processor")
 
 ## clean up Raw_MM dataset - Jaime McAllister ##
 summary(Raw_MM)
-# msr. date remove records with no date and where date is unrealistic (e.g. years 0020 and 2088), add these to 
-# Raw.MM.Output.error.docket dataframe
-Raw.MM.Output.error.docket <- Raw_MM[is.na(Raw_MM$msr.date), ]
-Raw.MM.Output.error.docket <- Raw_MM[as.Date(Raw_MM$msr.date) < '1999-12-31', ]
-Raw.MM.Output.error.docket <- Raw_MM[as.Date(Raw_MM$msr.date) > '2011-02-11', ]
-Raw_MM <- Raw_MM[!is.na(Raw_MM$msr.date), ]
-Raw_MM <- Raw_MM[!as.Date(Raw_MM$msr.date) < '1999-12-31', ]
-Raw_MM <- Raw_MM[!as.Date(Raw_MM$msr.date) > '2011-02-11', ]
+
+# some msr.date years appear to be errors (i.e. 0020 and 2088)
+Raw_MM$msr.date[which.minn(Raw_MM$msr.date, 20)]
+Raw_MM$msr.date[which.maxn(Raw_MM$msr.date, 20)]
+Raw_MM$msr.date[Raw_MM$msr.date < as.Date('2000-01-01')] <- NA
+Raw_MM$msr.date[Raw_MM$msr.date > as.Date('2011-02-11')] <- NA
+
 # convert incorrect times to NA's
 time.dates <- grep('/', Raw_MM$time)
 Raw_MM$time[time.dates] <- NA
 
 #summarize the Raw_MM dataset
-n.per.docket<-ddply(Raw_MM,.(docket.number, msr.date, e.processor), summarize,  n = length(shell.length), 
+n.per.docket<- Raw_MM %>%
+ group_by(docket.number, msr.date, e.processor) %>%
+ summarise(n = length(shell.length), 
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
 
@@ -381,7 +396,8 @@ docketinfo.epro<-droplevels(subset(docketinfo, processorname %in% e.processors))
 colnames(docketinfo.epro)[colnames(docketinfo.epro)=="processorname"] <- "e.processor"
 
 #match docketinfo.epro to the n.per.docket dataframe
-docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+#docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+docket.join<-inner_join(n.per.docket, docketinfo.epro)
 
 #add date difference column
 docket.join$msr.date.diff<-as.Date(docket.join$msr.date, format="yyyy-%mm-%dd")-as.Date(docket.join$unloading_date, format="yyyy-%mm-%dd")
@@ -404,7 +420,8 @@ range(n_occur$Freq)
 
 #OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
-Output1.unique<-join(Raw_MM, docket.uniq, by = c("docket.number", "e.processor"), type = "inner")
+#Output1.unique<-join(Raw_MM, docket.uniq, by = c("docket.number", "e.processor"), type = "inner")
+Output1.unique<-inner_join(Raw_MM, docket.uniq)
 
 #
  #
@@ -431,7 +448,8 @@ range(n_occur$Freq)
 
 #OUTPUT 2 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
-Output2.dupes<-join(Raw_MM, dupes.sub, by = c("docket.number", "e.processor"), type = "inner")
+#Output2.dupes<-join(Raw_MM, dupes.sub, by = c("docket.number", "e.processor"), type = "inner")
+Output2.dupes<-inner_join(Raw_MM, dupes.sub)
 
 
 #
@@ -466,11 +484,13 @@ dupes.multi<-dupes.multi[!dupes.multi$docket.number %in% dupes.ms.d,]
 
 #OUTPUT 3 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
-Output3.multi<-join(Raw_MM, dupes.multi, by = c("docket.number", "msr.date"), type = "inner")
+#Output3.multi<-join(Raw_MM, dupes.multi, by = c("docket.number", "msr.date"), type = "inner")
+Output3.multi<-inner_join(Raw_MM, dupes.multi)
 
 #OUTPUT 4 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
-Output4.extra<-join(Raw_MM, dupes.multi.sub, by = c("docket.number", "msr.date"), type = "inner")
+#Output4.extra<-join(Raw_MM, dupes.multi.sub, by = c("docket.number", "msr.date"), type = "inner")
+Output4.extra<-inner_join(Raw_MM, dupes.multi.sub)
 
 # format each output data.frame to be identical columns:
 
@@ -545,7 +565,9 @@ abdbMM$e.processor<-as.factor(abdbMM$e.processor)
 
 
 #summarize the dataset
-n.per.docket<-ddply(abdbMM,.(docket.number, msr.date, e.processor), summarize,  n = length(shell.length), 
+n.per.docket <- abdbMM %>%
+ group_by(docket.number, msr.date, e.processor) %>%
+ summarise(n = length(shell.length), 
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
 
@@ -559,7 +581,8 @@ e.processors<-eproname$e.processor
 docketinfo.epro<-droplevels(subset(docketinfo, processorname %in% e.processors))
 colnames(docketinfo.epro)[colnames(docketinfo.epro)=="processorname"] <- "e.processor"
 #match docketinfo.epro to the n.per.docket dataframe
-docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+#docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+docket.join<-inner_join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"))
 
 #add date difference column
 docket.join$msr.date.diff<-as.Date(docket.join$msr.date, format="yyyy-%mm-%dd")-as.Date(docket.join$unloading_date, format="yyyy-%mm-%dd")
@@ -583,6 +606,7 @@ range(n_occur$Freq)
 #OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
 Output1.unique<-join(abdbMM, docket.uniq, by = c("docket.number", "e.processor"), type = "inner")
+#Output1.unique<-inner_join(abdbMM, docket.uniq)
 
 #
  #
@@ -610,6 +634,7 @@ range(n_occur$Freq)
 #OUTPUT 2 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
 Output2.dupes<-join(abdbMM, dupes.sub, by = c("docket.number", "e.processor"), type = "inner")
+#Output2.dupes<-inner_join(abdbMM, dupes.sub, by = c("docket.number", "e.processor"))
 
 #
  #
@@ -639,6 +664,8 @@ dupes.multi.sub<-dupes.multi.sub %>% distinct(docket.number, .keep_all = T)
 #OUTPUT 4 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
 Output4.extra<-join(abdbMM, dupes.multi.sub, by = c("docket.number", "msr.date"), type = "inner")
+#Output4.extra<-inner_join(abdbMM, dupes.multi.sub, by = c("docket.number", "msr.date"))
+
 
 #identify unique dockets and remove from dupes.multi
 dupes.ms.d<-unique(dupes.multi.sub$docket.number)
@@ -650,6 +677,7 @@ dupes.multi.sub<-droplevels(subset(dupes.multi, msr.date.diff >=0 & msr.date.dif
 #OUTPUT 5 = create new dataframe joining the abdbMM to dupes.multi.sub only keeping common docket data to both
 #
 Output5.date<-join(abdbMM, dupes.multi.sub, by = c("docket.number"), type = "inner")
+#Output5.date<-inner_join(abdbMM, dupes.multi.sub, by = c("docket.number"))
 
 #identify unique dockets and remove from dupes.multi
 dupes.ms.d<-unique(dupes.multi.sub$docket.number)
@@ -659,6 +687,7 @@ dupes.multi<-dupes.multi[!dupes.multi$docket.number %in% dupes.ms.d,]
 #OUTPUT 3 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 #
 Output3.multi<-join(abdbMM, dupes.multi, by = c("docket.number"), type = "inner")
+#Output3.multi<-inner_join(abdbMM, dupes.multi, by = c("docket.number"))
 
 
 # format each output data.frame to be identical columns:
@@ -756,6 +785,7 @@ facMM$processorname[facMM$docket.number %in% c("32740", "32743")] <- "TASMANIAN 
 facMM.uniq<-ddply(facMM,.(docket.number, processorname), summarize,  n = length(shell.length), 
       meanSL = round(mean(shell.length), 1),
       minSL = round(min(shell.length), 1))
+
 
 # #test on duplicates
 # #n-occur to docket.join
