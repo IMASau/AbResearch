@@ -290,7 +290,7 @@ summ.zone.year <- compiledMM.df %>%
 # The following code has been developed to examine these data in more detail and by examining the original
 # data file from Excel.
 
-# import historical CSIRO data stored in an Excel spreadsheet on R:drive
+# import historical CSIRO data stored in an Excel spreadsheet on R:drive - sheet 1 'all_data'
 ab.his <- read_excel('R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/historic_data catch sampling.xls')
 
 # examine variables (column names)

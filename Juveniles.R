@@ -12,17 +12,34 @@ library(openxlsx)
 
 source("C:/GitCode/AbResearch/getSeason.r")
 juv <- read.xlsx(
- "C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
- sheet = "Juv",
+ "C:/CloudStor/Shared/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys_Dec2018_JM.xlsx",
+ sheet = "ARM",
  detectDates = TRUE)
 
-## convert var names to lowor case
+## convert var names to lower case
 colnames(juv) <- tolower(colnames(juv))
 juv <- rename(juv, survdate = date)
 juv <- rename(juv, site = location)
 juv$string <- as.factor(juv$string)
 juv$plate <- as.factor(juv$plate)
 
+## data cleaning ####
+str(juv)
+unique(juv$plate)
+unique(juv$survdate)
+
+## some things pre-filtered in Excel when merging cells together
+# 1. comments moved from ab_sl to comments column
+# 2. BR_S ARM 8 on 2015-08-11 recorded as ARM 8.5 - converted to ARM 8
+
+## fix site names for several records from G3 on 2017-03-22 which have clearly been filled down in sequence 
+#  in the raw data.
+juv <- juv %>%
+ mutate(site = gsub('G4', 'GIII', site),
+        site = gsub('G5', 'GIII', site),
+        site = gsub('G6', 'GIII', site),
+        site = gsub('G7', 'GIII', site),
+        site = gsub('G3', 'GIII', site))
 
 juv$site <- gsub( "_", "", juv$site)
 unique(juv$site)
@@ -69,11 +86,13 @@ unique(juv.sl$yr.season)
 ## NOTE:  sites were surveyed on different days, and not always entirely in the one season
 
 
-platearea <- 0.503 #  var for planar area of reef covered by juvenile collector
+#platearea <- 0.503 #  var for planar area of reef covered by juvenile collector
+# need to check this as I have surface area of plate @ 0.126 m2
+platearea <- 0.126
 
 juv$survindex <- as.factor(paste(juv$site, juv$survdate, juv$string, juv$plate, sep="_"))
 
-## Subset by size ------------------##
+## Subset by size and count number of animals per ARM by survdate ------------------##
 dat <- filter(juv, !is.na(ab_sl))  %>%
 #dat <- filter(juv, ab_sl >=25 & ab_sl < 100) %>%
 #dat <- filter(juv, ab_sl <25 ) %>% 
@@ -122,10 +141,22 @@ levels(abcounts$yr.season)
 ##------------------------------------------------------##
 ##------------------------------------------------------##
 
+## Data visualisation - JM ####
+require(Hmisc)
+abcounts.2 <- subset(abcounts, site %nin% c('OS', 'SB'))
+
+ab_n.summary <- abcounts.2 %>% 
+ group_by(site, sampyear, season) %>%
+ summarise(ab_n = n())
 
 ## Figures for length frequency analyses ####
-
 ggplot(abcounts, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
+ geom_bar(stat="identity")+
+ theme_bw()+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ facet_grid(. ~ site)
+
+ggplot(abcounts.2, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
   geom_bar(stat="identity")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -166,6 +197,35 @@ ggplot(juv.sl, aes(x=ab_sl, color=site)) +
  facet_grid(site ~ yr.season)
 #facet_grid(site ~ yr.season, scales = "free_y")
 
+## frequency distribution  n per ARM by site and season - JM ####
+season_labels <- c("2015.Summer" = '2015.Su',
+                   "2015.Winter" = '2015.Wi', 
+                   "2015.Spring" = '2015.Sp', 
+                   "2016.Summer" = '2016.Su', 
+                   "2016.Winter" = '2016.Wi', 
+                   "2016.Spring" = '2016.Sp', 
+                   "2017.Summer" = '2017.Su', 
+                   "2017.Winter" = '2017.Wi', 
+                   "2017.Spring" = '2017.Sp', 
+                   "2018.Summer" = '2018.Su', 
+                   "2018.Winter" = '2018.Wi', 
+                   "2018.Spring" = '2018.Sp')
+
+juv.sl.sub <- subset(juv.sl, site %nin% c('OS', 'SB'))
+
+ggplot(juv.sl.sub, aes(x=ab_sl, color=site)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ theme_bw()+
+ geom_histogram(binwidth = 10) +
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+ theme(legend.position="none") +
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
+ #facet_grid(site ~ yr.season, scales = "free_y")
+
+##
 
 ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
  ylab("Frequency") +
@@ -177,6 +237,17 @@ ggplot(juv.sl, aes(x=ab_sl, color=site)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
  theme(legend.position="none") +
   facet_grid(site ~ yr.season)
+
+ggplot(juv.sl.sub, aes(x=ab_sl, color=site)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
+ #stat_density(geom = "line", position = "identity") +
+ geom_density(alpha = .2) +
+ theme_bw()+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+ theme(legend.position="none") +
+ facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
 
 ggplot(juv.sl, aes(x=ab_sl)) + 
  ylab("Frequency") +
@@ -221,6 +292,18 @@ ggplot(abcounts, aes(x=yr.season, y=absm, group = string)) +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 # coord_cartesian(ylim = c(0, 15)) +
+ stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
+ stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
+ stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
+ facet_grid(site ~ ., scales = "free_y" )
+
+abcounts.2$string <- factor(as.integer(abcounts.2$string), levels = c(1,2))
+ggplot(abcounts.2, aes(x=yr.season, y=absm, group = string)) + 
+ aes(colour = string) +  theme_bw() +
+ xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+ ylab(bquote('Abalone Abundance ('*~m^2*')')) +
+ theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+ # coord_cartesian(ylim = c(0, 15)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
@@ -283,6 +366,7 @@ ggplot(betsey, aes(y=ab_n, x=yr.season, fill=string)) +
 
 #  +scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
 
+Pick <- abcounts
 GIII <- droplevels(subset(Pick, Pick$Site=="G3"))
 
 ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +

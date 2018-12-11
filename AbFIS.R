@@ -5,8 +5,7 @@ library(tidyr)
 library(gdata)
 library(openxlsx)
 library(lubridate)
-bigabs <- read.xlsx(
- "C:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
+bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys_Dec2018_JM.xlsx",
  sheet = "FIS",
  detectDates = TRUE)
 
@@ -19,9 +18,18 @@ bigabs <- rename(bigabs, sllength = length)
 bigabs$string <- as.factor(bigabs$string)
 #bigabs$transect <- as.factor(bigabs$transect)
 
-bigabs$site <- recode(bigabs$site, BR_S = "BRS", BR_B = "BRB", .default = bigabs$site)
-bigabs$site <- recode(bigabs$site, GIII = "G3", .default = bigabs$site)
+#bigabs$site <- recode(bigabs$site, BR_S = "BRS", BR_B = "BRB", .default = bigabs$site)
+#bigabs$site <- recode(bigabs$site, GIII = "G3", .default = bigabs$site)
 
+## remove data with no site name
+bigabs <- filter(bigabs, !is.na(site))
+
+## remove characters from site names
+bigabs$site <- gsub(' ', '', bigabs$site)
+bigabs$site <- gsub('_', '', bigabs$site)
+bigabs$site <- gsub('Telopea', 'TE', bigabs$site)
+
+## rename string names from earlier sampling periods
 table(bigabs$site, bigabs$string)
 bigabs$string  <- gsub( "Kar", "1", bigabs$string )
 bigabs$string  <- gsub( "Juv", "2", bigabs$string )
@@ -30,6 +38,12 @@ bigabs$string  <- gsub( "S", "2", bigabs$string )
 bigabs$string  <- gsub( "North", "1", bigabs$string )
 bigabs$string  <- gsub( "South", "2", bigabs$string )
 
+## rename east and west transect directions
+unique(bigabs$eastwest)
+bigabs$eastwest <- gsub('w', 'W', bigabs$eastwest)
+bigabs$eastwest <- gsub('N', 'E', bigabs$eastwest)
+bigabs$eastwest <- gsub('S', 'W', bigabs$eastwest)
+
 filter(bigabs, !is.na(sllength)) %>%
 ggplot() +
  geom_histogram(mapping = aes(x = sllength), binwidth = 5)
@@ -37,9 +51,17 @@ ggplot() +
 filter(bigabs, !is.na(sllength)) %>%
  count(cut_width(sllength, 5))
 
+bigabs.2 <- subset(bigabs, is.na(estimate))
+summary(bigabs$sllength)
+
 filter(bigabs, !is.na(sllength)) %>%
  ggplot(aes(x=site, y=sllength)) +
 geom_boxplot()
+
+
+filter(bigabs, !is.na(sllength)) %>%
+ ggplot(aes(x=site, y=sllength)) +
+ geom_boxplot()
 
 
 bigabs <- filter(bigabs, !is.na(sllength))
@@ -65,6 +87,12 @@ bigabs$survindex <- as.factor(paste(bigabs$site, bigabs$survdate, bigabs$string,
   complete(survindex, fill = list(ab_n = 0)) %>%
   as.data.frame()
  
+## All abs non-estimates
+ bigabdat <- subset(bigabs, is.na(estimate)) %>%
+  group_by(survindex) %>%
+  summarise(ab_n = n()) %>%  #as.data.frame()
+  complete(survindex, fill = list(ab_n = 0)) %>%
+  as.data.frame()
  
 ## calculate abs per square metre 
 bigabdat$absm <- bigabdat$ab_n / 15
@@ -84,7 +112,7 @@ bigabcounts$season <- ordered(bigabcounts$season, levels=c("Summer","Winter","Sp
 bigabcounts$yr.season <- interaction(bigabcounts$sampyear,bigabcounts$season)
 unique(bigabcounts$yr.season)
 bigabcounts$yr.season <-
- ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter"))
+ ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
 
 # Adjust misclassified seasons
 pick <- which(bigabcounts$site == "TG")
@@ -99,7 +127,7 @@ bigabcounts$yr.season <- droplevels(bigabcounts$yr.season)
 
 
 unique(bigabcounts$site)
-mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","G3", "SP", "TG")) #, "MB", "T"))
+mydat <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG")) #, "MB", "T"))
 
 unique(mydat$site)
 
@@ -107,7 +135,7 @@ mydat$string <- as.factor(mydat$string)
 
 ggplot(mydat, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  theme_bw() +
- # xlab("Season") + #ggtitle("Abalone (>=138) observed during transect surveys") +
+ xlab("Year.Season") + #ggtitle("Abalone (>=138) observed during transect surveys") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 # coord_cartesian(ylim = c(0, 5)) +
@@ -123,7 +151,7 @@ hist(bigabs$sllength)
 subset(bigabs, sllength > 200)
 
 
-mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","G3", "SP", "TG", "MB", "T"))
+mydatsl <- subset(bigabs, site %in% c("BI","BRB","BRS","GIII", "SP", "TG", "MB", "T"))
 ## construct  date, quarter and season variables ----
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
 mydatsl$sampyear <- year(mydatsl$survdate) 
@@ -134,7 +162,7 @@ mydatsl$season <- as.factor(mydatsl$season)
 mydatsl$season <- ordered(mydatsl$season, levels=c("Summer","Winter","Spring"))
 mydatsl$yr.season <- interaction(mydatsl$sampyear,mydatsl$season)
 mydatsl$yr.season <-
- ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter"))
+ ordered(mydatsl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
 pick <- which(mydatsl$site == "TG")
 mydatsl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", mydatsl$yr.season[pick])
 mydatsl$yr.season <- droplevels(mydatsl$yr.season)
@@ -152,6 +180,19 @@ ggplot(mydatsl, aes(x=sllength, color=site)) +
  #geom_histogram(binwidth=50)+
  facet_grid(site ~ yr.season)
 
+ggplot(mydatsl, aes(x=sllength, color=site)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(alpha = 0.2, binwidth = 10)+
+ theme_bw()+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ #theme(strip.text.y = element_text(size = 5))+
+ #theme(axis.text.y = element_text(size = 7))+
+ #ggtitle(paste(dum$SubBlockNo, FishYear))+
+ #labs(title= Yeardum$SubBlockNo, size=10)+
+ #geom_histogram(binwidth=50)+
+ facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
+
 
 
 ggplot(mydatsl, aes(x=sllength, color=site)) + 
@@ -161,6 +202,14 @@ ggplot(mydatsl, aes(x=sllength, color=site)) +
  geom_density(alpha=.2) +
  theme_bw()+
  facet_grid(site ~ yr.season)
+
+ggplot(mydatsl, aes(x=sllength, color=site)) + 
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha = 0.2, binwidth = 10)+
+ geom_density(alpha=.2) +
+ theme_bw()+
+ facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
 
 
 ggplot(mydatsl, aes(x=sllength)) + 
@@ -178,7 +227,7 @@ ggplot(mydatsl, aes(x=sllength)) +
 
 ## Length frequency by site
 
-TG.sl.big <- droplevels(subset(mydatsl, site=="BRS"))
+TG.sl.big <- droplevels(subset(mydatsl, site=="BRB"))
 
 
 ggplot(TG.sl.big, aes(x=sllength)) + 
@@ -192,13 +241,13 @@ ggplot(TG.sl.big, aes(x=sllength)) +
  facet_grid(sampyear ~ season)
 
 
-plotdat <- droplevels(subset(mydat, mydat$site=="BI"))
+plotdat <- droplevels(subset(mydat, mydat$site=="BRB"))
 
 ggplot(plotdat, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  theme_bw() +
  xlab("Season") + ggtitle("Abalone observed during transect surveys") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
- coord_cartesian(ylim = c(0, 2)) +
+ coord_cartesian(ylim = c(0, 2.5)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1)
