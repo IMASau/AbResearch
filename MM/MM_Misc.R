@@ -345,6 +345,9 @@ x$fishyear <- year(x$CSA_SampleDate)
 plotdat <-
  x %>% filter(CSA_Species == 1 & newzone == 'W' & (between(shell.length, 140, 200))
               & (between(fishyear, 1970, 1974)))
+
+plotdat <-
+ x %>% filter(CSA_Species == 1 & newzone == 'W' & (between(fishyear, 1970, 1974)))
 #write.csv(plotdat, 'WZ70-74.csv')
 
 plotdat %>% group_by(fishyear) %>%
@@ -359,19 +362,39 @@ plotdat %>% group_by(fishyear) %>%
 
 ## Plot shell lengths by year and zone
 
-for (i in unique(compiledMM.df$newzone)){
- subdata <- subset(compiledMM.df, newzone == i)
- print(ggplot(subdata, aes(x = fishyear, y = shell.length, group = fishyear)) +
-        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)) +
-  ggtitle(as.character(i)) +
+zones <- unique(compiledMM.df$newzone)
+zones.df <- unique(compiledMM.df$newzone) %>% as.data.frame()
+zones.df <- rename(zones.df, zone = .) 
+zones.df$sizelimit <- ifelse(zones.df$zone == 'W', 140, 
+                             ifelse(zones.df$zone == 'BS', 114,
+                                    ifelse(zones.df$zone == 'N', 127, 
+                                           ifelse(zones.df$zone == 'G', 145, 138))))
+
+compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+
+zone_plot_list = list()
+for (i in zones){
+ zone.plot <- ggplot(subset(compiledMM.df, newzone == i & shell.length >= 100),
+        aes(x = fishyear, y = shell.length, group = fishyear)) +
+  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+  #geom_hline(aes(yintercept = 140), colour = 'red', linetype = 'dotted') +
+  #ggtitle(ifelse(as.character(i) == 'W', 'Western Zone', i)) +
+  # ggtitle(i) +
   xlab('Year') +
   ylab('Shell length (mm)') + 
   theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), panel.border = element_blank(), panel.grid.major = element_blank(),
+  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
         axis.text.x = element_text(angle = 45, vjust = 0.5))
+ print(zone.plot)
+ #zone_plot_list[[i]] = zone.plot
+ ggsave(filename = paste('MM_1967-2016_boxplot_', i, '.pdf', sep = ''), plot = zone.plot)
+ dev.off()
 }
 
+
+
+getwd()
 
 dev.off()
 

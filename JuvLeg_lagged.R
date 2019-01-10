@@ -18,7 +18,7 @@ dat <- juv %>%  # use all data
 dat$absm <- dat$ab_n * (1/platearea)
 
 ## unpack survindex var
-abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("location", "survdate", "string","plate"), convert = TRUE), dat$survindex, dat$ab_n, dat$absm)
+abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("site", "survdate", "string","plate"), convert = TRUE), dat$survindex, dat$ab_n, dat$absm)
 
 abcounts$survdate <- as.Date(strptime(abcounts$survdate, "%Y-%m-%d"))
 abcounts$sampyear <- as.factor(year(abcounts$survdate)) 
@@ -29,7 +29,7 @@ abcounts$season <- as.factor(abcounts$season)
 abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring"))
 abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", '2018.Summer', '2018.Winter', '2018.Spring'))
 pick <- which(abcounts$location == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
@@ -59,7 +59,7 @@ bigabsub$season <- as.factor(bigabsub$season)
 bigabsub$season <- ordered(bigabsub$season, levels=c("Summer","Winter","Spring"))
 bigabsub$yr.season <- interaction(bigabsub$sampyear,bigabsub$season)
 bigabsub$yr.season <-
- ordered(bigabsub$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(bigabsub$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", '2018.Summer', '2018.Winter', '2018.Spring'))
 pick <- which(bigabsub$location == "TG")
 bigabsub$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabsub$yr.season[pick])
 bigabsub$yr.season <- droplevels(bigabsub$yr.season) 
@@ -69,7 +69,7 @@ bigabsub$yr.season <- droplevels(bigabsub$yr.season)
 bigabsub$absm <- bigabsub$ab_n / 15
 
 unique(bigabsub$site)
-bigabsub <- subset(bigabsub, site %in% c("BI","BRB","BRS","G3", "SP", "TG")) #, "MB", "T"))
+bigabsub <- subset(bigabsub, site %in% c("BI","BRB","BRS","GIII", "SP", "TG")) #, "MB", "T"))
 
 
 ## All abs greater than 137mm 
@@ -91,7 +91,7 @@ bigablegal$season <- as.factor(bigablegal$season)
 bigablegal$season <- ordered(bigablegal$season, levels=c("Summer","Winter","Spring"))
 bigablegal$yr.season <- interaction(bigablegal$sampyear,bigablegal$season)
 bigablegal$yr.season <-
- ordered(bigablegal$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring"))
+ ordered(bigablegal$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", '2018.Summer', '2018.Winter', '2018.Spring'))
 pick <- which(bigablegal$location == "TG")
 bigablegal$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigablegal$yr.season[pick])
 bigablegal$yr.season <- droplevels(bigablegal$yr.season) 
@@ -100,7 +100,7 @@ bigablegal$yr.season <- droplevels(bigablegal$yr.season)
 bigablegal$absm <- bigablegal$ab_n / 15
 
 unique(bigablegal$site)
-bigablegal <- subset(bigablegal, site %in% c("BI","BRB","BRS","G3", "SP", "TG")) #, "MB", "T"))
+bigablegal <- subset(bigablegal, site %in% c("BI","BRB","BRS","GIII", "SP", "TG")) #, "MB", "T"))
 
 
 
@@ -192,6 +192,9 @@ lag1.l <- filter(bigablegalmeans, yr.season == "2015.Spring") %>%
 lag2.l <- filter(bigablegalmeans, yr.season == "2016.Spring") %>%
  select(site, Adult) %>%
  rename(Adult.2016.Spring = Adult)
+lag3.l <- filter(bigablegalmeans, yr.season == "2017.Spring") %>%
+ select(site, Adult) %>%
+ rename(Adult.2017.Spring = Adult)
 
 lag1.j <- filter(juvmeans, yr.season == "2016.Spring") %>%
 select(site, Juvenile) %>%
@@ -202,13 +205,21 @@ select(site, Juvenile) %>%
 lag3.j <- filter(juvmeans, yr.season == "2017.Spring") %>%
  select(site, Juvenile) %>%
  rename(Juv.2017.Spring = Juvenile)
+lag4.j <- filter(juvmeans, yr.season == "2018.Spring") %>%
+ select(site, Juvenile) %>%
+ rename(Juv.2018.Spring = Juvenile)
+lag5.j <- filter(juvmeans, yr.season == "2018.Summer") %>%
+ select(site, Juvenile) %>%
+ rename(Juv.2018.Summer = Juvenile)
 
-lag <- left_join(lag1.l, lag2.l, by = c("site"))
+lag <- left_join(lag1.l, lag2.l, lag3.l, by = c("site"))
 lag <- left_join(lag, lag1.j, by = c("site"))
 lag <- left_join(lag, lag2.j, by = c("site"))
 lag <- left_join(lag, lag3.j, by = c("site"))
+lag <- left_join(lag, lag4.j, by = c("site"))
+lag <- left_join(lag, lag5.j, by = c("site"))
 
-ggpairs(lag, columns = 2:6, aes(colour = site), diag='blank', upper='blank') +
+ggpairs(lag, columns = 2:8, aes(colour = site), diag='blank', upper='blank') +
  theme(axis.text.x = element_text(angle = 90, hjust = 1),legend.position="right") +
  xlab(bquote('Abalone Abundance ('*~m^2*')')) + 
  ylab(bquote('Abalone Abundance ('*~m^2*')'))
