@@ -1362,7 +1362,7 @@ saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
   # Data analysis and plots of final data frame ####
  #
 #
-# compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+#compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 
 ## add column for fishing year, month and quarter
 compiledMM.df$fishyear <- ifelse(is.na(compiledMM.df$msr.date), year(compiledMM.df$unloading_date),
@@ -1460,3 +1460,39 @@ for (i in blocks){
  ggsave(filename = paste('MM_1967-2016_boxplot_GL_Block ', i, '.pdf', sep = ''), plot = block.plot)
  dev.off()
 }
+
+## size frequency plots for zone and block every 5 years
+plotdat.2 <- compiledMM.df %>% filter(newzone == 'W' & fishyear == c(2000, 2005, 2010, 2015))
+
+ggplot(plotdat.2, aes(shell.length))+
+ geom_histogram(data = subset(plotdat.2, newzone == 'W'), fill = 'white', colour = 'black',  binwidth = 5)+
+ geom_histogram(data = subset(plotdat.2, blockno == 11), fill = 'black', binwidth = 5)+
+ theme_bw()+
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ xlim(100, 220)+
+ facet_grid(fishyear ~ ., scales = "free_y")+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
+ geom_vline(aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 1)
+
+
+## summary to determine % of catches measured
+landings <- tasCE %>% 
+ filter(bl.zone == 'W' & fishyear >= 2000) %>%
+ group_by(fishyear, blockno) %>%
+ summarise(landings = n())
+
+measured <- compiledMM.df %>%
+ mutate(fishyear = as.numeric(levels(fishyear)[fishyear])) %>%
+ filter(newzone == 'W') %>%
+ group_by(fishyear, blockno) %>%
+ summarise(measured = length(unique(docket.number)))
+
+measured_summary <- left_join(landings, measured, c("fishyear", "blockno")) %>%
+ mutate(meas.propland = round((measured/landings)*100, 0)) %>%
+ filter(blockno == 13)
+
+
