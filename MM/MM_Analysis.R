@@ -1462,7 +1462,7 @@ for (i in blocks){
 }
 
 ## size frequency plots for zone and block every 5 years
-plotdat.2 <- compiledMM.df %>% filter(newzone == 'W' & fishyear == c(2000, 2005, 2010, 2015))
+plotdat.2 <- compiledMM.df %>% filter(newzone == 'E' & fishyear == c(2000, 2005, 2010, 2015))
 
 ggplot(plotdat.2, aes(shell.length))+
  geom_histogram(data = subset(plotdat.2, newzone == 'W'), fill = 'white', colour = 'black',  binwidth = 5)+
@@ -1472,6 +1472,7 @@ ggplot(plotdat.2, aes(shell.length))+
  xlab("Shell Length (mm)")+
  xlim(100, 220)+
  facet_grid(fishyear ~ ., scales = "free_y")+
+ #add size limits for each time period
  #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
  #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
  #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
@@ -1493,6 +1494,38 @@ measured <- compiledMM.df %>%
 
 measured_summary <- left_join(landings, measured, c("fishyear", "blockno")) %>%
  mutate(meas.propland = round((measured/landings)*100, 0)) %>%
- filter(blockno == 13)
+ filter(blockno == 13) %>%
+ filter(fishyear %in% c(2000, 2005, 2010, 2015))
+
+## boxplot of size structure for block vs overall for year(need to overlay bar plot of %landings measured)
+plotdat.3a <- compiledMM.df %>% 
+ filter(blockno == 13 & fishyear == c(2000, 2005, 2010, 2015)) %>%
+ mutate(join.code = 'block.13') %>%
+ select(fishyear, join.code, shell.length)
+
+plotdat.3b <- compiledMM.df %>% 
+ filter(newzone == 'E' & fishyear == c(2000, 2005, 2010, 2015)) %>%
+ mutate(join.code = 'eastern.zone') %>%
+ select(fishyear, join.code, shell.length)
+
+plotdat.4 <- bind_rows(plotdat.3a, plotdat.3b)
+
+ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) + 
+ geom_boxplot(aes(fill = join.code), outlier.colour = "orange", outlier.size = 1.5, 
+              width = .6)+
+ theme_bw()+
+ ylim(125, 220)+
+ ylab("Shell length (mm)") +
+ xlab("Year")
+ geom_bar(data = measured_summary, aes(x = fishyear, y = meas.propland), stat = 'identity')+
+ scale_y_continuous(sec.axis = sec_axis(~./50))
+ 
+ 
+ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) +
+  + geom_point()+
+  + stat_summary(fun.data = my.stderr, geom = 'point', colour = 'red')
+
+       
+ 
 
 

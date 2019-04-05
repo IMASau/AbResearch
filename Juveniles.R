@@ -9,6 +9,7 @@ library(gdata)
 library(effsize)
 library(openxlsx)
 library(Hmisc)
+library(ggsci)
 
 
 source("C:/GitCode/AbResearch/getSeason.r")
@@ -24,7 +25,7 @@ juv <- rename(juv, site = location)
 juv$string <- as.factor(juv$string)
 juv$plate <- as.factor(juv$plate)
 
-## data cleaning ####
+## Data cleaning ####
 
 ## fix site names for several records from GIII on 2017-03-22 which have clearly been filled down in sequence 
 ## in the raw data.
@@ -41,7 +42,7 @@ juv$site <- gsub( "_", "", juv$site)
 ## check site names.
 unique(juv$site)
 
-## Checking for outliers ####
+## checking for outliers
 ## most animals should be < 140 mm with the majority < 80 mm
 filter(juv, !is.na(ab_sl)) %>%
  ggplot() +
@@ -55,25 +56,29 @@ filter(juv, !is.na(ab_sl)) %>%
  geom_boxplot()
 
 ## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-juv <- subset(juv, site %nin% c('OS', 'SB'))
+juv.seasonal <- subset(juv, site %nin% c('OS', 'SB'))
 
-### Prepare dataframes for length frequency and abundance analyses ----
+### Prepare dataframes for length frequency and abundance analyses ####
 
-## A. Extract records with abs for length frequency analysis ----
+## A. Extract records with abs for length frequency analysis ####
 juv.sl <- filter(juv, !is.na(ab_sl))
 
-## construct  date, quarter and season variables ----
+## construct  date, quarter and season variables
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
 juv.sl$sampyear <- as.factor(year(juv.sl$survdate)) 
 juv.sl$season <- getSeason(juv.sl$survdate) 
+
 ## recode autumn samples as summer
 juv.sl$season <- gsub( "Autumn", "Summer", juv.sl$season)
 juv.sl$season <- as.factor(juv.sl$season)
 juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring"))
+
+## extract year.season and arrange in order (i.e. summer, winter, spring)
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
 levels(juv.sl$yr.season)
 juv.sl$yr.season <-
 ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
+
 ## recode Gardens 2015.summer samples as 2015.spring (Why?)
 pick <- which(juv.sl$site == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
@@ -82,14 +87,15 @@ juv.sl$yr.season <- droplevels(juv.sl$yr.season)
 unique(juv.sl$survdate)
 unique(juv.sl$yr.season)
 
-## B. Extract and prepare records with abs for abundance analyses ----
+## B. Extract and prepare records with abs for abundance analyses ####
+
 #juv$ab_sl <- NAToUnknown(x = juv$ab_sl, unknown = 0)
 ## NOTE:  sites were surveyed on different days, and not always entirely in the one season
 
 
-#platearea <- 0.503 #  var for planar area of reef covered by juvenile collector
-# need to check this as I have surface area of plate @ 0.126 m2. The above is surface area of a plate with diameter of
-# 800 mm (looks like 0.4 m was used in the equation rather than 0.2 m)
+# In the report the platearea or planar area of reef covered by the collector = 0.503 0.126 m2.
+# However, this is incorrect as it refers to a plate with a diameter of 800 mm. 
+# It looks like 0.4 m was used in the equation pi*r2 rather than 0.2 m. Therefore the correct plate area is 0.126 m2. 
 platearea <- 0.126
 
 ## create unique ID/index for each ARM and survdate combination
@@ -101,15 +107,9 @@ dat <- filter(juv, !is.na(ab_sl))  %>%
 #dat <- filter(juv, ab_sl <25 ) %>% 
 #dat <- filter(juv, ab_sl <= 100) %>%
  group_by(survindex) %>%
- summarise(ab_n=n()) %>%  #as.data.frame()
+ summarise(ab_n=n()) %>%
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
-
-# ## USe all data -------------------##
-# dat <- group_by(juv, survindex) %>%
-#  summarise(ab_n =n()) %>%  #as.data.frame()
-#  complete(survindex, fill = list(ab_n = 0)) %>%
-#  as.data.frame()
 
 ## calculate abs per square metre 
 dat$absm <- dat$ab_n * (1/platearea)
@@ -132,26 +132,15 @@ abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
  ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
 
-## recode Gardens 2015.summer samples as 2015.spring (Why?)
+## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(abcounts$site == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
 
-levels(abcounts$yr.season)
+## Size frequency plots ####
 
-# Betsey<-droplevels(subset(juv, site== "BI" & string== "2"))
-# Betsey10<-droplevels(subset(Betsey, plate >=5))
-# Betsey10<-droplevels(subset(Betsey10, plate <=7))
-
-# #remove NAs
-# Betsey10[complete.cases(Betsey10[,5]),]
-
-##------------------------------------------------------##
-##------------------------------------------------------##
-
-## Figures and summaries for length frequency analyses ####
-
-# create short label names for plot facets  
+## create short label names for plot facets  
+levels(juv.sl$yr.season)
 season_labels <- c("2015.Summer" = '2015.Su',
                    "2015.Winter" = '2015.Wi', 
                    "2015.Spring" = '2015.Sp', 
@@ -165,87 +154,82 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2018.Winter" = '2018.Wi', 
                    "2018.Spring" = '2018.Sp')
 
-# ggplot(abcounts, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
-#  geom_bar(stat="identity")+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#  facet_grid(. ~ site)
+## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
+juv.sl.seasonal <- subset(juv.sl, site %nin% c('OS', 'SB'))
 
-# ## length frequency distribution plot of year.season x site
+## length frequency distribution plot of year.season x site
+ggplot(juv.sl.seasonal, aes(x=ab_sl, color=site)) +
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ theme_bw()+
+ geom_histogram(binwidth = 10) +
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ theme(legend.position="none") +
+ facet_grid(site ~ yr.season)
+ #facet_grid(site ~ yr.season, scales = "free_y")
 
-# ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  theme_bw()+
-#  geom_histogram(binwidth = 10) +
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
-#  theme(legend.position="none") +
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  facet_grid(site ~ yr.season)
-# #facet_grid(site ~ yr.season, scales = "free_y")
-
-# ## length frequency density plot of year.season x site
-
-# ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
-#  #stat_density(geom = "line", position = "identity") +
-#  geom_density(alpha = .2) +
-#  theme_bw()+
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
-#  theme(legend.position="none") +
-#   facet_grid(site ~ yr.season)
-
+## length frequency density plot of year.season x site
+ggplot(juv.sl.seasonal, aes(x=ab_sl, color=site)) +
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
+ geom_density(alpha = .2) +
+ theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ theme(legend.position="none") +
+  facet_grid(site ~ yr.season)
 
 ## length frequency distribution plot of site x year.season
-
-ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
+ggplot(juv.sl.seasonal, aes(x=ab_sl, color=site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  theme_bw()+
  geom_histogram(binwidth = 10) +
  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
  theme(legend.position="none") +
- #ggtitle(paste(dum$SubBlockNo, FishYear))+
- #labs(title= Yeardum$SubBlockNo, size=10)+
  facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
-#facet_grid(site ~ yr.season, scales = "free_y")
+ #facet_grid(yr.season ~ site, scales = "free_y")
 
 ## length frequency density plot of year.season x site
-
-ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
+ggplot(juv.sl.seasonal, aes(x=ab_sl, color=site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
- #stat_density(geom = "line", position = "identity") +
  geom_density(alpha = .2) +
  theme_bw()+
  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
  theme(legend.position="none") +
  facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
 
-# ## length frequency density plot of year.season (all sites combined)
+## Abundance plots and summaries ####
 
-# ggplot(juv.sl, aes(x=ab_sl)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(aes(y=..density..),alpha=.2, binwidth = 10)+
-#  geom_density(alpha=.2) +
-#  theme_bw()+
-#  facet_grid( ~ yr.season)
+# **NOTE: the following plots by default are for ALL shell lengths**
+#         To plot data for select shell lengths extract records for the 'dat' 
+#         dataframe and generate the 'abcounts' dataframes (see above code).
 
-## Figures and summaries for abundance analyses ####
+## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
+abcounts.seasonal <- subset(abcounts, site %nin% c('OS', 'SB'))
 
-## create summary table of abalone per squre meter for site and year.season
-ab_n.summary <- abcounts %>% 
- group_by(site, sampyear, survdate, season) %>%
- summarise(ab_n = n())
+## create summary table of abalone per squre meter
+ab_n.summary <- abcounts.seasonal %>%
+ group_by(site, string, sampyear, survdate, season) %>%
+ summarise(absm_mean = mean(absm),
+           ab_string = sum(ab_n),
+           absm_se = sd(absm)/sqrt(ab_string),
+           ab_ARM = mean(ab_n),
+           ab_ARM_se = sd(ab_n)/sqrt(ab_string))
+
+## mean abalone abundance by year x season for each site
+ggplot(abcounts.seasonal, aes(y=absm, x=yr.season))+
+ geom_bar(stat = 'summary', fun.y = 'mean')+
+ theme_bw()+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ facet_grid(. ~ site)+
+ xlab('Year.Season')+
+ ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
 ## boxplot showing year x season abundance
-
-ggplot(abcounts, aes(y=absm, x=site))+
+ggplot(abcounts.seasonal, aes(y=absm, x=site))+
  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
  theme_bw()+
  facet_grid(season ~ sampyear)+
@@ -253,11 +237,10 @@ ggplot(abcounts, aes(y=absm, x=site))+
  xlab('Site')+
  ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
-## line plot showing abalone abundance per season for each year for each site
-abcounts.2 <- abcounts
-str(abcounts.2)
-ggplot(abcounts.2, aes(y=absm, x=sampyear, group=season))+
- aes(colour = season)+scale_colour_brewer(palette = 'Set1')+
+## line plot showing mean abalone abundance (year x site x string)
+ggplot(abcounts.seasonal, aes(y=absm, x=sampyear, group=season))+
+ aes(colour = season)+
+ scale_colour_brewer(palette = 'Set1')+
  theme_bw()+
  facet_grid(site ~ string, scales = "free_y" )+
  theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
@@ -265,113 +248,72 @@ ggplot(abcounts.2, aes(y=absm, x=sampyear, group=season))+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
  xlab('Year')+
- ylab(bquote('Juvenile Abalone Abundance ('*~m^2*')'))+
- ggtitle('Abalone Recruitment Modules (ARM)')+
- theme(plot.title = element_text(hjust = 0.5))
+ ylab(bquote('Abalone Abundance ('*~m^2*')'))+
+ theme(plot.title = element_text(hjust = 0.5))+
+ theme(legend.title = element_blank())+
+ theme(legend.position = 'top')
 
-# ggplot(abcounts.2, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
-#   geom_bar(stat="identity") +
-#   theme_bw() +
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#   facet_grid(. ~ site)
-
-
-# ggplot(Pick, aes(Ab_Sum, fill=survdate)) + geom_bar(position="dodge")
-
-## Frequency distribution plot of N by plate 
-
-# cnt.dat <- droplevels(subset(abcounts, site=="BRB"))
-# 
-# ggplot(cnt.dat, aes(x=ab_n, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("N")+
-#  geom_histogram(alpha = 0.2, binwidth = 1)+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(yr.season ~ string)
-
-ggplot(abcounts, aes(x=ab_n, fill=string, color=site)) + 
+## frequency distribution plot of n/ARM (site x year.season)
+ggplot(abcounts.seasonal, aes(x = ab_n, fill = site, color = site)) + 
  ylab("Frequency") +
  xlab("N")+
  geom_histogram(alpha = 0.2, binwidth = 1)+
- #ggtitle(paste(dum$SubBlockNo, FishYear))+
- #labs(title= Yeardum$SubBlockNo, size=10)+
- #geom_histogram(binwidth=50)+
  theme_bw()+
- facet_grid(yr.season ~ site)
+ facet_grid(yr.season ~ site, scales = 'free_y', labeller = labeller(yr.season = season_labels))+
+ theme(legend.position = 'none')
 
-# ggplot(juv.sl, aes(x=ab_sl, group=as.factor(site), color=as.factor(site))) +
-#  geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
-#  scale_x_continuous(limits=c(0, 150))
-
-## juvenile abundance/m2 plot of year.season x site
-
-# abcounts$string <- factor(as.integer(abcounts$string), levels = c(1,2))
-# ## juveniles as abalone/m2
-# ggplot(abcounts, aes(x=yr.season, y=absm, group = string)) +
-#  aes(colour = string) +  theme_bw() +
-#  #xlab("Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-# # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(site ~ ., scales = "free_y" )
-
-abcounts$string <- factor(as.integer(abcounts.2$string), levels = c(1,2))
-ggplot(abcounts.2, aes(x=yr.season, y=absm, group = string)) + 
- aes(colour = string) +  theme_bw() +
- xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+## juvenile abundance/m2 plot of year.season x site x string)
+abcounts.seasonal$string <- factor(as.integer(abcounts.seasonal$string), levels = c(1,2))
+plot.colours <- c("#0072B2", "#D55E00")
+ggplot(abcounts.seasonal, aes(x=yr.season, y=absm, group = string)) + 
+ aes(colour = string) + 
+ scale_colour_manual(values = plot.colours)+
+ theme_bw() +
+ xlab("Year.Season") + 
+ #ggtitle("Shell length 0mm to 100mm") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
  # coord_cartesian(ylim = c(0, 15)) +
- stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
+ stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) +
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(site ~ ., scales = "free_y" )
+ facet_grid(site ~ ., scales = "free_y" )+
+ labs(col = 'String')
 
 ## juvenile abundance/m2 plot of site x year.season
-
-# abcounts.2$string <- factor(as.integer(abcounts.2$string), levels = c(1,2))
-# ggplot(abcounts.2, aes(x=site, y=absm, group = string)) + 
-#  aes(colour = string) +  theme_bw() +
-#  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-#  # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(yr.season ~ ., scales = "free_y" )
-
-## juvenile abunance n/ARM plot of year.season x site
-
-# ggplot(abcounts, aes(x=yr.season, y=ab_n, group = string)) + 
-#  aes(colour = string) +  theme_bw() +
-#  #xlab("Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance (abalone/plate)')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-#  # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(site ~ ., scales = "free_y" )
-
-ggplot(abcounts, aes(x=yr.season, y=ab_n, group = string)) + 
+abcounts.seasonal$string <- factor(as.integer(abcounts.seasonal$string), levels = c(1,2))
+plot.colours <- c("#0072B2", "#D55E00")
+ggplot(abcounts.seasonal, aes(x=site, y=absm, group = string)) +
+ scale_colour_manual(values = plot.colours)+
  aes(colour = string) +  theme_bw() +
- xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
- ylab(bquote('Abalone Abundance (abalone/plate)')) +
+ xlab("Year.Season") + 
+ #ggtitle("Shell length 0mm to 100mm") +
+ ylab(bquote('Abalone Abundance ('*~m^2*')')) +
+ theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+ # coord_cartesian(ylim = c(0, 15)) +
+ #stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
+ stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
+ stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
+ facet_grid(yr.season ~ ., scales = "free_y", labeller = labeller(yr.season = season_labels))+
+ labs(col = 'String')
+
+## juvenile n/ARM plot of year.season x site
+plot.colours <- c("#0072B2", "#D55E00")
+ggplot(abcounts.seasonal, aes(x=yr.season, y=ab_n, group = string)) +
+ scale_colour_manual(values = plot.colours)+
+ aes(colour = string) +  
+ theme_bw() +
+ xlab("Season") + 
+ #ggtitle("Shell length 0mm to 100mm") +
  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
  # coord_cartesian(ylim = c(0, 15)) +
  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(site ~ ., scales = "free_y" )
+ facet_grid(site ~ ., scales = "free_y", labeller = labeller(yr.season = season_labels))+
+ labs(col = 'String', y = expression(Abalone~x~ARM^{-1}))
 
-## Figures and summaries for habitat complexity abalone abundance/m2 ####
+## Habitat complexity figures for abalone abundance/m2 ####
 
 # add variable for site habitat complexity
 pick1 <- which(abcounts$site %in% c("TG", "SP", "BRB"))
@@ -384,16 +326,22 @@ pick3 <- which(abcounts$site %in% c("BRS"))
 abcounts$habitat[pick3] <- "low"
 
 mydataset <- droplevels(subset(abcounts, yr.season=="2015.Spring"))
-mydataset$habitat <- as.factor(mydataset$habitat)
-mydataset$habitat <-
- ordered(mydataset$habitat, levels = c("low","medium", "high"))
 
-mydataset$site <- factor(mydataset$site, levels = c("BRS", "GIII", "BRB", "TG", "BI", "SP"))
+mydataset.seasonal <- abcounts %>% filter(site %nin% c('OS', 'SB'))
 
-mydataset$string <- factor(as.integer(mydataset$string), levels = c(1,2))
-    
-ggplot(mydataset, aes(x=site, y=absm, group = as.factor(string))) + 
- aes(colour = string) +  theme_bw() +
+mydataset.seasonal$habitat <- as.factor(mydataset.seasonal$habitat)
+mydataset.seasonal$habitat <-
+ ordered(mydataset.seasonal$habitat, levels = c("low","medium", "high"))
+
+mydataset.seasonal$site <- factor(mydataset.seasonal$site, levels = c("BRS", "GIII", "BRB", "TG", "BI", "SP"))
+
+mydataset.seasonal$string <- factor(as.integer(mydataset.seasonal$string), levels = c(1,2))
+
+plot.colours <- c("#0072B2", "#D55E00")    
+ggplot(mydataset.seasonal, aes(x=site, y=absm, group = as.factor(string))) + 
+ aes(colour = string) + 
+ scale_colour_manual(values = plot.colours)+
+ theme_bw() +
  xlab("Site") + #ggtitle("Shell length 0mm to 100mm") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -401,7 +349,8 @@ ggplot(mydataset, aes(x=site, y=absm, group = as.factor(string))) +
  #stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr, size = 2) +
  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.25, size = 1) +
- facet_grid( ~ habitat , scales = "free_x" )
+ facet_grid( ~ habitat , scales = "free_x")+
+ labs(col = 'String')
 
 ##------------------------------------------------------##
 
@@ -424,10 +373,10 @@ my.stderr <- function(x) {
 
 unique(abcounts$site)
 
-subdat <- filter(abcounts, site =='SP')
+subdat <- filter(abcounts, site =='BI')
 subdat$string <- as.factor(subdat$string)
 
-ggplot(betsey, aes(y=ab_n, x=yr.season, fill=string)) +
+ggplot(subdat, aes(y=ab_n, x=season, fill=string)) +
   ggtitle("Betsey Island")+
   xlab("Sample date") + 
   ylab("Blacklip Abalone Abundance") +
@@ -437,14 +386,14 @@ ggplot(betsey, aes(y=ab_n, x=yr.season, fill=string)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
         text = element_text(size=16),
         legend.position=c(.95,.88)) +
- facet_grid(sampyear ~ season)
+ facet_grid(sampyear ~.)
 
 #  +scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
 
 Pick <- abcounts
-GIII <- droplevels(subset(Pick, Pick$Site=="G3"))
+GIII <- droplevels(subset(Pick, Pick$site=="GIII"))
 
-ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(GIII, aes(y=ab_n, x=survdate, fill=string)) +
   ggtitle("George 3rd Rock")+
   xlab("Sample date") + 
   ylab("Blacklip Abalone Abundance") +
@@ -458,9 +407,9 @@ ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
 
 # scale_x_discrete(limits=c("11 Aug", "21 Sep", "13 Oct"))
 
-BR_B<-droplevels(subset(Pick, Pick$Site=="BR_B"))
+BR_B<-droplevels(subset(Pick, Pick$site=="BRB"))
 
-ggplot(BR_B, aes(y=Ab_Sum, x=survdate, fill=string)) +
+ggplot(BR_B, aes(y=ab_n, x=survdate, fill=string)) +
   ggtitle("Black Reef Boulder")+
   xlab("Sample date") + 
   ylab("Blacklip Abalone Abundance") +
@@ -533,7 +482,7 @@ ggplot(TG.sl, aes(x=ab_sl, color=site)) +
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
  theme_bw()+
- facet_grid(sampyear ~ season)
+ facet_grid(yr.season ~ .)
 
 
 BI.sl <- droplevels(subset(juv.sl, site=="BI"))
