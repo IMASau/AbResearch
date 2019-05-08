@@ -1,20 +1,20 @@
+library(tidyverse)
 library(openxlsx)
-library(ggplot2)
-library(dplyr)
+library(lubridate)
 
 temp <- read.xlsx(
- "D:/owncloud/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
+ "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
  sheet = "Sheet1", detectDates = TRUE)
 
 temp2 <- read.xlsx(
- "D:/owncloud/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
+ "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
  sheet = "Pooled", detectDates = TRUE)
 
 block30lf <- rbind(temp,temp2)
 
 colnames(block30lf) <- tolower(colnames(block30lf))
 
-table(block30lf$trip)
+table(block30lf$trip, block30lf$diver)
 
 ## Need to adjust the time and date so that we can look at the spatial position
 ## of lengths
@@ -32,7 +32,7 @@ ggplot(dat, aes(x=slength, fill=as.factor(trip))) +
 
 # Interleaved histograms
 ggplot(dat, aes(x=slength, fill=as.factor(trip))) +
- stat_bin(binwidth=2, position="dodge") + geom_density( kernel="gaussian", alpha=.5)
+ stat_bin(binwidth=5, position="dodge") + geom_density( kernel="gaussian", alpha=.5)
 
 ggplot(dat, aes(slength, ..density.., colour = as.factor(trip))) +
  geom_freqpoly(binwidth = 2, size=2) 
