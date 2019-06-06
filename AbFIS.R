@@ -10,13 +10,16 @@ library(gdata)
 library(openxlsx)
 library(lubridate)
 library(reshape)
+library(gridExtra)
+library(ggpubr)
 
-## load function to generate season for observations
+## load custom functions
 source("C:/GitCode/AbResearch/getSeason.r")
-source("C:/GitCode/AbResearch/errorUpper.r")
+source("C:/GitCode/AbResearch/errorUpper2.r")
+source("C:/GitCode/AbResearch/stderr.r")
 
 ## source data for FIS 
-bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys_Dec2018_JM.xlsx",
+bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/ResearchSurveys_May2019_JM.xlsx",
                     sheet = "FIS",
                     detectDates = TRUE)
 
@@ -24,8 +27,8 @@ bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries Research/Abalone/AbResearchDa
 
 ## convert varible names to lowor case
 colnames(bigabs) <- tolower(colnames(bigabs))
-bigabs <- rename(bigabs, survdate = date)
-bigabs <- rename(bigabs, sllength = length)
+bigabs <- dplyr::rename(bigabs, survdate = date)
+bigabs <- dplyr::rename(bigabs, sllength = length)
 bigabs$string <- as.factor(bigabs$string)
 #bigabs$transect <- as.factor(bigabs$transect)
 
@@ -90,35 +93,75 @@ bigabdat <- bigabs %>%
  as.data.frame()
 
 ## Filter for sub-legal abalone
-bigabdat.sub <- bigabs %>% filter(sllength <= 137) %>%
-# bigabdat <- bigabs %>%
-  group_by(survindex) %>%
-  summarise(ab_n = n()) %>%  #as.data.frame()
-  complete(survindex, fill = list(ab_n = 0)) %>%
-  as.data.frame()
+# bigabdat.sub <- bigabs %>% filter(sllength <= 137) %>%
+# # bigabdat <- bigabs %>%
+#   group_by(survindex) %>%
+#   summarise(ab_n = n()) %>%  #as.data.frame()
+#   complete(survindex, fill = list(ab_n = 0)) %>%
+#   as.data.frame()
+
+bigabdat.sub <- bigabs %>% 
+ filter(sllength <= 137) %>%
+ # bigabdat <- bigabs %>%
+ group_by(survindex) %>%
+ summarise(ab_n = n()) %>%  #as.data.frame()
+ complete(survindex, fill = list(ab_n = 0)) %>%
+ as.data.frame()
 
 ## Filter for legal abalone
-bigabdat.leg <- bigabs %>% filter(sllength >= 138) %>%
-  group_by(survindex) %>%
-  summarise(ab_n = n()) %>%  #as.data.frame()
-  complete(survindex, fill = list(ab_n = 0)) %>%
-  as.data.frame()
+# bigabdat.leg <- bigabs %>% filter(sllength >= 138) %>%
+#   group_by(survindex) %>%
+#   summarise(ab_n = n()) %>%  #as.data.frame()
+#   complete(survindex, fill = list(ab_n = 0)) %>%
+#   as.data.frame()
+
+bigabdat.leg <- bigabs %>% 
+ filter(sllength >= 138) %>%
+ group_by(survindex) %>%
+ summarise(ab_n = n()) %>%  #as.data.frame()
+ complete(survindex, fill = list(ab_n = 0)) %>%
+ as.data.frame()
+
+## Filter for sub-legal abalone <10 mm
+# bigabdat.sub.ten <- bigabs %>% filter(sllength >= 128 & sllength < 138) %>%
+#  group_by(survindex) %>%
+#  summarise(ab_n = n()) %>%  #as.data.frame()
+#  complete(survindex, fill = list(ab_n = 0)) %>%
+#  as.data.frame()
+
+bigabdat.sub.ten <- bigabs %>% 
+ filter(sllength >= 128 & sllength < 138) %>%
+ group_by(survindex) %>%
+ summarise(ab_n = n()) %>%  #as.data.frame()
+ complete(survindex, fill = list(ab_n = 0)) %>%
+ as.data.frame()
+
+bigabdat.leg.ten <- bigabs %>% 
+ filter(sllength >= 139 & sllength <= 148) %>%
+ group_by(survindex) %>%
+ summarise(ab_n = n()) %>%  #as.data.frame()
+ complete(survindex, fill = list(ab_n = 0)) %>%
+ as.data.frame()
  
 ## Filter for non-estimates abalone (for length frequency analysis)
-bigabdat.meas <- subset(bigabs, is.na(estimate)) %>%
-  group_by(survindex) %>%
-  summarise(ab_n = n()) %>%  #as.data.frame()
-  complete(survindex, fill = list(ab_n = 0)) %>%
-  as.data.frame()
+# bigabdat.meas <- subset(bigabs, is.na(estimate)) %>%
+#   group_by(survindex) %>%
+#   summarise(ab_n = n()) %>%  #as.data.frame()
+#   complete(survindex, fill = list(ab_n = 0)) %>%
+#   as.data.frame()
 
 ## join dataframes created above for survindex
 bigabdat.join <- left_join(bigabdat.sub, bigabdat.leg, by = 'survindex') %>%
+ left_join(., bigabdat.sub.ten, by = 'survindex') %>%
+ left_join(., bigabdat.leg.ten, by = 'survindex') %>%
  left_join(., bigabdat, by = 'survindex')
 
 ## rename variables to identify abcounts from each size class
 names(bigabdat.join)
-bigabdat.join <- rename(bigabdat.join, ab_n_leg = ab_n.y)
-bigabdat.join <- rename(bigabdat.join, ab_n_sub = ab_n.x)
+bigabdat.join <- dplyr::rename(bigabdat.join, ab_n_leg = ab_n.y)
+bigabdat.join <- dplyr::rename(bigabdat.join, ab_n_sub = ab_n.x)
+bigabdat.join <- dplyr::rename(bigabdat.join, ab_n_sub_ten = ab_n.x.x)
+bigabdat.join <- dplyr::rename(bigabdat.join, ab_n_leg_ten = ab_n.y.y)
 
 ## rename dataframes created above for legal and sub-legal counts for coding to follow
 ## and rename dataframe at the end to the original filtered name
@@ -131,6 +174,8 @@ bigabdat$absm <- bigabdat$ab_n / 15
 ## calculate abs per square metre for joint dataframe
 bigabdat.join$absm_sub <- bigabdat.join$ab_n_sub /15
 bigabdat.join$absm_leg <- bigabdat.join$ab_n_leg /15
+bigabdat.join$absm_sub_ten <- bigabdat.join$ab_n_sub_ten /15
+bigabdat.join$absm_leg_ten <- bigabdat.join$ab_n_leg_ten /15
 bigabdat.join$absm <- bigabdat.join$ab_n /15
 
 ## unpack survindex variables and create new dataframe
@@ -140,7 +185,9 @@ bigabcounts <- data.frame(separate(bigabdat, survindex, sep = "_", into = c("sit
 bigabcounts.join <- data.frame(separate(bigabdat.join, survindex, sep = "_",
                                    into = c("site", "survdate", "string","transect"), convert = TRUE), 
                           bigabdat.join$survindex, bigabdat.join$ab_n, bigabdat.join$absm, bigabdat.join$ab_n_sub, 
-                          bigabdat.join$absm_sub, bigabdat.join$ab_n_leg, bigabdat.join$absm_leg)
+                          bigabdat.join$absm_sub, bigabdat.join$ab_n_leg, bigabdat.join$absm_leg,
+                          bigabdat.join$ab_n_sub_ten, bigabdat.join$absm_sub_ten,
+                          bigabdat.join$ab_n_leg_ten, bigabdat.join$absm_leg_ten)
 
 ## set string as a factor
 bigabcounts$string <- as.factor(bigabcounts$string)
@@ -165,16 +212,24 @@ bigabcounts.join$season <- gsub( "Autumn", "Summer", bigabcounts.join$season)
 bigabcounts$season <- as.factor(bigabcounts$season)
 bigabcounts$season <- ordered(bigabcounts$season, levels=c("Summer","Winter","Spring"))
 bigabcounts$yr.season <- interaction(bigabcounts$sampyear,bigabcounts$season)
-unique(bigabcounts$yr.season)
+sort(unique(bigabcounts$yr.season))
 bigabcounts$yr.season <-
- ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
+ ordered(bigabcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                           "2016.Summer", "2016.Winter", "2016.Spring", 
+                                           "2017.Summer", "2017.Winter", "2017.Spring", 
+                                           "2018.Summer", "2018.Winter", "2018.Spring", 
+                                           "2019.Summer"))
 
 bigabcounts.join$season <- as.factor(bigabcounts.join$season)
 bigabcounts.join$season <- ordered(bigabcounts.join$season, levels=c("Summer","Winter","Spring"))
 bigabcounts.join$yr.season <- interaction(bigabcounts.join$sampyear,bigabcounts.join$season)
 unique(bigabcounts.join$yr.season)
 bigabcounts.join$yr.season <-
- ordered(bigabcounts.join$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
+ ordered(bigabcounts.join$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                                "2016.Summer", "2016.Winter", "2016.Spring", 
+                                                "2017.Summer", "2017.Winter", "2017.Spring", 
+                                                "2018.Summer", "2018.Winter", "2018.Spring", 
+                                                "2019.Summer"))
 
 ## adjust misclassified seasons
 pick <- which(bigabcounts$site == "TG")
@@ -186,9 +241,8 @@ bigabcounts.join$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcou
 bigabcounts.join$yr.season <- droplevels(bigabcounts.join$yr.season)
 
 ## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-bigabcounts.seasonal <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
-
-bigabcounts.join.seasonal <- subset(bigabcounts.join, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+#bigabcounts.seasonal <- subset(bigabcounts, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+#bigabcounts.join.seasonal <- subset(bigabcounts.join, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
 
 ## rename dataframes for legal and sub-legal counts
 #bigabcounts.sub.seasonal <- bigabcounts.seasonal
@@ -203,6 +257,11 @@ bigabcounts.sites <- c("bigabcounts.BI",   "bigabcounts.BRB",    "bigabcounts.BR
 for (i in 1:length(list_bigabcounts.site)) {
  assign(bigabcounts.sites[i], list_bigabcounts.site[[i]])
 }
+
+## save a copy of the R files
+saveRDS(list_bigabcounts.site, 'C:/CloudStor/R_Stuff/FIS/list_bigabcounts.site.RDS')
+saveRDS(bigabcounts.join, 'C:/CloudStor/R_Stuff/FIS/bigabcounts.RDS')
+
 
 ## B. Extract size frequency data ####
 
@@ -226,7 +285,11 @@ bigabs.sl$season <- as.factor(bigabs.sl$season)
 bigabs.sl$season <- ordered(bigabs.sl$season, levels=c("Summer","Winter","Spring"))
 bigabs.sl$yr.season <- interaction(bigabs.sl$sampyear,bigabs.sl$season)
 bigabs.sl$yr.season <-
- ordered(bigabs.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
+ ordered(bigabs.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                         "2016.Summer", "2016.Winter", "2016.Spring", 
+                                         "2017.Summer", "2017.Winter", "2017.Spring", 
+                                         "2018.Summer", "2018.Winter", "2018.Spring", 
+                                         "2019.Summer"))
 
 ## adjust misclassified seasons
 pick <- which(bigabs.sl$site == "TG")
@@ -247,14 +310,41 @@ for (i in 1:length(list_bigabs.sl.site)) {
  assign(bigabs.sl.sites[i], list_bigabs.sl.site[[i]])
 }
 
+saveRDS(list_bigabs.sl.site, 'C:/CloudStor/R_Stuff/FIS/list_bigabs.sl.site.RDS')
+saveRDS(bigabs.sl, 'C:/CloudStor/R_Stuff/FIS/bigabs.sl.RDS')
+
+
 #**************************************************************************************************#
 ## Abundance plots and summaries ####
+
+## load most recent RDS file of FIS abcounts and shell length data
+list_bigabcounts.site <- readRDS('C:/CloudStor/R_Stuff/FIS/list_bigabcounts.site.RDS')
+list_bigabs.sl.site <- readRDS('C:/CloudStor/R_Stuff/FIS/list_bigabs.sl.site.RDS')
+list_juv.sl.site <- readRDS('C:/CloudStor/R_Stuff/FIS/list_juv.sl.site.RDS')
+list_abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
+
+## subset data into routine FIS sampling sites
+names(list_bigabs.sl.site)
+bigabs.sl.sites <- c("bigabs.sl.BI",   "bigabs.sl.BRB",    "bigabs.sl.BRS",   "bigabs.sl.GIII",
+                     "bigabs.sl.LB", "bigabs.sl.MB",  "bigabs.sl.MP",  "bigabs.sl.OP",
+                     "bigabs.sl.SP", "bigabs.sl.T", "bigabs.sl.TE", "bigabs.sl.TG")
+for (i in 1:length(list_bigabs.sl.site)) {
+ assign(bigabs.sl.sites[i], list_bigabs.sl.site[[i]])
+}
+
+## subset data to individual ARM sampling sites
+names(list_bigabcounts.site)
+bigabcounts.sites <- c("bigabcounts.BI",   "bigabcounts.BRB",    "bigabcounts.BRS",   "bigabcounts.GIII",
+                       "bigabcounts.LB", "bigabcounts.MB", "bigabcounts.MP", "bigabcounts.OP", "bigabcounts.SP",
+                       "bigabcounts.T", "bigabcounts.TE",  "bigabcounts.TG")
+for (i in 1:length(list_bigabcounts.site)) {
+ assign(bigabcounts.sites[i], list_bigabcounts.site[[i]])
+}
 
 ## set the colour scheme for FIS strings so they contrast with ARM strings when plotting
 fis.col <- c('#7CAE00', '#C77CFF')
 
 ## create short label names for plot facets 
-levels(bigabcounts.seasonal$yr.season)
 season_labels <- c("2015.Summer" = '2015.Su',
                    "2015.Winter" = '2015.Wi', 
                    "2015.Spring" = '2015.Sp', 
@@ -266,7 +356,8 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2017.Spring" = '2017.Sp', 
                    "2018.Summer" = '2018.Su', 
                    "2018.Winter" = '2018.Wi', 
-                   "2018.Spring" = '2018.Sp')
+                   "2018.Spring" = '2018.Sp',
+                   "2019.Summer" = '2019.Su')
 
 ## adult abunance/m2 plot of year.season x site
 ggplot(bigabcounts.seasonal, aes(x=yr.season, y=absm, group = string)) + 
@@ -298,41 +389,128 @@ ggplot(bigabcounts.seasonal, aes(y=absm, x=sampyear, group=season))+
 
 
 ## stacked bar plot of abundance for legal and sub-legal abalone
-sub.leg <- melt(bigabcounts.join.seasonal,id.vars=c('bigabdat.join.survindex', 'site', 'yr.season'), 
-              measure.vars=c('absm_sub','absm_leg','absm'))
 
+unlist_bigabcounts <- bind_rows(list_bigabcounts.site, .id = 'column_label')
+
+sub.leg <- melt(unlist_bigabcounts,id.vars=c('bigabdat.join.survindex', 'site', 'yr.season'), 
+              measure.vars=c('absm_sub','absm_leg','absm', 'absm_sub_ten', 'absm_leg_ten'))
+
+sub.leg.2 <- melt(unlist_bigabcounts,id.vars=c('bigabdat.join.survindex', 'site', 'yr.season'), 
+                measure.vars=c('absm_sub','absm_leg'))
+
+sub.leg.3 <- melt(unlist_bigabcounts,id.vars=c('bigabdat.join.survindex', 'site', 'yr.season'), 
+                measure.vars=c('absm_sub_ten', 'absm_leg_ten'))
+# select site
 unique(sub.leg$site)
-sub.leg.dat <- sub.leg %>%
- filter(site == 'BRS') %>% #only use filter for individuals sites otherwise remove filter and use facet_grid
- mutate(value = case_when(variable == 'absm_sub' ~ -value, TRUE ~ value)) #make sub-legal abs negative
+selected.site <- 'BI'
 
-sub.leg.colours = c("white", "black", "grey")
+#create negative values for sub-legal animals
+sub.leg.dat <- sub.leg.2 %>%
+ filter(site %in% selected.site) %>% #only use filter for individuals sites otherwise remove filter and use facet_grid
+ mutate(value = case_when(variable == 'absm_sub' ~ -value, TRUE ~ value)) #%>%
+ #mutate(value = case_when(variable == 'absm_sub_ten' ~ -value, TRUE ~ value))#make sub-legal abs negative
 
-sub.leg.dat$variable <-
- ordered(sub.leg.dat$variable, levels = c("absm", "absm_leg", "absm_sub")) #re-order variables for plot
+sub.leg.dat.2 <- sub.leg.3 %>%
+ filter(site %in% selected.site) %>% #only use filter for individuals sites otherwise remove filter and use facet_grid
+ mutate(value = case_when(variable == 'absm_sub_ten' ~ -value, TRUE ~ value))
+
+sub.leg.colours.2 = c("grey", "white")
+sub.leg.colours = c("white", "black")
+
+# sub.leg.dat$variable <-
+#  ordered(sub.leg.dat$variable, levels = c("absm", "absm_leg", "absm_sub", "absm_sub_ten")) #re-order variables for plot
          
-ggplot(sub.leg.dat, aes(x = yr.season, y = value, fill = variable))+
+fis.abund.bar <- ggplot(sub.leg.dat, aes(x = yr.season, y = value, fill = variable))+
  stat_summary(geom = 'bar', position = 'identity', fun.data = my.stderr, colour = 'black')+
- stat_summary(fun.ymax = errorUpper, fun.ymin = errorUpper,
+ stat_summary(fun.ymax = errorUpper2, fun.ymin = mean,
+               geom = 'errorbar', position = 'identity', colour = 'black', width = 0.2)+
+ stat_summary(fun.ymax = errorUpper2, fun.ymin = errorUpper2,
+              geom = 'linerange', position = 'identity', colour = 'black')+
+ scale_colour_manual()+
+ theme_bw()+
+ #xlab('Season')+
+ xlab(NULL)+
+ ylab(bquote('Abalone Abundance ('*~m^2*')'))+
+ labs(fill = 'Size')+
+ scale_fill_manual(values = sub.leg.colours,
+  name = 'Size class', breaks = c('absm', 'absm_leg', 'absm_sub', "absm_sub_ten"),
+                     labels = c(' All BL', ' Legal ', ' Sub-legal', " <10 mm legal"))+
+ theme(legend.title = element_blank())+
+ theme(axis.text.x = element_text(angle = 0, vjust = 0.5))+
+ theme(legend.justification = c(0, 1), legend.position = c(0, 1), legend.direction = 'horizontal')+
+ #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+ theme(legend.background = element_blank())+
+ coord_cartesian(ylim = c(-2, 2))+
+ annotate('text', x = c(1), y = 0.6, label = 'NO DATA', angle = 90)+ #enter manually but work on conditional statement
+ scale_x_discrete(breaks = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter",
+                  "2016.Spring", "2017.Summer", "2017.Winter",
+                  "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring", "2019.Summer"), labels = season_labels, drop = F)
+
+fis.abund.bar.2 <- ggplot(sub.leg.dat.2, aes(x = yr.season, y = value, fill = variable))+
+ stat_summary(geom = 'bar', position = 'identity', fun.data = my.stderr, colour = 'black')+
+ stat_summary(fun.ymax = errorUpper2, fun.ymin = mean,
               geom = 'errorbar', position = 'identity', colour = 'black', width = 0.2)+
- stat_summary(fun.ymax = errorUpper, fun.ymin = mean,
+ stat_summary(fun.ymax = errorUpper2, fun.ymin = errorUpper2,
               geom = 'linerange', position = 'identity', colour = 'black')+
  scale_colour_manual()+
  theme_bw()+
  xlab('Season')+
  ylab(bquote('Abalone Abundance ('*~m^2*')'))+
  labs(fill = 'Size')+
- scale_fill_manual(values = sub.leg.colours,
-  name = 'Size class', breaks = c('absm', 'absm_leg', 'absm_sub'),
-                     labels = c(' All BL', ' Legal', ' Sub-legal'))+
+ scale_fill_manual(values = sub.leg.colours.2,
+                   name = 'Size class', breaks = c("absm_sub_ten","absm_leg_ten"),
+                   labels = c(" <10 mm legal ", " >10 mm legal"))+
  theme(legend.title = element_blank())+
  theme(axis.text.x = element_text(angle = 0, vjust = 0.5))+
- theme(legend.justification = c(0, 1), legend.position = c(0, 1), legend.direction = 'horizontal',
-       panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+ theme(legend.justification = c(0, 1), legend.position = c(0, 1), legend.direction = 'horizontal')+
+ #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
  theme(legend.background = element_blank())+
+ coord_cartesian(ylim = c(-0.5, 0.5))+
+ annotate('text', x = c(1), y = 0.15, label = 'NO DATA', angle = 90)+ #enter manually but work on conditional statement
  scale_x_discrete(breaks = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter",
-                  "2016.Spring", "2017.Summer", "2017.Winter",
-                  "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"), labels = season_labels)
+                             "2016.Spring", "2017.Summer", "2017.Winter",
+                             "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring", "2019.Summer"), labels = season_labels, drop = F)
+
+FIS_ABUND <- grid.arrange(
+ arrangeGrob(cowplot::plot_grid(fis.abund.bar + rremove('x.text'), fis.abund.bar.2, align = 'v', ncol = 1),
+             ncol = 1))
+
+
+ggsave(filename = paste('FIS_ABUND_', selected.site, '.pdf', sep = ''), plot = FIS_ABUND)
+ggsave(filename = paste('FIS_ABUND_', selected.site, '.wmf', sep = ''), plot = FIS_ABUND)
+
+# dd <- sub.leg.dat %>%
+#  group_by(variable, yr.season) %>%
+#  summarise(
+#   mean.x = mean(value),
+#   sd.x = sd(value),
+#   se.x = sd.x/sqrt(length(value)),
+#   error.up1 = mean.x + se.x,
+#   error.up2 = mean.x - se.x,
+#   error.up3 = errorUpper(value),
+#   error.up4 = errorUpper2(value))
+
+
+
+## quick summary data of proportion measured that were legal-sized
+dat.1 <- sub.leg.dat %>%
+ filter(variable == 'absm') %>%
+ group_by(yr.season, variable) %>%
+ summarise(mean = mean(value))
+dat.2 <- sub.leg.dat %>%
+ filter(variable == 'absm_leg') %>%
+ group_by(yr.season, variable) %>%
+ summarise(mean = mean(value))
+dat.3 <- sub.leg.dat %>%
+ filter(variable == 'absm_sub_ten') %>%
+ group_by(yr.season, variable) %>%
+ summarise(mean = mean(value))
+
+left_join(dat.1, dat.2, by = c('yr.season')) %>%
+ left_join(dat.3, by = c('yr.season')) %>%
+ summarise(prop.legal = (mean.y/mean.x)*100,
+           prop.sublegal10 = abs((mean/mean.x)*100),
+           prop.sublegal = 100 - prop.legal - prop.sublegal10)
 
 ## Size frequency plots ####
 
@@ -392,49 +570,293 @@ ggplot(bigabs.sl.seasonal, aes(x=sllength, color=site)) +
 
 ## Site plots ####
 
-unique(bigabs.sl.SP$yr.season)
+## size frequency by site
 
+# as of April 2019 there are 12 sampling periods, therfore rearrange yr.season to spread plots over
+# two columns and in vertical order (i.e. 2 x 6 facet grid)
+unique(bigabs.sl$yr.season)
 plot.order <- c("2015.Summer", "2017.Summer", "2015.Winter", "2017.Winter", "2015.Spring", "2017.Spring", "2016.Summer",
   "2018.Summer", "2016.Winter", "2018.Winter",  "2016.Spring", "2018.Spring")
 
-ggplot(transform(bigabs.sl.SP, yr.season = factor(yr.season, levels = plot.order)), aes(x=sllength)) + 
+# generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
+plot.n <- bigabs.sl.BRB %>% 
+ group_by(yr.season) %>%
+ summarise(n = paste('n =', n()))
+
+ggplot(transform(bigabs.sl.BRB, yr.season = factor(yr.season, levels = plot.order)), aes(x=sllength)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- geom_histogram(alpha = 0.5, binwidth = 5, fill = "blue", col=I("black"))+
+ geom_histogram(alpha = 0.5, binwidth = 5, fill = "blue3", col=I("black"))+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
  theme_bw()+
  facet_wrap(. ~ yr.season, ncol = 2, drop = F)+
- geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = .5)
+ geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = .5)+
+ #ggtitle('GIII FIS 2015-2018')+
+ geom_text(data = plot.n, aes(x = 30, y = 15, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
 
-## size frequency by site
-ggplot(bigabs.sl.SP, aes(x=sllength)) + 
- ylab("Frequency") +
- xlab("Shell Length (mm)")+
- geom_histogram(alpha = 0.5, binwidth = 5, fill = "blue", col=I("black"))+
- #ggtitle(paste(dum$SubBlockNo, FishYear))+
- #labs(title= Yeardum$SubBlockNo, size=10)+
- #geom_histogram(binwidth=50)+
- theme_bw()+
- facet_wrap(. ~ yr.season, ncol = 2, drop = F)+
- geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = .5)
+## abundance by site
 
+# convert string to factor so that stings are plotted as two unique colours
+bigabcounts.BRB$string <- factor(as.integer(bigabcounts.BRB$string), levels = c(1,2))
 
+ggplot(bigabcounts.BRB, aes(x=yr.season, y=absm, group = string)) + 
+ aes(colour = string) +  
+ theme_bw() +
+ xlab("Season") + 
+ #ggtitle("Abalone observed during transect surveys") +
+ ylab(bquote('MB Abalone Abundance ('*~m^2*')')) +
+ #coord_cartesian(ylim = c(0, 2.5))
+ stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1.5) +
+ #stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr, size = 3) +
+ #stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1)+
+ stat_summary(fun.y = mean, geom = 'line', group = 'string', size = 1, aes(colour = '1+2'))+
+ stat_summary(fun.y = mean, group = 'string', geom = 'point', aes(colour = '1+2'), size = 3)+
+ stat_summary(fun.data = my.stderr, aes(colour = '1+2'), group = 'string', geom = 'errorbar',  width = 0.125, size = 1)+
+ theme(axis.text.x = element_text(angle = 0, vjust = 0.5))+
+ labs(col = 'String')+
+ scale_color_manual(values = c('red', 'black', 'blue'))+
+ scale_x_discrete(labels = season_labels, drop = F)+
+ theme(legend.position = c(0.95, 0.9), legend.direction = 'vertical')
+ #geom_smooth(aes(group = 1), size = 2, method = 'lm')
 
-ggplot(bigabcounts.SP, aes(x=yr.season, y=absm))+# group = string)) + 
- aes(colour = string) +  theme_bw() +
- xlab("Season") + ggtitle("Abalone observed during transect surveys") +
+## abundance by season and year by site
+ggplot(bigabcounts.MB, aes(x = sampyear, y=absm, group = interaction(sampyear, season))) + 
+ aes(fill = season) +  
+ theme_bw() +
+ xlab("Year") +
  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
- coord_cartesian(ylim = c(0, 2.5)) +
- stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
- stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
- stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1)
+ geom_boxplot(alpha = 0.6, position = position_dodge(0.85, preserve = 'single'), outlier.shape = NA)+
+ scale_fill_grey()+
+ theme(legend.title = element_blank())+
+ theme(axis.text.x = element_text(angle = 0, vjust = 0.5))+
+ theme(legend.justification = c(0, 1), legend.position = c(0, 1), legend.direction = 'vertical')+
+ theme(legend.background = element_blank())+
+ ylim(0, 0.5)
+ #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+## ARM.FIS plots ####
+
+## inverted size frequency plot with ARM and FIS data
+
+# combine individual sites from R data file list into a single dataframe
+# unlist_bigabs.sl <- bind_rows(list_bigabs.sl.site, .id = 'column_label')
+# unlist_bigabs.sl$sampyear <- as.factor(unlist_bigabs.sl$sampyear)
+# 
+# juv.sl <- bind_rows(list_juv.sl.site, .id = 'column_label')
+# juv.sl$sampyear <- as.factor(juv.sl$sampyear)
+
+## load most recent juvenile and adult data sets
+bigabs.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/bigabs.sl.RDS')
+juv.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/juv.sl.RDS')
+
+## convert sampyear to factor
+juv.sl$sampyear <- as.factor(juv.sl$sampyear)
+bigabs.sl$sampyear <- as.factor(bigabs.sl$sampyear)
+
+# add column to identify FIS and ARM data
+bigabs.sl$sampmethod <- 'FIS'
+juv.sl$sampmethod <- 'ARM'
+
+# join FIS and ARM data
+fisarm <- bind_rows(bigabs.sl, juv.sl)
+
+# subset chosen site
+unique(fisarm$site)
+selected.site <- 'BRS'
+fisarm.site <- subset(fisarm, site %in% selected.site)
+
+# re-order data so that facet plots in vertical order of two columns
+fisarm.site$yr.season <- factor(fisarm.site$yr.season, levels = c("2015.Summer", "2017.Summer", "2015.Winter", "2017.Winter", "2015.Spring", "2017.Spring", "2016.Summer",
+                                                                  "2018.Summer", "2016.Winter", "2018.Winter",  "2016.Spring", "2018.Spring", "2019.Summer"))
+
+# generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
+plot.n.FIS <- fisarm.site %>% 
+ filter(sampmethod == 'FIS') %>%
+ group_by(yr.season) %>%
+ summarise(n = paste('n =', n()))
+
+plot.n.ARM <- fisarm.site %>% 
+ filter(sampmethod == 'ARM') %>%
+ group_by(yr.season) %>%
+ summarise(n = paste('n =', n()))
+
+# generate dataframe to annotate 'no data' for missing seasons
+ann_text <- data.frame(x = 90, y = 40, 
+                       lab = 'NO DATA', 
+                       yr.season = c("2015.Summer", '2015.Winter', '2018.Spring'))
+
+ARM_FIS <- ggplot(data = fisarm.site)+
+ geom_histogram(aes(x = sllength, y = ..count..), binwidth = 10, fill = 'blue')+
+ geom_histogram(aes(x = ab_sl, y = -..count..), binwidth = 10, fill = 'red')+
+ facet_wrap(. ~ yr.season, ncol = 2, drop = F)+
+ theme_bw()+
+ ylab("Frequency") +
+ xlab("Shell Length (mm)")+
+ coord_cartesian(ylim = c(-40, 115), xlim = c(0, 180))+
+ geom_hline(yintercept = 0, size = 0.1)+
+ geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
+ geom_text(data = plot.n.FIS, aes(x = 160, y = 50, label = n), 
+           colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
+ geom_text(data = plot.n.ARM, aes(x = 10, y = -30, label = n), 
+           colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
+ geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)
+
+print(ARM_FIS)
+
+#setwd('C:/CloudStor/R_Stuff/FIS')
+ggsave(filename = paste('ARM_FIS_LF_', selected.site, '.pdf', sep = ''), plot = ARM_FIS, units = 'mm', width = 190, height = 250)
+ggsave(filename = paste('ARM_FIS_LF_', selected.site, '.wmf', sep = ''), plot = ARM_FIS, units = 'mm', width = 190, height = 250)
 
 
 
+## abundance plot with ARM and FIS data
+
+# # combine individual sites from R data file list into a single dataframe
+# unlist_bigabcounts <- bind_rows(list_bigabcounts.site, .id = 'column_label')
+# unlist_bigabcounts$sampyear <- as.factor(unlist_bigabcounts$sampyear)
+# 
+
+## load most recent juvenile and adult data sets
+bigabcounts <- readRDS('C:/CloudStor/R_Stuff/FIS/bigabcounts.RDS')
+abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
+
+## add column to identify FIS and ARM data
+bigabcounts$sampmethod <- 'FIS'
+abcounts$sampmethod <- 'ARM'
+
+## convert sampyear to factor from bigabcounts df
+bigabcounts$sampyear <- as.factor(bigabcounts$sampyear)
+
+# join FIS and ARM data
+fisarm.abund <- bind_rows(bigabcounts, abcounts)
+
+# subset chosen site
+unique(fisarm.abund$site)
+selected.site <- 'GIII'
+fisarm.site.abund <- subset(fisarm.abund, site %in% selected.site)
+
+# re-order data so that facet plots in vertical order of two columns
+
+fisarm.site.abund$string <- factor(as.integer(fisarm.site.abund$string), levels = c(1,2))
+fisarm.site.abund$yr.season <-
+ ordered(fisarm.site.abund$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                                 "2016.Summer", "2016.Winter", "2016.Spring", 
+                                                 "2017.Summer", "2017.Winter", "2017.Spring", 
+                                                 "2018.Summer", "2018.Winter", "2018.Spring",
+                                                 "2019.Summer"))
+
+# ARM_FIS_ABUND <- ggplot(fisarm.site.abund, aes(x=yr.season, y=absm, group = interaction(sampmethod, string))) + 
+#  aes(colour = string) +  
+#  theme_bw() +
+#  xlab("Season") + 
+#  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
+#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1, aes(linetype = sampmethod)) +
+#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr, size = 3) +
+#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 0.5)+
+#  #stat_summary(fun.y = mean, geom = 'line', group = 'string', size = 1, aes(colour = '1+2'))+
+#  #stat_summary(fun.y = mean, group = 'string', geom = 'point', aes(colour = '1+2'), size = 3)+
+#  #stat_summary(fun.data = my.stderr, aes(colour = '1+2'), group = 'string', geom = 'errorbar',  width = 0.125, size = 1)+
+#  theme(axis.text.x = element_text(angle = 0, vjust = 0.5))+
+#  labs(col = 'String')+
+#  scale_color_manual(values = c('black', 'darkblue'))+
+#  scale_x_discrete(labels = season_labels, drop = F)+
+#  guides(linetype=F)+
+#  theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
+#  coord_cartesian(ylim = c(0, 60))+
+#  geom_line()
+# print(ARM_FIS_ABUND)
+
+# attempt to plot abundance on same plot with second y-axis
+fis.summ <- fisarm.site.abund %>%
+ filter(sampmethod == 'FIS') %>%
+ group_by(string, yr.season) %>%
+ summarise(fis_mean = mean(absm),
+           fis_n = n(),
+           fis_se = sd(absm)/sqrt(fis_n))
+
+arm.summ <- fisarm.site.abund %>%
+ filter(sampmethod == 'ARM') %>%
+ group_by(string, yr.season) %>%
+ summarise(arm_mean = mean(absm),
+           arm_n = n(),
+           arm_se = sd(absm)/sqrt(arm_n))
+
+# ARM_FIS_ABUND <- ggplot()+
+#  geom_line(data = arm.summ, aes(x = yr.season, y = arm_mean/10, group = factor(string), linetype = string), position = position_dodge(0.5), colour = 'red')+
+#  geom_point(data = arm.summ, aes(x = yr.season, y = arm_mean/10, group = factor(string), colour = string), size = 3, position = position_dodge(0.5), colour = 'red')+
+#  geom_errorbar(data = arm.summ, aes(x = yr.season, 
+#                                     ymin = arm_mean/10 - arm_se/10, ymax = arm_mean/10 + arm_se/10, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'red')+
+#  geom_line(data = fis.summ, aes(x = yr.season, y = fis_mean, group = factor(string), linetype = string), position = position_dodge(1), colour = 'blue')+
+#  geom_point(data = fis.summ, aes(x = yr.season, y = fis_mean, group = factor(string), colour = string), size = 3, position = position_dodge(1), colour = 'blue')+
+#  geom_errorbar(data = fis.summ, aes(x = yr.season, 
+#                                     ymin = fis_mean - fis_se, ymax = fis_mean + fis_se, group = factor(string), colour = string), width = 0.1, position = position_dodge(1), colour = 'blue')+
+#  scale_y_continuous(sec.axis = sec_axis(~.*10, name = bquote('ARM Abalone Abundance ('*~m^2*')')))+
+#  ylab(bquote('FIS Abalone Abundance ('*~m^2*')'))+
+#  scale_x_discrete(labels = season_labels, drop = F)+
+#  scale_color_manual(values = c('blue', 'red'))+
+#  theme_bw()+
+#  #theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
+#  theme(legend.position = 'none')+
+#  labs(col = 'String')+
+#  xlab("Season")+
+#  coord_cartesian(ylim = c(0, 6))
+
+arm_abund <- ggplot()+
+ geom_line(data = arm.summ, aes(x = yr.season, y = arm_mean, group = factor(string), linetype = string), position = position_dodge(0.5), colour = 'red')+
+ geom_point(data = arm.summ, aes(x = yr.season, y = arm_mean, group = factor(string), colour = string), size = 3, position = position_dodge(0.5), colour = 'red')+
+ geom_errorbar(data = arm.summ, aes(x = yr.season, 
+                                    ymin = arm_mean - arm_se, ymax = arm_mean + arm_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'red')+
+ ylab(bquote('ARM Abalone Abundance ('*~m^2*')'))+
+ scale_x_discrete(labels = season_labels, drop = F)+
+ scale_color_manual(values = c('red'))+
+ theme_bw()+
+ #theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
+ theme(legend.position = 'none')+
+ labs(col = 'String')+
+ #xlab("Season")+
+ xlab(NULL)+
+ coord_cartesian(ylim = c(0, 60))
+
+fis_abund <- ggplot()+
+ geom_line(data = fis.summ, aes(x = yr.season, y = fis_mean, group = factor(string), linetype = string), position = position_dodge(0.5), colour = 'blue')+
+ geom_point(data = fis.summ, aes(x = yr.season, y = fis_mean, group = factor(string), colour = string), size = 3, position = position_dodge(0.5), colour = 'blue')+
+ geom_errorbar(data = fis.summ, aes(x = yr.season, 
+                                    ymin = fis_mean - fis_se, ymax = fis_mean + fis_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'blue')+
+ ylab(bquote('FIS Abalone Abundance ('*~m^2*')'))+
+ #scale_y_continuous(position = 'right')+
+ # theme(axis.title.y = element_blank(),
+ #       axis.text.y = element_blank(),
+ #       axis.ticks.y = element_blank())+
+ #ylab(NULL)+
+ #theme_minimal()+
+ #theme(axis.text.y = element_blank())+
+ #scale_y_continuous(sec.axis = sec_axis(~.*1, name = bquote('FIS Abalone Abundance ('*~m^2*')')))+
+ scale_x_discrete(labels = season_labels, drop = F)+
+ scale_color_manual(values = c('blue'))+
+ theme_bw()+
+ #theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
+ theme(legend.position = 'none')+
+ labs(col = 'String')+
+ xlab("Season")+
+ coord_cartesian(ylim = c(0, 3))
 
 
+# print(arm_abund)
+# print(fis_abund)
+# print(ARM_FIS_ABUND)
+
+
+ARM_FIS_ABUND <- grid.arrange(
+ arrangeGrob(cowplot::plot_grid(arm_abund + rremove('x.text'), fis_abund, align = 'v', ncol = 1),
+             ncol = 1))
+ 
+#setwd('C:/CloudStor/R_Stuff/FIS')
+ggsave(filename = paste('ARM_FIS_ABUNDANCE_', selected.site, '.pdf', sep = ''), plot = ARM_FIS_ABUND)
+ggsave(filename = paste('ARM_FIS_ABUNDANCE_', selected.site, '.wmf', sep = ''), plot = ARM_FIS_ABUND)
+
+#add width and height to change y axis scale and stretch out
 
 
 ################################ old stuff

@@ -44,17 +44,17 @@ saveRDS(ab.oldMM, 'C:/CloudStor/R_Stuff/MMLF/ab.oldMM_raw.RDS')
 #write.csv(ab.oldMM, 'ab.oldMM.csv')
 
 # reload data into console where needed
-# compiled.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled_df.RDS')
-# compiled.docket.00.07 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.00.07.RDS')
-# compiled.docket.07.11 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.07.11.RDS')
-# compiled.docket.abdb <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.abdb.RDS')
-# compiled.docket.FeMM <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.FeMM.RDS')
-# docketinfo <- readRDS('C:/CloudStor/R_Stuff/MMLF/docketinfo.RDS')
-# Output.error.date <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.date.RDS')
-# Output.error.docket <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.docket.RDS')
-# Output.error.epro <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.epro.RDS')
-# Raw.MM.Output.error.docket <- readRDS('C:/CloudStor/R_Stuff/MMLF/Raw.MM.Output.error.docket.RDS')
-# ab.oldMM <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_ab_oldMM.RDS')
+compiled.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled_df.RDS')
+compiled.docket.00.07 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.00.07.RDS')
+compiled.docket.07.11 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.07.11.RDS')
+compiled.docket.abdb <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.abdb.RDS')
+compiled.docket.FeMM <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.FeMM.RDS')
+docketinfo <- readRDS('C:/CloudStor/R_Stuff/MMLF/docketinfo.RDS')
+Output.error.date <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.date.RDS')
+Output.error.docket <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.docket.RDS')
+Output.error.epro <- readRDS('C:/CloudStor/R_Stuff/MMLF/Output.error.epro.RDS')
+Raw.MM.Output.error.docket <- readRDS('C:/CloudStor/R_Stuff/MMLF/Raw.MM.Output.error.docket.RDS')
+ab.oldMM <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_ab_oldMM.RDS')
 
 # subset historic data to include only the required variables 
 ab.oldMM.sub <- subset(ab.oldMM, select = c("CSA_Docket", "CSA_Processor", "CSA_SampleDate", "CSA_CatchDate",

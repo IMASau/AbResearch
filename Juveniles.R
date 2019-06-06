@@ -1,5 +1,7 @@
-#clear environment
+## clear environment
 #rm(list=ls(all=TRUE))
+
+## load library packages
 library(tidyverse)
 library(broom)
 library(lubridate)
@@ -11,21 +13,24 @@ library(openxlsx)
 library(Hmisc)
 library(ggsci)
 
-
+## load season recode function
 source("C:/GitCode/AbResearch/getSeason.r")
+
+## load raw data from Excel spreadsheet (Note: data is entered for each site in different sheets 
+## and needs to be compiled into a single sheet before import)
 juv <- read.xlsx(
- "C:/CloudStor/Shared/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys_Dec2018_JM.xlsx",
+ "C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/ResearchSurveys_May2019_JM.xlsx",
  sheet = "ARM",
  detectDates = TRUE)
 
+## Data cleaning ####
+
 ## convert var names to lower case
 colnames(juv) <- tolower(colnames(juv))
-juv <- rename(juv, survdate = date)
-juv <- rename(juv, site = location)
+juv <- dplyr::rename(juv, survdate = date)
+juv <- dplyr::rename(juv, site = location)
 juv$string <- as.factor(juv$string)
 juv$plate <- as.factor(juv$plate)
-
-## Data cleaning ####
 
 ## fix site names for several records from GIII on 2017-03-22 which have clearly been filled down in sequence 
 ## in the raw data.
@@ -41,27 +46,33 @@ juv$site <- gsub( "_", "", juv$site)
 
 ## check site names.
 unique(juv$site)
+unique(juv$ab_sl)
 
 ## checking for outliers
 ## most animals should be < 140 mm with the majority < 80 mm
-filter(juv, !is.na(ab_sl)) %>%
+juv %>% 
+ mutate(ab_sl = as.numeric(as.character(ab_sl))) %>%
+ filter(is.nan(ab_sl) | !is.na(ab_sl)) %>%
  ggplot() +
  geom_histogram(mapping = aes(x = ab_sl), binwidth = 5)
 
-filter(juv, !is.na(ab_sl)) %>%
+juv %>% 
+ mutate(ab_sl = as.numeric(as.character(ab_sl))) %>%
+ filter(is.nan(ab_sl) | !is.na(ab_sl)) %>%
  count(cut_width(ab_sl, 5))
 
-filter(juv, !is.na(ab_sl)) %>%
- ggplot(aes(x=site, y=ab_sl)) +
+juv %>% 
+ mutate(ab_sl = as.numeric(as.character(ab_sl))) %>%
+ filter(is.nan(ab_sl) | !is.na(ab_sl)) %>%
+ ggplot(aes(x = site, y = ab_sl)) +
  geom_boxplot()
-
-## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-juv.seasonal <- subset(juv, site %nin% c('OS', 'SB'))
 
 ### Prepare dataframes for length frequency and abundance analyses ####
 
 ## A. Extract records with abs for length frequency analysis ####
-juv.sl <- filter(juv, !is.na(ab_sl))
+juv.sl <- juv %>% 
+ mutate(ab_sl = as.numeric(as.character(ab_sl))) %>%
+ filter(is.nan(ab_sl) | !is.na(ab_sl))
 
 ## construct  date, quarter and season variables
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
@@ -77,15 +88,35 @@ juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring"))
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
 levels(juv.sl$yr.season)
 juv.sl$yr.season <-
-ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
+ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                     "2016.Summer", "2016.Winter", "2016.Spring", 
+                                     "2017.Summer", "2017.Winter", "2017.Spring", 
+                                     "2018.Summer", "2018.Winter", "2018.Spring",
+                                     "2019.Summer", "2019.Winter", "2019.Spring"))
 
-## recode Gardens 2015.summer samples as 2015.spring (Why?)
+## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(juv.sl$site == "TG")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
 
 unique(juv.sl$survdate)
 unique(juv.sl$yr.season)
+
+## subset data to include only seasonal routine ARM sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
+juv.sl.seasonal <- subset(juv.sl, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+
+## subset data into ARM sampling sites
+list_juv.sl.site <- split(juv.sl, juv.sl$site)
+#list2env(list_bigabs.sl.site, envir = .GlobalEnv) #splits list into each site but not well labelled
+names(list_juv.sl.site)
+juv.sl.sites <- c("juv.sl.BI",   "juv.sl.BRB",    "juv.sl.BRS",   "juv.sl.GIII",
+                     "juv.sl.OS", "juv.sl.SB", "juv.sl.SP", "juv.sl.TG")
+for (i in 1:length(list_juv.sl.site)) {
+ assign(juv.sl.sites[i], list_juv.sl.site[[i]])
+}
+
+saveRDS(list_juv.sl.site, 'C:/CloudStor/R_Stuff/FIS/list_juv.sl.site.RDS')
+saveRDS(juv.sl, 'C:/CloudStor/R_Stuff/FIS/juv.sl.RDS')
 
 ## B. Extract and prepare records with abs for abundance analyses ####
 
@@ -102,7 +133,9 @@ platearea <- 0.126
 juv$survindex <- as.factor(paste(juv$site, juv$survdate, juv$string, juv$plate, sep="_"))
 
 ## subset and count number of animals per ARM by survdate (subset by size class if required)
-dat <- filter(juv, !is.na(ab_sl))  %>%
+dat <- juv %>% 
+ mutate(ab_sl = as.numeric(as.character(ab_sl))) %>%
+ filter(is.nan(ab_sl) | !is.na(ab_sl)) %>%
 #dat <- filter(juv, ab_sl >=25 & ab_sl < 100) %>%
 #dat <- filter(juv, ab_sl <25 ) %>% 
 #dat <- filter(juv, ab_sl <= 100) %>%
@@ -130,12 +163,17 @@ abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring")
 ## create variable identifying year and season
 abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
 abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", "2016.Summer", "2016.Winter", "2016.Spring", "2017.Summer", "2017.Winter", "2017.Spring", "2018.Summer", "2018.Winter", "2018.Spring"))
-
+ ordered(abcounts$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring", 
+                                        "2016.Summer", "2016.Winter", "2016.Spring", 
+                                        "2017.Summer", "2017.Winter", "2017.Spring", 
+                                        "2018.Summer", "2018.Winter", "2018.Spring",
+                                        "2019.Summer", "2019.Winter", "2019.Spring"))
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(abcounts$site == "TG")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
+
+saveRDS(abcounts, 'C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
 
 ## Size frequency plots ####
 
@@ -152,7 +190,8 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2017.Spring" = '2017.Sp', 
                    "2018.Summer" = '2018.Su', 
                    "2018.Winter" = '2018.Wi', 
-                   "2018.Spring" = '2018.Sp')
+                   "2018.Spring" = '2018.Sp',
+                   "2019.Summer" = '2019.Su')
 
 ## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
 juv.sl.seasonal <- subset(juv.sl, site %nin% c('OS', 'SB'))

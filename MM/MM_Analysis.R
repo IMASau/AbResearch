@@ -22,6 +22,8 @@ library(tidyverse)
 library(splitstackshape)
 library(readxl)
 library(data.table)
+library(scales)
+library(gridExtra)
 
 ###############################################################################################################
 
@@ -41,19 +43,30 @@ setwd('c:/CloudStor/R_Stuff/AutoAssess')
 ## manually select the most recent .rdata file (or file that covers the market measure timeframe)
 myFile <- file.choose()
 load(myFile)
-getwd()
 
-## load most recent abalone processor details
-#load("Ab_processor220616.RData")
-load('AbProcessors_2018_10_09.RData')
-#keep(processorlist, docketinfo, sure=T)
-rm(abprocs, docketblocks, docketblocks.bl, docketblocks.gl, docketlink, GaryMM)
+##-------------------------------------------------------------------------------------------------------##
+## Processor data ####
 
-## Change 'docket_number' column name out of SQL format
-#summary(docketinfo)
-#names(docketinfo)
+# load most recent abalone processor details
+docketinfo <- readRDS('docketinfo2.RDS')
+
+# remove alpha characters from docket_number
+docketinfo <- docketinfo %>%
+ mutate(docket_number = as.numeric((gsub('[^0-9]', '', docket_number)))) %>%
+ mutate(masterdocket = as.numeric((gsub('[^0-9]', '', masterdocket))))
+
+# change 'docket_number' and 'certifcate_holder' column name out of SQL format in docketinfo
 names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
+colnames(docketinfo)[colnames(docketinfo) == "certificate_holder"] <- "processorname"
 
+# change processorname toupper
+docketinfo <- docketinfo %>%
+ mutate_at('processorname', funs(toupper))
+
+##-------------------------------------------------------------------------------------------------------##
+
+#keep(processorlist, docketinfo, sure=T)
+# rm(abprocs, docketblocks, docketblocks.bl, docketblocks.gl, docketlink, GaryMM)
 ###############################################################################################################
 
 #   
@@ -98,8 +111,14 @@ ORDER BY DownlaodEvent.DownlaodEventID;
 Download.date <- sqlQuery(channel, sql)
 close(channel)
 
+
 ## create dataframe of processors and identify download date of their electronic measuring boards
-e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD","ABALONE TASMANIA PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "ADELAIDE BAY SEAFOODS PTY LTD")
+# e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD","ABALONE TASMANIA PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "ADELAIDE BAY SEAFOODS PTY LTD")
+e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD",
+                  "ABALONE TASMANIA PTY LTD", 
+                  "TASMANIAN SEAFOODS PTY LTD", 
+                  "TASMANIAN SEAFOODS PTY LTD", 
+                  "ADELAIDE BAY SEAFOODS PTY LTD")
 e.pro <- as.data.frame(e.processors)
 e.pro$DataSourceID <- c(1,2,3,4,5)
 Download.date <- left_join(Download.date, e.pro, by = "DataSourceID")
@@ -164,11 +183,20 @@ FeMM.sub <- inner_join(FeMM, pick_db.docket)
 #
 
 ## FeMM database only has data from 2010 onwards so to reduce chances of duplicate records subset docketinfo to post 2009
-docketinfo.2010 <- droplevels(subset(docketinfo,unloading_date >= as.POSIXct('2010-01-01 00:00')))
+## NOTE: 'RALPH'S TASMANIAN SEAFOOD PTY LTD' has several different names in the 2019 SQL database query and need to be renamed
+docketinfo$processorname[docketinfo$processorname %in% c("R & R HOBART INVESTMENTS PTY LTD",
+                                                         "RTS PAUACO PTY LTD AS BARE TRUSTEE FOR THE RTS PAUACO LIMITED PARTNERSHIP")] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
 
-e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD","ABALONE TASMANIA PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "ADELAIDE BAY SEAFOODS PTY LTD", "M & K HAULAGE (TAS) PTY LTD")
+# docketinfo.2010 <- droplevels(subset(docketinfo,unloading_date >= as.POSIXct('2010-01-01 00:00')))
+docketinfo.2010 <- droplevels(subset(docketinfo, fishyear >= 2010))
+#docketinfo.2010 <- docketinfo
+e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD",
+                  "ABALONE TASMANIA PTY LTD", 
+                  "TASMANIAN SEAFOODS PTY LTD", 
+                  "ADELAIDE BAY SEAFOODS PTY LTD", 
+                  "M & K HAULAGE (TAS) PTY LTD")
 docketinfo.2010 <- droplevels(subset(docketinfo.2010, processorname %in% e.processors))
-
+#docketinfo.2010 <- docketinfo
 #
  # STEP 4 - join unique database docket to docketinfo.2010 ####
 #
@@ -193,25 +221,49 @@ docket.uniq <- as.data.frame(FeMM.docket.info[FeMM.docket.info$docket.number %in
 Output1.unique <- inner_join(FeMM.sub, docket.uniq)
 
 ## add columns to show date differences between landing date and msr.Date and dload.Date
+## NOTE: new processor data doesn't not contain unloading date, instead find latest fishing date
+# split fishing days into seperate columns
+Output1.unique <- cSplit(Output1.unique, 'daylist', ',', drop = F)
+
+Output1.unique$daylist_1 <- as.Date(as.character(Output1.unique$daylist_1, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_2 <- as.Date(as.character(Output1.unique$daylist_2, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_3 <- as.Date(as.character(Output1.unique$daylist_3, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_4 <- as.Date(as.character(Output1.unique$daylist_4, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_5 <- as.Date(as.character(Output1.unique$daylist_5, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_6 <- as.Date(as.character(Output1.unique$daylist_6, format = 'yyyy-%mm-%dd'))
+Output1.unique$daylist_max <- (apply(Output1.unique[, 33:38], 1, max, na.rm = T))
+Output1.unique$daylist_max <- as.Date(as.character(Output1.unique$daylist_max, format = 'yyyy-%mm-%dd'))
+
+Output1.unique <- Output1.unique %>%
+ select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6))
+
 Output1.unique$dload.date <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")
-Output1.unique$unloading_date <- as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
-Output1.unique$msr.date.diff <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
-Output1.unique$dload.date.diff <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
+Output1.unique$msr.date <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")
+#Output1.unique$unloading_date <- as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
+#Output1.unique$msr.date.diff <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
+Output1.unique$msr.date.diff <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$daylist_max, format="yyyy-%mm-%dd")
+#Output1.unique$dload.date.diff <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
+Output1.unique$dload.date.diff <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$daylist_max, format="yyyy-%mm-%dd")
 
 ## remove dockets with errors in dates and or processor
 
 # dockets with issues in that download.date is prior to landing date but there are no duplicated dockets suggestion is incorrect docket number in eboard.
 dload.date.false <- subset(Output1.unique, dload.date.diff <= -1)
-dload.date.f.unique <- unique(dload.date.false[c("docket.number", "eprocessors", "dload.date", "unloading_date",
-                                               "dload.date.diff", "msr.date.diff")])
+# dload.date.f.unique <- unique(dload.date.false[c("docket.number", "eprocessors", "dload.date", "unloading_date",
+#                                                "dload.date.diff", "msr.date.diff")])
+dload.date.f.unique <- unique(dload.date.false, by = c("docket.number", "eprocessors", "dload.date", "daylist_max", "dload.date.diff", "msr.date.diff"))
+
 #Output.error.date<-join(dload.date.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
 Output.error.date <- left_join(dload.date.f.unique, docketinfo.2010,  by = "docket.number")
 
 # dockets with issues in that eprocessor is not processorID
 epro.proID.false <- as.data.frame(Output1.unique[Output1.unique$eprocessors != Output1.unique$processorname,])
 epro.proID.false <- epro.proID.false[!is.na(epro.proID.false$docket.number),]
-epro.proID.f.unique <- unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "unloading_date","msr.date",
-                                               "dload.date.diff", "msr.date.diff")])
+# epro.proID.f.unique <- unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "unloading_date","msr.date",
+#                                                  "dload.date.diff", "msr.date.diff")])
+epro.proID.f.unique <- unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "daylist_max","msr.date",
+                                                 "dload.date.diff", "msr.date.diff")])
+
 #Output.error.epro<-join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
 Output.error.epro <- left_join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number")
 
@@ -219,6 +271,7 @@ Output.error.epro <- left_join(epro.proID.f.unique, docketinfo.2010,  by = "dock
 # remove the dockets with issues
 Output1.unique <- Output1.unique[!(Output1.unique$docket.number %in% dload.date.f.unique$docket.number),]
 Output1.unique <- Output1.unique[!(Output1.unique$docket.number %in% epro.proID.false$docket.number),]
+Output1.unique$msr.date <- as.POSIXct(Output1.unique$msr.date, format="yyyy-%mm-%dd")
 
 #
  # STEP 6 - remove duplicated dockets remove split catches by matching eprocessor (garydb) to processorID (films) in dupliacted catches. ####
@@ -243,19 +296,43 @@ docket.epro.uniq <- as.data.frame(docket.epro[docket.epro$docket.number %in% n_o
 Output2.epro <- inner_join(FeMM.sub, docket.epro.uniq)
 
 ## add columns to show date differences between landing date, msr.Date and dload.Date
+Output2.epro <- cSplit(Output2.epro, 'daylist', ',', drop = F)
+Output2.epro$daylist_1 <- as.Date(as.character(Output2.epro$daylist_1, format = 'yyyy-%mm-%dd'))
+Output2.epro$daylist_2 <- as.Date(as.character(Output2.epro$daylist_2, format = 'yyyy-%mm-%dd'))
+Output2.epro$daylist_3 <- as.Date(as.character(Output2.epro$daylist_3, format = 'yyyy-%mm-%dd'))
+Output2.epro$daylist_4 <- as.Date(as.character(Output2.epro$daylist_4, format = 'yyyy-%mm-%dd'))
+Output2.epro$daylist_5 <- as.Date(as.character(Output2.epro$daylist_5, format = 'yyyy-%mm-%dd'))
+Output2.epro$daylist_max <- (apply(Output2.epro[, 33:37], 1, max, na.rm = T))
+Output2.epro$daylist_max <- as.Date(as.character(Output2.epro$daylist_max, format = 'yyyy-%mm-%dd'))
+
+Output2.epro <- Output2.epro %>%
+ select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5))
+
 Output2.epro$dload.date <- as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")
-Output2.epro$unloading_date <- as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
-Output2.epro$msr.date.diff <- as.Date(Output2.epro$msr.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
-Output2.epro$dload.date.diff <- as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
+# Output2.epro$unloading_date <- as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
+# Output2.epro$msr.date.diff <- as.Date(Output2.epro$msr.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
+Output2.epro$msr.date.diff <- as.Date(Output2.epro$msr.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$daylist_max, format="yyyy-%mm-%dd")
+Output2.epro$dload.date.diff <- as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$daylist_max, format="yyyy-%mm-%dd")
 
 #
  # STEP 8 extract unique dockets and join to FeMMsub ####
 #
 
 docket.dble <- as.data.frame(docket.epro[docket.epro$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
+docket.dble <- cSplit(docket.dble, 'daylist', ',', drop = F)
+docket.dble$daylist_1 <- as.Date(as.character(docket.dble$daylist_1, format = 'yyyy-%mm-%dd'))
+docket.dble$daylist_2 <- as.Date(as.character(docket.dble$daylist_2, format = 'yyyy-%mm-%dd'))
+docket.dble$daylist_3 <- as.Date(as.character(docket.dble$daylist_3, format = 'yyyy-%mm-%dd'))
+docket.dble$daylist_max <- (apply(docket.dble[, 23:25], 1, max, na.rm = T))
+docket.dble$daylist_max <- as.Date(as.character(docket.dble$daylist_max, format = 'yyyy-%mm-%dd'))
+docket.dble <- docket.dble %>%
+ select(-c(daylist_1, daylist_2, daylist_3))
+
 
 ## look at unique dates in dupes
-docket.dble$dload.date.diff <- as.Date(docket.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(docket.dble$unloading_date, format="yyyy-%mm-%dd")
+#docket.dble$dload.date.diff <- as.Date(docket.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(docket.dble$unloading_date, format="yyyy-%mm-%dd")
+docket.dble$dload.date.diff <- as.Date(docket.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(docket.dble$daylist_max, format="yyyy-%mm-%dd")
+                                      
 docket.dble <- subset(docket.dble, dload.date.diff >= -1)
 d.docket <- unique(docket.dble$docket.number)
 
@@ -284,9 +361,11 @@ Output3.dble <- inner_join(FeMM.sub, pick.dble.docket)
 
 ## add columns to show date differences between ladning date and msr.Date and dload.Date
 Output3.dble$dload.date <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")
-Output3.dble$unloading_date <- as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
-Output3.dble$msr.date.diff <- as.Date(Output3.dble$msr.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
-Output3.dble$dload.date.diff <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
+#Output3.dble$unloading_date <- as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
+#Output3.dble$msr.date.diff <- as.Date(Output3.dble$msr.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
+Output3.dble$msr.date.diff <- as.Date(Output3.dble$msr.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$daylist_max, format="yyyy-%mm-%dd")
+#Output3.dble$dload.date.diff <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
+Output3.dble$dload.date.diff <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$daylist_max, format="yyyy-%mm-%dd")
 
 #
  # STEP 9 - Compile the final dataframe ####
@@ -297,12 +376,13 @@ Output1.unique$output <- 1
 Output2.epro$output <- 2
 Output3.dble$output <- 3
 
-compiled.docket.FeMM <- rbind(Output1.unique, Output3.dble, Output2.epro)
+compiled.docket.FeMM <- bind_rows(Output1.unique, Output3.dble, Output2.epro)
 
 ## reduce column number
 compiled.docket.FeMM <- droplevels(subset(compiled.docket.FeMM, select = c("output", "joincode", "docket.number", "shell.length","meanSL", "minSL", "n","total_landed_weight", "catch", "msr.date", "dload.date", "unloading_date",
-                                                               "dload.date.diff", "msr.date.diff", "eprocessors", "processorname", "processor_licence_id", "zone_fishery_code", "Zone", "received_location", 
+                                                               "dload.date.diff", "msr.date.diff", "eprocessors", "processorname", "processor_licence_id", "zone_fishery_code", "Zone", "received_location",
                                                               "blocklist", "numblocks", "subblocklist", "numsubblocks", "Download.file")))
+
 
 ## subset records with bad docket.numbers e.g. missing all matching info from FILMS
 Output.error.docket <- compiled.docket.FeMM[is.na(compiled.docket.FeMM$processorname),]
@@ -703,6 +783,8 @@ range(n_occur$Freq)
 #select only dupicated dockets from the FeMM.docket.info list
 docket.test <- as.data.frame(test[test$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
 
+#detach plyr package
+detach('package:plyr')
 ###############################################################################################################
 #keep(compiled.docket.FeMM, compiled.docket.07.11, compiled.docket.abdb, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, compiled.docket.abdb, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
@@ -762,18 +844,33 @@ facMM$processorname<-as.factor(facMM$processorname)
 ## manual edit two records missing processorname
 facMM$processorname[facMM$docket.number %in% c("32740", "32743")] <- "TASMANIAN SEAFOODS PTY LTD"
 
-## summarise the dataframe
-facMM.uniq <- ddply(facMM,.(docket.number, processorname), summarize,  n = length(shell.length), 
-      meanSL = round(mean(shell.length), 1),
-      minSL = round(min(shell.length), 1))
+## remove records where the docket.number is incorrect or missing
+#facMM.copy <- facMM
+#facMM <- facMM.copy
+facMM$docket.number <- as.numeric(as.character(facMM$docket.number))
+facMM <- subset(facMM, !(docket.number %in% c('below', '27/03/')))
+facMM <- subset(facMM, !is.na(docket.number))
 
-# #test on duplicates
-# #n-occur to docket.join
+## summarise the dataframe
+# library(plyr)
+# facMM.uniq <- ddply(facMM,.(docket.number, processorname), summarize,  n = length(shell.length),
+#       meanSL = round(mean(shell.length), 1),
+#       minSL = round(min(shell.length), 1))
+
+facMM.uniq <- facMM %>%
+ group_by(docket.number, processorname) %>%
+ summarise(n = length(shell.length),
+            meanSL = round(mean(shell.length), 1),
+            minSL = round(min(shell.length), 1))
+
+#test on duplicates
+#n-occur to docket.join
 # test<-unique(facMM.uniq[c("docket.number","processorname")])
 # n_occur <- data.frame(table(facMM.uniq$docket.number))
 # range(n_occur$Freq)
 
 ## match docket info to facMM.uniq datframe to test for duplicates
+
 facMM.uniq.di <- join(facMM.uniq, docketinfo, by = c("docket.number", "processorname"), type = "left")
 
 ## test on duplicates
@@ -792,7 +889,8 @@ compiled.docket.00.07$subblocklist[is.na(compiled.docket.00.07$subblocklist)] <-
 ## add date difference column
 compiled.docket.00.07$msr.date.diff<-as.Date(compiled.docket.00.07$msr.date, format="yyyy-%mm-%dd")-as.Date(compiled.docket.00.07$unloading_date, format="yyyy-%mm-%dd")
 
-
+## detach plyr package
+detach('package:plyr')
 ###################################################################################################################
 
 #keep(compiled.docket.00.07, compiled.docket.FeMM, compiled.docket.07.11, compiled.docket.abdb, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, compiled.docket.abdb, sure=T)
@@ -857,6 +955,7 @@ compiled.df$unloading_date <- as.Date(compiled.df$unloading_date)
 #
 
 ## summarize the compiled.df dataset
+library(plyr)
 n.per.docket<-ddply(compiled.df,.(docket.number, unloading_date,  msr.date.diff), summarize,  n = length(shell.length),
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
@@ -933,6 +1032,8 @@ for(b in db.dup.dockets){
 compiled.triples <- join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "unloading_date"), type ="inner")
 compiled.df <- rbind(compiled.uniq,compiled.dupes, compiled.triples)
 
+##detach plyr package
+detach('package:plyr')
 
 #############################################################################################################
 
@@ -976,6 +1077,7 @@ colnames(Raw.MM.Output.error.docket)[colnames(Raw.MM.Output.error.docket)=="e.pr
 Error.docket.uniq <- as.data.frame(unique(as.integer(Raw.MM.Output.error.docket$docket.number)))
 colnames(Error.docket.uniq)[colnames(Error.docket.uniq)=="unique(as.integer(Raw.MM.Output.error.docket$docket.number))"] <- "docket.number"
 
+library(plyr)
 err.dkt <- ddply(Output.error.docket,.(docket.number, msr.date, processorname), summarize,  n = length(shell.length), 
                meanSL = round(mean(shell.length), 1),
                minSL = round(min(shell.length), 1))
@@ -983,123 +1085,10 @@ err.dkt <- ddply(Output.error.docket,.(docket.number, msr.date, processorname), 
 ## comparing the two df
 err.docket.match <- err.dkt[err.dkt$docket.number %in% abdb.docket.uniq$docket.number,]
 
+detach('package:plyr')
+
 ##############################################################################################################
-#
- #
-  # Add zone to compiled.df ####
- #
-#
 
-## Make a copy of the compiled.df
-ab.newMM <- compiled.df
-
-# The compiled.df contains some records with no docket.numbers but do have measure date, processorname and 
-# sub-block information.  These arise from MM.00.07 data and are represented by 'below' and '27/03/' as the
-# docket number.  The shell length data can still be used, therefore it was decided to convert the docket
-# information to NAs.  Alternatively these can be removed (955 records).
-
-# ab.newMM$docket.number[ab.newMM$docket.number %in% c('below', '27/03/')] <- NA
-# remove records if needed
-ab.newMM <- subset(ab.newMM, !(docket.number %in% c('below', '27/03/')))
-ab.newMM$docket.number <- as.numeric(ab.newMM$docket.number)
-
-## some sub-blocks have an 'N' making it read 'NA', remove N and replace with ''
-ab.newMM$subblocklist <- gsub('N', '', ab.newMM$subblocklist)
-
-## remove records with no shell length
-ab.newMM<-ab.newMM[!is.na(ab.newMM$shell.length),]
-
-## add column for fishyear
-ab.newMM$fishyear <- year(ab.newMM$msr.date)
-
-# there are 79124 records missing zone data to determine species, however
-# block information is provided.  Most blocks are southern areas and can be assigned to blacklip
-# however there are about 20 dockets from greenlip blocks which need to
-# be assigned a species for plotting, etc.  Assuming only legal sized animals have been measured, 
-# animals have been assigned a species based on the legal minimum length for species in that block.
-# The greenlip blocks are 1-4, 31-49.  An initial examination of summary data
-# indicates most of the records in question come from blocks 48 and 49 in the years 2000-2001
-# when GL size limit was 140 mm. 
-
-## subset data for animals where zone is missing
-ab.newMM.nz <- subset(ab.newMM, is.na(zone_fishery_code))
-ab.newMM.z <- subset(ab.newMM, !is.na(zone_fishery_code))
-
-## create summary of min shell length for each docket id
-ab.newMM.nz.sum <- ab.newMM.nz %>%
- group_by(docket.number, processorname, blocklist, fishyear) %>%
- summarise(n = length(shell.length), 
-           meanSL = round(mean(shell.length), 1),
-           minSL = round(min(shell.length), 1)) %>%
- as.data.frame()
-
-## create additional column in summary data to identify species
-ab.newMM.nz.sum.sp <- ab.newMM.nz.sum %>%
- mutate(species = ifelse(minSL < 132, 1,
-                         ifelse(blocklist %in% c(seq(5, 40, 1)), 1,
-                                ifelse(blocklist %in% c(seq(1, 4, 1)) & minSL >= 150, 2, 
-                                       ifelse(blocklist %in% c(seq(41, 49, 1)) & fishyear < 2002 & minSL >= 140, 2, 1)))))
-
-
-codeZoneHistoric <- function(Bl) {
- {
-  Bl$newzone[Bl$blocklist %in% seq(13, 31, 1)] <- "E"
-  Bl$newzone[Bl$blocklist %in% c(seq(7, 12, 1))] <- "W"
-  Bl$newzone[Bl$blocklist %in% c(1, 2, 3, 4, 5, 6, 39, 40)] <- "N"
-  Bl$newzone[Bl$blocklist %in% c(seq(32, 38, 1), seq(41, 49, 1), seq(50, 57, 1))] <- "BS"
-  Bl$newzone[Bl$species == 2] <- 'G'
-  
- }
- return(Bl)
-}
-
-ab.newMM.nz.sum.sp.z <- codeZoneHistoric(ab.newMM.nz.sum.sp)
-
-## join the summary data to the original data to identify species for records without zone 
-ab.newMM.join <- left_join(ab.newMM.nz, ab.newMM.nz.sum.sp.z, 
-                           by = c('docket.number', 'processorname', 'blocklist', 'fishyear'))
-
-## remove previous summary data (.x) as filtering since HJ has removed some additional records since then
-ab.newMM.join <- ab.newMM.join %>% select(-c(n.x, meanSL.x, minSL.x))
-
-## keep new summary data (.y) and rename columns to match original data frame
-ab.newMM.join <- ab.newMM.join %>% rename(n = n.y, meanSL = meanSL.y, minSL = minSL.y)
-
-## re-join dataframes
-ab.newMM.df <- bind_rows(ab.newMM.z, ab.newMM.join)
-
-
-## identify species for records with 'zone_fishery_code'
-ab.newMM.df$species <- ifelse(is.na(ab.newMM.df$zone_fishery_code), ab.newMM.df$species,
-                              ifelse(as.character(ab.newMM.df$zone_fishery_code) == 'AQG', 2, 1))
-
-## extract zone for records with 'zone_fishery_code'
-ab.newMM.df$newzone <- ifelse(!is.na(ab.newMM.df$zone_fishery_code), substr(ab.newMM.df$zone_fishery_code, 3,
-                                                                            nchar(as.character(ab.newMM.df$zone_fishery_code))),
-                              ifelse(!is.na(ab.newMM.df$zone_fishery_code) & ab.newMM.df$species == 2, 'G',
-                                     ab.newMM.df$newzone))
-
-## split block list into seperate blocks to define regions
-ab.newMM.df <- cSplit(ab.newMM.df, 'blocklist', ',', drop = F)
-
-## create column for 'blockno' identfying the first block from the 'blocklist' to enable the Region_Recode 
-## function to run
-ab.newMM.df$blockno <- ab.newMM.df$blocklist_1
-
-## subset into blacklip and greenlip to define regions
-ab.newMM.sub.bl <- subset(ab.newMM.df, species == 1)
-ab.newMM.sub.gl <- subset(ab.newMM.df, species == 2)
-#ab.newMM.sub.na <- subset(ab.newMM.df, is.na(species))
-
-## code historical data zones and regions
-source("C:/GitCode/AbHarvestStrategy/Region_Recode2018.r")
-
-## code regions for blacklip and greenlip
-ab.newMM.bl <- codeBlregion(ab.newMM.sub.bl)
-ab.newMM.gl <- codeGlregion(ab.newMM.sub.gl)
-
-## re-join blacklip and greenlip df
-ab.newMM.df <- bind_rows(ab.newMM.bl, ab.newMM.gl)
 
 ##############################################################################################################
 #
@@ -1191,28 +1180,43 @@ ab.oldMM.sub <- ab.oldMM.sub[,c("sampleid", "species", "catchlocation", "docket.
                                 "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist",
                                 "numsubblocks", "datasource", "n", "meanSL", "minSL")]
 
-## code historical data zones and regions
-source("C:/GitCode/AbHarvestStrategy/Region_Recode2018.r")
+## add columns to 'compiled.df' to match and populate with NA's
+compiled.df.var <- c('catchlocation', 'sampleid', 'species')
+compiled.df[compiled.df.var] <- NA
 
-## rename 'blocklist' to 'blockno' to enable region recode function to run
-ab.oldMM.sub <- rename(ab.oldMM.sub, blockno = blocklist)
+## convert variables to allow join with compiled.df
+compiled.df$unloading_date <- as.POSIXct(compiled.df$unloading_date, format = '%Y-%m-%d')
+compiled.df$msr.date <- as.POSIXct(compiled.df$msr.date, format = '%Y-%m-%d')
+compiled.df$docket.number <- as.integer(compiled.df$docket.number)
+ab.oldMM.sub$blocklist <- as.character(ab.oldMM.sub$blocklist)
 
-## code zones for black and greenlip
-ab.oldMM.sub <- codeBlZoneHistoric(ab.oldMM.sub) 
-ab.oldMM.sub <- ab.oldMM.sub %>%
- mutate(newzone = replace(newzone, species == 2, 'G'))
+## join old and new market measure data frames together
+compiledMM.df <- bind_rows(compiled.df, ab.oldMM.sub)
 
-## subset ab.oldMM.sub into blacklip and greenlip to define regions
-ab.oldMM.sub.bl <- subset(ab.oldMM.sub, species == 1)
-ab.oldMM.sub.gl <- subset(ab.oldMM.sub, species == 2)
 
-## Code regions for blacklip and greenlip
-ab.oldMM.sub.bl <- codeBlRegionHistoric(ab.oldMM.sub.bl)
-ab.oldMM.sub.gl <- codeGlRegionHistoric(ab.oldMM.sub.gl)
 
-## re-join blacklip and greenlip df
-ab.oldMM.df <- bind_rows(ab.oldMM.sub.bl, ab.oldMM.sub.gl)
-#write.csv(ab.oldMM.df, 'ab.oldMM.df.csv')
+# ## code historical data zones and regions
+# #source("C:/GitCode/AbHarvestStrategy/Region_Recode2018.r")
+# 
+# ## rename 'blocklist' to 'blockno' to enable region recode function to run
+# ab.oldMM.sub <- rename(ab.oldMM.sub, blockno = blocklist)
+# 
+# ## code zones for black and greenlip
+# ab.oldMM.sub <- codeBlZoneHistoric(ab.oldMM.sub) 
+# ab.oldMM.sub <- ab.oldMM.sub %>%
+#  mutate(newzone = replace(newzone, species == 2, 'G'))
+# 
+# ## subset ab.oldMM.sub into blacklip and greenlip to define regions
+# ab.oldMM.sub.bl <- subset(ab.oldMM.sub, species == 1)
+# ab.oldMM.sub.gl <- subset(ab.oldMM.sub, species == 2)
+# 
+# ## Code regions for blacklip and greenlip
+# ab.oldMM.sub.bl <- codeBlRegionHistoric(ab.oldMM.sub.bl)
+# ab.oldMM.sub.gl <- codeGlRegionHistoric(ab.oldMM.sub.gl)
+# 
+# ## re-join blacklip and greenlip df
+# ab.oldMM.df <- bind_rows(ab.oldMM.sub.bl, ab.oldMM.sub.gl)
+# #write.csv(ab.oldMM.df, 'ab.oldMM.df.csv')
 
 ##############################################################################################################
 #
@@ -1220,56 +1224,94 @@ ab.oldMM.df <- bind_rows(ab.oldMM.sub.bl, ab.oldMM.sub.gl)
   # Post 2016 MM abalone data from Gary Carlos ####
  #
 #
-## Since to 2010 the market measuring program for abalone has been sporadic and there are currently
-# only samples available from a single processor in 2016 held in a csv file.
+## Need to update the 'docketinfo.epro' dataframe post 2017-02-21 15:50:00 to join with more recent
+## records obtained from processors - currently there is an error with the script to offload
+## data from the SQL database. 
+
+## DO NOT ADD THIS DATA TO THE COMPILED DATAFRAME UNTIL DB ISSUE IS RESOLVED
 
 ## import data from .csv file
 ab.2016MM.raw <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/DataSummary_from_1Jan2016_to_31Dec2016.csv')
+ab.2019MM.raw.1 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/Dave's recent stuff/DataSummary_from_1Mar2017_to_15May2019.csv")
+ab.2019MM.raw.2 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_8April2019_to_15April2019.csv")
+
+## row.bind data together
+ab.2019MM.raw <- bind_rows(ab.2016MM.raw, ab.2019MM.raw.1, ab.2019MM.raw.2)
 
 ## create a backup
-ab.2016MM.backup <- ab.2016MM.raw
+#ab.2016MM.backup <- ab.2016MM.raw
+ab.2019MM.backup <- ab.2019MM.raw
 #ab.2016MM <- ab.2016MM.backup
 
 ## remove unesseary varibales (zone, entitlement, order)
 #ab.2016MM <- ab.2016MM[,-c(3, 4, 6)]
-ab.2016MM <- subset(ab.2016MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
+#ab.2016MM <- subset(ab.2016MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
+ab.2019MM <- subset(ab.2019MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
+
 
 ## re-format some of the data and variable names
-colnames(ab.2016MM) <- tolower(colnames(ab.2016MM))
-ab.2016MM$mesrtime <- dmy_hms(ab.2016MM$mesrtime)
-ab.2016MM$msr.date <- date(ab.2016MM$mesrtime)
-ab.2016MM$downloaddate <- dmy_hms(ab.2016MM$downloaddate)
-ab.2016MM$downloaddate <- date(ab.2016MM$downloaddate)
+# colnames(ab.2016MM) <- tolower(colnames(ab.2016MM))
+# ab.2016MM$mesrtime <- dmy_hms(ab.2016MM$mesrtime)
+# ab.2016MM$msr.date <- date(ab.2016MM$mesrtime)
+# ab.2016MM$downloaddate <- dmy_hms(ab.2016MM$downloaddate)
+# ab.2016MM$downloaddate <- date(ab.2016MM$downloaddate)
+
+colnames(ab.2019MM) <- tolower(colnames(ab.2019MM))
+ab.2019MM$mesrtime <- dmy_hms(ab.2019MM$mesrtime)
+ab.2019MM$msr.date <- date(ab.2019MM$mesrtime)
+ab.2019MM$downloaddate <- dmy_hms(ab.2019MM$downloaddate)
+ab.2019MM$downloaddate <- date(ab.2019MM$downloaddate)
 
 ## remove measure time
-ab.2016MM <- ab.2016MM[,-c(5)]
+# ab.2016MM <- ab.2016MM[,-c(5)]
+ab.2019MM <- ab.2019MM[,-c(5)]
 
 ## re-label column names to match other datframes
-colnames(ab.2016MM) <- c('e.processor','download.date', 'docket.number', 'shell.length', 'msr.date') 
+# colnames(ab.2016MM) <- c('e.processor','download.date', 'docket.number', 'shell.length', 'msr.date') 
+colnames(ab.2019MM) <- c('e.processor','download.date', 'docket.number', 'shell.length', 'msr.date') 
 
 ## add variable to distinguish datasource
-ab.2016MM$datasource <- '2016MM.csv'
+# ab.2016MM$datasource <- '2016MM.csv'
+ab.2019MM$datasource <- '2019MM.csv'
 
 ## remove records without docket number or docket = 0 or shell length = NA
-ab.2016MM.Output.error.docket <- ab.2016MM[is.na(ab.2016MM$docket.number),]
-ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$docket.number),]
-ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$shell.length),]
-ab.2016MM <- droplevels(subset(ab.2016MM, docket.number !=0))
+# ab.2016MM.Output.error.docket <- ab.2016MM[is.na(ab.2016MM$docket.number),]
+# ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$docket.number),]
+# ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$shell.length),]
+# ab.2016MM <- droplevels(subset(ab.2016MM, docket.number !=0))
 
-## rename processors
-ab.2016MM$e.processor <- as.character(ab.2016MM$e.processor)
-ab.2016MM$e.processor[ab.2016MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Smithton"] <- "TASMANIAN SEAFOODS PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Ralphs"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Coastal Waters"] <- "COASTAL WATERS SEAFOODS PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Live Abalone"] <- "TAS LIVE ABALONE PTY LTD"
-ab.2016MM$e.processor[ab.2016MM$e.processor == "MK Haulage"] <- "M & K HAULAGE (TAS) PTY LTD"
-ab.2016MM$e.processor<-as.factor(ab.2016MM$e.processor)
+ab.2019MM.Output.error.docket <- ab.2019MM[is.na(ab.2019MM$docket.number),]
+ab.2019MM <- ab.2019MM[!is.na(ab.2019MM$docket.number),]
+ab.2019MM <- ab.2019MM[!is.na(ab.2019MM$shell.length),]
+ab.2019MM <- droplevels(subset(ab.2019MM, docket.number !=0))
+
+## rename processors (first convert to character and then factor)
+# ab.2016MM$e.processor <- as.character(ab.2016MM$e.processor)
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Smithton"] <- "TASMANIAN SEAFOODS PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Ralphs"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Coastal Waters"] <- "COASTAL WATERS SEAFOODS PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Live Abalone"] <- "TAS LIVE ABALONE PTY LTD"
+# ab.2016MM$e.processor[ab.2016MM$e.processor == "MK Haulage"] <- "M & K HAULAGE (TAS) PTY LTD"
+
+ab.2019MM$e.processor <- as.character(ab.2019MM$e.processor)
+ab.2019MM$e.processor[ab.2019MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Seafoods Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Seafoods Smithton"] <- "TASMANIAN SEAFOODS PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Ralphs"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Coastal Waters"] <- "COASTAL WATERS SEAFOODS PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Live Abalone"] <- "TAS LIVE ABALONE PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "MK Haulage"] <- "M & K HAULAGE (TAS) PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tassie Live Lobster"] <- 'TASSIE LIVE LOBSTER'
+ab.2019MM$e.processor<-as.factor(ab.2019MM$e.processor)
 
 ## create dataframe of e.processors from data
-eproname <- as.data.frame(unique(ab.2016MM$e.processor))
+# eproname <- as.data.frame(unique(ab.2016MM$e.processor))
+eproname <- as.data.frame(unique(ab.2019MM$e.processor))
+
 colnames(eproname) <- c("e.processor")
 e.processors <- eproname$e.processor
 
@@ -1279,7 +1321,7 @@ docketinfo.epro$e.processor <- docketinfo.epro$processorname
 
 ## summarise data for number of samples, mean and min shell length and add to dataframe 
 #  to check for duplicates
-n.per.docket <- ab.2016MM %>% 
+n.per.docket <- ab.2019MM %>% 
  group_by(docket.number, msr.date, e.processor) %>%
  summarise(n = length(shell.length),
            meanSL = round(mean(shell.length, na.rm = T), 1),
@@ -1303,199 +1345,716 @@ n_occur <- data.frame(table(docket.uniq$docket.number))
 range(n_occur$Freq)
 
 ## join unique dockets to ab.2016MM
-ab.2016MM.unique <- inner_join(ab.2016MM, docket.uniq)
+ab.2019MM.unique <- inner_join(ab.2019MM, docket.uniq)
 
 
 ## subset data and filter out uneeded or duplicated variables
-ab.2016MM.df <- subset(ab.2016MM.unique, select=c("docket.number",  "datasource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
+ab.2019MM.df <- subset(ab.2019MM.unique, select=c("docket.number",  "datasource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
                                            "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
                                            "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
 
-## identify abalone species based on zone variable
-ab.2016MM.df$species <- ifelse(is.na(ab.2016MM.df$zone_fishery_code == T), 1,
-                               ifelse(ab.2016MM.df$zone_fishery_code == 'AQG', 2, 1))
+# ## identify abalone species based on zone variable
+# ab.2016MM.df$species <- ifelse(is.na(ab.2016MM.df$zone_fishery_code == T), 1,
+#                                ifelse(ab.2016MM.df$zone_fishery_code == 'AQG', 2, 1))
+# 
+# ## create 'newzone' variable to match historical data and extract zone from 'zone_fishery_code'
+# ab.2016MM.df$newzone <- substr(ab.2016MM.df$zone_fishery_code, 3, nchar(as.character(ab.2016MM.df$zone_fishery_code)))
+# 
+# ## split block list into seperate blocks to define regions
+# ab.2016MM.df <- cSplit(ab.2016MM.df, 'blocklist', ',', drop = F)
+# 
+# ## create column for 'blockno' identfying the first block from the 'blocklist' to enable the Region_Recode 
+# #  function to run
+# ab.2016MM.df$blockno <- ab.2016MM.df$blocklist_1
+# 
+# ## subset into blacklip and greenlip to define regions
+# ab.2016MM.df.sub.bl <- subset(ab.2016MM.df, species == 1)
+# ab.2016MM.df.sub.gl <- subset(ab.2016MM.df, species == 2)
+# 
+# ## code regions for blacklip and greenlip
+# ab.2016MM.df.sub.bl <- codeBlregion(ab.2016MM.df.sub.bl)
+# 
+# ## re-join blacklip and greenlip data to create final dataframe
+# ab.2016MM.df <- bind_rows(ab.2016MM.df.sub.bl, ab.2016MM.df.sub.gl)
 
-## create 'newzone' variable to match historical data and extract zone from 'zone_fishery_code'
-ab.2016MM.df$newzone <- substr(ab.2016MM.df$zone_fishery_code, 3, nchar(as.character(ab.2016MM.df$zone_fishery_code)))
-
-## split block list into seperate blocks to define regions
-ab.2016MM.df <- cSplit(ab.2016MM.df, 'blocklist', ',', drop = F)
-
-## create column for 'blockno' identfying the first block from the 'blocklist' to enable the Region_Recode 
-#  function to run
-ab.2016MM.df$blockno <- ab.2016MM.df$blocklist_1
-
-## subset into blacklip and greenlip to define regions
-ab.2016MM.df.sub.bl <- subset(ab.2016MM.df, species == 1)
-ab.2016MM.df.sub.gl <- subset(ab.2016MM.df, species == 2)
-
-## code regions for blacklip and greenlip
-ab.2016MM.df.sub.bl <- codeBlregion(ab.2016MM.df.sub.bl)
-
-## re-join blacklip and greenlip data to create final dataframe
-ab.2016MM.df <- bind_rows(ab.2016MM.df.sub.bl, ab.2016MM.df.sub.gl)
-
-##############################################################################################################
-#
- #
-  # Join recent and historical data together to produce final data frame ####
- #
-#
-# convert 'unloading_date' to POSIXct to allow bind_rows function to work
-ab.newMM.df$unloading_date <- as.POSIXct(ab.newMM.df$unloading_date, format = '%Y-%m-%d')
-ab.2016MM.df$msr.date <- as.POSIXct(ab.2016MM.df$msr.date, format = '%Y-%m-%d')
-
-# join old and new market measure data frames together
-compiledMM.df <- bind_rows(ab.oldMM.df, ab.newMM.df)
-compiledMM.df$docket.number <- as.integer(compiledMM.df$docket.number)
-
-# join compiledMM.df to most recent data
-ab.2016MM.df$msr.date <- as.POSIXct(ab.2016MM.df$msr.date, format = '%Y-%m-%d')
-compiledMM.df <- bind_rows(compiledMM.df, ab.2016MM.df)
-
-## save a copy of the R file
-saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+# # join compiledMM.df to most recent data
+# ab.2016MM.df$msr.date <- as.POSIXct(ab.2016MM.df$msr.date, format = '%Y-%m-%d')
+# compiledMM.df <- bind_rows(compiledMM.df, ab.2016MM.df)
 
 ##############################################################################################################
 #
- #
-  # Data analysis and plots of final data frame ####
- #
+  #
+    # 2019 MM abalone data - quick analysis of Tas Live Lobster catch April 2019 ####
+  #
 #
-#compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+ab.2019MM.raw.a <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.csv')
+ab.2019MM.raw.b <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_15042019.csv')
+
+
+## create a backup
+ab.2019MM <- bind_rows(ab.2019MM.raw.a, ab.2019MM.raw.b)
+#ab.2019MM <- ab.2019MM.raw
+#ab.2019MM <- ab.2019MM.backup
+
+# convert dates
+ab.2019MM$unloading_date <- as.POSIXct(ab.2019MM$unloading_date, format = '%d/%m/%Y')
+ab.2019MM$msr.date <- as.POSIXct(ab.2019MM$msr.date, format = '%m/%d/%Y')
 
 ## add column for fishing year, month and quarter
-compiledMM.df$fishyear <- ifelse(is.na(compiledMM.df$msr.date), year(compiledMM.df$unloading_date),
-                                 year(compiledMM.df$msr.date))
-compiledMM.df$fishmonth <- month(compiledMM.df$msr.date)
-compiledMM.df$fishquarter <- quarter(compiledMM.df$msr.date)
+ab.2019MM$fishyear <- ifelse(is.na(ab.2019MM$msr.date), year(ab.2019MM$unloading_date),
+                                 year(ab.2019MM$msr.date))
+ab.2019MM$fishmonth <- month(ab.2019MM$msr.date)
+ab.2019MM$fishquarter <- quarter(ab.2019MM$msr.date)
 
-## extract plot data for boxplots
-plotdat <-
- compiledMM.df %>% filter(newzone == 'E' & (between(shell.length, 132, 200))
-                          & (between(fishyear, 2000, 2016)))
-plotdat <-
- compiledMM.df %>% filter(newzone == 'E')
+## add 1 mm to shell.length for April samples - measuring board was 1 mm out and could not be calibrated withou passcode
+ab.2019MM$shell.length <- ab.2019MM$shell.length + 1
 
-## convert required grouping variable to factor for boxplot
-plotdat$fishyear <- as.factor(plotdat$fishyear)
-#plotdat$fishquarter <- as.factor(plotdat$fishquarter)
+## size frequency histogram
+plotdat.3 <- ab.2019MM %>% 
+ filter(zone_fishery_code == 'E') %>%
+ group_by(blocklist) %>%
+ mutate(n = n())
 
-## generate a count of records for each year to add to boxplot
-df <- plotdat %>% group_by(fishyear) %>% summarize(n = n())
+plotdat.3.n <- ab.2019MM %>% 
+ filter(zone_fishery_code == 'E') %>%
+ group_by(blocklist) %>%
+ summarise(n = paste('n =', n()))
 
-## generate boxplot of shell lengths for chosen grouping variable above.
-ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
- geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
- geom_text(data = df, aes(y = 260, label = n,), size = 3, angle = 90) +
- geom_hline(aes(yintercept = 138), colour = 'red', linetype = 'dotted') +
- ggtitle('Western Zone 1967-2016') +
- xlab('Year') +
- ylab('Shell length (mm)')+ 
- theme_bw() + 
- theme(plot.title = element_text(hjust = 0.5), panel.border = element_blank(), panel.grid.major = element_blank(),
-       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-       axis.text.x = element_text(angle = 45, vjust = 0.5))
+plotdat.3$blocklist <- as.factor(plotdat.3$blocklist)
 
-## loop to generate boxplot of shell lengths for each zone and export as .pdf
-zones <- unique(compiledMM.df$newzone)
-compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
-
-for (i in zones){
- zone.plot <- ggplot(subset(compiledMM.df, newzone == i & (between(shell.length, 100, 250))),
-                     aes(x = fishyear, y = shell.length, group = fishyear)) +
-  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-  #geom_hline(aes(yintercept = 140), colour = 'red', linetype = 'dotted') +
-  #ggtitle(ifelse(as.character(i) == 'W', 'Western Zone', i)) +
-  geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-  # ggtitle(i) +
-  xlab('Year') +
-  ylab('Shell length (mm)') + 
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-        axis.text.x = element_text(angle = 45, vjust = 0.5))
- ggsave(filename = paste('MM_1967-2016_boxplot_', i, '.pdf', sep = ''), plot = zone.plot)
- dev.off()
-}
-
-## loop to generate boxplot of black lip shell lengths for each block and export as .pdf
-blocks <- unique(compiledMM.df$blockno)
-compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
-
-for (i in blocks){
- block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 1),
-                     aes(x = fishyear, y = shell.length, group = fishyear)) +
-  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-  geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-  ggtitle(paste('Block ', i)) +
-  xlab('Year') +
-  ylab('Shell length (mm)') + 
-  ylim(100, 250) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-        axis.text.x = element_text(angle = 45, vjust = 0.5))
- ggsave(filename = paste('MM_1967-2016_boxplot_BL_Block ', i, '.pdf', sep = ''), plot = block.plot)
- dev.off()
-}
-
-## loop to generate boxplot of green lip shell lengths for each block and export as .pdf
-blocks <- unique(compiledMM.df$blockno)
-compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
-
-for (i in blocks){
- block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 2),
-                      aes(x = fishyear, y = shell.length, group = fishyear)) +
-  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-  geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-  ggtitle(paste('Block ', i)) +
-  xlab('Year') +
-  ylab('Shell length (mm)') + 
-  ylim(100, 250) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-        axis.text.x = element_text(angle = 45, vjust = 0.5))
- ggsave(filename = paste('MM_1967-2016_boxplot_GL_Block ', i, '.pdf', sep = ''), plot = block.plot)
- dev.off()
-}
-
-## size frequency plots for zone and block every 5 years
-plotdat.2 <- compiledMM.df %>% filter(newzone == 'E' & fishyear == c(2000, 2005, 2010, 2015))
-
-ggplot(plotdat.2, aes(shell.length))+
- geom_histogram(data = subset(plotdat.2, newzone == 'W'), fill = 'white', colour = 'black',  binwidth = 5)+
- geom_histogram(data = subset(plotdat.2, blockno == 11), fill = 'black', binwidth = 5)+
+ggplot(plotdat.3, aes(shell.length, fill = blocklist))+
+ geom_histogram(data = subset(plotdat.3, zone_fishery_code == 'E'), colour = 'black',  binwidth = 2)+
+ #geom_histogram(data = subset(plotdat.3, blocklist == 29), fill = 'black', binwidth = 5)+
  theme_bw()+
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  xlim(100, 220)+
- facet_grid(fishyear ~ ., scales = "free_y")+
+ ylim(0, 30)+
+ facet_grid(blocklist ~., scales = "free_y")+
+ ggtitle('Tassie Live Lobster - April 2019')+
  #add size limits for each time period
- #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
- #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
- #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
- #geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
- geom_vline(aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 1)
+ geom_vline(data = filter(plotdat.3, blocklist == 13), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+ geom_vline(data = filter(plotdat.3, blocklist == 22), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+ geom_vline(data = filter(plotdat.3, blocklist == 24), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+ geom_vline(data = filter(plotdat.3, blocklist == 27), aes(xintercept = 145),colour = 'red', linetype = 'dashed', size = 1)+
+ geom_vline(data = filter(plotdat.3, blocklist == 29), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+ geom_text(data = plotdat.3.n, aes(x = 200, y = 10, label = n), colour = 'black', inherit.aes = F, parse = F)+
+ theme(legend.position = 'none')
+#geom_vline(aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 1)
+
+## size frequency histogram proportion
+plotdat.3$bins <- cut(plotdat.3$shell.length, breaks = seq(138,195, 2), right = FALSE)
+
+plotdat.4 <- plotdat.3 %>%
+ dplyr:::group_by(blocklist, bins) %>%
+ dplyr:::summarise(n = length(shell.length)) %>%
+ dplyr:::mutate(ngr = sum(n)) %>% 
+ dplyr:::mutate(prop = n/ngr*100)
 
 
+ggplot(plotdat.4, aes(x = bins, y = prop)) +
+ geom_bar(aes(fill = factor(blocklist)), position = 'dodge', stat = "identity", col = 'black') +
+ scale_y_continuous(
+  breaks = seq(0, 30, 5),
+  minor_breaks = seq(0 , 30, 1),
+  limits = c(0, 30),
+  expand = c(0, 0)
+ )  +
+ labs(x = "Shell length class",
+      y = "Proportion %",
+      title = "Tassie Live Lobster - April 2019",
+      fill = 'Block')+
+ theme_bw() +
+ theme(
+  axis.text.x = element_text(
+   size = 12,
+   color = "Black",
+   angle = 90,
+   vjust = 0.5
+  ),
+  axis.text.y = element_text(size = 14, color = "Black")
+ )
+
+ggplot(plotdat.3, aes(x=shell.length, fill=as.factor(blocklist)))+ 
+ geom_density( kernel="gaussian", alpha=.5)+
+ labs(x = "Shell length class",
+      y = "Density",
+      title = "Tassie Live Lobster - April 2019",
+      fill = 'Block')
+
+##############################################################################################################
+#
+  #
+    # Final data cleaning of compiledMM.df ####
+  #
+#
+
+## save a copy of the R file
+# saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+
+## Make a copy of the compiledMM.df
+compiledMM.df.copy <- compiledMM.df
+# compiledMM.df <- compiledMM.df.copy
+
+# The compiled.df contains some records with no docket.numbers from historical data but do have measure date, processorname and 
+# sub-block information.  These arise from MM.00.07 data and are represented by 'below' and '27/03/' as the
+# docket number.  The shell length data can still be used, therefore it was decided to convert the docket
+# information to NAs.  Alternatively these can be removed (955 records).
+
+# ab.newMM$docket.number[ab.newMM$docket.number %in% c('below', '27/03/')] <- NA
+# remove records if needed
+compiledMM.df <- subset(compiledMM.df, !(docket.number %in% c('below', '27/03/')))
+compiledMM.df$docket.number <- as.numeric(compiledMM.df$docket.number)
+
+## some sub-blocks have an 'N' making it read 'NA', remove N and replace with ''
+compiledMM.df$subblocklist <- gsub('N', '', compiledMM.df$subblocklist)
+
+## remove records with no shell length
+compiledMM.df <- compiledMM.df[!is.na(compiledMM.df$shell.length),]
+
+## add column for fishyear
+compiledMM.df$fishyear <- year(compiledMM.df$msr.date)
+
+# there are records missing zone data to determine species, however
+# block information is provided.  Most blocks are southern areas and can be assigned to blacklip
+# however there are about 20 dockets from greenlip blocks which need to
+# be assigned a species for plotting, etc.  Assuming only legal sized animals have been measured, 
+# animals have been assigned a species based on the legal minimum length for species in that block.
+# The greenlip blocks are 1-4, 31-49.  An initial examination of summary data
+# indicates most of the records in question come from blocks 48 and 49 in the years 2000-2001
+# when GL size limit was 140 mm. 
+
+## subset compiledMM.df into seperate dataframes to account for records where zone and species are missing
+compiledMM.df.nozone <- subset(compiledMM.df, is.na(zone_fishery_code) & is.na(species))
+compiledMM.df.zone <- subset(compiledMM.df, !is.na(zone_fishery_code))
+compiledMM.df.spp.nozone <- subset(compiledMM.df, is.na(zone_fishery_code) & !is.na(species))
+
+## determine numbers of blocks and subblocks per docket.number for compiledMM.df.nozone
+compiledMM.df.nozone$numblocks <- count.fields(textConnection(as.character(compiledMM.df.nozone$blocklist)), sep = ',')
+compiledMM.df.nozone$numsubblocks <- count.fields(textConnection(as.character(compiledMM.df.nozone$subblocklist)), sep = ',')
+
+## create additional column in to identify species where zone is missing
+compiledMM.df.nozone <- compiledMM.df.nozone %>%
+ mutate(species = ifelse(grepl(paste0('\\b', c(seq(1, 4, 1)), '\\b', collapse = '|'), blocklist) & minSL >= 150, 2,
+                                ifelse(grepl(paste0('\\b', c(seq(5, 40, 1)), '\\b', collapse = '|'), blocklist), 1,
+                                       ifelse(grepl(paste0('\\b', c(seq(41, 49, 1)), '\\b', collapse = '|'), blocklist) & fishyear < 2002 & minSL >= 140, 2,
+                                              ifelse(minSL < 132, 1, 1)))))
+
+## re-join original dataframes that contained zone and/or species with dataframe where species was determined
+compiledMM.df.2 <- bind_rows(compiledMM.df.spp.nozone, compiledMM.df.nozone, compiledMM.df.zone)
+
+## identify species for records missing species but contain zone (i.e 'zone_fishery_code')
+compiledMM.df.2 <- compiledMM.df.2 %>%
+ mutate(species = ifelse(!is.na(species), species, 
+                         ifelse(zone_fishery_code == 'AQG', 2, 1)))
+
+## split blocklist into seperate blocks to define region or regions where multiple blocks were fished
+compiledMM.df.3 <- cSplit(compiledMM.df.2, 'blocklist', ',', drop = F)
+
+## add unique ID column for each record to enable filtering operations
+compiledMM.df.3 <- compiledMM.df.3 %>%
+ mutate(id = row_number())
+
+## some records are missing a msr.date therefore populate fishyear using unloading date
+compiledMM.df.3 <- compiledMM.df.3 %>%
+ mutate(fishyear = ifelse(!is.na(fishyear), fishyear, year(unloading_date)))
+
+## create variables blockno and subblockno to run zone orignal region recode functions (these could be re-written at some stage)
+compiledMM.df.3 <- compiledMM.df.3 %>%
+ mutate(blockno = as.character(blocklist)) %>%
+ mutate(subblockno = as.character(subblocklist))
+
+## Recode regions and zones ####
+
+## Note that for reporting at regional or block scale, examine data where there are multiple blocks
+## fished. For reporting at a block scale remove all records as we can not asign catch to 
+## a single block. For reporting at a regional scale, remove records where the region recode
+## does not match when calculated for each seperate block listed. This only applies to the
+## recent data (i.e. >2000) for black and green lip.
+
+## load region and zone recode function
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+
+## recode zone for data post 2000
+compiledMM.df.recent.zone <- compiledMM.df.3 %>%
+ filter(fishyear >= 2000) %>%
+ codeBlnewzone() %>%
+ mutate(newzone = ifelse(species == 2, 'G',
+                        ifelse(is.na(blocklist) & is.na(subblockno), gsub('AQ', '', zone_fishery_code), newzone))) 
+
+## recode zone for data pre 2000
+compiledMM.df.historic.zone <- compiledMM.df.3 %>%
+ filter(fishyear <= 1999) %>%
+ codeBlnewZoneHistoric() %>%
+ mutate(newzone = ifelse(species == 2,'G',
+                         ifelse(is.na(blocklist) & is.na(subblockno), gsub('AQ', '', zone_fishery_code), newzone)))
+
+## recode region for data pre 2000
+gl.historic <- codeGlRegionHistoric(subset(compiledMM.df.historic.zone, newzone == 'G')) %>%
+ mutate(region.1 = gl.region) %>%
+ mutate(same.region = 1) %>%
+ select(-c(gl.region))
+
+bl.historic <- codeBlRegionHistoric(subset(compiledMM.df.historic.zone, !newzone == 'G')) %>%
+ mutate(region.1 = bl.region) %>%
+ mutate(same.region = 1) %>%
+ select(-c(bl.region))
+
+## filter for blacklip and determine how many seperate data frames need to be created
+bl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 1)
+max(bl.recent.multi.block$numblocks)
+
+## for BLACKLIP create seperate data frames for each block within blocklist and determine their region
+bl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 1) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_1) %>%
+ codeBlregion() %>%
+ mutate(region.1 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, blockno.temp))
+bl.recent.2 <- subset(bl.recent.1, !is.na(blocklist_2)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_2) %>%
+ codeBlregion() %>%
+ mutate(region.2 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, region.1, blockno.temp))
+bl.recent.3 <- subset(bl.recent.2, !is.na(blocklist_3)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_3) %>%
+ codeBlregion() %>%
+ mutate(region.3 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, region.2, blockno.temp))
+
+## join seperate blacklip dataframes together to compare if the regions match
+bl.recent.join <- left_join(bl.recent.1, bl.recent.2) %>%
+ left_join(bl.recent.3)
+
+## filter dataframe to exclude blacklip records where the regions DO match
+bl.recent.same.region <- bl.recent.join %>% 
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.3) & region.1 == region.2, 1, 
+                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
+ filter(!same.region == 0)
+
+## filter dataframe to exclude blacklip records where the regions DO NOT match
+bl.recent.diff.region <- bl.recent.join %>% 
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.3) & region.1 == region.2, 1, 
+                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
+ filter(same.region == 0)
+
+## filter for greenlip and determine how many seperate data frames need to be created
+## repeating the steps above
+gl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 2)
+max(gl.recent.multi.block$numblocks)
+
+## for GREENLIP create seperate data frames for each block within blocklist and determine their region
+gl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 2) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_1) %>%
+ codeGlregion() %>%
+ mutate(region.1 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, blockno.temp))
+gl.recent.2 <- subset(gl.recent.1, !is.na(blocklist_2)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_2) %>%
+ codeGlregion() %>%
+ mutate(region.2 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.1, blockno.temp))
+gl.recent.3 <- subset(gl.recent.2, !is.na(blocklist_3)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_3) %>%
+ codeGlregion() %>%
+ mutate(region.3 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.2, blockno.temp))
+gl.recent.4 <- subset(gl.recent.3, !is.na(blocklist_4)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_4) %>%
+ codeGlregion() %>%
+ mutate(region.4 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.3, blockno.temp))
+gl.recent.5 <- subset(gl.recent.4, !is.na(blocklist_5)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_5) %>%
+ codeGlregion() %>%
+ mutate(region.5 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.4, blockno.temp))
+
+## join seperate greenlip dataframes together to compare if the regions match
+gl.recent.join <- left_join(gl.recent.1, gl.recent.2) %>%
+ left_join(gl.recent.3) %>%
+ left_join(gl.recent.4) %>%
+ left_join(gl.recent.5)
+
+## filter dataframe to exclude greenlip records where the regions DO match
+gl.recent.same.region <- gl.recent.join %>%
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+         if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
+                       if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
+                               if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
+                                       if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
+ filter(!same.region == 0)
+
+## filter dataframe to exclude greenlip records where the regions DO NOT match
+gl.recent.diff.region <- gl.recent.join %>%
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
+                                      if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
+                                              if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
+                                                      if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
+ filter(same.region == 0)
+
+## rejoin all the seperate black and greenlip dataframes together with a region recode for each block in blocklist
+## note: there are 2802 records without a blocklist and these have been excluded
+compiledMM.df.final <- bind_rows(gl.recent.diff.region, gl.recent.same.region, 
+                             bl.recent.diff.region, bl.recent.same.region,
+                             gl.historic, bl.historic)
+
+## check if there are any missing regions following region recode
+missing.region <- subset(compiledMM.df.final, is.na(region.1))
+missing.zone <- subset(compiledMM.df.final, is.na(newzone))
+
+## save a copy of r.file
+saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+##############################################################################################################
+#
+   #
+      # Plots of final data frame ####
+   #
+#
+
+## load most recent MM data compelation for 1974-2015
+## (note: data post 2015 is currently not included in this df as the docketinfo.epro df is
+##  not updated with records post February 2017 and therfore can not be matched to more recent
+##  measuring board information)
+
+# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+
+## set working directory to export plots
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots")
+
+
+## LF boxplot ####
+
+## Length frequency boxplot for zone and/or region for chosen time interval
+
+## 1. select zone and region
+zone <- 'G'
+region <- 'PerkinsBay'
+
+## 2. extract data
+plotdat <-
+ compiledMM.df.final %>% 
+ filter(region.1 %in% region & 
+         newzone %in% zone &
+         same.region == 1 &
+         (between(shell.length, 100, 220)) & 
+         (between(fishyear, 2000, 2015)))
+
+## 3. convert required grouping variable to factor for boxplot
+plotdat$fishyear <- as.factor(plotdat$fishyear)
+#plotdat$fishquarter <- as.factor(plotdat$fishquarter)
+
+## 4. generate a count of records for each year to add to boxplot
+plotdat.n <- plotdat %>% 
+ group_by(fishyear) %>% 
+ summarize(n = n())
+
+## 5. generate boxplot of shell lengths for chosen grouping variable above.
+mm.zone.boxplot <- ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
+ geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+ geom_text(data = plotdat.n, aes(y = 220, label = n,), size = 3, angle = 90) +
+ geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
+ geom_hline(aes(yintercept = 132), colour = 'darkgreen', linetype = 'dotted')+
+ #ggtitle('Western Zone 1967-2016') +
+ xlab('Year') +
+ ylab('Shell Length (mm)')+ 
+ coord_cartesian(ylim = c(100, 225))+
+ theme_bw() + 
+ theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+       axis.text.x = element_text(angle = 0, vjust = 0.5))
+
+print(mm.zone.boxplot)
+
+## 6. save plots to working directory
+ggsave(filename = paste(zone, 'Z_LF_boxplot', '.pdf', sep = ''), plot = mm.zone.boxplot)
+ggsave(filename = paste(zone, 'Z_LF_boxplot', '.wmf', sep = ''), plot = mm.zone.boxplot)
+
+## LF histogram #### 
+
+## Length frequency plot for zone, with block or region vertically adjacent every 5 years
+
+# 1. select zone
+zone <- 'G'
+
+# 2. select block from zone if using block as the overlay
+# unique((compiledMM.df %>% filter(newzone %in% zone))$blockno)
+# block.no <- c(13, 16, 22, 23, 29)
+
+# 3. select region from zone if using zone as the overlay
+ordered(unique((compiledMM.df.final %>% 
+                 filter(newzone %in% zone & 
+                         species == 2 & 
+                         same.region == 1))$region.1))
+
+# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
+# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
+# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
+# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
+# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
+
+region.plot<- 'PerkinsBay'
+
+# 4. create list of regions for chosen zone
+region.2019 <- unique((compiledMM.df.final %>% 
+                        filter(newzone %in% zone))$region.1)
+
+# 5. select data for zone
+plotdat.2.zone <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ mutate(n = n())
+
+# 6. select data for zone and count the number of measurments
+plotdat.2.n.zone <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ summarise(zone.n = n(),
+           n = paste('n =', n()))
+
+# 7. select data for zone, and for chosen region or block  
+plotdat.2 <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & region.1 %in% region.plot 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ mutate(n = n())
+
+# 8. select data for zone, and for chosen region or block and count the number of measurments
+plotdat.2.n <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & region.1 %in% region.plot 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ summarise(region.n = n(),
+           n = paste('n =', n())) 
+
+# 9. join count of measurments for zone, and for chosen region or block, and create plot label
+plotdat.2.n.2.join <- 
+ left_join(plotdat.2.n.zone, plotdat.2.n, by = "fishyear") %>%
+ mutate(percent.region = round((region.n/zone.n)*100), 0) %>%
+ mutate(n = ifelse(is.na(region.n), 'NO DATA',
+                   paste0('n = ', region.n, '\n', '(', percent.region, '%', ')')))
+
+# 10. generate plot (add or remove size limits where data is absent)
+mm.zone.plot.2 <- ggplot(plotdat.2, aes(shell.length))+
+ geom_histogram(data = transform(subset(plotdat.2.zone, newzone %in% zone), region.1 = NULL), 
+                aes(y = -..density.. * 5), fill = 'white', col = 'black',  binwidth = 5)+
+ geom_histogram(data = subset(plotdat.2, region.1 %in% region.2019), 
+                aes(y = ..density.. *5), fill = 'darkgreen', colour = 'black', binwidth = 5)+
+ #overlay selected block or region
+ #geom_histogram(data = subset(plotdat.2, blockno %in% block.no), fill = 'black', binwidth = 5)+
+ theme_bw()+
+ ylab(paste(region.plot, "region", " Percentage (%)")) +
+ xlab("Shell Length (mm)")+
+ #coord_cartesian(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+ coord_flip(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+ facet_grid(. ~ fishyear)+
+ scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+ geom_text(data = plotdat.2.n.2.join, aes(x = 200, y = 0.2, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
+ #add size limits for each time period
+ #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 0.5)+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
+ geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
+ geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
+ #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 132),colour = 'darkgreen', linetype = 'dashed', size = 0.5)
+ # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 120),colour = 'darkgreen', linetype = 'dashed', size = 0.5)+
+ # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)
+ # geom_vline(aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_text(data = plotdat.2.n, aes(x = 200, y = 100, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
+
+print(mm.zone.plot.2)
+
+# 11. save plots to file
+# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+ggsave(filename = paste(region.plot, zone, '_LF_5year', '.pdf', sep = ''), plot = mm.zone.plot.2)
+ggsave(filename = paste(region.plot, zone, '_LF_5year', '.wmf', sep = ''), plot = mm.zone.plot.2)
+
+## LF histrogram/boxplot ####
+
+## Overlay 5-year histrogram with longterm boxplot
+grid.arrange(
+ arrangeGrob(cowplot::plot_grid(mm.zone.plot.2, mm.zone.boxplot, align = 'v', ncol = 1),
+             ncol = 1))
+ 
+##############################################################################################################
+## Older plot stuff which can be deleted
+
+# ## loop to generate boxplot of shell lengths for each zone and export as .pdf
+# zones <- unique(compiledMM.df$newzone)
+# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# 
+# for (i in zones){
+#  zone.plot <- ggplot(subset(compiledMM.df, newzone == i & (between(shell.length, 132, 200))),
+#                      aes(x = fishyear, y = shell.length, group = fishyear)) +
+#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+#   #geom_hline(aes(yintercept = 140), colour = 'red', linetype = 'dotted') +
+#   #ggtitle(ifelse(as.character(i) == 'W', 'Western Zone', i)) +
+#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+#   # ggtitle(i) +
+#   xlab('Year') +
+#   ylab('Shell length (mm)') + 
+#   theme_bw() + 
+#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+#         axis.text.x = element_text(angle = 45, vjust = 0.5))
+#  ggsave(filename = paste('MM_1967-2016_boxplot_', i, '.pdf', sep = ''), plot = zone.plot)
+#  dev.off()
+# }
+# 
+# ## loop to generate boxplot of black lip shell lengths for each block and export as .pdf
+# blocks <- unique(compiledMM.df$blockno)
+# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# 
+# for (i in blocks){
+#  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 1),
+#                      aes(x = fishyear, y = shell.length, group = fishyear)) +
+#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+#   ggtitle(paste('Block ', i)) +
+#   xlab('Year') +
+#   ylab('Shell length (mm)') + 
+#   ylim(100, 250) +
+#   theme_bw() + 
+#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+#         axis.text.x = element_text(angle = 45, vjust = 0.5))
+#  ggsave(filename = paste('MM_1967-2016_boxplot_BL_Block ', i, '.pdf', sep = ''), plot = block.plot)
+#  dev.off()
+# }
+# 
+# ## loop to generate boxplot of green lip shell lengths for each block and export as .pdf
+# blocks <- unique(compiledMM.df$blockno)
+# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# 
+# for (i in blocks){
+#  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 2),
+#                       aes(x = fishyear, y = shell.length, group = fishyear)) +
+#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+#   ggtitle(paste('Block ', i)) +
+#   xlab('Year') +
+#   ylab('Shell length (mm)') + 
+#   ylim(100, 250) +
+#   theme_bw() + 
+#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+#         axis.text.x = element_text(angle = 45, vjust = 0.5))
+#  ggsave(filename = paste('MM_1967-2016_boxplot_GL_Block ', i, '.pdf', sep = ''), plot = block.plot)
+#  dev.off()
+# }
+
+# ## summary of median shell length for zone
+# plotdat.2.summary <- compiledMM.df %>% 
+#  #filter(fishyear %in% c(2000, 2005, 2010, 2013, 2015) & between(shell.length, 100, 220)) %>%
+#  filter(between(fishyear, 2000, 2015) & between(shell.length, 100, 220)) %>%
+#  group_by(newzone, fishyear) %>%
+#  summarise(median(shell.length))
+# 
+# ## plot proportion of catch by bin classes
+# plotdat.2$bins <- cut(plotdat.2$shell.length, breaks = seq(100,220, 5), right = FALSE)
+# 
+# test <- plotdat.2 %>%
+#  dplyr:::group_by(fishyear, bins) %>%
+#  dplyr:::summarise(n = length(shell.length)) %>%
+#  dplyr:::mutate(ngr = sum(n)) %>% 
+#  dplyr:::mutate(prop = n/ngr*100) %>%
+#  dplyr:::mutate(cum.prop = 100 - cumsum(prop))
+# 
+# 
+# ggplot(test, aes(x = bins, y = prop)) +
+#  geom_bar(stat = "identity") +
+#  labs(x = "Shell length (mm)", y = "Percentage") +
+#  theme_bw() +
+#  facet_grid(fishyear~.)
+# 
+# 
+# 
+
+## quick plot to compare with data from 2019
+ plotdat.3 <- compiledMM.df %>% filter(newzone == 'E' & fishyear == c(2015) & blockno == c(22, 24, 27, 29))
+ ggplot(plotdat.3, aes(shell.length))+
+  geom_histogram()
+  #geom_histogram(data = subset(plotdat.2, fishyear == '2015'), fill = 'white', colour = 'black',  binwidth = 5)+
+  #geom_histogram(data = subset(plotdat.3, blockno == c(22, 24, 27, 29), fill = 'black', binwidth = 5))+
+  theme_bw()+
+  ylab("Frequency") +
+  xlab("Shell Length (mm)")+
+  xlim(100, 220)+
+  facet_grid(blockno ~ ., scales = "free_y")+
+  ggtitle('Eastern Zone 2000-2015 vs Block 29') +
+  #add size limits for each time period
+  # geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
+  # geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
+  # geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+  # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
+ geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
+ 
 ## summary to determine % of catches measured
 landings <- tasCE %>% 
- filter(bl.zone == 'W' & fishyear >= 2000) %>%
+ filter(gl.zone == 'G' & fishyear >= 2000) %>%
  group_by(fishyear, blockno) %>%
  summarise(landings = n())
 
 measured <- compiledMM.df %>%
- mutate(fishyear = as.numeric(levels(fishyear)[fishyear])) %>%
- filter(newzone == 'W') %>%
+ #mutate(fishyear = as.numeric(levels(fishyear)[fishyear])) %>%
+ filter(newzone == 'G' & fishyear >= 2000) %>%
  group_by(fishyear, blockno) %>%
  summarise(measured = length(unique(docket.number)))
 
 measured_summary <- left_join(landings, measured, c("fishyear", "blockno")) %>%
- mutate(meas.propland = round((measured/landings)*100, 0)) %>%
- filter(blockno == 13) %>%
- filter(fishyear %in% c(2000, 2005, 2010, 2015))
+ mutate(meas.propland = round((measured/landings)*100, 0))
+ #filter(blockno == 13) %>%
+ #filter(fishyear %in% c(2000, 2005, 2010, 2015))
+
+# ## proportion of catches measured summary
+# abcebl.docks <- abCEbl %>%
+#  group_by(newzone, fishyear) %>%
+#  summarise(bl.n = n_distinct(docket_number))
+# 
+# abcegl.docks <- abCEgl %>%
+#  group_by(newzone, fishyear) %>%
+#  summarise(gl.n = n_distinct(docket_number))
+# 
+# mm.docks <- compiledMM.df %>%
+#  group_by(newzone, fishyear) %>%
+#  summarise(mm.n = n_distinct(docket.number))
+# 
+# n.docks <- full_join(abcebl.docks, mm.docks) %>%
+#  left_join(abcegl.docks) %>%
+#  mutate(prop.measured = ifelse(newzone == 'G', round((mm.n/gl.n)*100, 0), round((mm.n/bl.n)*100, 0))) %>%
+#  filter(between(fishyear, 2000, 2015) & newzone == 'N')
+# #filter(fishyear %in% c(2000, 2005, 2010, 2015))
 
 ## boxplot of size structure for block vs overall for year(need to overlay bar plot of %landings measured)
 plotdat.3a <- compiledMM.df %>% 
