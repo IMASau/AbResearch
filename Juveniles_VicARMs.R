@@ -13,6 +13,10 @@ library(reshape2)
 library(dplyr)
 library(plotrix)
 library(multcomp)
+library(DescTools)
+library(RVAideMemoire)
+library(kSamples)
+library(PMCMRplus)
 
 setwd('C:/Users/jaimem/Documents/Abalone/VicARMs')
 ## import raw data from Excel for Lippies and Trumpeter surveys
@@ -206,33 +210,118 @@ juv.large <- abcounts.2 %>%
 fit4 <- lm(absm ~ site, juv.large)
 summary(fit4)
 
-## quick ANOVA of size structure differences between sites including tukey test
-juv.sl$site <- factor(juv.sl$site, levels = c("IPB", "PPCNT", "IPCT","PPC"))
-fit2 <- lm(ab_sl ~ site, juv.sl)
-summary(fit2)
-tukey_site <- glht(fit2, linfct=mcp(site="Tukey"))
-summary(tukey_site)
-plot(tukey_site)
+## G-test for difference in size ratio between sites
+
+# http://www.biostathandbook.com/gtestind.html
+# https://rcompanion.org/rcompanion/b_06.html
+
+abcounts.2$size_class <- as.factor(abcounts.2$size_class)
+abcounts.2$site <- as.factor(abcounts.2$site)
+df.2 <- abcounts.2 %>%
+        group_by(site, size_class) %>%
+        summarise(numbers = sum(ab_n))
+
+size.ratio.plot <- ggplot(data = df.2, aes(x = site, y = numbers, fill = factor(size_class, levels = c('2', '1'))))+
+        geom_bar(stat = 'identity', position = 'fill', colour = 'black')+
+        scale_y_continuous(labels = scales::percent_format())+
+        theme_bw()+
+        ylab('Percentage')+
+        xlab('Site')+
+        theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+
+        scale_fill_manual(values = c("gray","white"), name = 'Size class', labels = c('>25 mm', '<25 mm'))
+
+
+ggsave(filename = 'size_ratio_plot.wmf', 
+       plot = size.ratio.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_ratio_plot.pdf', 
+       plot = size.ratio.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_ratio_plot.png', 
+       plot = size.ratio.plot, width = 15.9, height = 9.6, units = 'cm')
+        
+abcounts.2.contingency <- abcounts.2 %>%
+        group_by(size_class, site) %>%
+        summarise(n = sum(ab_n)) %>%
+        spread(size_class, n) %>%
+        as.data.frame()
+
+abcounts.2.sizeclass <- abcounts.2.contingency %>%
+        remove_rownames() %>%
+        column_to_rownames(var = 'site') %>%
+        rename(small = 1, large = 2) %>%
+        filter(small != 0 | large != 0)
+
+df.1 <- as.matrix(abcounts.2.sizeclass)
+
+G.test(df.1)
+
+pairwise.G.test(df.1, 
+                p.method = "none")
+
+# # alternative GTest and pairwise comparisons
+# GTest(df.1, correct = 'none')
+# FUN <- function(i,j){     
+#         GTest(matrix(c(matriz[i,1], matriz[i,2], 
+#                        matriz[j,1], matriz[j,2]),
+#                      nrow=2,
+#                      byrow=TRUE),
+#               correct="none")$ p.value
+# }
+# 
+# pairwise.table(FUN,
+#                rownames(matriz),
+#                p.adjust.method="none")
+
+# ggplot()+
+#         geom_bar(data = abcounts.2, aes(x = dat.2.survindex, y = ab_n, fill = size_class), stat = 'identity', position = 'fill')+
+#         scale_y_continuous(labels = scales::percent_format())+
+#         theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# abcounts.2.contingency <- abcounts.2 %>%
+#         group_by(size_class, dat.2.survindex) %>%
+#         summarise(n = sum(ab_n)) %>%
+#         spread(size_class, n) %>%
+#         as.data.frame()
+
+# abcounts.2.sizeclass <- abcounts.2.contingency %>%
+#         remove_rownames() %>%
+#         column_to_rownames(var = 'dat.2.survindex') %>%
+#         rename(small = 1, large = 2) %>%
+#         filter(small != 0 | large != 0)
+
+
+## Anderson-Darling test of size structure difference between sites
+df.3 <- juv.sl %>%
+        dplyr::select(site, ab_sl)
+
+ad.test(df.3$ab_sl~df.3$site, method = 'exact', dist = F, Nsim = 1000)
 
 ## size frequency distribution figure by site
 
-ggplot(juv.sl, aes(x=ab_sl, fill=site, color=site)) + 
+juv.sl$site <- factor(juv.sl$site, levels = c("IPB", "PPCNT", "IPCT","PPC"))
+size.frequency.plot <- ggplot(juv.sl, aes(x=ab_sl, fill=site, color=site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  theme_bw()+
- geom_histogram(alpha = 0.2, binwidth = 10) +
+ geom_histogram(alpha = 0.2, binwidth = 5) +
  xlim(0, 100)+
- ylim(0, 15)+
+ ylim(0, 7)+
  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + 
  theme(legend.position="none") +
  facet_grid(site ~ ., scales = "free_y")
+
+ggsave(filename = 'size_frequency_plot.wmf', 
+       plot = size.frequency.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_frequency_plot.pdf', 
+       plot = size.frequency.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_frequency_plot.png', 
+       plot = size.frequency.plot, width = 15.9, height = 9.6, units = 'cm')
 
 ## size structure boxplot figure by site
 
 juv.sl$site <- factor(juv.sl$site, levels = c("IPB", "PPCNT", "IPCT","PPC"))
 ab_abund_label <- c('a', 'a', 'a', 'b')
 
-filter(juv.sl, !is.na(ab_sl)) %>%
+size.boxplot.plot <- filter(juv.sl, !is.na(ab_sl)) %>%
  ggplot(aes(x=site, y=ab_sl)) +
  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
  theme_bw()+
@@ -241,9 +330,16 @@ filter(juv.sl, !is.na(ab_sl)) %>%
  xlab('Site')+
  ylab(bquote('Shell length ('*mm*')'))+
  geom_text(data = juv %>% group_by(site) %>% summarise(ab_n = sum(!is.na(ab_sl))), 
-           aes(y = 100, label = ab_n), angle = 0)+
- geom_text(data = juv.sl %>% group_by(site) %>% summarise(sl_max = max(ab_sl)), 
-           aes(y = sl_max+3, label = ab_abund_label), angle = 0)
+           aes(y = 100, label = ab_n), angle = 0)
+ #geom_text(data = juv.sl %>% group_by(site) %>% summarise(sl_max = max(ab_sl)), 
+ #          aes(y = sl_max+3, label = ab_abund_label), angle = 0)
+
+ggsave(filename = 'size_boxplot_plot.wmf', 
+       plot = size.boxplot.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_boxplot_plot.pdf', 
+       plot = size.boxplot.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'size_boxplot_plot.png', 
+       plot = size.boxplot.plot, width = 15.9, height = 9.6, units = 'cm')
 
 ## size structure density plot to identify modes
 
@@ -264,7 +360,7 @@ ggplot(juv.sl, aes(x=ab_sl, color=site)) +
 ab_abund_label_dens <- c('a', 'a', 'b', 'a')
 juv.density$site <- factor(juv.density$site, levels = c("IPB", "PPCNT", "IPCT","PPC"))
 
-ggplot(juv.density, aes(x = site, y = absm_mean))+
+density.overall.plot <- ggplot(juv.density, aes(x = site, y = absm_mean))+
  geom_point(size = 2)+
  aes(colour = site)+
  theme_bw()+
@@ -276,6 +372,13 @@ ggplot(juv.density, aes(x = site, y = absm_mean))+
  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+
  theme(legend.position="none")+
  geom_text(aes(label=ab_abund_label_dens, y=absm_mean+(absm_se/1.8)), vjust=-1.5, colour = 'black') 
+
+ggsave(filename = 'density_overall_plot.wmf', 
+       plot = density.overall.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'density_overall_plot.pdf', 
+       plot = density.overall.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'density_overall_plot.png', 
+       plot = density.overall.plot, width = 15.9, height = 9.6, units = 'cm')
 
 ## abundance figure by site and size class to demostrate recruits and/or migrants
 juv.density.size$size_class <- factor(as.integer(juv.density.size$size_class), levels = c(1,2))
@@ -292,22 +395,28 @@ ggplot(juv.density.size, aes(x = site, y = absm_mean, group = as.factor(size_cla
  ylab(bquote('Abalone Abundance ('*~m^2*')'))+
  coord_cartesian(ylim=c(0, 30))+
  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+
- theme(legend.position="none")+
- geom_text(aes(label=stats_labs, y=absm_mean+(absm_se/1.8)), vjust=-1.5, colour = 'black', position=position_dodge(0.5)) 
+ theme(legend.position="none")
+ #geom_text(aes(label=stats_labs, y=absm_mean+(absm_se/1.8)), vjust=-1.5, colour = 'black', position=position_dodge(0.5)) 
 
 
 ## Frequency distribution plot of N by plate 
-
-ggplot(abcounts, aes(x=ab_n, fill=site, color=site)) + 
+abcounts$site <- factor(abcounts$site, levels = c("IPB", "PPCNT", "IPCT","PPC"))
+arm.count.plot <- ggplot(abcounts, aes(x=ab_n, fill=site, color=site)) + 
  ylab("Frequency") +
  xlab("N")+
  geom_histogram(alpha = 0.2, binwidth = 1)+
  theme_bw()+
  facet_grid(site ~.)+
+        scale_x_continuous(breaks = seq(0, 10, 2))+
  theme(legend.position="none")+
  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())
 
-
+ggsave(filename = 'arm_count_plot.wmf', 
+       plot = arm.count.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'arm_count_plot_plot.pdf', 
+       plot = arm.count.plot, width = 15.9, height = 9.6, units = 'cm')
+ggsave(filename = 'arm_count_plot_plot.png', 
+       plot = arm.count.plot, width = 15.9, height = 9.6, units = 'cm')
 
 ## boxplot showing year x season abundance
 

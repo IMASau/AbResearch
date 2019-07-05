@@ -1,4 +1,6 @@
-## Recode points into BL zones
+## Recode points into BL zones for MM data
+
+## FOR MARKET MEASURE DATA ONLY ##
 
 codeBlnewzone <- function(Bl) {
  {
@@ -25,11 +27,24 @@ codeBlnewZoneHistoric <- function(Bl) {
 }
 
 ## Recode points into Greenlip regions
-codeGlregion <- function(Gl) {
+codeGlregion.post2006 <- function(Gl) {
  {
   Gl$gl.region[Gl$blockno %in% c(1, 2, 3, 4)] <- "KingIsland" 
-  Gl$gl.region[Gl$blockno %in% c(5, 48, 49) | Gl$subblockno %in% c("48B", "48C", "48D", "49C")] <- "NorthWest"
+  Gl$gl.region[Gl$blockno %in% c(5, 49) | Gl$subblockno %in% c("48B", "48C")] <- "NorthWest"
   Gl$gl.region[Gl$subblockno %in% c("48A")] <- "PerkinsBay"
+  Gl$gl.region[Gl$blockno %in% c(30, 31,39,40)] <- "NorthEast" 
+  Gl$gl.region[Gl$blockno %in% c(41, 42, 43, 44, 45, 46, 47)] <- "CentralNorth" 
+  Gl$gl.region[Gl$blockno %in% c(32, 33, 34, 35, 36, 37, 38)] <- "FurneauxGroup" 
+  Gl$gl.region[Gl$blockno %in% c(51, 52, 53, 54, 55)] <- "BassStraitIslands" 
+  
+ }
+ return(Gl)
+}
+
+codeGlregion.pre2006 <- function(Gl) {
+ {
+  Gl$gl.region[Gl$blockno %in% c(1, 2, 3, 4)] <- "KingIsland" 
+  Gl$gl.region[Gl$blockno %in% c(5, 48, 49)] <- "NorthWest"
   Gl$gl.region[Gl$blockno %in% c(30, 31,39,40)] <- "NorthEast" 
   Gl$gl.region[Gl$blockno %in% c(41, 42, 43, 44, 45, 46, 47)] <- "CentralNorth" 
   Gl$gl.region[Gl$blockno %in% c(32, 33, 34, 35, 36, 37, 38)] <- "FurneauxGroup" 

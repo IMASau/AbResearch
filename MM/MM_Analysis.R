@@ -2,12 +2,14 @@
 
 # for windows 8 database connections use this in windows explorer
 # C:\Windows\SysWOW64\odbcad32.exe
+##-------------------------------------------------------------------------------------------------------##
+## Libaries and Functions ####
 
-## load required libaries for analysis
+# load required libaries and functions for analysis
+
 library(RODBC)
 library(R.utils)
 library(lubridate)
-#library(plyr)
 library(rgdal)
 library(sp)
 library(maptools)
@@ -24,62 +26,110 @@ library(readxl)
 library(data.table)
 library(scales)
 library(gridExtra)
+#library(plyr)
 
-###############################################################################################################
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
-#
- #
-  #
-   #Catch-effort and processor data ####
-  #  
- #
-#
-# Import the most recent catch-effort and processor meta-data to link with market measure data to identify
+##-------------------------------------------------------------------------------------------------------##
+## Catch-effort and processor data ####
+
+# import the most recent catch-effort and processor meta-data to link with market measure data to identify
 # capture locations, dates, etc.
 
-## load most recent newBlackCE dataframe from the catcheffort data output
+# load most recent newBlackCE dataframe from the catcheffort data output
+
 setwd('c:/CloudStor/R_Stuff/AutoAssess')
 
-## manually select the most recent .rdata file (or file that covers the market measure timeframe)
+# manually select the most recent .rdata file (or file that covers the market measure timeframe)
+
 myFile <- file.choose()
 load(myFile)
 
 ##-------------------------------------------------------------------------------------------------------##
-## Processor data ####
+
+# NOTE: latest docketinfo query below is missing data from year 2000, therefore temporarily use the
+# older dockect information to extract this data for analysis of compiled.docket.00.07 data
+
+load('AbProcessors_2018_10_09.RData')
+
+# rename dataframe
+
+docketinfo.pre2001 <- docketinfo
+
+# rename columns from SQL format
+
+names(docketinfo.pre2001)[names(docketinfo.pre2001) == 'docket_number'] <- 'docket.number'
+
+# remove unessary dataframes
+
+rm(list=ls()[! ls() %in% c('docketinfo.pre2001')])
+
+
+##-------------------------------------------------------------------------------------------------------##
 
 # load most recent abalone processor details
+
 docketinfo <- readRDS('docketinfo2.RDS')
 
-# remove alpha characters from docket_number
+##-------------------------------------------------------------------------------------------------------##
+
+## Processor data clean ####
+
+# remove alpha characters from docket_number in processor data
+
 docketinfo <- docketinfo %>%
  mutate(docket_number = as.numeric((gsub('[^0-9]', '', docket_number)))) %>%
  mutate(masterdocket = as.numeric((gsub('[^0-9]', '', masterdocket))))
 
 # change 'docket_number' and 'certifcate_holder' column name out of SQL format in docketinfo
+
 names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
+
+# NOTE: certifcate_holder removed from latest docketinfo so added temporarily
+docketinfo$certificate_holder <- NA
 colnames(docketinfo)[colnames(docketinfo) == "certificate_holder"] <- "processorname"
 
 # change processorname toupper
+
 docketinfo <- docketinfo %>%
  mutate_at('processorname', funs(toupper))
 
+# add newzone using function (NOTE: G zone needs to be manually re-named)
+
+docketinfo <- docketinfo %>%
+ mutate(subblockno = subblocklist) %>%
+ codeBlnewzone() %>%
+ mutate(newzone = ifelse(zone == 'G', 'G', newzone)) %>%
+ select(-c(subblockno))
+
+# rename some of the processors who have changed buisness names over the years
+
+docketinfo$processorname[docketinfo$processorname %in%
+                          c(
+                           "R & R HOBART INVESTMENTS PTY LTD",
+                           "RTS PAUACO PTY LTD AS BARE TRUSTEE FOR THE RTS PAUACO LIMITED PARTNERSHIP"
+                          )] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+
+# the processor data extract from 2019 no longer contains unloading date or location, instead contains a list of fishing dates which
+# can be used to generate the last fishing day in the case of a multi-day trip (i.e. daylist_max). In most cases there are no more
+# than 6 fishing dates per record.
+
+docketinfo <- docketinfo %>%
+ separate(daylist, c('daylist_1', 'daylist_2', 'daylist_3', 'daylist_4', 'daylist_5', 'daylist_6'), sep = ',', remove = F) %>%
+ mutate_at(vars(starts_with('daylist_')), funs(as.Date)) %>%
+ ungroup() %>%
+ mutate(daylist_max = pmax(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, na.rm = T)) %>%
+ select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6))
+
 ##-------------------------------------------------------------------------------------------------------##
-
-#keep(processorlist, docketinfo, sure=T)
-# rm(abprocs, docketblocks, docketblocks.bl, docketblocks.gl, docketlink, GaryMM)
-###############################################################################################################
-
-#   
- #  
-  #                                         
-   #Post 2010 MM data held in Gary Carlos db ####
-  #
- # 
-#  
-# Extract data from Access database establisehed by Gary Carlos holding all electronic measuring board
+## compiled.docket.FeMM ####
+## Post 2010 MM data held in Gary Carlos db
+ 
+# extract data from Access database establisehed by Gary Carlos holding all electronic measuring board
 # data from 2010 (part) to 2015. 
 
-## establish connection with Access database and create dataframe 'FeMM'
+# establish connection with Access database and create dataframe 'FeMM'
+
 channel <- odbcConnect('Gary_abMM')
 sql <- "SELECT 
 DataLoggerImport.DownlaodEventID, 
@@ -99,7 +149,8 @@ DataLoggerImport.msrTime;
 FeMM <- sqlQuery(channel, sql)
 close(channel)
 
-## get mesuring board download date(s) from database
+# get mesuring board download date(s) from database
+
 channel <- odbcConnect('Gary_abMM')
 sql <- "SELECT 
 DownlaodEvent.DownlaodEventID, 
@@ -111,9 +162,8 @@ ORDER BY DownlaodEvent.DownlaodEventID;
 Download.date <- sqlQuery(channel, sql)
 close(channel)
 
+# create dataframe of processors and identify download date of their electronic measuring boards
 
-## create dataframe of processors and identify download date of their electronic measuring boards
-# e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD","ABALONE TASMANIA PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "TASMANIAN SEAFOODS PTY LTD", "ADELAIDE BAY SEAFOODS PTY LTD")
 e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD",
                   "ABALONE TASMANIA PTY LTD", 
                   "TASMANIAN SEAFOODS PTY LTD", 
@@ -123,15 +173,30 @@ e.pro <- as.data.frame(e.processors)
 e.pro$DataSourceID <- c(1,2,3,4,5)
 Download.date <- left_join(Download.date, e.pro, by = "DataSourceID")
 
-## join FeMM and Download.date
+# join FeMM and Download.date
+
 FeMM <- left_join(FeMM, Download.date, by = "DownlaodEventID")
 
-## rename columns out of SQL format
-colnames(FeMM) <- c("download.event", "measure.id", "Download.file", "record.number", "Zone", "entitlement.number", "docket.number","shell.length",
-                    "msr.date", "msr.time", "dload.date", "datasource", "eprocessors") #, "msr.time","fishdate", "year")
-#
- # STEP 1 - remove records without docket.number and missing shell.length. ####
-#
+# rename columns out of SQL format
+
+colnames(FeMM) <-
+ c(
+  "download.event",
+  "measure.id",
+  "Download.file",
+  "record.number",
+  "Zone",
+  "entitlement.number",
+  "docket.number",
+  "shell.length",
+  "msr.date",
+  "msr.time",
+  "dload.date",
+  "datasource",
+  "eprocessors"
+ )
+
+# STEP 1 - remove records without docket.number and missing shell.length. ####
 
 FeMM <- FeMM[!is.na(FeMM$docket.number),]
 FeMM <- FeMM[!is.na(FeMM$shell.length),]
@@ -139,20 +204,17 @@ FeMM <- droplevels(subset(FeMM, docket.number !=0))
 
 # PROBLEM = multiple downloads of same data into gary database gives duplicate data
 
-#
- # STEP 2 -  remove duplicate records by selecting for matchings docket.numbers and first selecting docket with ####
-#            max number of animals and then if still multiple by first download date.
+# STEP 2 -  remove duplicate records by selecting for matchings docket.numbers and first selecting docket with ####
+#           max number of animals and then if still multiple by first download date.
 
-#n.per.docket<-ddply(FeMM,.(docket.number, dload.date, eprocessors), summarize,  n = length(shell.length), 
-                                                                                #meanSL = round(mean(shell.length), 1),
-                                                                               # minSL = round(min(shell.length), 1))
 n.per.docket <- FeMM %>%
  group_by(docket.number, dload.date, eprocessors) %>%
  summarise(n = length(shell.length), 
            meanSL = round(mean(shell.length), 1),
            minSL = round(min(shell.length), 1))
 
-## loop to keep the duplicate record with the higher n of animals and then initial download date only
+# loop to keep the duplicate record with the higher n of animals and then initial download date only
+
 db.dup.dockets <- unique(n.per.docket$docket.number)
 
 if (exists("pick_db.docket")) 
@@ -170,173 +232,121 @@ for(b in db.dup.dockets){
   pick_db.docket <- pick
 }
 
-## check to ensure each docket.number is now unique 
+# check to ensure each docket.number is now unique 
+
 n_occur <- data.frame(table(pick_db.docket$docket.number))
 range(n_occur$Freq)
 
 # subset FeMM database based on loop above
-#FeMM.sub <- inner_join(FeMM, pick_db.docket, by = c("docket.number", "dload.date"))
+
 FeMM.sub <- inner_join(FeMM, pick_db.docket)
 
-#
- # STEP 3 - subset docketinfo to >2010, and by processors that have e-boards ####
-#
+# format msr.date
 
-## FeMM database only has data from 2010 onwards so to reduce chances of duplicate records subset docketinfo to post 2009
-## NOTE: 'RALPH'S TASMANIAN SEAFOOD PTY LTD' has several different names in the 2019 SQL database query and need to be renamed
-docketinfo$processorname[docketinfo$processorname %in% c("R & R HOBART INVESTMENTS PTY LTD",
-                                                         "RTS PAUACO PTY LTD AS BARE TRUSTEE FOR THE RTS PAUACO LIMITED PARTNERSHIP")] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+FeMM.sub$msr.date <- as.Date(FeMM.sub$msr.date, format="yyyy-%mm-%dd")
 
-# docketinfo.2010 <- droplevels(subset(docketinfo,unloading_date >= as.POSIXct('2010-01-01 00:00')))
+# STEP 3 - subset docketinfo to >2010, and by processors that have e-boards ####
+
+# FeMM database only has data from 2010 onwards so to reduce chances of duplicate records subset docketinfo to post 2009 and for 
+# e.processors only
+
 docketinfo.2010 <- droplevels(subset(docketinfo, fishyear >= 2010))
-#docketinfo.2010 <- docketinfo
 e.processors <- c("RALPH'S TASMANIAN SEAFOOD PTY LTD",
                   "ABALONE TASMANIA PTY LTD", 
                   "TASMANIAN SEAFOODS PTY LTD", 
                   "ADELAIDE BAY SEAFOODS PTY LTD", 
                   "M & K HAULAGE (TAS) PTY LTD")
 docketinfo.2010 <- droplevels(subset(docketinfo.2010, processorname %in% e.processors))
-#docketinfo.2010 <- docketinfo
-#
- # STEP 4 - join unique database docket to docketinfo.2010 ####
-#
 
-## join unique FeMM dockets to the identifying information in docket.info from FILMS database
+# STEP 4 - join unique database docket to docketinfo.2010 ####
+
+# join unique FeMM dockets to the identifying information in docket.info from FILMS database
+
 FeMM.docket.info <- left_join(pick_db.docket, docketinfo.2010, by = "docket.number")
 
-## separate dupilicated dockets (how many times each docket.number occur?)
+# separate dupilicated dockets (how many times each docket.number occur?)
+
 n_occur <- data.frame(table(FeMM.docket.info$docket.number))
 range(n_occur$Freq)
 
-#
- # STEP 5 - extract unique dockets and join to FeMMsub ####
-#
+# STEP 5 - extract unique dockets and join to FeMMsub ####
 
-## docket.uniq is all dockets without duplicates and can then be joined back to the original FeMMsub data
+# docket.uniq is all dockets without duplicates and can then be joined back to the original FeMMsub data
+
 docket.uniq <- as.data.frame(FeMM.docket.info[FeMM.docket.info$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
 
-## OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
+# OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 
-#Output1.unique<-inner_join(FeMM.sub, docket.uniq, by = "docket.number")
 Output1.unique <- inner_join(FeMM.sub, docket.uniq)
 
-## add columns to show date differences between landing date and msr.Date and dload.Date
-## NOTE: new processor data doesn't not contain unloading date, instead find latest fishing date
-# split fishing days into seperate columns
-Output1.unique <- cSplit(Output1.unique, 'daylist', ',', drop = F)
-
-Output1.unique$daylist_1 <- as.Date(as.character(Output1.unique$daylist_1, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_2 <- as.Date(as.character(Output1.unique$daylist_2, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_3 <- as.Date(as.character(Output1.unique$daylist_3, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_4 <- as.Date(as.character(Output1.unique$daylist_4, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_5 <- as.Date(as.character(Output1.unique$daylist_5, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_6 <- as.Date(as.character(Output1.unique$daylist_6, format = 'yyyy-%mm-%dd'))
-Output1.unique$daylist_max <- (apply(Output1.unique[, 33:38], 1, max, na.rm = T))
-Output1.unique$daylist_max <- as.Date(as.character(Output1.unique$daylist_max, format = 'yyyy-%mm-%dd'))
+## add columns to show date differences between last fishing day (daylist_max), and msr.date and dload.date
 
 Output1.unique <- Output1.unique %>%
- select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6))
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(dload.date = as.Date(dload.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max)) %>%
+ mutate(dload.date.diff = as.numeric(dload.date - daylist_max))
 
-Output1.unique$dload.date <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")
-Output1.unique$msr.date <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")
-#Output1.unique$unloading_date <- as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
-#Output1.unique$msr.date.diff <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
-Output1.unique$msr.date.diff <- as.Date(Output1.unique$msr.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$daylist_max, format="yyyy-%mm-%dd")
-#Output1.unique$dload.date.diff <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$unloading_date, format="yyyy-%mm-%dd")
-Output1.unique$dload.date.diff <- as.Date(Output1.unique$dload.date, format="yyyy-%mm-%dd")-as.Date(Output1.unique$daylist_max, format="yyyy-%mm-%dd")
-
-## remove dockets with errors in dates and or processor
-
+# remove dockets with errors in dates and or processor
 # dockets with issues in that download.date is prior to landing date but there are no duplicated dockets suggestion is incorrect docket number in eboard.
-dload.date.false <- subset(Output1.unique, dload.date.diff <= -1)
-# dload.date.f.unique <- unique(dload.date.false[c("docket.number", "eprocessors", "dload.date", "unloading_date",
-#                                                "dload.date.diff", "msr.date.diff")])
-dload.date.f.unique <- unique(dload.date.false, by = c("docket.number", "eprocessors", "dload.date", "daylist_max", "dload.date.diff", "msr.date.diff"))
 
-#Output.error.date<-join(dload.date.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
+dload.date.false <- subset(Output1.unique, dload.date.diff <= -1)
+dload.date.f.unique <- unique(dload.date.false, by = c("docket.number", "eprocessors", "dload.date", "daylist_max", "dload.date.diff", "msr.date.diff"))
 Output.error.date <- left_join(dload.date.f.unique, docketinfo.2010,  by = "docket.number")
 
 # dockets with issues in that eprocessor is not processorID
+
 epro.proID.false <- as.data.frame(Output1.unique[Output1.unique$eprocessors != Output1.unique$processorname,])
 epro.proID.false <- epro.proID.false[!is.na(epro.proID.false$docket.number),]
-# epro.proID.f.unique <- unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "unloading_date","msr.date",
-#                                                  "dload.date.diff", "msr.date.diff")])
 epro.proID.f.unique <- unique(epro.proID.false[c("docket.number", "eprocessors", "dload.date", "daylist_max","msr.date",
                                                  "dload.date.diff", "msr.date.diff")])
-
-#Output.error.epro<-join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number", type ="left")
 Output.error.epro <- left_join(epro.proID.f.unique, docketinfo.2010,  by = "docket.number")
 
-
 # remove the dockets with issues
+
 Output1.unique <- Output1.unique[!(Output1.unique$docket.number %in% dload.date.f.unique$docket.number),]
 Output1.unique <- Output1.unique[!(Output1.unique$docket.number %in% epro.proID.false$docket.number),]
-Output1.unique$msr.date <- as.POSIXct(Output1.unique$msr.date, format="yyyy-%mm-%dd")
 
-#
- # STEP 6 - remove duplicated dockets remove split catches by matching eprocessor (garydb) to processorID (films) in dupliacted catches. ####
-#
+# STEP 6 - remove duplicated dockets remove split catches by matching eprocessor (garydb) to processorID (films) in dupliacted catches. ####
 
-## select only dupicated dockets from the FeMM.docket.info list
+# select only dupicated dockets from the FeMM.docket.info list
+
 docket.dupes <- as.data.frame(FeMM.docket.info[FeMM.docket.info$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
 docket.epro <- subset(docket.dupes, (docket.dupes$eprocessors == docket.dupes$processorname))
-
 n_occur <- data.frame(table(docket.epro$docket.number))
 range(n_occur$Freq)
 
-#
- # STEP 7 - extract unique dockets and join to FeMMsub. ####
-#
+# STEP 7 - extract unique dockets and join to FeMMsub. ####
 
-## docket.uniq is all dockets without duplicates and can then be joined back to the original FeMMsub data
+# docket.uniq is all dockets without duplicates and can then be joined back to the original FeMMsub data
+
 docket.epro.uniq <- as.data.frame(docket.epro[docket.epro$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
  
-## OUTPUT 2 = create new dataframe joining the FeMMsub to docket.epro.uniq only keeping common docket data to both
-#Output2.epro<-join(FeMM.sub, docket.epro.uniq, by = "docket.number", type = "inner")
+# OUTPUT 2 = create new dataframe joining the FeMMsub to docket.epro.uniq only keeping common docket data to both
+
 Output2.epro <- inner_join(FeMM.sub, docket.epro.uniq)
 
-## add columns to show date differences between landing date, msr.Date and dload.Date
-Output2.epro <- cSplit(Output2.epro, 'daylist', ',', drop = F)
-Output2.epro$daylist_1 <- as.Date(as.character(Output2.epro$daylist_1, format = 'yyyy-%mm-%dd'))
-Output2.epro$daylist_2 <- as.Date(as.character(Output2.epro$daylist_2, format = 'yyyy-%mm-%dd'))
-Output2.epro$daylist_3 <- as.Date(as.character(Output2.epro$daylist_3, format = 'yyyy-%mm-%dd'))
-Output2.epro$daylist_4 <- as.Date(as.character(Output2.epro$daylist_4, format = 'yyyy-%mm-%dd'))
-Output2.epro$daylist_5 <- as.Date(as.character(Output2.epro$daylist_5, format = 'yyyy-%mm-%dd'))
-Output2.epro$daylist_max <- (apply(Output2.epro[, 33:37], 1, max, na.rm = T))
-Output2.epro$daylist_max <- as.Date(as.character(Output2.epro$daylist_max, format = 'yyyy-%mm-%dd'))
+# add columns to show date differences between landing date, msr.Date and dload.Date
 
 Output2.epro <- Output2.epro %>%
- select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5))
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(dload.date = as.Date(dload.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max)) %>%
+ mutate(dload.date.diff = as.numeric(dload.date - daylist_max))
 
-Output2.epro$dload.date <- as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")
-# Output2.epro$unloading_date <- as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
-# Output2.epro$msr.date.diff <- as.Date(Output2.epro$msr.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$unloading_date, format="yyyy-%mm-%dd")
-Output2.epro$msr.date.diff <- as.Date(Output2.epro$msr.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$daylist_max, format="yyyy-%mm-%dd")
-Output2.epro$dload.date.diff <- as.Date(Output2.epro$dload.date, format="yyyy-%mm-%dd")-as.Date(Output2.epro$daylist_max, format="yyyy-%mm-%dd")
-
-#
- # STEP 8 extract unique dockets and join to FeMMsub ####
-#
+# STEP 8 - extract unique dockets and join to FeMMsub ####
 
 docket.dble <- as.data.frame(docket.epro[docket.epro$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
-docket.dble <- cSplit(docket.dble, 'daylist', ',', drop = F)
-docket.dble$daylist_1 <- as.Date(as.character(docket.dble$daylist_1, format = 'yyyy-%mm-%dd'))
-docket.dble$daylist_2 <- as.Date(as.character(docket.dble$daylist_2, format = 'yyyy-%mm-%dd'))
-docket.dble$daylist_3 <- as.Date(as.character(docket.dble$daylist_3, format = 'yyyy-%mm-%dd'))
-docket.dble$daylist_max <- (apply(docket.dble[, 23:25], 1, max, na.rm = T))
-docket.dble$daylist_max <- as.Date(as.character(docket.dble$daylist_max, format = 'yyyy-%mm-%dd'))
-docket.dble <- docket.dble %>%
- select(-c(daylist_1, daylist_2, daylist_3))
 
+# look at unique dates in dupes
 
-## look at unique dates in dupes
-#docket.dble$dload.date.diff <- as.Date(docket.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(docket.dble$unloading_date, format="yyyy-%mm-%dd")
 docket.dble$dload.date.diff <- as.Date(docket.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(docket.dble$daylist_max, format="yyyy-%mm-%dd")
-                                      
 docket.dble <- subset(docket.dble, dload.date.diff >= -1)
 d.docket <- unique(docket.dble$docket.number)
 
-## loop to keep the duplicate record with the smallest date.diff between landing date and dload.date
+# loop to keep the duplicate record with the smallest date.diff between landing date and dload.date
 if (exists("pick.dble.docket")) 
  rm(pick.dble.docket)
 
@@ -351,98 +361,128 @@ for(d in d.docket){
   pick.dble.docket <- pick
 }
 
-## check on how many times does each docket.number occur
+# check on how many times does each docket.number occur
+
 n_occur <- data.frame(table(pick.dble.docket$docket.number))
 range(n_occur$Freq)
 
-## OUTPUT 3 = create new dataframe joining the FeMM to docket.dupes.uniq only keeping common docket data to both
-#Output3.dble <- join(FeMM.sub, pick.dble.docket, by = "docket.number", type = "inner")
+# OUTPUT 3 = create new dataframe joining the FeMM to docket.dupes.uniq only keeping common docket data to both
+
 Output3.dble <- inner_join(FeMM.sub, pick.dble.docket)
 
-## add columns to show date differences between ladning date and msr.Date and dload.Date
-Output3.dble$dload.date <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")
-#Output3.dble$unloading_date <- as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
-#Output3.dble$msr.date.diff <- as.Date(Output3.dble$msr.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
-Output3.dble$msr.date.diff <- as.Date(Output3.dble$msr.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$daylist_max, format="yyyy-%mm-%dd")
-#Output3.dble$dload.date.diff <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$unloading_date, format="yyyy-%mm-%dd")
-Output3.dble$dload.date.diff <- as.Date(Output3.dble$dload.date, format="yyyy-%mm-%dd")-as.Date(Output3.dble$daylist_max, format="yyyy-%mm-%dd")
+# add columns to show date differences between landing date, msr.Date and dload.Date
 
-#
- # STEP 9 - Compile the final dataframe ####
-#
+Output3.dble <- Output3.dble %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(dload.date = as.Date(dload.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max)) %>%
+ mutate(dload.date.diff = as.numeric(dload.date - daylist_max))
 
-## add column to identify which output each docket is derived from
+# STEP 9 - compile the final dataframe ####
+
+# add column to identify which output each docket is derived from
+
 Output1.unique$output <- 1
 Output2.epro$output <- 2
 Output3.dble$output <- 3
 
 compiled.docket.FeMM <- bind_rows(Output1.unique, Output3.dble, Output2.epro)
 
-## reduce column number
-compiled.docket.FeMM <- droplevels(subset(compiled.docket.FeMM, select = c("output", "joincode", "docket.number", "shell.length","meanSL", "minSL", "n","total_landed_weight", "catch", "msr.date", "dload.date", "unloading_date",
-                                                               "dload.date.diff", "msr.date.diff", "eprocessors", "processorname", "processor_licence_id", "zone_fishery_code", "Zone", "received_location",
-                                                              "blocklist", "numblocks", "subblocklist", "numsubblocks", "Download.file")))
+# reduce column number
+
+compiled.docket.FeMM <-
+ droplevels(subset(
+  compiled.docket.FeMM,
+  select = c(
+   "docket.number",
+   "msr.date",
+   "processorname",
+   "eprocessors",
+   "proc",
+   "numprocs",
+   "proclist",
+   "newzone",
+   "numdays",
+   "daylist",
+   "daylist_max",
+   "dload.date",
+   "dload.date.diff",
+   "msr.date.diff",
+   "numblocks",
+   "blocklist",
+   "numsubblocks",
+   "subblocklist",
+   "catch",
+   "n",
+   "meanSL",
+   "minSL",
+   "shell.length"
+  )
+ ))
 
 
-## subset records with bad docket.numbers e.g. missing all matching info from FILMS
+# subset records with bad docket.numbers e.g. missing all matching info from FILMS
+
 Output.error.docket <- compiled.docket.FeMM[is.na(compiled.docket.FeMM$processorname),]
 compiled.docket.FeMM <- compiled.docket.FeMM[!(compiled.docket.FeMM$docket.number %in% Output.error.docket$docket.number),]
 
-## there are now four dataframes from this work
-summary(compiled.docket.FeMM) # is the complete MM data with attached docket info
-summary(Output.error.date) # is records with errors with dates dload.date preceeds landing date but there is no duplicate records which match
-summary(Output.error.epro) # is records with non-matching processors from FILMS database and the eboard from which data was collected.
-summary(Output.error.docket) # is records with non-matching docket.numbers from FILMS database.
+# there are now four dataframes from this work
 
-## in all cases of the error files i suspect there has been a mistake in the factory of docket.number entered.
-###############################################################################################################
+# summary(compiled.docket.FeMM) # is the complete MM data with attached docket info
+# summary(Output.error.date) # is records with errors with dates dload.date preceeds landing date but there is no duplicate records which match
+# summary(Output.error.epro) # is records with non-matching processors from FILMS database and the eboard from which data was collected.
+# summary(Output.error.docket) # is records with non-matching docket.numbers from FILMS database.
+
+# in all cases of the error files i suspect there has been a mistake in the factory of docket.number entered.
+
+##-------------------------------------------------------------------------------------------------------##
 
 #keep(compiled.docket.FeMM, Output.error.docket, Output.error.epro, Output.error.date, docketinfo, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.docket.FeMM', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'docketinfo')])
 #saveRDS(compiled.docket.FeMM, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.FeMM.RDS')
 
-###############################################################################################################
-
-#
- #
-  #
-   # 2007-2011 abalone e-measure MM raw data ####
-  #
- #
-#      
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.07.11 ####
+# 2007-2011 abalone e-measure MM raw data
+     
 # allocation of docket information to raw data held in market measuring folder for dates 2007-2011
 
 setwd("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/MM_2007_2010_by_Processor")
 
-## loop to search for summary files
+# loop to search for summary files (created with MM_CSV_Compile.R)
+
 MM_files <- c()
+
 #change the grep to search based on folder names
+
 for (dir_finals in grep('a',list.files(path='.',all.files=FALSE,full.names=TRUE),value=TRUE))
 {
  MM_files <- c(MM_files,grep('MM_RawData_',list.files(path = dir_finals, all.files = FALSE, full.names = TRUE, recursive = TRUE),value=TRUE) )
 }
 all_data<-NULL
-#combine files
-Raw_MM <- do.call(rbind,lapply(MM_files,read.csv))
-summary(Raw_MM)
 
-## tidy up some of the column names and data in Raw_MM dataframe
+# combine files
+
+Raw_MM <- do.call(rbind,lapply(MM_files,read.csv))
+
+# tidy up some of the column names and data in Raw_MM dataframe
+
 colnames(Raw_MM) <- c("x","sample.number", "docket.number","shell.length","time","msr.date", "filesource","e.processor")
 Raw_MM$msr.date <- strptime(as.character(Raw_MM$msr.date), "%d/%m/%Y")
-Raw_MM$msr.date<-as.POSIXct(Raw_MM$msr.date)
+Raw_MM$msr.date <- as.Date(Raw_MM$msr.date)
 Raw_MM$docket.number <- as.integer(Raw_MM$docket.number)
 Raw_MM$shell.length <- as.integer(Raw_MM$shell.length)
 
-#
- # STEP 1 - remove records without docket number or docket = 0 or shell length = NA ####
-#
+# STEP 1 - remove records without docket number or docket = 0 or shell length = NA ####
 
 Raw.MM.Output.error.docket <- Raw_MM[is.na(Raw_MM$docket.number),]
 Raw_MM <- Raw_MM[!is.na(Raw_MM$docket.number),]
 Raw_MM <- Raw_MM[!is.na(Raw_MM$shell.length),]
 Raw_MM <- droplevels(subset(Raw_MM, docket.number !=0))
 
-## rename processors
+# rename processors and create dataframe of eprocessors
+
 Raw_MM$e.processor <- as.character(Raw_MM$e.processor)
 Raw_MM$e.processor[Raw_MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
 Raw_MM$e.processor[Raw_MM$e.processor == "Tas Seafoods Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
@@ -455,151 +495,168 @@ Raw_MM$e.processor <- as.factor(Raw_MM$e.processor)
 eproname <- as.data.frame(unique(Raw_MM$e.processor))
 colnames(eproname) <- c("e.processor")
 
-## additional data cleaning as some msr.date years appear to be errors (i.e. 0020 and 2088)
-Raw_MM$msr.date[which.minn(Raw_MM$msr.date, 20)]
-Raw_MM$msr.date[which.maxn(Raw_MM$msr.date, 20)]
+# additional data cleaning as some msr.date years appear to be errors (i.e. 0020 and 2088)
 Raw_MM$msr.date[Raw_MM$msr.date < as.Date('2000-01-01')] <- NA
 Raw_MM$msr.date[Raw_MM$msr.date > as.Date('2011-02-11')] <- NA
 
-## convert incorrect times to NA's
+# convert incorrect times to NA's
+
 time.dates <- grep('/', Raw_MM$time)
 Raw_MM$time[time.dates] <- NA
 
-## summarize the Raw_MM dataset
+# summarize the Raw_MM dataset
+
 n.per.docket <- Raw_MM %>%
- group_by(docket.number, msr.date, e.processor) %>%
+ group_by(docket.number, msr.date, e.processor) %>% 
  summarise(n = length(shell.length), 
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
 
-## remove non-e.processors form the docketinfo dataframe and rename column.
+# remove non-e.processors form the docketinfo dataframe and rename column.
+
 e.processors <- eproname$e.processor
 docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors))
 colnames(docketinfo.epro)[colnames(docketinfo.epro)=="processorname"] <- "e.processor"
 
-## match docketinfo.epro to the n.per.docket dataframe
-#docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+# match docketinfo.epro to the n.per.docket dataframe
+
 docket.join <- inner_join(n.per.docket, docketinfo.epro)
 
-## add date difference column
-docket.join$msr.date.diff <- as.Date(docket.join$msr.date, format="yyyy-%mm-%dd")-as.Date(docket.join$unloading_date, format="yyyy-%mm-%dd")
+# add date difference column
 
-#
- # STEP 2 - extract unique dockets and join to RawMM ####
-#
+docket.join <- docket.join %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
 
-## separate dupilicated dockets
-# how many times does each docket.number occur
+# STEP 2 - extract unique dockets and join to RawMM ####
+
+# separate dupilicated dockets 
+
 n_occur <- data.frame(table(docket.join$docket.number))
 range(n_occur$Freq)
 docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
 
 # check
+
 n_occur <- data.frame(table(docket.uniq$docket.number))
 range(n_occur$Freq)
 
-## OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-#Output1.unique <- join(Raw_MM, docket.uniq, by = c("docket.number", "e.processor"), type = "inner")
-Output1.unique <- inner_join(Raw_MM, docket.uniq)
+# OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 
-#
- #STEP 3 - Duplicated dockets, remove duplicated catches which have multiple downloads in RawMM. ####
-#
+Output1.unique <- inner_join(Raw_MM, docket.uniq, by = c("docket.number", 'msr.date', "e.processor"))
 
-## reset n-occur to docket.join
+# STEP 3 - duplicated dockets, remove duplicated catches which have multiple downloads in RawMM. ####
+
+# reset n-occur to docket.join
+
 n_occur <- data.frame(table(docket.join$docket.number))
 range(n_occur$Freq)
 
-## select only dupicated dockets from the docket.join df
+# select only dupicated dockets from the docket.join df
+
 docket.dupes <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
 
-## extract all dockets with duplicated results in docket.number and meanSL 
-dupes.sub <- docket.dupes[ cbind( which(duplicated(docket.dupes[c(1,5)])), which(duplicated(docket.dupes[c(1,5)], fromLast=F))),]
-dupes.sub <- dupes.sub[order(dupes.sub$msr.date),]
-dupes.sub <- dupes.sub %>% distinct(docket.number, .keep_all = T) #was missing .keep_all = T and droppping variables (JM)
+# extract all dockets with duplicated results in docket.number and meanSL 
 
-## n-occur to docket.join
+dupes.sub <- docket.dupes %>%
+ group_by(docket.number, meanSL) %>%
+ filter(n() > 1) %>%
+ distinct(docket.number, .keep_all = T) %>%
+ group_by(docket.number) %>%
+ filter(docket.number != 183335) #this docket seems to have two different meanSL
+
+# n-occur to docket.join
+
 n_occur <- data.frame(table(dupes.sub$docket.number))
 range(n_occur$Freq)
 
-## OUTPUT 2 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-#Output2.dupes <- join(Raw_MM, dupes.sub, by = c("docket.number", "e.processor"), type = "inner")
-Output2.dupes<-inner_join(Raw_MM, dupes.sub)
+# OUTPUT 2 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
 
-#
- #STEP 4 - Duplicated dockets, remove duplicated records which have multiple docket entries. ####
-#
+Output2.dupes <- inner_join(Raw_MM, dupes.sub, by = c("docket.number", "e.processor")) %>%
+ mutate(msr.date = msr.date.x) %>%
+ select(-c(msr.date.x, msr.date.y))
 
-## cut download duplicates from dupes.sub.dnumber that are assigned in Output2.dupes
+# STEP 4 - duplicated dockets, remove duplicated records which have multiple docket entries. ####
+
+# cut download duplicates from dupes.sub.dnumber that are assigned in Output2.dupes
+
 dupes.sub.dnumber <- unique(Output2.dupes$docket.number)
 dupes.multi <- docket.dupes[!docket.dupes$docket.number %in% dupes.sub.dnumber,]
 
-# #dupes.multi<-droplevels(subset(dupes.multi, select = c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "meanSL", "minSL", "n", 
-#                                                        "total_landed_weight", "catch",
-#                                                       "received_location", "e.processor", "joincode", "processor_licence_id", 
-#                                                        "blocklist", "numblocks", "subblocklist", "numsubblocks")))
+# change records with false msr.date to NA
 
-## change records with false msr.date to NA
-dupes.multi$msr.date.diff[dupes.multi$msr.date.diff<=-100] <- NA
+dupes.multi$msr.date.diff[dupes.multi$msr.date.diff <= -100] <- NA
 
-## remove duplicates with NA results, negative date diff and false large date diff.
-dupes.multi <- droplevels(subset(dupes.multi, msr.date.diff >=0 & msr.date.diff<=100))
+# remove duplicates with NA results, negative date diff and false large date diff.
 
-## remove duplicates with same docket number and unloading date
-dupes.multi.sub <- docket.dupes[ cbind( which(duplicated(dupes.multi[c(1,3)])), which(duplicated(dupes.multi[c(1,3)], fromLast=F))),]
+dupes.multi <- droplevels(subset(dupes.multi, msr.date.diff >= 0 & msr.date.diff <= 100))
 
-## select distinct eg unqiue dockets (dplyr) function
-dupes.multi.sub <- dupes.multi.sub %>% distinct(docket.number, .keep_all = T)
+# remove duplicates with same docket number and daylist_max
 
-## identify unique dockets and remove from dupes.multi
+dupes.multi.sub <- dupes.multi %>%
+ group_by(docket.number, daylist_max) %>%
+ filter(n() > 1)
+
+# select distinct dockets 
+
+dupes.multi.sub <- dupes.multi.sub %>% 
+ distinct(docket.number, .keep_all = T)
+
+# identify unique dockets and remove from dupes.multi
+
 dupes.ms.d <- unique(dupes.multi.sub$docket.number)
 dupes.multi <- dupes.multi[!dupes.multi$docket.number %in% dupes.ms.d,]
 
-## OUTPUT 3 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-#Output3.multi <- join(Raw_MM, dupes.multi, by = c("docket.number", "msr.date"), type = "inner")
-Output3.multi <- inner_join(Raw_MM, dupes.multi)
+# OUTPUT 3 = create new dataframe joining the dupes.multi to raw_MM only keeping common docket data to both
 
-## OUTPUT 4 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-#Output4.extra <- join(Raw_MM, dupes.multi.sub, by = c("docket.number", "msr.date"), type = "inner")
-Output4.extra <- inner_join(Raw_MM, dupes.multi.sub)
+Raw_MM$e.processor <- as.character(Raw_MM$e.processor)
+Output3.multi <- inner_join(Raw_MM, dupes.multi, by = c("docket.number", "msr.date", 'e.processor'))
+
+# OUTPUT 4 = create new dataframe joining the dupes.multi.sub to raw_MM only keeping common docket data to both
+
+Output4.extra <- inner_join(Raw_MM, dupes.multi.sub, by = c("docket.number", "msr.date", 'e.processor'))
+
 
 ## format each output data.frame to be identical columns:
 
-Output1.unique <- subset(Output1.unique, select=c("docket.number",  "filesource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                                "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output2.dupes <- subset(Output2.dupes, select=c("docket.number",  "filesource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                                "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output3.multi <- subset(Output3.multi, select=c("docket.number",  "filesource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output4.extra <- subset(Output4.extra, select=c("docket.number",  "filesource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-#
- # STEP 5 - compile Outputs ####
-#
-compiled.docket.07.11 <- rbind(Output4.extra, Output3.multi, Output1.unique, Output2.dupes)
+Output1.unique <- subset(Output1.unique, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                    "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                    "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                    "shell.length"))
+
+Output2.dupes <- subset(Output2.dupes, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                  "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                  "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                  "shell.length"))
+
+Output3.multi <- subset(Output3.multi, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                           "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                           "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                           "shell.length"))
+
+Output4.extra <- subset(Output4.extra, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                  "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                  "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                  "shell.length"))
+
+# STEP 5 - compile outputs ####
+
+compiled.docket.07.11 <- bind_rows(Output4.extra, Output3.multi, Output1.unique, Output2.dupes)
 
 
-###############################################################################################################
+##-------------------------------------------------------------------------------------------------------##
 
 #keep(compiled.docket.FeMM, compiled.docket.07.11, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.docket.FeMM', 'compiled.docket.07.11', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo')])
 
-###############################################################################################################
-
-#
- #
-  #
-   # Abalone e-measure MM data held in abalone database ####
-  #
- #
-#
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.abdb ####
+## abalone e-measure MM data held in abalone database
 # docket information held in Abalone research database FactoryEmeasure Query 
 
 # extract FactoryEmeasure data from research Database table FactoryEmeasure
+
 channel <- odbcConnect('Asd_data')
 sql <- "SELECT FactoryEmeasure.[Sequence number], 
 FactoryEmeasure.[Docket number], 
@@ -618,18 +675,21 @@ FROM FactoryEmeasure;"
 abdbMM <- sqlQuery(channel, sql)
 close(channel)
 
-## rename col.names from sql format and reformat date column
+# rename col.names from sql format and reformat date column
+
 colnames(abdbMM) <- c("sample.number","docket.number", "shell.length","time","msr.date", "blocklist", "zone", "diver", 
                       "e.processor", "est.Blip", "est.Glip", "total_landed_weight", "sample.quality")
 abdbMM$msr.date <- as.Date(abdbMM$msr.date, format="%d/%m/%Y" )
 
 
-## remove records without docket number or docket = 0 or shell length = NA
-Output.error.docket.abdbMM <- abdbMM[is.na(abdbMM$docket.number),]
-abdbMM<-abdbMM[!is.na(abdbMM$docket.number),]
-abdbMM<-abdbMM[!is.na(abdbMM$shell.length),]
+# remove records without docket number or docket = 0 or shell length = NA
 
-## rename processors
+Output.error.docket.abdbMM <- abdbMM[is.na(abdbMM$docket.number),]
+abdbMM <- abdbMM[!is.na(abdbMM$docket.number),]
+abdbMM <- abdbMM[!is.na(abdbMM$shell.length),]
+
+# rename processors
+
 abdbMM$e.processor <- as.character(abdbMM$e.processor)
 abdbMM$e.processor[abdbMM$e.processor == "Adelaide Bay Seafoods Pty Ltd"] <- "ADELAIDE BAY SEAFOODS PTY LTD"
 abdbMM$e.processor[abdbMM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
@@ -637,168 +697,175 @@ abdbMM$e.processor[abdbMM$e.processor == "Tasmanian Seafoods at Smithton"] <- "T
 abdbMM$e.processor[abdbMM$e.processor == "Ralphs Tasmanian Seafood Pty Ltd"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
 abdbMM$e.processor <- as.factor(abdbMM$e.processor)
 
-## summarize the dataset
+# summarize the dataset
+
 n.per.docket <- abdbMM %>%
  group_by(docket.number, msr.date, e.processor) %>%
  summarise(n = length(shell.length), 
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
 
-## create dataframe of all e-processors
+# create dataframe of all e-processors
+
 eproname <- as.data.frame(unique(abdbMM$e.processor))
 colnames(eproname) <- c("e.processor")
 
-#
- # STEP 1 - remove non-e.processors form the docketinfo dataframe and rename column. ####
-#
+# STEP 1 - remove non-e.processors from the docketinfo dataframe and rename column. ####
 
 e.processors <- eproname$e.processor
 docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors))
 colnames(docketinfo.epro)[colnames(docketinfo.epro)=="processorname"] <- "e.processor"
 
-## match docketinfo.epro to the n.per.docket dataframe
-#docket.join<-join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"), type = "inner")
+# match docketinfo.epro to the n.per.docket dataframe
+
 docket.join <- inner_join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"))
 
-## add date difference column
-docket.join$msr.date.diff <- as.Date(docket.join$msr.date, format="yyyy-%mm-%dd")-as.Date(docket.join$unloading_date, format="yyyy-%mm-%dd")
+# add date difference column
 
-#
- # STEP 2 - extract unique dockets and join to abdbMM ####
-#
+docket.join <- docket.join %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max)) 
 
-## separate dupilicated dockets
-# how many times does each docket.number occur
+# STEP 2 - extract unique dockets and join to abdbMM ####
+
+# separate dupilicated dockets
 n_occur <- data.frame(table(docket.join$docket.number))
 range(n_occur$Freq)
+
 docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
 
-## check
+# check
+
 n_occur <- data.frame(table(docket.uniq$docket.number))
 range(n_occur$Freq)
 
-## OUTPUT 1 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-# dplyr inner_join adds .x and .y suffixes to some variables common between dataframes when joining (e.g. blocklist). 
-# It appears that the values in these columns are presented slightly different between the dataframes and
-# may be causing the suffix to be added. This creates issues later in the coding when calling for these variables.
-# Using the plyr join function seems to resolve this.
-library(plyr)
-Output1.unique <- join(abdbMM, docket.uniq, by = c("docket.number", "e.processor"), type = "inner")
-#Output1.unique.1 <- inner_join(abdbMM, docket.uniq, by = c("docket.number", "e.processor")) 
+## OUTPUT 1 = create new dataframe joining the abdbMM to docket.uniq only keeping common docket data to both
 
-#
- #STEP 3 - duplicated dockets, remove duplicated catches which have multiple downloads in RawMM. ####
-#
+Output1.unique <- inner_join(abdbMM, docket.uniq, by = c("docket.number", "e.processor")) %>%
+ mutate(msr.date = msr.date.x, blocklist = blocklist.y, zone = zone.y) %>%
+ select(-c(msr.date.x, msr.date.y, blocklist.x, blocklist.y, zone.x, zone.y))
 
-## reset n-occur to docket.join
+# STEP 3 - duplicated dockets, remove duplicated catches which have multiple downloads in RawMM. ####
+
+# reset n-occur to docket.join
+
 n_occur <- data.frame(table(docket.join$docket.number))
 range(n_occur$Freq)
 
-## select only dupicated dockets from the FeMM.docket.info list
+# select only dupicated dockets from the FeMM.docket.info list
+
 docket.dupes <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
 
-## extract all dockets with duplicated results in docket.number and meanSL 
-dupes.sub <- docket.dupes[ cbind( which(duplicated(docket.dupes[c(1,5)])), which(duplicated(docket.dupes[c(1,5)], fromLast=F))),]
-dupes.sub <- dupes.sub[order(dupes.sub$msr.date),]
-dupes.sub <- dupes.sub %>% distinct(docket.number, .keep_all = T)
+# extract all dockets with duplicated results in docket.number and meanSL 
 
-## n-occur to docket.join
+dupes.sub <- docket.dupes %>%
+ group_by(docket.number, meanSL) %>%
+ filter(n() > 1) %>%
+ distinct(docket.number, .keep_all = T) %>%
+ filter(!docket.number %in% c(178459, 183335, 181190, 181189, 176983, 178455, 180633, 180630))
+
+# check
+
 n_occur <- data.frame(table(dupes.sub$docket.number))
 range(n_occur$Freq)
 
-## OUTPUT 2 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-Output2.dupes <- join(abdbMM, dupes.sub, by = c("docket.number", "e.processor"), type = "inner")
-#Output2.dupes <- inner_join(abdbMM, dupes.sub, by = c("docket.number", "e.processor"))
+# OUTPUT 2 = create new dataframe joining the abdbMM to dupes.sub only keeping common docket data to both
 
-#
- #STEP 4 DUPLICATED DOCKETS remove duplicated records which have multiple docket entries.
-#
+Output2.dupes <- inner_join(abdbMM, dupes.sub, by = c("docket.number", "msr.date", 'e.processor')) %>%
+ mutate(blocklist = blocklist.y, zone = zone.y) %>%
+ select(-c(blocklist.x, blocklist.y, zone.x, zone.y))
 
-## cut download duplicates from dupes.sub.dnumber that are assigned in Output2.dupes
+# STEP 4 - DUPLICATED DOCKETS remove duplicated records which have multiple docket entries
+
+# cut download duplicates from dupes.sub.dnumber that are assigned in Output2.dupes
+
 dupes.sub.dnumber <- unique(Output2.dupes$docket.number)
 dupes.multi <- docket.dupes[!docket.dupes$docket.number %in% dupes.sub.dnumber,]
 
-# #dupes.multi<-droplevels(subset(dupes.multi, select = c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "meanSL", "minSL", "n", 
-#                                                        "total_landed_weight", "catch",
-#                                                       "received_location", "e.processor", "joincode", "processor_licence_id", 
-#                                                        "blocklist", "numblocks", "subblocklist", "numsubblocks")))
 # change records with false msr.date to NA
+
 dupes.multi$msr.date.diff[dupes.multi$msr.date.diff <= -100] <- NA
 
+# remove duplicates with NA results, negative date diff and false large date diff.
 
-## remove duplicates with same docket number and unloading date
-dupes.multi.sub <- dupes.multi[ cbind( which(duplicated(dupes.multi[c(1,3,13)])), which(duplicated(dupes.multi[c(1,3,13)], fromLast=F))),]
+dupes.multi <- droplevels(subset(dupes.multi, msr.date.diff >= 0 & msr.date.diff <= 100))
 
-## select distinct eg unqiue dockets (dplyr) function
-dupes.multi.sub <- dupes.multi.sub %>% distinct(docket.number, .keep_all = T)
+# remove duplicates with same docket number and daylist_max
 
-## OUTPUT 4 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-Output4.extra <- join(abdbMM, dupes.multi.sub, by = c("docket.number", "msr.date"), type = "inner")
-#Output4.extra <- inner_join(abdbMM, dupes.multi.sub, by = c("docket.number", "msr.date"))
+dupes.multi.sub <- dupes.multi %>%
+ group_by(docket.number, e.processor, daylist_max) %>%
+ filter(n() > 1)
 
-## identify unique dockets and remove from dupes.multi
+# select distinct dockets
+
+dupes.multi.sub <- dupes.multi.sub %>% 
+ distinct(docket.number, .keep_all = T)
+
+# identify unique dockets and remove from dupes.multi
+
 dupes.ms.d <- unique(dupes.multi.sub$docket.number)
 dupes.multi <- dupes.multi[!dupes.multi$docket.number %in% dupes.ms.d,]
 
-## remove duplicates with NA results, negative date diff and false large date diff.
-dupes.multi.sub <- droplevels(subset(dupes.multi, msr.date.diff >= 0 & msr.date.diff <= 100))
+# OUTPUT 3 = create new dataframe joining the abdbMM to dupes.multi only keeping common docket data to both
 
-## OUTPUT 5 = create new dataframe joining the abdbMM to dupes.multi.sub only keeping common docket data to both
-Output5.date <- join(abdbMM, dupes.multi.sub, by = c("docket.number"), type = "inner")
-#Output5.date <- inner_join(abdbMM, dupes.multi.sub, by = c("docket.number"))
+Output3.multi <- inner_join(abdbMM, dupes.multi, by = c("docket.number", "msr.date", 'e.processor')) %>%
+ mutate(blocklist = blocklist.y, zone = zone.y) %>%
+ select(-c(blocklist.x, blocklist.y, zone.x, zone.y))
 
-## identify unique dockets and remove from dupes.multi
-dupes.ms.d <- unique(dupes.multi.sub$docket.number)
-dupes.multi <- dupes.multi[!dupes.multi$docket.number %in% dupes.ms.d,]
+# OUTPUT 4 = create new dataframe joining the abdbMM to dupes.multi.sub only keeping common docket data to both
 
-## OUTPUT 3 = create new dataframe joining the FeMMsub to docket.uniq only keeping common docket data to both
-Output3.multi <- join(abdbMM, dupes.multi, by = c("docket.number"), type = "inner")
-#Output3.multi <- inner_join(abdbMM, dupes.multi, by = c("docket.number"))
+Output4.extra <- inner_join(abdbMM, dupes.multi.sub, by = c("docket.number", "msr.date", 'e.processor')) %>%
+ mutate(blocklist = blocklist.y, zone = zone.y) %>%
+ select(-c(blocklist.x, blocklist.y, zone.x, zone.y))
 
-## format each output data.frame to be identical columns:
-names(Output1.unique)
-Output1.unique <- subset(Output1.unique, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                                "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output2.dupes<-subset(Output2.dupes, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output3.multi<-subset(Output3.multi, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output4.extra<-subset(Output4.extra, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-Output5.date<-subset(Output5.date, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                              "total_landed_weight", "catch", "received_location", "e.processor", "joincode", 
-                                              "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
-#compile Outputs
-compiled.docket.abdb <- rbind(Output4.extra, Output3.multi, Output1.unique, Output2.dupes, Output5.date)
+# STEP 4 - compile outputs ####
 
-#n-occur to docket.join
-test <- unique(compiled.docket.abdb[c("docket.number","e.processor","unloading_date", "zone_fishery_code")])
+# format each output data.frame to be identical columns:
+
+Output1.unique <- subset(Output1.unique, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                    "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                    "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                    "shell.length")) 
+Output2.dupes<-subset(Output2.dupes, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                "shell.length"))
+Output3.multi<-subset(Output3.multi, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                "shell.length"))
+Output4.extra<-subset(Output4.extra, select = c("docket.number", "msr.date", "e.processor", "proc", "numprocs", "proclist", 
+                                                "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                "shell.length"))
+
+# compile Outputs
+
+compiled.docket.abdb <- rbind(Output4.extra, Output3.multi, Output1.unique, Output2.dupes)
+
+# n-occur to docket.join
+
+test <- unique(compiled.docket.abdb[c("docket.number","e.processor","daylist_max")])
 n_occur <- data.frame(table(test$docket.number))
 range(n_occur$Freq)
 
-#select only dupicated dockets from the FeMM.docket.info list
+# select only dupicated dockets from the abdbMM.docket.info list
+
 docket.test <- as.data.frame(test[test$docket.number %in% n_occur$Var1[n_occur$Freq > 1],])
 
-#detach plyr package
-detach('package:plyr')
-###############################################################################################################
+##-------------------------------------------------------------------------------------------------------##
+
 #keep(compiled.docket.FeMM, compiled.docket.07.11, compiled.docket.abdb, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, compiled.docket.abdb, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
-###############################################################################################################
-#
- #
-  #
-   # 2000-2007 abalone research database ####
-  #
- #
-#
+
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.00.07 ####
+## 2000-2007 abalone research database
 # docket information held in Abalone research database FactoryEmeasure Query 
 
-## extract FactoryEmeasure data from research Database table FactoryEmeasure
+# extract FactoryEmeasure data from research Database table FactoryEmeasure
+
 channel <- odbcConnect('App2k')
 sql <- "SELECT mm_data_00_07.[CSA_Docket], 
 mm_data_00_07.[CSP_Length], 
@@ -812,14 +879,16 @@ FROM mm_data_00_07;"
 facMM <- sqlQuery(channel, sql)
 close(channel)
 
-## tidy up some of the column names and variable formats from sql query
+# tidy up some of the column names and variable formats from sql query
+
 colnames(facMM) <- c("docket.number", "shell.length","msr.date", "block.fac", "subblock.fac", "Species", "diver", 
                       "processorname")
 facMM$msr.date <- as.Date(facMM$msr.date, format="%d/%m/%Y" )
-#facMM$docket.number<-as.numeric(facMM$docket.number)
 facMM$subblock.fac <- paste(facMM$block.fac,facMM$subblock.fac, sep="")
+facMM$fishyear <- year(facMM$msr.date)
 
-## rename processors
+# rename processors
+
 facMM$processorname <- as.character(facMM$processorname)
 facMM$processorname[facMM$processorname == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
 facMM$processorname[facMM$processorname == "Tasmanian Seafoods Pty Ltd (Margate)"] <- "TASMANIAN SEAFOODS PTY LTD"
@@ -841,153 +910,204 @@ facMM$processorname[facMM$processorname == "UNKWOWN"] <- NA
 facMM$processorname[facMM$processorname == "Seafood Traders Pty Ltd"] <- "SEAFOOD TRADERS PTY LTD"
 facMM$processorname<-as.factor(facMM$processorname)
 
-## manual edit two records missing processorname
+# manual edit two records missing processorname
+
 facMM$processorname[facMM$docket.number %in% c("32740", "32743")] <- "TASMANIAN SEAFOODS PTY LTD"
 
-## remove records where the docket.number is incorrect or missing
-#facMM.copy <- facMM
-#facMM <- facMM.copy
+# remove records where the docket.number is incorrect or missing
+
 facMM$docket.number <- as.numeric(as.character(facMM$docket.number))
 facMM <- subset(facMM, !(docket.number %in% c('below', '27/03/')))
 facMM <- subset(facMM, !is.na(docket.number))
 
-## summarise the dataframe
-# library(plyr)
-# facMM.uniq <- ddply(facMM,.(docket.number, processorname), summarize,  n = length(shell.length),
-#       meanSL = round(mean(shell.length), 1),
-#       minSL = round(min(shell.length), 1))
+# some docket numbers are duplicated across different years and zones, therefore rename block and subblock columns, and add zone
+
+facMM <- facMM %>%
+ mutate(blocklist = block.fac, subblockno = subblock.fac) %>%
+ codeBlnewzone() %>%
+ mutate(zone = newzone) %>%
+ select(-c(block.fac, subblock.fac))
+
+# summarise the dataframe
 
 facMM.uniq <- facMM %>%
  group_by(docket.number, processorname) %>%
  summarise(n = length(shell.length),
-            meanSL = round(mean(shell.length), 1),
-            minSL = round(min(shell.length), 1))
+           meanSL = round(mean(shell.length), 1),
+           minSL = round(min(shell.length), 1))
 
-#test on duplicates
-#n-occur to docket.join
-# test<-unique(facMM.uniq[c("docket.number","processorname")])
-# n_occur <- data.frame(table(facMM.uniq$docket.number))
-# range(n_occur$Freq)
+# match docket info to facMM.uniq datframe to test for duplicates
 
-## match docket info to facMM.uniq datframe to test for duplicates
+# facMM.uniq.di <- left_join(facMM.uniq, docketinfo, by = c("docket.number", "processorname"))
 
-facMM.uniq.di <- join(facMM.uniq, docketinfo, by = c("docket.number", "processorname"), type = "left")
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.00.07.2000 ####
+# NOTE: the latest docketinfo query is missing data from year 2000 therefore
+# match old docketinfo to facMM.uniq datframe to test for duplicates
 
-## test on duplicates
-#n-occur to docket.join
+# REMOVE THIS SECTION ONCE DOCKETINFO QUERY IS FIXED!!!
+
+facMM.uniq.di <- left_join(facMM.uniq, docketinfo.pre2001, by = c("docket.number", "processorname"))
+
+# test on duplicates
+
 test <- unique(facMM.uniq.di[c("docket.number","processorname")])
 n_occur <- data.frame(table(test$docket.number))
 range(n_occur$Freq)
 
-## compile the final dataframe
-compiled.docket.00.07 <- join(facMM, facMM.uniq.di, by = c("docket.number","processorname" ), type = "inner")
-compiled.docket.00.07$blocklist[is.na(compiled.docket.00.07$blocklist)] <- compiled.docket.00.07$block.fac[is.na(compiled.docket.00.07$blocklist)]
-compiled.docket.00.07$subblocklist[is.na(compiled.docket.00.07$subblocklist)] <- compiled.docket.00.07$subblock.fac[is.na(compiled.docket.00.07$subblocklist)]
+# compile the final dataframe
 
-#added<-anti_join(facMM, compiled.docket.00.07, by=c("docket.number","processorname"))
+compiled.docket.00.07 <- inner_join(facMM, facMM.uniq.di, by = c("docket.number","processorname")) %>%
+ mutate(blocklist = blocklist.y) %>%
+ select(-c(blocklist.x, blocklist.y))
+
+# add date difference column
+compiled.docket.00.07 <- compiled.docket.00.07 %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(unloading_date = as.Date(unloading_date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - unloading_date))
+
+# select records from year 2000
+compiled.docket.00.07.2000 <- compiled.docket.00.07 %>%
+ filter(fishyear == 2000)
+
+# rename columns to lowercase
+compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>% 
+ rename_all(tolower)
+
+# rename species variables and alter newzone
+compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
+ mutate(species = ifelse(species == 'Greenlip', 2, 1)) %>%
+ mutate(newzone = ifelse(species == 2, 'G', newzone))
+
+# populate blocklist and subblock list for records where no docketinfo is available but is present
+# from the measuring board data
+
+compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
+ mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
+ mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
+ mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
+ mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
+
+# rename and remove columns to match compiledMM.df.final
+
+compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
+ mutate(daylist_max = if_else(is.na(unloading_date), msr.date, unloading_date)) %>%
+ mutate(meanSL = meansl, minSL = minsl, proc = processor_licence_id) %>%
+ select(-c(diver, docket_return_type, joincode, qudo_id, received_location, related_qudo_id,
+           total_landed_weight, unlicenced_processor, unlicenced_processor_name, zone_fishery_code,
+           unloading_date, zone, minsl, meansl, processor_licence_id))
+
+
+##-------------------------------------------------------------------------------------------------------##
+
+# test on duplicates
+
+test <- unique(facMM.uniq.di[c("docket.number","processorname")])
+n_occur <- data.frame(table(test$docket.number))
+range(n_occur$Freq)
+
+# compile the final dataframe
+
+compiled.docket.00.07 <- inner_join(facMM, facMM.uniq.di, by = c("docket.number","processorname", 'fishyear', 'newzone')) %>%
+ mutate(blocklist = blocklist.y, subblocklist = subblockno.y) %>%
+ select(-c(blocklist.x, blocklist.y, zone.x, zone.y, subblockno.y, subblockno.x))
 
 ## add date difference column
-compiled.docket.00.07$msr.date.diff<-as.Date(compiled.docket.00.07$msr.date, format="yyyy-%mm-%dd")-as.Date(compiled.docket.00.07$unloading_date, format="yyyy-%mm-%dd")
+compiled.docket.00.07 <- compiled.docket.00.07 %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
 
-## detach plyr package
-detach('package:plyr')
-###################################################################################################################
+##-------------------------------------------------------------------------------------------------------##
 
 #keep(compiled.docket.00.07, compiled.docket.FeMM, compiled.docket.07.11, compiled.docket.abdb, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, compiled.docket.abdb, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.docket.00.07', 'compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
 
-###############################################################################################################
-#
- #
-  #
-   # Compile dataframes ####
-  #
- #
-#
+##-------------------------------------------------------------------------------------------------------##
+## Compile dataframes ####
 
-# names(compiled.docket.FeMM)
-# names(compiled.docket.07.11)
-# names(compiled.docket.00.07)
-# names(compiled.docket.abdb)
+# add variable to each dataframe to identify data source
 
-## add variable to each dataframe to identify data source
 compiled.docket.FeMM$datasource <- "FeMM"
 compiled.docket.07.11$datasource <- "RawMM"
 compiled.docket.00.07$datasource <- "MM.00.07"
 compiled.docket.abdb$datasource <- "abdb"
-#
- # STEP 1 - format dataframes to match by column ####
-#
 
-## rename some of the coloumn names so dataframes match
+# STEP 1 - format dataframes to match by column ####
+
+# rename some of the coloumn names so dataframes match
+
 names(compiled.docket.07.11)[names(compiled.docket.07.11)=="e.processor"] <- "processorname"
 names(compiled.docket.abdb)[names(compiled.docket.abdb)=="e.processor"] <- "processorname"
+names(compiled.docket.FeMM)[names(compiled.docket.FeMM)=="eprocessors"] <- "e.processor"
 
-## subset each dataframe to contain the same variables
-cd.FEM <- subset(compiled.docket.FeMM, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                           "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
-                                                           "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", 
-                                                           "numsubblocks", "datasource"))
-cd.07.11 <- subset(compiled.docket.07.11, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                            "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
-                                                            "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", 
-                                                            "numsubblocks", "datasource"))
-cd.abdb <- subset(compiled.docket.abdb, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                            "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
-                                                            "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", 
-                                                            "numsubblocks", "datasource"))
-cd.00.07 <- subset(compiled.docket.00.07, select=c("docket.number",  "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                                            "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
-                                                            "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", 
-                                                            "numsubblocks", "datasource"))
-#
- # STEP 2 - compile dataframes to produce single dataframe ####
-#
+# subset each dataframe to contain the same variables
 
-## Note: the abdb data has been excluded due to uncertainty in the accuracy of the data)
-compiled.df <- rbind( cd.07.11, cd.FEM, cd.00.07)
+cd.FEM <- subset(compiled.docket.FeMM, select = c("docket.number", "msr.date", "proc", "processorname", "numprocs", "proclist", 
+                                                  "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                  "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                  "shell.length"))
+cd.07.11 <- subset(compiled.docket.07.11, select = c("docket.number", "msr.date", "proc", "processorname", "numprocs", "proclist", 
+                                                     "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                     "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                     "shell.length"))
+cd.abdb <- subset(compiled.docket.abdb, select = c("docket.number", "msr.date", "proc", "processorname", "numprocs", "proclist", 
+                                                            "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                            "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                            "shell.length"))
+cd.00.07 <- subset(compiled.docket.00.07, select = c("docket.number", "msr.date", "proc", "processorname", "numprocs", "proclist", 
+                                                     "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                     "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                     "shell.length"))
 
-## re-format the unloading date in compiled.df
-compiled.df$unloading_date <- as.Date(compiled.df$unloading_date)
+# STEP 2 - compile dataframes to produce single dataframe ####
 
-#
- # STEP 3 - remove duplicates of docket numbers
-#
+# NOTE: the abdb data has been excluded due to uncertainty in the accuracy of the data)
 
-## summarize the compiled.df dataset
-library(plyr)
-n.per.docket<-ddply(compiled.df,.(docket.number, unloading_date,  msr.date.diff), summarize,  n = length(shell.length),
+compiled.df <- bind_rows( cd.07.11, cd.FEM, cd.00.07)
+
+
+# STEP 3 - remove duplicates of docket numbers
+
+# summarise the compiled.df dataset
+
+n.per.docket <- compiled.df %>%
+ group_by(docket.number, daylist_max,  msr.date.diff) %>%
+ summarise(n = length(shell.length),
                     meanSL = round(mean(shell.length), 1),
                     minSL = round(min(shell.length), 1))
 
-#n.per.docket<-unique(compiled.df[c("docket.number", "datasource")])
-#n-occur to docket.join
 n_occur <- data.frame(table(n.per.docket$docket.number))
 range(n_occur$Freq)
 
-## select unique dockets from the n.per.docket list
+# select unique dockets from the n.per.docket list
+
 docket.uniq <- as.data.frame(n.per.docket[n.per.docket$docket.number %in% n_occur$Var1[n_occur$Freq ==1],])
 
-## join unique FeMM dockets to the identifying information in docket.info from FILMS database
-compiled.uniq <- join(compiled.df, docket.uniq,  by = c("docket.number","msr.date.diff", "unloading_date"), type ="inner")
+# join unique FeMM dockets to the identifying information in docket.info from FILMS database
 
-## select unique dockets from the n.per.docket list
-docket.dupes <- as.data.frame(n.per.docket[n.per.docket$docket.number %in% n_occur$Var1[n_occur$Freq ==2],])
+compiled.uniq <- inner_join(compiled.df, docket.uniq,  by = c("docket.number","msr.date.diff", "daylist_max")) %>%
+ mutate(n = n.x, meanSL = meanSL.x, minSL = minSL.x) %>%
+ select(-c(n.x, n.y, meanSL.x, meanSL.y, minSL.x, minSL.y))
 
-## loop to keep the duplicate record with the higher n of animals and then initial download date only
+# select duplicate dockets from the n.per.docket list
+
+docket.dupes <- as.data.frame(n.per.docket[n.per.docket$docket.number %in% n_occur$Var1[n_occur$Freq == 2],])
+
+# loop to keep the duplicate record with the higher n of animals and then initial download date only
+
 db.dup.dockets <- unique(docket.dupes$docket.number)
-
-# b<-174610
-# d<-"2000-03-02"
 
 if (exists("pick_db.docket")) 
  rm(pick_db.docket)
 
 for(b in db.dup.dockets){
  choice<-subset(n.per.docket, docket.number == b)
- uniq.date<-unique(choice$unloading_date)
+ uniq.date<-unique(choice$daylist_max)
  for(d in uniq.date){
-  choice.date<-subset(choice, unloading_date == d)
+  choice.date<-subset(choice, daylist_max == d)
   maxim<-max(choice.date$n)  
   pick<-subset(choice.date, n == maxim)
   pick.uniq<- pick %>% distinct(docket.number, .keep_all = T)
@@ -998,26 +1118,27 @@ for(b in db.dup.dockets){
 }
 }
 
-## join unique FeMM dockets to the identifying information in docket.info from FILMS database
-compiled.dupes <- join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "unloading_date"), type ="inner")
+# join unique FeMM dockets to the identifying information in docket.info from FILMS database
 
-## select unique dockets from the n.per.docket list
-docket.triples <- as.data.frame(n.per.docket[n.per.docket$docket.number %in% n_occur$Var1[n_occur$Freq >2],])
-docket.triples <- droplevels(subset(docket.triples, n >50))
-docket.triples <- droplevels(subset(docket.triples, docket.triples$msr.date.diff <50 & docket.triples$msr.date.diff >-20))
+compiled.dupes <- inner_join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "daylist_max")) %>%
+ mutate(n = n.x, meanSL = meanSL.x, minSL = minSL.x) %>%
+ select(-c(n.x, n.y, meanSL.x, meanSL.y, minSL.x, minSL.y))
+
+# select triplicate dockets from the n.per.docket list
+
+docket.triples <- as.data.frame(n.per.docket[n.per.docket$docket.number %in% n_occur$Var1[n_occur$Freq > 2],])
+docket.triples <- droplevels(subset(docket.triples, n > 50))
+docket.triples <- droplevels(subset(docket.triples, docket.triples$msr.date.diff < 50 & docket.triples$msr.date.diff > -20))
 db.dup.dockets <- unique(docket.triples$docket.number)
-
-# b<-174610
-# d<-"2000-03-02"
 
 if (exists("pick_db.docket")) 
  rm(pick_db.docket)
 
 for(b in db.dup.dockets){
  choice<-subset(docket.triples, docket.number == b)
- uniq.date<-unique(choice$unloading_date)
+ uniq.date<-unique(choice$daylist_max)
  for(d in uniq.date){
-  choice.date<-subset(choice, unloading_date == d)
+  choice.date<-subset(choice, daylist_max == d)
   maxim<-max(choice.date$n)  
   pick<-subset(choice.date, n == maxim)
   pick.uniq<- pick %>% distinct(docket.number, .keep_all = T)
@@ -1028,27 +1149,23 @@ for(b in db.dup.dockets){
  }
 }
 
-## join unique FeMM dockets to the identifying information in docket.info from FILMS database####
-compiled.triples <- join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "unloading_date"), type ="inner")
-compiled.df <- rbind(compiled.uniq,compiled.dupes, compiled.triples)
+# join triplicate dockets to the identifying information in docket.info from FILMS database
 
-##detach plyr package
-detach('package:plyr')
+compiled.triples <- inner_join(compiled.df, pick_db.docket,  by = c("docket.number","msr.date.diff", "daylist_max")) %>%
+ mutate(n = n.x, meanSL = meanSL.x, minSL = minSL.x) %>%
+ select(-c(n.x, n.y, meanSL.x, meanSL.y, minSL.x, minSL.y))
 
-#############################################################################################################
+compiled.df <- bind_rows(compiled.uniq, compiled.dupes, compiled.triples)
+
+##-------------------------------------------------------------------------------------------------------##
 
 #keep(compiled.df, compiled.docket.00.07, compiled.docket.FeMM, compiled.docket.07.11, compiled.docket.abdb, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo, compiled.docket.abdb, sure=T)
 rm(list=ls()[! ls() %in% c('compiled.df', 'cd.abdb', 'compiled.docket.00.07', 'compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
 
-#############################################################################################################
-#
- #
-  #
-   # Identify dockets from abalone database not in compiled.df ####
-  #
- #
-#
-## a look at the docket composition of the ab-reserach database and the compiled.df from this r script identification of dockets not present in compiled.df
+##-------------------------------------------------------------------------------------------------------##
+## Identify dockets from abalone database not in compiled.df ####
+## a look at the docket composition of the ab-reserach database and the compiled.df from this r script 
+## identification of dockets not present in compiled.df
 
 abdb.docket.uniq <- as.data.frame(unique(cd.abdb$docket.number))
 colnames(abdb.docket.uniq)[colnames(abdb.docket.uniq)=="unique(cd.abdb$docket.number)"] <- "docket.number"
@@ -1059,45 +1176,37 @@ doc.distinct <- anti_join(abdb.docket.uniq, comp.docket.uniq) #just keeps x whic
 ## subset cd.abdb by docket.numbers already in compiled.df
 abdb.distinct <- cd.abdb[cd.abdb$docket.number %in% doc.distinct$docket.number,]
 
-#############################################################################################################
+##-------------------------------------------------------------------------------------------------------##
 
 #keep(compiled.df, abdb.distinct, Output.error.docket, Output.error.epro, Output.error.date, Raw.MM.Output.error.docket, docketinfo,  sure=T)
 rm(list=ls()[! ls() %in% c('abdb.distinct','abdb.docket.uniq', 'compiled.df', 'cd.abdb', 'compiled.docket.00.07', 'compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
 
-#############################################################################################################
-#
- #
-  #
-   # Identify if any error dockects match those from abalone database ####
-  #
- #
-#
+##-------------------------------------------------------------------------------------------------------##
+## Identify error dockets that match those from abalone database ####
 # a look at the error dockets and if any of the dockets unique to abdb.distinct match
+
 colnames(Raw.MM.Output.error.docket)[colnames(Raw.MM.Output.error.docket)=="e.processor"] <- "processorname"
 Error.docket.uniq <- as.data.frame(unique(as.integer(Raw.MM.Output.error.docket$docket.number)))
 colnames(Error.docket.uniq)[colnames(Error.docket.uniq)=="unique(as.integer(Raw.MM.Output.error.docket$docket.number))"] <- "docket.number"
 
-library(plyr)
-err.dkt <- ddply(Output.error.docket,.(docket.number, msr.date, processorname), summarize,  n = length(shell.length), 
+
+err.dkt <- Output.error.docket %>%
+ group_by(docket.number, msr.date, processorname) %>%
+ summarise(n = length(shell.length), 
                meanSL = round(mean(shell.length), 1),
                minSL = round(min(shell.length), 1))
 
 ## comparing the two df
 err.docket.match <- err.dkt[err.dkt$docket.number %in% abdb.docket.uniq$docket.number,]
 
-detach('package:plyr')
+##-------------------------------------------------------------------------------------------------------##
 
-##############################################################################################################
+rm(list=ls()[! ls() %in% c('err.docket.match', 'abdb.distinct','abdb.docket.uniq', 'compiled.df', 'cd.abdb', 'compiled.docket.00.07', 'compiled.docket.FeMM', 'compiled.docket.07.11', 'compiled.docket.abdb', 'Output.error.docket', 'Output.error.epro', 'Output.error.date', 'Raw.MM.Output.error.docket', 'docketinfo', 'compiled.docket.abdb')])
 
-
-##############################################################################################################
-#
- #
-  # 1960-2000 abalone data from CSIRO ####
- #
-#
-# These data contain records collected by CSIRO between 1967 and 2000. No original raw data files can
-# be found; the only data record being an Excel file created by DT containing what appears to be a 
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.CSIRO ####
+# these data contain records collected by CSIRO between 1967 and 2000. No original raw data files can
+# be found; the only data record being an Excel file created by Dave Tarbath containing what appears to be a 
 # compilation of those records which have been transferred to the abalone database. These data are
 # added to the compiled.df
 
@@ -1107,25 +1216,30 @@ FROM MMCommercialSamplesQuery;"
 ab.oldMM <- sqlQuery(channel, sql)
 close(channel)
 
-## save a copy of raw ab.oldMM.R data as a backup prior to cleaning
-saveRDS(ab.oldMM, 'C:/CloudStor/R_Stuff/MMLF/ab.oldMM_raw.RDS')
-#write.csv(ab.oldMM, 'ab.oldMM.csv')
+# rename dataframe and save a copy of raw ab.oldMM.R data as a backup prior to cleaning
 
-## subset historic data to include only the required variables 
-ab.oldMM.sub <- subset(ab.oldMM, select = c("CSA_Docket", "CSA_Processor", "CSA_SampleDate", "CSA_CatchDate",
+csiroMM <- ab.oldMM
+saveRDS(csiroMM, 'C:/CloudStor/R_Stuff/MMLF/csiroMM.RDS')
+
+# subset historic data to include only the required variables 
+
+csiroMM.sub <- subset(csiroMM, select = c("CSA_Docket", "CSA_Processor", "CSA_SampleDate", "CSA_CatchDate",
                                             "CSA_Species", "CSA_Block", "CSA_SubBlock", "CSA_CatchLocation", "CSA_CatchWeight",
                                             "CSP_Length", "CommercialSamples_CSA_ID"))
 
-## rename most variables to match more recent data
-colnames(ab.oldMM.sub) <- c("docket.number", "processor_licence_id", "msr.date", "unloading_date", 
-                            'species', "blocklist", "subblocklist", 'catchlocation', "total_landed_weight",
+# rename most variables to match more recent data
+
+colnames(csiroMM.sub) <- c("docket.number", "proc", "msr.date", "daylist_max", 
+                            'species', "blocklist", "subblocklist", 'catchlocation', "catch",
                             "shell.length", 'sampleid')
 
-## remove records without shell length
-ab.oldMM.sub <- ab.oldMM.sub[!is.na(ab.oldMM.sub$shell.length),]
+# remove records without shell length
 
-## search for duplicate records
-n.per.sample.id <- ab.oldMM.sub %>%
+csiroMM.sub <- csiroMM.sub[!is.na(csiroMM.sub$shell.length),]
+
+# search for duplicate records
+
+n.per.sample.id <- csiroMM.sub %>%
  group_by(sampleid, msr.date) %>%
  summarise(n = length(shell.length), 
            meanSL = round(mean(shell.length), 1),
@@ -1153,148 +1267,109 @@ range(n_occur$Freq)
 
 # NO duplicates were found using above code
 
-## add a column 'datasource' to distinguish historic from more recent data
-ab.oldMM.sub$datasource <- 'MM.pre00'
+# add a column 'datasource' to distinguish historic from more recent data
 
-## add columns to match 'compiled.df' and populate with NA's
-ab.oldMM.sub.var <- c('catch', 'received_location', 'processorname', 'joincode', 'zone_fishery_code',
-                      'numblocks', 'numsubblocks', 'msr.date.diff')
-ab.oldMM.sub[ab.oldMM.sub.var] <- NA
+csiroMM.sub$datasource <- 'MM.CSIRO'
 
-## populate additional columns where possible
-ab.oldMM.sub$msr.date.diff <- ymd(ab.oldMM.sub$msr.date) - ymd(ab.oldMM.sub$unloading_date)
-ab.oldMM.sub$numblocks <- count.fields(textConnection(as.character(ab.oldMM.sub$blocklist)), sep = ',')
-ab.oldMM.sub$numsubblocks <- nchar(as.character(ab.oldMM.sub$subblocklist))
+# add columns to match 'compiled.df' and populate with NA's
 
-## summarise data for number of samples, mean and min shell length and add to dataframe
-ab.oldMM.sub <- ab.oldMM.sub %>% 
+csiroMM.sub.var <- c('processorname', 'newzone', 'numblocks', 'numsubblocks', 'msr.date.diff')
+csiroMM.sub[csiroMM.sub.var] <- NA
+
+# populate additional columns where possible
+
+csiroMM.sub$msr.date.diff <- ymd(csiroMM.sub$msr.date) - ymd(csiroMM.sub$daylist_max)
+csiroMM.sub$numblocks <- count.fields(textConnection(as.character(csiroMM.sub$blocklist)), sep = ',')
+csiroMM.sub$numsubblocks <- nchar(as.character(csiroMM.sub$subblocklist))
+
+# summarise data for number of samples, mean and min shell length and join to original dataframe
+
+csiroMM.sub <- csiroMM.sub %>% 
  group_by(sampleid) %>%
  summarise(n = length(shell.length),
            meanSL = round(mean(shell.length, na.rm = T), 1),
            minSL = round(min(shell.length), 1)) %>%
- inner_join(ab.oldMM.sub, 'sampleid')
+ inner_join(csiroMM.sub, 'sampleid')
 
-## re-order columns
-ab.oldMM.sub <- ab.oldMM.sub[,c("sampleid", "species", "catchlocation", "docket.number", "msr.date", "unloading_date", "msr.date.diff", "shell.length",
-                                "total_landed_weight", "catch", "received_location", "processorname", "joincode",
-                                "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist",
-                                "numsubblocks", "datasource", "n", "meanSL", "minSL")]
+# re-order columns
 
-## add columns to 'compiled.df' to match and populate with NA's
-compiled.df.var <- c('catchlocation', 'sampleid', 'species')
-compiled.df[compiled.df.var] <- NA
+csiroMM.sub <- csiroMM.sub[,c("docket.number", "msr.date", "processorname", "proc", 
+                              "newzone", "daylist_max", "msr.date.diff", "numblocks",
+                              "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                              "shell.length", "species")]
+
+# add columns to 'compiled.df' to match and populate with NA's
+
+# compiled.df.var <- c('catchlocation', 'sampleid', 'species')
+# compiled.df[compiled.df.var] <- NA
 
 ## convert variables to allow join with compiled.df
-compiled.df$unloading_date <- as.POSIXct(compiled.df$unloading_date, format = '%Y-%m-%d')
-compiled.df$msr.date <- as.POSIXct(compiled.df$msr.date, format = '%Y-%m-%d')
-compiled.df$docket.number <- as.integer(compiled.df$docket.number)
-ab.oldMM.sub$blocklist <- as.character(ab.oldMM.sub$blocklist)
+csiroMM.sub$msr.date <- as.Date(csiroMM.sub$msr.date)
+csiroMM.sub$proc <- as.character(csiroMM.sub$proc)
+csiroMM.sub$blocklist <- as.character(csiroMM.sub$blocklist)
+csiroMM.sub$subblocklist <- as.character(csiroMM.sub$subblocklist)
+csiroMM.sub$daylist_max <- as.Date(csiroMM.sub$daylist_max)
+csiroMM.sub$newzone <- as.character(csiroMM.sub$newzone)
+csiroMM.sub$processorname <- as.character(csiroMM.sub$processorname)
+csiroMM.sub$docket.number <- as.numeric(csiroMM.sub$docket.number)
+csiroMM.sub$numblocks <- as.numeric(csiroMM.sub$numsubblocks)
 
-## join old and new market measure data frames together
-compiledMM.df <- bind_rows(compiled.df, ab.oldMM.sub)
+# # join to compiled.df
 
+compiled.df.csiro <- bind_rows(compiled.df, csiroMM.sub)
 
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.16.19 ####
+## post 2016 MM abalone data from measuring boards provided by Gary Carlos in summary .csv files
 
-# ## code historical data zones and regions
-# #source("C:/GitCode/AbHarvestStrategy/Region_Recode2018.r")
-# 
-# ## rename 'blocklist' to 'blockno' to enable region recode function to run
-# ab.oldMM.sub <- rename(ab.oldMM.sub, blockno = blocklist)
-# 
-# ## code zones for black and greenlip
-# ab.oldMM.sub <- codeBlZoneHistoric(ab.oldMM.sub) 
-# ab.oldMM.sub <- ab.oldMM.sub %>%
-#  mutate(newzone = replace(newzone, species == 2, 'G'))
-# 
-# ## subset ab.oldMM.sub into blacklip and greenlip to define regions
-# ab.oldMM.sub.bl <- subset(ab.oldMM.sub, species == 1)
-# ab.oldMM.sub.gl <- subset(ab.oldMM.sub, species == 2)
-# 
-# ## Code regions for blacklip and greenlip
-# ab.oldMM.sub.bl <- codeBlRegionHistoric(ab.oldMM.sub.bl)
-# ab.oldMM.sub.gl <- codeGlRegionHistoric(ab.oldMM.sub.gl)
-# 
-# ## re-join blacklip and greenlip df
-# ab.oldMM.df <- bind_rows(ab.oldMM.sub.bl, ab.oldMM.sub.gl)
-# #write.csv(ab.oldMM.df, 'ab.oldMM.df.csv')
+# import data from .csv file
 
-##############################################################################################################
-#
- #
-  # Post 2016 MM abalone data from Gary Carlos ####
- #
-#
-## Need to update the 'docketinfo.epro' dataframe post 2017-02-21 15:50:00 to join with more recent
-## records obtained from processors - currently there is an error with the script to offload
-## data from the SQL database. 
-
-## DO NOT ADD THIS DATA TO THE COMPILED DATAFRAME UNTIL DB ISSUE IS RESOLVED
-
-## import data from .csv file
 ab.2016MM.raw <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/DataSummary_from_1Jan2016_to_31Dec2016.csv')
 ab.2019MM.raw.1 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/Dave's recent stuff/DataSummary_from_1Mar2017_to_15May2019.csv")
 ab.2019MM.raw.2 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_8April2019_to_15April2019.csv")
 
-## row.bind data together
+# fix incorrect MesrTime from raw data input
+
+ab.2019MM.raw.2$MesrTime <- sub('04/08/2019', '08/04/2019', ab.2019MM.raw.2$MesrTime)
+
+# row.bind data together
+
 ab.2019MM.raw <- bind_rows(ab.2016MM.raw, ab.2019MM.raw.1, ab.2019MM.raw.2)
 
-## create a backup
-#ab.2016MM.backup <- ab.2016MM.raw
-ab.2019MM.backup <- ab.2019MM.raw
-#ab.2016MM <- ab.2016MM.backup
+# remove unesseary varibales (zone, entitlement, order)
 
-## remove unesseary varibales (zone, entitlement, order)
-#ab.2016MM <- ab.2016MM[,-c(3, 4, 6)]
-#ab.2016MM <- subset(ab.2016MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
 ab.2019MM <- subset(ab.2019MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
 
 
-## re-format some of the data and variable names
-# colnames(ab.2016MM) <- tolower(colnames(ab.2016MM))
-# ab.2016MM$mesrtime <- dmy_hms(ab.2016MM$mesrtime)
-# ab.2016MM$msr.date <- date(ab.2016MM$mesrtime)
-# ab.2016MM$downloaddate <- dmy_hms(ab.2016MM$downloaddate)
-# ab.2016MM$downloaddate <- date(ab.2016MM$downloaddate)
+# re-format some of the data and variable names
 
 colnames(ab.2019MM) <- tolower(colnames(ab.2019MM))
-ab.2019MM$mesrtime <- dmy_hms(ab.2019MM$mesrtime)
-ab.2019MM$msr.date <- date(ab.2019MM$mesrtime)
+ab.2019MM$msr.date <- dmy_hms(ab.2019MM$mesrtime)
+ab.2019MM$msr.date <- date(ab.2019MM$msr.date)
 ab.2019MM$downloaddate <- dmy_hms(ab.2019MM$downloaddate)
 ab.2019MM$downloaddate <- date(ab.2019MM$downloaddate)
 
-## remove measure time
-# ab.2016MM <- ab.2016MM[,-c(5)]
-ab.2019MM <- ab.2019MM[,-c(5)]
+# remove measure time
 
-## re-label column names to match other datframes
-# colnames(ab.2016MM) <- c('e.processor','download.date', 'docket.number', 'shell.length', 'msr.date') 
+ab.2019MM <- ab.2019MM %>%
+ select(-c(mesrtime))
+
+# re-label column names to match other datframes
+
 colnames(ab.2019MM) <- c('e.processor','download.date', 'docket.number', 'shell.length', 'msr.date') 
 
-## add variable to distinguish datasource
-# ab.2016MM$datasource <- '2016MM.csv'
+# add variable to distinguish datasource
+
 ab.2019MM$datasource <- '2019MM.csv'
 
-## remove records without docket number or docket = 0 or shell length = NA
-# ab.2016MM.Output.error.docket <- ab.2016MM[is.na(ab.2016MM$docket.number),]
-# ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$docket.number),]
-# ab.2016MM <- ab.2016MM[!is.na(ab.2016MM$shell.length),]
-# ab.2016MM <- droplevels(subset(ab.2016MM, docket.number !=0))
+# remove records without docket number or docket = 0 or shell length = NA
 
 ab.2019MM.Output.error.docket <- ab.2019MM[is.na(ab.2019MM$docket.number),]
 ab.2019MM <- ab.2019MM[!is.na(ab.2019MM$docket.number),]
 ab.2019MM <- ab.2019MM[!is.na(ab.2019MM$shell.length),]
 ab.2019MM <- droplevels(subset(ab.2019MM, docket.number !=0))
 
-## rename processors (first convert to character and then factor)
-# ab.2016MM$e.processor <- as.character(ab.2016MM$e.processor)
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Seafoods Smithton"] <- "TASMANIAN SEAFOODS PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Ralphs"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Coastal Waters"] <- "COASTAL WATERS SEAFOODS PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "Tas Live Abalone"] <- "TAS LIVE ABALONE PTY LTD"
-# ab.2016MM$e.processor[ab.2016MM$e.processor == "MK Haulage"] <- "M & K HAULAGE (TAS) PTY LTD"
+# rename processors (first convert to character and then factor)
 
 ab.2019MM$e.processor <- as.character(ab.2019MM$e.processor)
 ab.2019MM$e.processor[ab.2019MM$e.processor == "AbaloneTasmania"] <- "ABALONE TASMANIA PTY LTD"
@@ -1302,90 +1377,595 @@ ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Seafoods Margate"] <- "TASMA
 ab.2019MM$e.processor[ab.2019MM$e.processor == "Tasmanian Seafoods at Margate"] <- "TASMANIAN SEAFOODS PTY LTD"
 ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Seafoods Smithton"] <- "TASMANIAN SEAFOODS PTY LTD"
 ab.2019MM$e.processor[ab.2019MM$e.processor == "Ralphs"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Ralphs Tasmanian Seafood Pty Ltd"] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
 ab.2019MM$e.processor[ab.2019MM$e.processor == "Coastal Waters"] <- "COASTAL WATERS SEAFOODS PTY LTD"
 ab.2019MM$e.processor[ab.2019MM$e.processor == "Tas Live Abalone"] <- "TAS LIVE ABALONE PTY LTD"
 ab.2019MM$e.processor[ab.2019MM$e.processor == "MK Haulage"] <- "M & K HAULAGE (TAS) PTY LTD"
-ab.2019MM$e.processor[ab.2019MM$e.processor == "Tassie Live Lobster"] <- 'TASSIE LIVE LOBSTER'
+ab.2019MM$e.processor[ab.2019MM$e.processor == "Tassie Live Lobster"] <- 'TASSIE LOBSTER PTY LTD'
 ab.2019MM$e.processor<-as.factor(ab.2019MM$e.processor)
 
-## create dataframe of e.processors from data
-# eproname <- as.data.frame(unique(ab.2016MM$e.processor))
-eproname <- as.data.frame(unique(ab.2019MM$e.processor))
+# create dataframe of e.processors from data
 
+eproname <- as.data.frame(unique(ab.2019MM$e.processor))
 colnames(eproname) <- c("e.processor")
 e.processors <- eproname$e.processor
-
 docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors))
 docketinfo.epro$e.processor <- docketinfo.epro$processorname
-#colnames(docketinfo.epro)[colnames(docketinfo.epro)=="processorname"] <- "e.processor"
 
-## summarise data for number of samples, mean and min shell length and add to dataframe 
-#  to check for duplicates
+# summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
+
 n.per.docket <- ab.2019MM %>% 
  group_by(docket.number, msr.date, e.processor) %>%
  summarise(n = length(shell.length),
            meanSL = round(mean(shell.length, na.rm = T), 1),
            minSL = round(min(shell.length), 1))
 
-## match docketinfo.epro to the n.per.docket dataframe
+# match docketinfo.epro to the n.per.docket dataframe
+
 docket.join <- inner_join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"))
 
-## add date difference column
-docket.join$msr.date.diff <- as.Date(docket.join$msr.date, format="yyyy-%mm-%dd") - as.Date(docket.join$unloading_date, format="yyyy-%mm-%dd")
+# add date difference column
 
-## check for and seperate out dupilicated dockets
-#  how many times each docket.number occur
+docket.join <- docket.join %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
+
+# check for and seperate out dupilicated dockets
+
 n_occur <- data.frame(table(docket.join$docket.number))
 range(n_occur$Freq)
 
 docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
 
-## check
+# check
+
 n_occur <- data.frame(table(docket.uniq$docket.number))
 range(n_occur$Freq)
 
-## join unique dockets to ab.2016MM
+# join unique dockets to ab.2016MM
+
 ab.2019MM.unique <- inner_join(ab.2019MM, docket.uniq)
 
 
-## subset data and filter out uneeded or duplicated variables
-ab.2019MM.df <- subset(ab.2019MM.unique, select=c("docket.number",  "datasource", "msr.date", "unloading_date", "msr.date.diff", "shell.length", 
-                                           "total_landed_weight", "catch", "received_location", "processorname", "joincode", 
-                                           "processor_licence_id", "zone_fishery_code", "blocklist", "numblocks", "subblocklist", "numsubblocks"))
+# subset data and filter out uneeded or duplicated variables
 
-# ## identify abalone species based on zone variable
-# ab.2016MM.df$species <- ifelse(is.na(ab.2016MM.df$zone_fishery_code == T), 1,
-#                                ifelse(ab.2016MM.df$zone_fishery_code == 'AQG', 2, 1))
-# 
-# ## create 'newzone' variable to match historical data and extract zone from 'zone_fishery_code'
-# ab.2016MM.df$newzone <- substr(ab.2016MM.df$zone_fishery_code, 3, nchar(as.character(ab.2016MM.df$zone_fishery_code)))
-# 
-# ## split block list into seperate blocks to define regions
-# ab.2016MM.df <- cSplit(ab.2016MM.df, 'blocklist', ',', drop = F)
-# 
-# ## create column for 'blockno' identfying the first block from the 'blocklist' to enable the Region_Recode 
-# #  function to run
-# ab.2016MM.df$blockno <- ab.2016MM.df$blocklist_1
-# 
-# ## subset into blacklip and greenlip to define regions
-# ab.2016MM.df.sub.bl <- subset(ab.2016MM.df, species == 1)
-# ab.2016MM.df.sub.gl <- subset(ab.2016MM.df, species == 2)
-# 
-# ## code regions for blacklip and greenlip
-# ab.2016MM.df.sub.bl <- codeBlregion(ab.2016MM.df.sub.bl)
-# 
-# ## re-join blacklip and greenlip data to create final dataframe
-# ab.2016MM.df <- bind_rows(ab.2016MM.df.sub.bl, ab.2016MM.df.sub.gl)
+compiled.docket.16.19 <- subset(ab.2019MM.unique, select = c("docket.number", "msr.date", "proc", "processorname", "numprocs", "proclist", 
+                                                             "newzone", "numdays", "daylist", "daylist_max", "msr.date.diff", "numblocks",
+                                                             "blocklist", "numsubblocks", "subblocklist", "catch", "n", "meanSL", "minSL", 
+                                                             "shell.length"))
+# join to compiled.df.csiro
 
-# # join compiledMM.df to most recent data
-# ab.2016MM.df$msr.date <- as.POSIXct(ab.2016MM.df$msr.date, format = '%Y-%m-%d')
-# compiledMM.df <- bind_rows(compiledMM.df, ab.2016MM.df)
+compiledMM.df <- bind_rows(compiled.df.csiro, compiled.docket.16.19)
 
+##-------------------------------------------------------------------------------------------------------##
+## Final data cleaning of compiledMM.df ####
+
+# save a copy of the R file
+
+saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+# compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+
+##-------------------------------------------------------------------------------------------------------##
+# NOTE: temporarily join MM data from 2000 to latest docketinfo query
+
+# REMOVE THIS SECTION ONCE DOCKETINFO QUERY IS FIXED!!!
+
+compiled.docket.00.07.2000$proc <- as.character(compiled.docket.00.07.2000$proc)
+compiledMM.df <- bind_rows(compiledMM.df, compiled.docket.00.07.2000)
+
+##-------------------------------------------------------------------------------------------------------##
+
+# Make a copy of the compiledMM.df if needed
+
+compiledMM.df.copy <- compiledMM.df
+# compiledMM.df <- compiledMM.df.copy
+
+# some sub-blocks have an 'N' making it read 'NA', remove N and replace with ''
+
+compiledMM.df$subblocklist <- gsub('N', '', compiledMM.df$subblocklist)
+
+# remove records with no shell length
+
+compiledMM.df <- compiledMM.df[!is.na(compiledMM.df$shell.length),]
+
+# add column for fishyear
+
+compiledMM.df$fishyear <- year(compiledMM.df$daylist_max)
+
+# there are records missing zone data to determine species, however
+# block information is provided.  Most blocks are southern areas and can be assigned to blacklip
+# however there are about 20 dockets from greenlip blocks which need to
+# be assigned a species for plotting, etc.  Assuming only legal sized animals have been measured, 
+# animals have been assigned a species based on the legal minimum length for species in that block.
+# The greenlip blocks are 1-4, 31-49.  An initial examination of summary data
+# indicates most of the records in question come from blocks 48 and 49 in the years 2000-2001
+# when GL size limit was 140 mm. 
+
+# subset compiledMM.df into seperate dataframes to identify species
+
+compiledMM.df.spp <- subset(compiledMM.df, !is.na(newzone) & !is.na(species))
+compiledMM.df.zone <- subset(compiledMM.df, !is.na(newzone) & is.na(species))
+compiledMM.df.spp.nozone <- subset(compiledMM.df, is.na(newzone) & !is.na(species))
+
+# identify species for records missing species but contain zone (i.e 'newzone')
+
+compiledMM.df.zone.spp <- compiledMM.df.zone %>%
+ mutate(species = ifelse(!is.na(species), species, 
+                         ifelse(newzone == 'G', 2, 1)))
+
+# rejoin dataframes 
+
+compiledMM.df.2 <- bind_rows(compiledMM.df.zone.spp, compiledMM.df.spp.nozone, compiledMM.df.spp)
+
+# split blocklist into seperate blocks to define region or regions where multiple blocks were fished
+
+compiledMM.df.3 <- cSplit(compiledMM.df.2, 'blocklist', ',', drop = F)
+
+# add unique ID column for each record to enable filtering operations
+
+compiledMM.df.3 <- compiledMM.df.3 %>%
+ mutate(id = row_number())
+
+# create variables blockno and subblockno to run zone orignal region recode functions (these could be re-written at some stage)
+
+compiledMM.df.3 <- compiledMM.df.3 %>%
+ mutate(blockno = as.character(blocklist)) %>%
+ mutate(subblockno = as.character(subblocklist))
+
+# recode regions and zones 
+
+# NOTE: for reporting at regional or block scale, include all data where there are multiple blocks
+# fished. For reporting at a block scale remove all records where there are multiple blocks as we can not asign catch to 
+# a single block. For reporting at a regional scale, remove records where the region recode
+# does not match when calculated for each seperate block listed. This only applies to the
+# recent data (i.e. >2000) for black and green lip.
+
+# re-load region and zone recode function
+
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+
+# recode zone for data post 2000
+
+compiledMM.df.recent.zone <- compiledMM.df.3 %>%
+ filter(fishyear >= 2000) %>%
+ codeBlnewzone() %>%
+ mutate(newzone = ifelse(species == 2, 'G', newzone))
+
+# recode zone for data pre 2000
+
+compiledMM.df.historic.zone <- compiledMM.df.3 %>%
+ filter(fishyear <= 1999) %>%
+ codeBlnewZoneHistoric() %>%
+ mutate(newzone = ifelse(species == 2,'G', newzone))
+
+# recode region for data pre 2000
+
+gl.historic <- codeGlRegionHistoric(subset(compiledMM.df.historic.zone, newzone == 'G')) %>%
+ mutate(region.1 = gl.region) %>%
+ mutate(same.region = 1) %>%
+ select(-c(gl.region))
+
+bl.historic <- codeBlRegionHistoric(subset(compiledMM.df.historic.zone, !newzone == 'G')) %>%
+ mutate(region.1 = bl.region) %>%
+ mutate(same.region = 1) %>%
+ select(-c(bl.region))
+
+# filter for blacklip and determine how many seperate data frames need to be created
+
+bl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 1)
+max(bl.recent.multi.block$numblocks)
+
+# for BLACKLIP create seperate data frames for each block within blocklist and determine their region
+
+bl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 1) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_1) %>%
+ codeBlregion() %>%
+ mutate(region.1 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, blockno.temp))
+
+bl.recent.2 <- subset(bl.recent.1, !is.na(blocklist_2)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_2) %>%
+ codeBlregion() %>%
+ mutate(region.2 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, region.1, blockno.temp))
+
+bl.recent.3 <- subset(bl.recent.2, !is.na(blocklist_3)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_3) %>%
+ codeBlregion() %>%
+ mutate(region.3 = bl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(bl.region, region.2, blockno.temp))
+
+# join seperate blacklip dataframes together to compare if the regions match
+
+bl.recent.join <- left_join(bl.recent.1, bl.recent.2) %>%
+ left_join(bl.recent.3)
+
+# filter dataframe to exclude blacklip records where the regions DO match
+
+bl.recent.same.region <- bl.recent.join %>% 
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.3) & region.1 == region.2, 1, 
+                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
+ filter(!same.region == 0)
+
+# filter dataframe to exclude blacklip records where the regions DO NOT match
+
+bl.recent.diff.region <- bl.recent.join %>% 
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.3) & region.1 == region.2, 1, 
+                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
+ filter(same.region == 0)
+
+# filter for greenlip and determine how many seperate data frames need to be created
+# repeating the steps above
+
+gl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 2)
+max(gl.recent.multi.block$numblocks)
+
+# for GREENLIP create seperate data frames for each block within blocklist and determine their region
+
+gl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 2 & fishyear >= 2006) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_1) %>%
+ codeGlregion.post2006() %>%
+ mutate(region.1 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, blockno.temp))
+
+gl.recent.2 <- subset(gl.recent.1, !is.na(blocklist_2)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_2) %>%
+ codeGlregion.post2006() %>%
+ mutate(region.2 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.1, blockno.temp))
+
+gl.recent.3 <- subset(gl.recent.2, !is.na(blocklist_3)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_3) %>%
+ codeGlregion.post2006() %>%
+ mutate(region.3 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.2, blockno.temp))
+
+gl.recent.4 <- subset(gl.recent.3, !is.na(blocklist_4)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_4) %>%
+ codeGlregion.post2006() %>%
+ mutate(region.4 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.3, blockno.temp))
+
+gl.recent.5 <- subset(gl.recent.4, !is.na(blocklist_5)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_5) %>%
+ codeGlregion.post2006() %>%
+ mutate(region.5 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.4, blockno.temp))
+
+gl.historic.1 <- subset(compiledMM.df.historic.zone, !is.na(blocklist_1) & species == 2 & fishyear < 2006) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_1) %>%
+ codeGlregion.pre2006() %>%
+ mutate(region.1 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, blockno.temp))
+
+gl.historic.2 <- subset(gl.historic.1, !is.na(blocklist_2)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_2) %>%
+ codeGlregion.pre2006() %>%
+ mutate(region.2 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.1, blockno.temp))
+
+gl.historic.3 <- subset(gl.historic.2, !is.na(blocklist_3)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_3) %>%
+ codeGlregion.pre2006() %>%
+ mutate(region.3 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.2, blockno.temp))
+
+gl.historic.4 <- subset(gl.historic.3, !is.na(blocklist_4)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_4) %>%
+ codeGlregion.pre2006() %>%
+ mutate(region.4 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.3, blockno.temp))
+
+gl.historic.5 <- subset(gl.historic.4, !is.na(blocklist_5)) %>%
+ mutate(blockno.temp = blockno) %>%
+ mutate(blockno = blocklist_5) %>%
+ codeGlregion.pre2006() %>%
+ mutate(region.5 = gl.region) %>%
+ mutate(blockno = blockno.temp) %>%
+ select(-c(gl.region, region.4, blockno.temp))
+
+# join seperate greenlip dataframes together to compare if the regions match
+
+gl.recent.join.a <- left_join(gl.recent.1, gl.recent.2) %>%
+ left_join(gl.recent.3) %>%
+ left_join(gl.recent.4) %>%
+ left_join(gl.recent.5)
+
+gl.historic.join <- left_join(gl.historic.1, gl.historic.2) %>%
+ left_join(gl.historic.3) %>%
+ left_join(gl.historic.4) %>%
+ left_join(gl.historic.5)
+
+gl.recent.join <- bind_rows(gl.recent.join.a, gl.historic.join)
+
+# filter dataframe to exclude greenlip records where the regions DO match
+
+gl.recent.same.region <- gl.recent.join %>%
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+         if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
+                       if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
+                               if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
+                                       if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
+ filter(!same.region == 0)
+
+# filter dataframe to exclude greenlip records where the regions DO NOT match
+
+gl.recent.diff.region <- gl.recent.join %>%
+ mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
+                              if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
+                                      if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
+                                              if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
+                                                      if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
+ filter(same.region == 0)
+
+# rejoin all the seperate black and greenlip dataframes together with a region recode for each block in blocklist
+# NOTE: there are 2802 records without a blocklist and these have been excluded
+
+compiledMM.df.final <- bind_rows(gl.recent.diff.region, gl.recent.same.region, 
+                             bl.recent.diff.region, bl.recent.same.region,
+                             gl.historic, bl.historic)
+
+# check if there are any missing regions following region recode
+
+missing.region <- subset(compiledMM.df.final, is.na(region.1))
+missing.zone <- subset(compiledMM.df.final, is.na(newzone))
+
+# save a copy of r.file
+
+saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+##-------------------------------------------------------------------------------------------------------##
+
+rm(list=ls()[! ls() %in% c('compiledMM.df.final')])
+
+##-------------------------------------------------------------------------------------------------------##
+## Plots of final data frame ####
+
+# load most recent MM data compelation for 1974-2015
+# (NOTE: data for 2000 is currently not included in this df as the latest docketinfo query does not extract these records
+#  and therfore can not be matched to more measuring board information)
+
+# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+# set working directory to export plots
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots")
+
+##-------------------------------------------------------------------------------------------------------##
+# LF boxplot ####
+# Length frequency boxplot for zone and/or region for chosen time interval
+
+# 1. select zone and region
+
+# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
+# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
+# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
+# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
+# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
+
+zone <- 'G'
+region <- 'PerkinsBay'
+
+# 2. extract plot data
+
+plotdat <-
+ compiledMM.df.final %>% 
+ filter(region.1 %in% region & 
+         newzone %in% zone &
+         same.region == 1 &
+         (between(shell.length, 100, 220)) & 
+         (between(fishyear, 2000, 2016)))
+
+# plotdat <-
+#  compiledMM.df.final %>%
+#  filter(newzone %in% zone &
+#          same.region == 1 &
+#          (between(shell.length, 100, 220)) &
+#          (between(fishyear, 2016, 2016)))
+
+# 3. convert required grouping variable to factor for boxplot
+
+plotdat$fishyear <- as.factor(plotdat$fishyear)
+#plotdat$fishquarter <- as.factor(plotdat$fishquarter)
+
+# 4. generate a count of records for each year to add to boxplot
+
+plotdat.n <- plotdat %>% 
+ group_by(fishyear, region.1) %>% 
+ summarize(n = n())
+
+# 5. generate boxplot of shell lengths for chosen grouping variable
+
+mm.zone.boxplot <- ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
+ geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+ geom_text(data = plotdat.n, aes(y = 220, label = n,), size = 3, angle = 90) +
+ # geom_hline(data = filter(plotdat, region.1 == 'Actaeons'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_hline(data = filter(plotdat, region.1 == 'Channel'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_hline(data = filter(plotdat, region.1 == 'Fortescue'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_hline(data = filter(plotdat, region.1 == 'StHelens'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_hline(data = filter(plotdat, region.1 == 'BichenoFreycinet'), aes(yintercept = 145),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_hline(data = filter(plotdat, region.1 == 'StormBay'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+ #geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
+ geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+ #facet_grid(. ~ region.1)+
+ #ggtitle('Western Zone 1967-2016') +
+ xlab('Year') +
+ ylab('Shell Length (mm)')+ 
+ coord_cartesian(ylim = c(100, 225))+
+ theme_bw() + 
+ theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+       axis.text.x = element_text(angle = 0, vjust = 0.5))
+
+print(mm.zone.boxplot)
+
+# 6. save plots to working directory
+
+ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.pdf', sep = ''), plot = mm.zone.boxplot)
+ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.wmf', sep = ''), plot = mm.zone.boxplot)
+
+##-------------------------------------------------------------------------------------------------------##
+## LF histogram #### 
+## Length frequency plot for zone, with block or region vertically adjacent every 5 years
+
+# 1. select zone
+
+zone <- 'G'
+
+# 2. select block from zone if using block as the overlay
+# unique((compiledMM.df %>% filter(newzone %in% zone))$blockno)
+# block.no <- c(13, 16, 22, 23, 29)
+
+# 3. select region from zone if using zone as the overlay
+
+ordered(unique((compiledMM.df.final %>% 
+                 filter(newzone %in% zone & 
+                         species == 2 & 
+                         same.region == 1))$region.1))
+
+# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
+# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
+# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
+# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
+# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
+
+region.plot<- 'PerkinsBay'
+
+# 4. create list of regions for chosen zone
+
+region.2019 <- unique((compiledMM.df.final %>% 
+                        filter(newzone %in% zone))$region.1)
+
+# 5. select data for zone
+
+plotdat.2.zone <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ mutate(n = n())
+
+# 6. select data for zone and count the number of measurments
+
+plotdat.2.n.zone <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ summarise(zone.n = n(),
+           n = paste('n =', n()))
+
+# 7. select data for zone, and for chosen region or block  
+
+plotdat.2 <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & region.1 %in% region.plot 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ mutate(n = n())
+
+# 8. select data for zone, and for chosen region or block and count the number of measurments
+
+plotdat.2.n <- compiledMM.df.final %>% 
+ filter(newzone %in% zone 
+        & region.1 %in% region.plot 
+        & fishyear %in% c(2000, 2005, 2010, 2015) 
+        & between(shell.length, 100, 220)
+        & same.region == 1) %>%
+ group_by(fishyear) %>%
+ summarise(region.n = n(),
+           n = paste('n =', n())) 
+
+# 9. join count of measurments for zone, and for chosen region or block, and create plot label
+
+plotdat.2.n.2.join <- 
+ left_join(plotdat.2.n.zone, plotdat.2.n, by = "fishyear") %>%
+ mutate(percent.region = round((region.n/zone.n)*100), 0) %>%
+ mutate(n = ifelse(is.na(region.n), 'NO DATA',
+                   paste0('n = ', region.n, '\n', '(', percent.region, '%', ')')))
+
+# 10. generate plot (add or remove size limits where data is absent)
+
+mm.zone.plot.2 <- ggplot(plotdat.2, aes(shell.length))+
+ geom_histogram(data = transform(subset(plotdat.2.zone, newzone %in% zone), region.1 = NULL), 
+                aes(y = -..density.. * 5), fill = 'white', col = 'black',  binwidth = 5)+
+ geom_histogram(data = subset(plotdat.2, region.1 %in% region.2019), 
+                aes(y = ..density.. *5), fill = 'darkgreen', colour = 'black', binwidth = 5)+
+ #overlay selected block or region
+ #geom_histogram(data = subset(plotdat.2, blockno %in% block.no), fill = 'black', binwidth = 5)+
+ theme_bw()+
+ ylab(paste(region.plot, "region", " Percentage (%)")) +
+ xlab("Shell Length (mm)")+
+ #coord_cartesian(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+ coord_flip(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+ facet_grid(. ~ fishyear)+
+ scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+ geom_text(data = plotdat.2.n.2.join, aes(x = 200, y = 0.2, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
+ #add size limits for each time period
+ #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
+ #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 0.5)+
+ geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
+ geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
+ #geom_vline(data = filter(plotdat.2, fishyear == 2019), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)
+ #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 120),colour = 'darkgreen', linetype = 'dashed', size = 0.5)
+ #geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
+ # geom_vline(aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
+ # geom_text(data = plotdat.2.n, aes(x = 200, y = 100, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
+
+print(mm.zone.plot.2)
+
+# 11. save plots to file
+
+# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.pdf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
+ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.wmf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
+
+## LF histrogram/boxplot ####
+
+## Overlay 5-year histrogram with longterm boxplot
+mm.zone.plot.3 <- grid.arrange(
+ arrangeGrob(cowplot::plot_grid(mm.zone.plot.2, mm.zone.boxplot, align = 'v', ncol = 1),
+             ncol = 1))
+
+ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.pdf', sep = ''), plot = mm.zone.plot.3)
+ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.wmf', sep = ''), plot = mm.zone.plot.3)
+ 
 ##############################################################################################################
 #
-  #
-    # 2019 MM abalone data - quick analysis of Tas Live Lobster catch April 2019 ####
-  #
+#
+# 2019 MM abalone data - quick analysis of Tas Live Lobster catch April 2019 ####
+#
 #
 ab.2019MM.raw.a <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.csv')
 ab.2019MM.raw.b <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_15042019.csv')
@@ -1402,7 +1982,7 @@ ab.2019MM$msr.date <- as.POSIXct(ab.2019MM$msr.date, format = '%m/%d/%Y')
 
 ## add column for fishing year, month and quarter
 ab.2019MM$fishyear <- ifelse(is.na(ab.2019MM$msr.date), year(ab.2019MM$unloading_date),
-                                 year(ab.2019MM$msr.date))
+                             year(ab.2019MM$msr.date))
 ab.2019MM$fishmonth <- month(ab.2019MM$msr.date)
 ab.2019MM$fishquarter <- quarter(ab.2019MM$msr.date)
 
@@ -1483,431 +2063,7 @@ ggplot(plotdat.3, aes(x=shell.length, fill=as.factor(blocklist)))+
       fill = 'Block')
 
 ##############################################################################################################
-#
-  #
-    # Final data cleaning of compiledMM.df ####
-  #
-#
 
-## save a copy of the R file
-# saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
-
-## Make a copy of the compiledMM.df
-compiledMM.df.copy <- compiledMM.df
-# compiledMM.df <- compiledMM.df.copy
-
-# The compiled.df contains some records with no docket.numbers from historical data but do have measure date, processorname and 
-# sub-block information.  These arise from MM.00.07 data and are represented by 'below' and '27/03/' as the
-# docket number.  The shell length data can still be used, therefore it was decided to convert the docket
-# information to NAs.  Alternatively these can be removed (955 records).
-
-# ab.newMM$docket.number[ab.newMM$docket.number %in% c('below', '27/03/')] <- NA
-# remove records if needed
-compiledMM.df <- subset(compiledMM.df, !(docket.number %in% c('below', '27/03/')))
-compiledMM.df$docket.number <- as.numeric(compiledMM.df$docket.number)
-
-## some sub-blocks have an 'N' making it read 'NA', remove N and replace with ''
-compiledMM.df$subblocklist <- gsub('N', '', compiledMM.df$subblocklist)
-
-## remove records with no shell length
-compiledMM.df <- compiledMM.df[!is.na(compiledMM.df$shell.length),]
-
-## add column for fishyear
-compiledMM.df$fishyear <- year(compiledMM.df$msr.date)
-
-# there are records missing zone data to determine species, however
-# block information is provided.  Most blocks are southern areas and can be assigned to blacklip
-# however there are about 20 dockets from greenlip blocks which need to
-# be assigned a species for plotting, etc.  Assuming only legal sized animals have been measured, 
-# animals have been assigned a species based on the legal minimum length for species in that block.
-# The greenlip blocks are 1-4, 31-49.  An initial examination of summary data
-# indicates most of the records in question come from blocks 48 and 49 in the years 2000-2001
-# when GL size limit was 140 mm. 
-
-## subset compiledMM.df into seperate dataframes to account for records where zone and species are missing
-compiledMM.df.nozone <- subset(compiledMM.df, is.na(zone_fishery_code) & is.na(species))
-compiledMM.df.zone <- subset(compiledMM.df, !is.na(zone_fishery_code))
-compiledMM.df.spp.nozone <- subset(compiledMM.df, is.na(zone_fishery_code) & !is.na(species))
-
-## determine numbers of blocks and subblocks per docket.number for compiledMM.df.nozone
-compiledMM.df.nozone$numblocks <- count.fields(textConnection(as.character(compiledMM.df.nozone$blocklist)), sep = ',')
-compiledMM.df.nozone$numsubblocks <- count.fields(textConnection(as.character(compiledMM.df.nozone$subblocklist)), sep = ',')
-
-## create additional column in to identify species where zone is missing
-compiledMM.df.nozone <- compiledMM.df.nozone %>%
- mutate(species = ifelse(grepl(paste0('\\b', c(seq(1, 4, 1)), '\\b', collapse = '|'), blocklist) & minSL >= 150, 2,
-                                ifelse(grepl(paste0('\\b', c(seq(5, 40, 1)), '\\b', collapse = '|'), blocklist), 1,
-                                       ifelse(grepl(paste0('\\b', c(seq(41, 49, 1)), '\\b', collapse = '|'), blocklist) & fishyear < 2002 & minSL >= 140, 2,
-                                              ifelse(minSL < 132, 1, 1)))))
-
-## re-join original dataframes that contained zone and/or species with dataframe where species was determined
-compiledMM.df.2 <- bind_rows(compiledMM.df.spp.nozone, compiledMM.df.nozone, compiledMM.df.zone)
-
-## identify species for records missing species but contain zone (i.e 'zone_fishery_code')
-compiledMM.df.2 <- compiledMM.df.2 %>%
- mutate(species = ifelse(!is.na(species), species, 
-                         ifelse(zone_fishery_code == 'AQG', 2, 1)))
-
-## split blocklist into seperate blocks to define region or regions where multiple blocks were fished
-compiledMM.df.3 <- cSplit(compiledMM.df.2, 'blocklist', ',', drop = F)
-
-## add unique ID column for each record to enable filtering operations
-compiledMM.df.3 <- compiledMM.df.3 %>%
- mutate(id = row_number())
-
-## some records are missing a msr.date therefore populate fishyear using unloading date
-compiledMM.df.3 <- compiledMM.df.3 %>%
- mutate(fishyear = ifelse(!is.na(fishyear), fishyear, year(unloading_date)))
-
-## create variables blockno and subblockno to run zone orignal region recode functions (these could be re-written at some stage)
-compiledMM.df.3 <- compiledMM.df.3 %>%
- mutate(blockno = as.character(blocklist)) %>%
- mutate(subblockno = as.character(subblocklist))
-
-## Recode regions and zones ####
-
-## Note that for reporting at regional or block scale, examine data where there are multiple blocks
-## fished. For reporting at a block scale remove all records as we can not asign catch to 
-## a single block. For reporting at a regional scale, remove records where the region recode
-## does not match when calculated for each seperate block listed. This only applies to the
-## recent data (i.e. >2000) for black and green lip.
-
-## load region and zone recode function
-source("C:/GitCode/AbResearch/codeBLnewzone.r")
-
-## recode zone for data post 2000
-compiledMM.df.recent.zone <- compiledMM.df.3 %>%
- filter(fishyear >= 2000) %>%
- codeBlnewzone() %>%
- mutate(newzone = ifelse(species == 2, 'G',
-                        ifelse(is.na(blocklist) & is.na(subblockno), gsub('AQ', '', zone_fishery_code), newzone))) 
-
-## recode zone for data pre 2000
-compiledMM.df.historic.zone <- compiledMM.df.3 %>%
- filter(fishyear <= 1999) %>%
- codeBlnewZoneHistoric() %>%
- mutate(newzone = ifelse(species == 2,'G',
-                         ifelse(is.na(blocklist) & is.na(subblockno), gsub('AQ', '', zone_fishery_code), newzone)))
-
-## recode region for data pre 2000
-gl.historic <- codeGlRegionHistoric(subset(compiledMM.df.historic.zone, newzone == 'G')) %>%
- mutate(region.1 = gl.region) %>%
- mutate(same.region = 1) %>%
- select(-c(gl.region))
-
-bl.historic <- codeBlRegionHistoric(subset(compiledMM.df.historic.zone, !newzone == 'G')) %>%
- mutate(region.1 = bl.region) %>%
- mutate(same.region = 1) %>%
- select(-c(bl.region))
-
-## filter for blacklip and determine how many seperate data frames need to be created
-bl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 1)
-max(bl.recent.multi.block$numblocks)
-
-## for BLACKLIP create seperate data frames for each block within blocklist and determine their region
-bl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 1) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_1) %>%
- codeBlregion() %>%
- mutate(region.1 = bl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(bl.region, blockno.temp))
-bl.recent.2 <- subset(bl.recent.1, !is.na(blocklist_2)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_2) %>%
- codeBlregion() %>%
- mutate(region.2 = bl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(bl.region, region.1, blockno.temp))
-bl.recent.3 <- subset(bl.recent.2, !is.na(blocklist_3)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_3) %>%
- codeBlregion() %>%
- mutate(region.3 = bl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(bl.region, region.2, blockno.temp))
-
-## join seperate blacklip dataframes together to compare if the regions match
-bl.recent.join <- left_join(bl.recent.1, bl.recent.2) %>%
- left_join(bl.recent.3)
-
-## filter dataframe to exclude blacklip records where the regions DO match
-bl.recent.same.region <- bl.recent.join %>% 
- mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
-                              if_else(is.na(region.3) & region.1 == region.2, 1, 
-                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
- filter(!same.region == 0)
-
-## filter dataframe to exclude blacklip records where the regions DO NOT match
-bl.recent.diff.region <- bl.recent.join %>% 
- mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
-                              if_else(is.na(region.3) & region.1 == region.2, 1, 
-                                      if_else(region.1 == region.2 & region.2 == region.3, 1, 0)))) %>%
- filter(same.region == 0)
-
-## filter for greenlip and determine how many seperate data frames need to be created
-## repeating the steps above
-gl.recent.multi.block <- subset(compiledMM.df.recent.zone, numblocks > 1 & species == 2)
-max(gl.recent.multi.block$numblocks)
-
-## for GREENLIP create seperate data frames for each block within blocklist and determine their region
-gl.recent.1 <- subset(compiledMM.df.recent.zone, !is.na(blocklist_1) & species == 2) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_1) %>%
- codeGlregion() %>%
- mutate(region.1 = gl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(gl.region, blockno.temp))
-gl.recent.2 <- subset(gl.recent.1, !is.na(blocklist_2)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_2) %>%
- codeGlregion() %>%
- mutate(region.2 = gl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(gl.region, region.1, blockno.temp))
-gl.recent.3 <- subset(gl.recent.2, !is.na(blocklist_3)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_3) %>%
- codeGlregion() %>%
- mutate(region.3 = gl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(gl.region, region.2, blockno.temp))
-gl.recent.4 <- subset(gl.recent.3, !is.na(blocklist_4)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_4) %>%
- codeGlregion() %>%
- mutate(region.4 = gl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(gl.region, region.3, blockno.temp))
-gl.recent.5 <- subset(gl.recent.4, !is.na(blocklist_5)) %>%
- mutate(blockno.temp = blockno) %>%
- mutate(blockno = blocklist_5) %>%
- codeGlregion() %>%
- mutate(region.5 = gl.region) %>%
- mutate(blockno = blockno.temp) %>%
- select(-c(gl.region, region.4, blockno.temp))
-
-## join seperate greenlip dataframes together to compare if the regions match
-gl.recent.join <- left_join(gl.recent.1, gl.recent.2) %>%
- left_join(gl.recent.3) %>%
- left_join(gl.recent.4) %>%
- left_join(gl.recent.5)
-
-## filter dataframe to exclude greenlip records where the regions DO match
-gl.recent.same.region <- gl.recent.join %>%
- mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
-         if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
-                       if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
-                               if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
-                                       if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
- filter(!same.region == 0)
-
-## filter dataframe to exclude greenlip records where the regions DO NOT match
-gl.recent.diff.region <- gl.recent.join %>%
- mutate(same.region = if_else(!is.na(region.1) & is.na(region.2), 1,
-                              if_else(is.na(region.5) & is.na(region.4) & is.na(region.3) & region.1 == region.2, 1,
-                                      if_else(is.na(region.5) & is.na(region.4) & region.1 == region.2 & region.2 == region.3, 1,
-                                              if_else(is.na(region.5) & region.1 == region.2 & region.2 == region.3 & region.3 == region.4, 1,
-                                                      if_else(!is.na(region.5) & region.5 == region.1, 1, 0)))))) %>%
- filter(same.region == 0)
-
-## rejoin all the seperate black and greenlip dataframes together with a region recode for each block in blocklist
-## note: there are 2802 records without a blocklist and these have been excluded
-compiledMM.df.final <- bind_rows(gl.recent.diff.region, gl.recent.same.region, 
-                             bl.recent.diff.region, bl.recent.same.region,
-                             gl.historic, bl.historic)
-
-## check if there are any missing regions following region recode
-missing.region <- subset(compiledMM.df.final, is.na(region.1))
-missing.zone <- subset(compiledMM.df.final, is.na(newzone))
-
-## save a copy of r.file
-saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
-
-##############################################################################################################
-#
-   #
-      # Plots of final data frame ####
-   #
-#
-
-## load most recent MM data compelation for 1974-2015
-## (note: data post 2015 is currently not included in this df as the docketinfo.epro df is
-##  not updated with records post February 2017 and therfore can not be matched to more recent
-##  measuring board information)
-
-# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
-
-
-## set working directory to export plots
-setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots")
-
-
-## LF boxplot ####
-
-## Length frequency boxplot for zone and/or region for chosen time interval
-
-## 1. select zone and region
-zone <- 'G'
-region <- 'PerkinsBay'
-
-## 2. extract data
-plotdat <-
- compiledMM.df.final %>% 
- filter(region.1 %in% region & 
-         newzone %in% zone &
-         same.region == 1 &
-         (between(shell.length, 100, 220)) & 
-         (between(fishyear, 2000, 2015)))
-
-## 3. convert required grouping variable to factor for boxplot
-plotdat$fishyear <- as.factor(plotdat$fishyear)
-#plotdat$fishquarter <- as.factor(plotdat$fishquarter)
-
-## 4. generate a count of records for each year to add to boxplot
-plotdat.n <- plotdat %>% 
- group_by(fishyear) %>% 
- summarize(n = n())
-
-## 5. generate boxplot of shell lengths for chosen grouping variable above.
-mm.zone.boxplot <- ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
- geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
- geom_text(data = plotdat.n, aes(y = 220, label = n,), size = 3, angle = 90) +
- geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
- geom_hline(aes(yintercept = 132), colour = 'darkgreen', linetype = 'dotted')+
- #ggtitle('Western Zone 1967-2016') +
- xlab('Year') +
- ylab('Shell Length (mm)')+ 
- coord_cartesian(ylim = c(100, 225))+
- theme_bw() + 
- theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-       axis.text.x = element_text(angle = 0, vjust = 0.5))
-
-print(mm.zone.boxplot)
-
-## 6. save plots to working directory
-ggsave(filename = paste(zone, 'Z_LF_boxplot', '.pdf', sep = ''), plot = mm.zone.boxplot)
-ggsave(filename = paste(zone, 'Z_LF_boxplot', '.wmf', sep = ''), plot = mm.zone.boxplot)
-
-## LF histogram #### 
-
-## Length frequency plot for zone, with block or region vertically adjacent every 5 years
-
-# 1. select zone
-zone <- 'G'
-
-# 2. select block from zone if using block as the overlay
-# unique((compiledMM.df %>% filter(newzone %in% zone))$blockno)
-# block.no <- c(13, 16, 22, 23, 29)
-
-# 3. select region from zone if using zone as the overlay
-ordered(unique((compiledMM.df.final %>% 
-                 filter(newzone %in% zone & 
-                         species == 2 & 
-                         same.region == 1))$region.1))
-
-# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
-# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
-# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
-# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
-# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
-
-region.plot<- 'PerkinsBay'
-
-# 4. create list of regions for chosen zone
-region.2019 <- unique((compiledMM.df.final %>% 
-                        filter(newzone %in% zone))$region.1)
-
-# 5. select data for zone
-plotdat.2.zone <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & fishyear %in% c(2000, 2005, 2010, 2015) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- mutate(n = n())
-
-# 6. select data for zone and count the number of measurments
-plotdat.2.n.zone <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & fishyear %in% c(2000, 2005, 2010, 2015) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- summarise(zone.n = n(),
-           n = paste('n =', n()))
-
-# 7. select data for zone, and for chosen region or block  
-plotdat.2 <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & region.1 %in% region.plot 
-        & fishyear %in% c(2000, 2005, 2010, 2015) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- mutate(n = n())
-
-# 8. select data for zone, and for chosen region or block and count the number of measurments
-plotdat.2.n <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & region.1 %in% region.plot 
-        & fishyear %in% c(2000, 2005, 2010, 2015) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- summarise(region.n = n(),
-           n = paste('n =', n())) 
-
-# 9. join count of measurments for zone, and for chosen region or block, and create plot label
-plotdat.2.n.2.join <- 
- left_join(plotdat.2.n.zone, plotdat.2.n, by = "fishyear") %>%
- mutate(percent.region = round((region.n/zone.n)*100), 0) %>%
- mutate(n = ifelse(is.na(region.n), 'NO DATA',
-                   paste0('n = ', region.n, '\n', '(', percent.region, '%', ')')))
-
-# 10. generate plot (add or remove size limits where data is absent)
-mm.zone.plot.2 <- ggplot(plotdat.2, aes(shell.length))+
- geom_histogram(data = transform(subset(plotdat.2.zone, newzone %in% zone), region.1 = NULL), 
-                aes(y = -..density.. * 5), fill = 'white', col = 'black',  binwidth = 5)+
- geom_histogram(data = subset(plotdat.2, region.1 %in% region.2019), 
-                aes(y = ..density.. *5), fill = 'darkgreen', colour = 'black', binwidth = 5)+
- #overlay selected block or region
- #geom_histogram(data = subset(plotdat.2, blockno %in% block.no), fill = 'black', binwidth = 5)+
- theme_bw()+
- ylab(paste(region.plot, "region", " Percentage (%)")) +
- xlab("Shell Length (mm)")+
- #coord_cartesian(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
- coord_flip(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
- facet_grid(. ~ fishyear)+
- scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
- geom_text(data = plotdat.2.n.2.join, aes(x = 200, y = 0.2, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
- #add size limits for each time period
- #geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 0.5)+
- #geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
- #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 132),colour = 'darkgreen', linetype = 'dashed', size = 0.5)
- # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 120),colour = 'darkgreen', linetype = 'dashed', size = 0.5)+
- # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)
- # geom_vline(aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_text(data = plotdat.2.n, aes(x = 200, y = 100, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
-
-print(mm.zone.plot.2)
-
-# 11. save plots to file
-# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-ggsave(filename = paste(region.plot, zone, '_LF_5year', '.pdf', sep = ''), plot = mm.zone.plot.2)
-ggsave(filename = paste(region.plot, zone, '_LF_5year', '.wmf', sep = ''), plot = mm.zone.plot.2)
-
-## LF histrogram/boxplot ####
-
-## Overlay 5-year histrogram with longterm boxplot
-grid.arrange(
- arrangeGrob(cowplot::plot_grid(mm.zone.plot.2, mm.zone.boxplot, align = 'v', ncol = 1),
-             ncol = 1))
- 
-##############################################################################################################
 ## Older plot stuff which can be deleted
 
 # ## loop to generate boxplot of shell lengths for each zone and export as .pdf
