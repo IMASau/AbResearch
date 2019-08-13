@@ -12,25 +12,72 @@ library(lubridate)
 library(reshape)
 library(gridExtra)
 library(ggpubr)
+library(readxl)
+library(tibble)
+library(data.table)
 
 ## load custom functions
 source("C:/GitCode/AbResearch/getSeason.r")
 source("C:/GitCode/AbResearch/errorUpper2.r")
 source("C:/GitCode/AbResearch/stderr.r")
 
-## source data for FIS 
-bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/ResearchSurveys_May2019_JM.xlsx",
-                    sheet = "FIS",
-                    detectDates = TRUE)
+## source original LEGs data in seperate Excel sheets and combine
+
+# load excel workbook containing data in seperate sheets
+xl_data <- 'R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2018/Ab_pop_bio_Lenght_density_2016.xlsx'
+
+# identify sheets in excel workbook
+tab_names <- excel_sheets(path = xl_data)
+
+# create list from seperate sheets
+list_all <- lapply(tab_names, function(x) read_excel(path = xl_data, sheet = x))
+
+# create dataframe from seperate sheets
+legs.df <- rbindlist(list_all, fill = T)
+
+# ## source data for LEGs 
+# bigabs <- read.xlsx("C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/ResearchSurveys_May2019_JM.xlsx",
+#                     sheet = "FIS",
+#                     detectDates = TRUE)
 
 ## Data cleaning ####
 
-## convert varible names to lowor case
-colnames(bigabs) <- tolower(colnames(bigabs))
-bigabs <- dplyr::rename(bigabs, survdate = date)
-bigabs <- dplyr::rename(bigabs, sllength = length)
-bigabs$string <- as.factor(bigabs$string)
-#bigabs$transect <- as.factor(bigabs$transect)
+## convert varible names to lower case and compile data for estimates and comments columns, removing additional
+#  columns from the Excel import (i.e. each sheet contained different column names for these variables)
+
+# colnames(bigabs) <- tolower(colnames(bigabs))
+# bigabs <- dplyr::rename(bigabs, survdate = date)
+# bigabs <- dplyr::rename(bigabs, sllength = length)
+# bigabs$string <- as.factor(bigabs$string)
+# #bigabs$transect <- as.factor(bigabs$transect)
+
+colnames(legs.df) <- tolower(colnames(legs.df))
+names(legs.df) <- gsub('/', '', names(legs.df), fixed = T)
+names(legs.df) <- gsub(' ', '', names(legs.df), fixed = T)
+names(legs.df) <- gsub('=', '', names(legs.df), fixed = T)
+names(legs.df) <- gsub('comments', 'comments.1', names(legs.df), fixed = T)
+names(legs.df) <- gsub('...8', 'comments.2', names(legs.df), fixed = T)
+names(legs.df) <- gsub('...9', 'comments.3', names(legs.df), fixed = T)
+names(legs.df) <- gsub('...10', 'comments.4', names(legs.df), fixed = T)
+names(legs.df) <- gsub('eestimate', 'comments.5', names(legs.df), fixed = T)
+legs.df <- dplyr::rename(legs.df, survdate = date)
+legs.df <- dplyr::rename(legs.df, sllength = length)
+legs.df$string <- as.factor(legs.df$string)
+
+
+bigabs <- legs.df %>%
+  select(-comments.3) %>%
+  unite('all_comments', 'comments.1','comments.2', 'comments.4', 'comments.5', sep = ',') %>%
+  mutate(all_comments = gsub('NA', '', all_comments),
+         all_comments = gsub(',', '', all_comments),
+         all_comments = gsub('^$', NA, all_comments)) %>%
+  mutate(estimate.2 = estimate) %>%
+  mutate(estimate = if_else(is.na(all_comments) & estimate.2 == 'E', estimate.2, 
+                              if_else(all_comments == 'E', all_comments, NA_character_))) %>%
+  mutate(comments = if_else(is.na(estimate), all_comments, NA_character_)) %>%
+  select(-c(estimate.2, all_comments)) %>%
+  as.data.frame()
+
 
 #bigabs$site <- recode(bigabs$site, BR_S = "BRS", BR_B = "BRB", .default = bigabs$site)
 #bigabs$site <- recode(bigabs$site, GIII = "G3", .default = bigabs$site)
@@ -39,10 +86,21 @@ bigabs$string <- as.factor(bigabs$string)
 bigabs <- filter(bigabs, !is.na(site))
 bigabs <- filter(bigabs, !is.na(sllength))
 
-## remove characters from site names
+## remove characters from site names and rename sites to a three letter acronym
+unique(bigabs$site)
 bigabs$site <- gsub(' ', '', bigabs$site)
 bigabs$site <- gsub('_', '', bigabs$site)
-bigabs$site <- gsub('Telopea', 'TE', bigabs$site)
+bigabs$site <- gsub('Telopea', 'TEL', bigabs$site)
+bigabs$site <- gsub('SP', 'SEY', bigabs$site)
+bigabs$site <- gsub('\\bT\\b', 'THU', bigabs$site)
+bigabs$site <- gsub('BI', 'BET', bigabs$site)
+bigabs$site <- gsub('TG', 'GAR', bigabs$site)
+bigabs$site <- gsub('GIII', 'GEO', bigabs$site)
+bigabs$site <- gsub('MB', 'MUN', bigabs$site)
+bigabs$site <- gsub('MP', 'INN', bigabs$site)
+bigabs$site <- gsub('LB', 'LOU', bigabs$site)
+bigabs$site <- gsub('OB', 'OUT', bigabs$site)
+
 
 ## rename string names from earlier sampling periods
 table(bigabs$site, bigabs$string)
@@ -58,6 +116,8 @@ unique(bigabs$eastwest)
 bigabs$eastwest <- gsub('w', 'W', bigabs$eastwest)
 bigabs$eastwest <- gsub('N', 'E', bigabs$eastwest)
 bigabs$eastwest <- gsub('S', 'W', bigabs$eastwest)
+bigabs$eastwest <- gsub('L', 'W', bigabs$eastwest)
+bigabs$eastwest <- gsub('R', 'E', bigabs$eastwest)
 
 ## inspect data for outliers
 filter(bigabs, !is.na(sllength)) %>%
@@ -218,7 +278,7 @@ bigabcounts$yr.season <-
                                            "2016.Summer", "2016.Winter", "2016.Spring", 
                                            "2017.Summer", "2017.Winter", "2017.Spring", 
                                            "2018.Summer", "2018.Winter", "2018.Spring", 
-                                           "2019.Summer"))
+                                           "2019.Summer", '2019.Winter'))
 
 bigabcounts.join$season <- as.factor(bigabcounts.join$season)
 bigabcounts.join$season <- ordered(bigabcounts.join$season, levels=c("Summer","Winter","Spring"))
@@ -229,14 +289,14 @@ bigabcounts.join$yr.season <-
                                                 "2016.Summer", "2016.Winter", "2016.Spring", 
                                                 "2017.Summer", "2017.Winter", "2017.Spring", 
                                                 "2018.Summer", "2018.Winter", "2018.Spring", 
-                                                "2019.Summer"))
+                                                "2019.Summer", '2019.Winter'))
 
 ## adjust misclassified seasons
-pick <- which(bigabcounts$site == "TG")
+pick <- which(bigabcounts$site == "GAR")
 bigabcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts$yr.season[pick])
 bigabcounts$yr.season <- droplevels(bigabcounts$yr.season)
 
-pick <- which(bigabcounts.join$site == "TG")
+pick <- which(bigabcounts.join$site == "GAR")
 bigabcounts.join$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabcounts.join$yr.season[pick])
 bigabcounts.join$yr.season <- droplevels(bigabcounts.join$yr.season)
 
@@ -251,9 +311,9 @@ bigabcounts.join$yr.season <- droplevels(bigabcounts.join$yr.season)
 ## subset data to individual ARM sampling sites
 list_bigabcounts.site <- split(bigabcounts.join, bigabcounts.join$site)
 names(list_bigabcounts.site)
-bigabcounts.sites <- c("bigabcounts.BI",   "bigabcounts.BRB",    "bigabcounts.BRS",   "bigabcounts.GIII",
-                       "bigabcounts.LB", "bigabcounts.MB", "bigabcounts.MP", "bigabcounts.OP", "bigabcounts.SP",
-                     "bigabcounts.T", "bigabcounts.TE",  "bigabcounts.TG")
+bigabcounts.sites <- c("bigabcounts.BET",   "bigabcounts.BRB",    "bigabcounts.BRS",   "bigabcounts.GEO",
+                       "bigabcounts.LOU", "bigabcounts.MUN", "bigabcounts.INN", "bigabcounts.OUT", "bigabcounts.SEY",
+                     "bigabcounts.THU", "bigabcounts.TEL",  "bigabcounts.GAR")
 for (i in 1:length(list_bigabcounts.site)) {
  assign(bigabcounts.sites[i], list_bigabcounts.site[[i]])
 }
@@ -289,23 +349,23 @@ bigabs.sl$yr.season <-
                                          "2016.Summer", "2016.Winter", "2016.Spring", 
                                          "2017.Summer", "2017.Winter", "2017.Spring", 
                                          "2018.Summer", "2018.Winter", "2018.Spring", 
-                                         "2019.Summer"))
+                                         "2019.Summer", '2019.Winter'))
 
 ## adjust misclassified seasons
-pick <- which(bigabs.sl$site == "TG")
+pick <- which(bigabs.sl$site == "GAR")
 bigabs.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", bigabs.sl$yr.season[pick])
 bigabs.sl$yr.season <- droplevels(bigabs.sl$yr.season)
 
 ## subset data to include only seasonal routine ARM sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-bigabs.sl.seasonal <- subset(bigabs.sl, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+bigabs.sl.seasonal <- subset(bigabs.sl, site %in% c("BET","BRB","BRS","GEO", "SEY", "GAR"))
 
 ## subset data into routine FIS sampling sites
 list_bigabs.sl.site <- split(bigabs.sl, bigabs.sl$site)
 #list2env(list_bigabs.sl.site, envir = .GlobalEnv) #splits list into each site but not well labelled
 names(list_bigabs.sl.site)
-bigabs.sl.sites <- c("bigabs.sl.BI",   "bigabs.sl.BRB",    "bigabs.sl.BRS",   "bigabs.sl.GIII",
-                     "bigabs.sl.LB", "bigabs.sl.MB",  "bigabs.sl.MP",  "bigabs.sl.OP",
-                     "bigabs.sl.SP", "bigabs.sl.T", "bigabs.sl.TE", "bigabs.sl.TG")
+bigabs.sl.sites <- c("bigabs.sl.BET",   "bigabs.sl.BRB",    "bigabs.sl.BRS",   "bigabs.sl.GEO",
+                     "bigabs.sl.LOU", "bigabs.sl.MUN",  "bigabs.sl.INN",  "bigabs.sl.OUT",
+                     "bigabs.sl.SEY", "bigabs.sl.THU", "bigabs.sl.TEL", "bigabs.sl.GAR")
 for (i in 1:length(list_bigabs.sl.site)) {
  assign(bigabs.sl.sites[i], list_bigabs.sl.site[[i]])
 }
@@ -325,18 +385,18 @@ list_abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
 
 ## subset data into routine FIS sampling sites
 names(list_bigabs.sl.site)
-bigabs.sl.sites <- c("bigabs.sl.BI",   "bigabs.sl.BRB",    "bigabs.sl.BRS",   "bigabs.sl.GIII",
-                     "bigabs.sl.LB", "bigabs.sl.MB",  "bigabs.sl.MP",  "bigabs.sl.OP",
-                     "bigabs.sl.SP", "bigabs.sl.T", "bigabs.sl.TE", "bigabs.sl.TG")
+bigabs.sl.sites <- c("bigabs.sl.BET",   "bigabs.sl.BRB",    "bigabs.sl.BRS",   "bigabs.sl.GEO",
+                     "bigabs.sl.LOU", "bigabs.sl.MUN",  "bigabs.sl.INN",  "bigabs.sl.OUT",
+                     "bigabs.sl.SEY", "bigabs.sl.THU", "bigabs.sl.TEL", "bigabs.sl.GAR")
 for (i in 1:length(list_bigabs.sl.site)) {
  assign(bigabs.sl.sites[i], list_bigabs.sl.site[[i]])
 }
 
 ## subset data to individual ARM sampling sites
 names(list_bigabcounts.site)
-bigabcounts.sites <- c("bigabcounts.BI",   "bigabcounts.BRB",    "bigabcounts.BRS",   "bigabcounts.GIII",
-                       "bigabcounts.LB", "bigabcounts.MB", "bigabcounts.MP", "bigabcounts.OP", "bigabcounts.SP",
-                       "bigabcounts.T", "bigabcounts.TE",  "bigabcounts.TG")
+bigabcounts.sites <- c("bigabcounts.BET",   "bigabcounts.BRB",    "bigabcounts.BRS",   "bigabcounts.GEO",
+                       "bigabcounts.LOU", "bigabcounts.MUN", "bigabcounts.INN", "bigabcounts.OUT", "bigabcounts.SEY",
+                       "bigabcounts.THU", "bigabcounts.TEL",  "bigabcounts.GAR")
 for (i in 1:length(list_bigabcounts.site)) {
  assign(bigabcounts.sites[i], list_bigabcounts.site[[i]])
 }
@@ -357,10 +417,11 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2018.Summer" = '2018.Su', 
                    "2018.Winter" = '2018.Wi', 
                    "2018.Spring" = '2018.Sp',
-                   "2019.Summer" = '2019.Su')
+                   "2019.Summer" = '2019.Su',
+                   "2019.Winter" = '2019.Win')
 
 ## adult abunance/m2 plot of year.season x site
-ggplot(bigabcounts.seasonal, aes(x=yr.season, y=absm, group = string)) + 
+ggplot(bigabcounts, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  theme_bw() +
  scale_color_manual(values = fis.col)+
  xlab("Year.Season") + #ggtitle("Abalone (>=138) observed during transect surveys") +
@@ -374,7 +435,7 @@ ggplot(bigabcounts.seasonal, aes(x=yr.season, y=absm, group = string)) +
  labs(col = 'String')
 
 ## line plot of abaundance year x site x string x season
-ggplot(bigabcounts.seasonal, aes(y=absm, x=sampyear, group=season))+
+ggplot(bigabcounts, aes(y=absm, x=sampyear, group=season))+
  aes(colour = season)+scale_colour_brewer(palette = 'Set1')+
  theme_bw()+
  facet_grid(site ~ string, scales = "free_y" )+
@@ -599,9 +660,9 @@ ggplot(transform(bigabs.sl.BRB, yr.season = factor(yr.season, levels = plot.orde
 ## abundance by site
 
 # convert string to factor so that stings are plotted as two unique colours
-bigabcounts.BRB$string <- factor(as.integer(bigabcounts.BRB$string), levels = c(1,2))
+bigabcounts.BRS$string <- factor(as.integer(bigabcounts.BRS$string), levels = c(1,2))
 
-ggplot(bigabcounts.BRB, aes(x=yr.season, y=absm, group = string)) + 
+ggplot(bigabcounts.BRS, aes(x=yr.season, y=absm, group = string)) + 
  aes(colour = string) +  
  theme_bw() +
  xlab("Season") + 
