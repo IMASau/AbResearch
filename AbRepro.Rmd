@@ -1,0 +1,141 @@
+---
+title: "Abalone Reproductive Data"
+author: "Craig Mundy"
+date: "August 2018"
+output:
+  pdf_document: 
+    fig_caption: yes
+    keep_tex: yes
+    number_sections: yes
+  html_document:
+    df_print: paged
+  word_document:
+    fig_height: 8
+    fig_width: 8
+monofont: Consolas
+mathfont: Iwona
+mainfont: Verdana
+---
+```{r preamble, include=FALSE}
+library(knitr)
+library(magrittr)
+library(kableExtra)
+library(tidyverse)
+library(lubridate)
+
+# options(width=90, dev='win.metafile', fig.fullwidth=TRUE) # when using word
+options(width=90, fig.fullwidth=TRUE)
+opts_chunk$set(comment=NA,  cache=FALSE)
+
+```
+
+
+```{r load data, echo=FALSE}
+## Load data
+
+load("C:/CloudStor/R_Stuff/AbResearch/AbRepro_2019_08_13.RData")
+
+ls()
+```
+
+# The project 
+Between 1988 and early 1992, Warwick Nash and team took monthly samples (~ 12 females) of abalone from George III Rock as part of a study on spawning periodicity. During the last year of sampling (1991), monthly samples were also taken at Shag Rock bay and Stinking Bay on the Tasman Peninsular.  Morphometric data were collected from each animal, prior to the gonad being fixed. Routine histology was then done on the gonads. The section was taken approximately 1/3 of the way along the conical appendage on the basis that the gonad  state was uniform throughout.
+
+Warwick Nash and team processed the histology slides, mapping out the gonad state within the section into 8 categories. That work was never published. In 2002, I (CM) had Leigh Gurney review the 8 state- gonad classification system and re-classify the 8 states into a more typical 5 state system. Leigh also conducted detailed measureoments of oocyte diameter for the 1991 Georges III Rock samples. Thi identfied a transition from pre-vitellegenci to vitellegenic stages at around 95 microns. On the results of that exercise between 2004 and 2010 I had various people process the histology slides for stage- frequency analysis. The last person I employed casually was so efficient that I ended up getting her to do the entire 4-year George III slides and the slides from Shag Rock Bay and Stinking Bay, so that we had a consistent dataset.
+
+## The data
+The stage frequency data were collected from 4 transects across the section oriented north, south, east, west. Within each transect the area of the gonad sampled (outer membrane to boundary with the digestive gland) was measured using imageJ, and a count done of the number of pre-vitellegenic and vitellegenic oocytes in each transect.
+
+Several data frames are loaded from this .R Data file. Sites are designated as follows;
+
+* g3.X = George III Rock
+* sr.X = Shag Rock Bay
+* sb.X = Stinking Bay
+
+Different atasets are designated as follows;
+
+* g3.g = basic morphometric information
+* g3.h = histology and gonad state information
+* g3.sf = stage frequency information
+
+Examples are given below on joining the data frames to make a useable dataset.
+
+## Gonad data
+
+```{r gonad data}
+kable(g3.g[1:10,])
+
+str(g3.g, digits.d = 2, vec.len = 3) 
+
+
+```
+
+## Histology data
+
+```{r histology data}
+kable(g3.h[1:10,])
+
+str(g3.h, digits.d = 2, vec.len = 3) 
+
+
+```
+
+## Stage Frequency data
+
+```{r stage-frequency data}
+kable(g3.sf[1:10,])
+
+str(g3.sf, digits.d = 2, vec.len = 3) 
+
+```
+
+# Joining the tables
+## Morphometrics and Histology
+```{r join morph and hist data}
+
+## Add histology data to morpomeric data 
+histodat <- left_join(g3.g, g3.h ) %>% 
+ filter(!is.na(tafi_index)) %>% 
+ ungroup()
+
+histodat %>% filter(sex == "F" ) %>% 
+ group_by(samp_year, samp_month) %>%
+ summarise(reps = n()) %>% kable()
+ 
+```
+
+## Morphometrics and Histology
+Not all histology slides were processed for stage frequency. Some sections were too fragmented or of poor quality, and were skipped. 
+```{r join morph and stage freq}
+
+## first step is to summarise the data in each transect
+g3sfdat <- g3.sf %>% filter(qarea > 0) %>% 
+  group_by(abalone_id) %>% 
+  summarise(vits = sum(vit, na.rm=T),
+            previts = sum(previt, na.rm=T),
+            sum_area = sum(qarea, na.rm=T),
+            ntrans = n())
+
+## Add summarised stage frequency data to histo and morphometric data 
+stagedat <- left_join(histodat, g3sfdat ) %>% 
+ ungroup()
+
+
+```
+
+## simple stage frequency plots
+
+Some basic plots of the relationship between shell length and the number of vits and previts, colour coded by month, and with a bubble size set by the section area sampled.
+```{r simple plots}
+
+stagedat %>% ggplot(aes(x=shell_length_mm, y=vits, colour=samp_month, size = sum_area)) +
+geom_point(alpha = 0.9)
+
+
+
+stagedat %>% ggplot(aes(x=shell_length_mm, y=previts, colour=samp_month, size = sum_area)) +
+geom_point(alpha = 0.9)
+
+
+```
+
