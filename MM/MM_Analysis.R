@@ -71,6 +71,8 @@ rm(list=ls()[! ls() %in% c('docketinfo.pre2001')])
 
 docketinfo <- readRDS('docketinfo2.RDS')
 
+load('Dev_MM3.Rdata')
+
 ##-------------------------------------------------------------------------------------------------------##
 
 ## Processor data clean ####
@@ -1740,6 +1742,7 @@ missing.zone <- subset(compiledMM.df.final, is.na(newzone))
 # save a copy of r.file
 
 saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
 
@@ -2061,6 +2064,18 @@ ggplot(plotdat.3, aes(x=shell.length, fill=as.factor(blocklist)))+
       y = "Density",
       title = "Tassie Live Lobster - April 2019",
       fill = 'Block')
+
+##############################################################################################################
+## Processor milestone query ####
+
+df.1 <- compiledMM.df.final %>%
+   filter(fishyear >= 2000) %>%
+   group_by(processorname, fishyear) %>%
+   summarise(n = n()) %>%
+   spread(key = fishyear, value = n)
+   
+write.csv(df.1, file = 'C:/CloudStor/R_Stuff/MMLF/FisheryDataProcessorSampling_MilestoneReport13.1.csv',
+          na = '') 
 
 ##############################################################################################################
 

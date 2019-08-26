@@ -1,21 +1,4 @@
----
-title: "Abalone Reproductive Data"
-author: "Craig Mundy"
-date: "August 2018"
-output:
-  pdf_document: 
-    fig_caption: yes
-    keep_tex: yes
-    number_sections: yes
-  html_document:
-    df_print: paged
-  word_document:
-    fig_height: 8
-    fig_width: 8
-monofont: Consolas
-mathfont: Iwona
-mainfont: Verdana
----
+
 ```{r preamble, include=FALSE}
 library(knitr)
 library(magrittr)
@@ -33,7 +16,8 @@ opts_chunk$set(comment=NA,  cache=FALSE)
 ```{r load data, echo=FALSE}
 ## Load data
 
-load("C:/CloudStor/R_Stuff/AbResearch/AbRepro_2019_08_13.RData")
+# load("C:/CloudStor/R_Stuff/AbResearch/AbRepro_2019_08_13.RData")
+load("C:/CloudStor/R_Stuff/AbRepro_2019_08_13.RData")
 
 ls()
 ```

@@ -418,7 +418,7 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2018.Winter" = '2018.Wi', 
                    "2018.Spring" = '2018.Sp',
                    "2019.Summer" = '2019.Su',
-                   "2019.Winter" = '2019.Win')
+                   "2019.Winter" = '2019.Wi')
 
 ## adult abunance/m2 plot of year.season x site
 ggplot(bigabcounts, aes(x=yr.season, y=absm, group = string)) + 
@@ -720,17 +720,20 @@ bigabs.sl$sampyear <- as.factor(bigabs.sl$sampyear)
 bigabs.sl$sampmethod <- 'FIS'
 juv.sl$sampmethod <- 'ARM'
 
+## convert abcounts survdate to POSIXct
+bigabs.sl$survdate <- as.Date(strptime(bigabs.sl$survdate, "%Y-%m-%d"))
+
 # join FIS and ARM data
 fisarm <- bind_rows(bigabs.sl, juv.sl)
 
 # subset chosen site
 unique(fisarm$site)
-selected.site <- 'BRS'
+selected.site <- 'BRB'
 fisarm.site <- subset(fisarm, site %in% selected.site)
 
 # re-order data so that facet plots in vertical order of two columns
 fisarm.site$yr.season <- factor(fisarm.site$yr.season, levels = c("2015.Summer", "2017.Summer", "2015.Winter", "2017.Winter", "2015.Spring", "2017.Spring", "2016.Summer",
-                                                                  "2018.Summer", "2016.Winter", "2018.Winter",  "2016.Spring", "2018.Spring", "2019.Summer"))
+                                                                  "2018.Summer", "2016.Winter", "2018.Winter",  "2016.Spring", "2018.Spring", "2019.Summer", "2019.Winter"))
 
 # generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
 plot.n.FIS <- fisarm.site %>% 
@@ -746,7 +749,7 @@ plot.n.ARM <- fisarm.site %>%
 # generate dataframe to annotate 'no data' for missing seasons
 ann_text <- data.frame(x = 90, y = 40, 
                        lab = 'NO DATA', 
-                       yr.season = c("2015.Summer", '2015.Winter', '2018.Spring'))
+                       yr.season = c("2015.Summer", '2015.Winter', '2018.Winter'))
 
 ARM_FIS <- ggplot(data = fisarm.site)+
  geom_histogram(aes(x = sllength, y = ..count..), binwidth = 10, fill = 'blue')+
@@ -787,6 +790,9 @@ abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
 bigabcounts$sampmethod <- 'FIS'
 abcounts$sampmethod <- 'ARM'
 
+## convert abcounts survdate to POSIXct
+abcounts$survdate <- as.Date(strptime(abcounts$survdate, "%Y-%m-%d"))
+
 ## convert sampyear to factor from bigabcounts df
 bigabcounts$sampyear <- as.factor(bigabcounts$sampyear)
 
@@ -795,7 +801,7 @@ fisarm.abund <- bind_rows(bigabcounts, abcounts)
 
 # subset chosen site
 unique(fisarm.abund$site)
-selected.site <- 'GIII'
+selected.site <- 'BRB'
 fisarm.site.abund <- subset(fisarm.abund, site %in% selected.site)
 
 # re-order data so that facet plots in vertical order of two columns
@@ -806,7 +812,7 @@ fisarm.site.abund$yr.season <-
                                                  "2016.Summer", "2016.Winter", "2016.Spring", 
                                                  "2017.Summer", "2017.Winter", "2017.Spring", 
                                                  "2018.Summer", "2018.Winter", "2018.Spring",
-                                                 "2019.Summer"))
+                                                 "2019.Summer", "2019.Winter"))
 
 # ARM_FIS_ABUND <- ggplot(fisarm.site.abund, aes(x=yr.season, y=absm, group = interaction(sampmethod, string))) + 
 #  aes(colour = string) +  
@@ -870,7 +876,7 @@ arm_abund <- ggplot()+
  geom_errorbar(data = arm.summ, aes(x = yr.season, 
                                     ymin = arm_mean - arm_se, ymax = arm_mean + arm_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'red')+
  ylab(bquote('ARM Abalone Abundance ('*~m^2*')'))+
- scale_x_discrete(labels = season_labels, drop = F)+
+ #scale_x_discrete(labels = season_labels, drop = F)+
  scale_color_manual(values = c('red'))+
  theme_bw()+
  #theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
@@ -885,7 +891,7 @@ fis_abund <- ggplot()+
  geom_point(data = fis.summ, aes(x = yr.season, y = fis_mean, group = factor(string), colour = string), size = 3, position = position_dodge(0.5), colour = 'blue')+
  geom_errorbar(data = fis.summ, aes(x = yr.season, 
                                     ymin = fis_mean - fis_se, ymax = fis_mean + fis_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'blue')+
- ylab(bquote('FIS Abalone Abundance ('*~m^2*')'))+
+ ylab(bquote('LEG Abalone Abundance ('*~m^2*')'))+
  #scale_y_continuous(position = 'right')+
  # theme(axis.title.y = element_blank(),
  #       axis.text.y = element_blank(),
@@ -894,7 +900,7 @@ fis_abund <- ggplot()+
  #theme_minimal()+
  #theme(axis.text.y = element_blank())+
  #scale_y_continuous(sec.axis = sec_axis(~.*1, name = bquote('FIS Abalone Abundance ('*~m^2*')')))+
- scale_x_discrete(labels = season_labels, drop = F)+
+ #scale_x_discrete(labels = season_labels, drop = F)+
  scale_color_manual(values = c('blue'))+
  theme_bw()+
  #theme(legend.position = c(0.1, 0.9), legend.direction = 'vertical')+
@@ -904,8 +910,8 @@ fis_abund <- ggplot()+
  coord_cartesian(ylim = c(0, 3))
 
 
-# print(arm_abund)
-# print(fis_abund)
+print(arm_abund)
+print(fis_abund)
 # print(ARM_FIS_ABUND)
 
 

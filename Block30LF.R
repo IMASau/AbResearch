@@ -1,13 +1,21 @@
+library(tidyverse)
 library(openxlsx)
-library(ggplot2)
-library(dplyr)
+library(lubridate)
 
 temp <- read.xlsx(
+<<<<<<< HEAD
  "C:/CloudStor/Shared/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
  sheet = "Sheet1", detectDates = TRUE)
 
 temp2 <- read.xlsx(
  "C:/CloudStor/Shared/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
+=======
+ "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
+ sheet = "Sheet1", detectDates = TRUE)
+
+temp2 <- read.xlsx(
+ "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
+>>>>>>> 2189e5eef8b588d7cc67c6c7585c265040cec8ce
  sheet = "Pooled", detectDates = TRUE)
 
 ## data from Tas Live Lobster collected in block 29 in April 2019 for quick comparison with experimental fishing
@@ -23,7 +31,7 @@ block30lf <- bind_rows(temp, temp2, temp4)
 
 colnames(block30lf) <- tolower(colnames(block30lf))
 
-table(block30lf$trip)
+table(block30lf$trip, block30lf$diver)
 
 ## Need to adjust the time and date so that we can look at the spatial position
 ## of lengths
@@ -41,7 +49,7 @@ ggplot(dat, aes(x=slength, fill=as.factor(trip))) +
 
 # Interleaved histograms
 ggplot(dat, aes(x=slength, fill=as.factor(trip))) +
- stat_bin(binwidth=2, position="dodge") + geom_density( kernel="gaussian", alpha=.5)
+ stat_bin(binwidth=5, position="dodge") + geom_density( kernel="gaussian", alpha=.5)
 
 ggplot(dat, aes(slength, ..density.., colour = as.factor(trip))) +
  geom_freqpoly(binwidth = 2, size=2) 

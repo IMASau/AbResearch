@@ -41,8 +41,16 @@ juv <- juv %>%
         site = gsub('G7', 'GIII', site),
         site = gsub('G3', 'GIII', site))
 
-## remove characters from site names. 
-juv$site <- gsub( "_", "", juv$site)
+## remove characters from site names and rename sites to a three letter acronym
+unique(juv$site)
+juv$site <- gsub('_', '', juv$site)
+juv$site <- gsub('SP', 'SEY', juv$site)
+juv$site <- gsub('BI', 'BET', juv$site)
+juv$site <- gsub('TG', 'GAR', juv$site)
+juv$site <- gsub('GIII', 'GEO', juv$site)
+juv$site <- gsub('MB', 'MUN', juv$site)
+juv$site <- gsub('SB', 'INN', juv$site)
+juv$site <- gsub('OS', 'OUT', juv$site)
 
 ## check site names.
 unique(juv$site)
@@ -95,7 +103,7 @@ ordered(juv.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring"
                                      "2019.Summer", "2019.Winter", "2019.Spring"))
 
 ## recode Gardens 2015.summer samples as 2015.spring
-pick <- which(juv.sl$site == "TG")
+pick <- which(juv.sl$site == "GAR")
 juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
 juv.sl$yr.season <- droplevels(juv.sl$yr.season)
 
@@ -103,14 +111,14 @@ unique(juv.sl$survdate)
 unique(juv.sl$yr.season)
 
 ## subset data to include only seasonal routine ARM sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-juv.sl.seasonal <- subset(juv.sl, site %in% c("BI","BRB","BRS","GIII", "SP", "TG"))
+juv.sl.seasonal <- subset(juv.sl, site %in% c("BET","BRB","BRS","GEO", "SEY", "GAR"))
 
 ## subset data into ARM sampling sites
 list_juv.sl.site <- split(juv.sl, juv.sl$site)
 #list2env(list_bigabs.sl.site, envir = .GlobalEnv) #splits list into each site but not well labelled
 names(list_juv.sl.site)
-juv.sl.sites <- c("juv.sl.BI",   "juv.sl.BRB",    "juv.sl.BRS",   "juv.sl.GIII",
-                     "juv.sl.OS", "juv.sl.SB", "juv.sl.SP", "juv.sl.TG")
+juv.sl.sites <- c("juv.sl.BET",   "juv.sl.BRB",    "juv.sl.BRS",   "juv.sl.GEO",
+                     "juv.sl.OUT", "juv.sl.INN", "juv.sl.SEY", "juv.sl.GAR")
 for (i in 1:length(list_juv.sl.site)) {
  assign(juv.sl.sites[i], list_juv.sl.site[[i]])
 }
@@ -169,7 +177,7 @@ abcounts$yr.season <-
                                         "2018.Summer", "2018.Winter", "2018.Spring",
                                         "2019.Summer", "2019.Winter", "2019.Spring"))
 ## recode Gardens 2015.summer samples as 2015.spring
-pick <- which(abcounts$site == "TG")
+pick <- which(abcounts$site == "GAR")
 abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
 abcounts$yr.season <- droplevels(abcounts$yr.season)
 
