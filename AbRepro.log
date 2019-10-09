@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (MiKTeX 2.9.6745 64-bit) (preloaded format=pdflatex 2018.7.31)  21 AUG 2019 09:20
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (MiKTeX 2.9.6745 64-bit) (preloaded format=pdflatex 2018.7.31)  18 SEP 2019 08:06
 entering extended mode
 **./AbRepro.tex
 (AbRepro.tex
@@ -496,7 +496,7 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip47
 )
-Package hyperref Info: Option `unicode' set `true' on input line 33.
+Package hyperref Info: Option `unicode' set `true' on input line 28.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\hyperref\puenc.de
 f"
@@ -504,7 +504,7 @@ File: puenc.def 2018/02/06 v6.86b Hyperref: PDF Unicode definition (HO)
 Now handling font encoding PU ...
 ... no UTF-8 mapping file for font encoding PU
 )
-Package hyperref Info: Option `breaklinks' set `true' on input line 33.
+Package hyperref Info: Option `breaklinks' set `true' on input line 28.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\graphics\color.st
 y"
@@ -762,34 +762,34 @@ Package xcolor Info: Model `wave' substituted by `hsb' on input line 1371.
 ) (AbRepro.aux)
 \openout1 = `AbRepro.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 145.
-LaTeX Font Info:    Try loading font information for TS1+cmr on input line 145.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 138.
+LaTeX Font Info:    Try loading font information for TS1+cmr on input line 138.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\base\ts1cmr.fd"
 File: ts1cmr.fd 2014/09/29 v2.5h Standard LaTeX font definitions
 )
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 145.
-LaTeX Font Info:    ... okay on input line 145.
-LaTeX Font Info:    Try loading font information for T1+lmr on input line 145.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Try loading font information for T1+lmr on input line 138.
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\t1lmr.fd"
 File: t1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-LaTeX Info: Redefining \microtypecontext on input line 145.
+LaTeX Info: Redefining \microtypecontext on input line 138.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using protrusion set `basicmath'.
@@ -840,7 +840,7 @@ File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
 \AtBeginShipoutBox=\box47
-Package hyperref Info: Link coloring OFF on input line 145.
+Package hyperref Info: Link coloring OFF on input line 138.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\hyperref\nameref.
 sty"
@@ -852,9 +852,9 @@ Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
 \c@section@level=\count139
 )
-LaTeX Info: Redefining \ref on input line 145.
-LaTeX Info: Redefining \pageref on input line 145.
-LaTeX Info: Redefining \nameref on input line 145.
+LaTeX Info: Redefining \ref on input line 138.
+LaTeX Info: Redefining \pageref on input line 138.
+LaTeX Info: Redefining \nameref on input line 138.
 (AbRepro.out) (AbRepro.out)
 \@outlinefile=\write4
 \openout4 = `AbRepro.out'.
@@ -890,54 +890,54 @@ Package grfext Info: Graphics extension search list:
 G,.JBIG2,.JB2,.eps]
 (grfext)             \AppendGraphicsExtensions on input line 456.
 )
-LaTeX Font Info:    Try loading font information for T1+lmtt on input line 148.
+LaTeX Font Info:    Try loading font information for T1+lmtt on input line 140.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\t1lmtt.fd"
 File: t1lmtt.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-LaTeX Font Info:    Try loading font information for TS1+lmr on input line 195.
+LaTeX Font Info:    Try loading font information for TS1+lmr on input line 188.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\ts1lmr.fd"
 File: ts1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
 
-Package xcolor Warning: Incompatible color definition on input line 220.
+Package xcolor Warning: Incompatible color definition on input line 213.
 
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 222.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 215.
 
-Package xcolor Warning: Incompatible color definition on input line 224.
+Package xcolor Warning: Incompatible color definition on input line 217.
 
 
-Package xcolor Warning: Incompatible color definition on input line 224.
+Package xcolor Warning: Incompatible color definition on input line 217.
 
-LaTeX Font Info:    Try loading font information for OT1+lmr on input line 226.
+LaTeX Font Info:    Try loading font information for OT1+lmr on input line 219.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\ot1lmr.fd"
 File: ot1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-LaTeX Font Info:    Try loading font information for OML+lmm on input line 226.
+LaTeX Font Info:    Try loading font information for OML+lmm on input line 219.
 
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\omllmm.fd"
 File: omllmm.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-LaTeX Font Info:    Try loading font information for OMS+lmsy on input line 226
+LaTeX Font Info:    Try loading font information for OMS+lmsy on input line 219
 .
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\omslmsy.fd"
 File: omslmsy.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-LaTeX Font Info:    Try loading font information for OMX+lmex on input line 226
+LaTeX Font Info:    Try loading font information for OMX+lmex on input line 219
 .
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\omxlmex.fd"
 File: omxlmex.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 226.
+(Font)              <10> on input line 219.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 226.
+(Font)              <7> on input line 219.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 226.
-LaTeX Font Info:    Try loading font information for U+msa on input line 226.
+(Font)              <5> on input line 219.
+LaTeX Font Info:    Try loading font information for U+msa on input line 219.
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\amsfonts\umsa.fd"
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
@@ -945,7 +945,7 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 cfg"
 File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 226.
+LaTeX Font Info:    Try loading font information for U+msb on input line 219.
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\amsfonts\umsb.fd"
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
@@ -953,176 +953,318 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 cfg"
 File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 )
-Overfull \hbox (641.0461pt too wide) in paragraph at lines 226--251
+Overfull \hbox (641.0461pt too wide) in paragraph at lines 219--244
 [][] 
  []
 
 
-Package xcolor Warning: Incompatible color definition on input line 252.
+Package xcolor Warning: Incompatible color definition on input line 245.
 
 [1
 
 {C:/Users/jaimem/AppData/Local/MiKTeX/2.9/pdftex/config/pdftex.map}]
 
-Package xcolor Warning: Incompatible color definition on input line 256.
+Package xcolor Warning: Incompatible color definition on input line 249.
 
 
-Package xcolor Warning: Incompatible color definition on input line 256.
+Package xcolor Warning: Incompatible color definition on input line 249.
 
-LaTeX Font Info:    Try loading font information for TS1+lmtt on input line 276
+LaTeX Font Info:    Try loading font information for TS1+lmtt on input line 269
 .
 ("C:\Users\jaimem\AppData\Local\Programs\MiKTeX 2.9\tex\latex\lm\ts1lmtt.fd"
 File: ts1lmtt.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
 
-Package xcolor Warning: Incompatible color definition on input line 281.
+Package xcolor Warning: Incompatible color definition on input line 274.
 
 
-Package xcolor Warning: Incompatible color definition on input line 285.
+Package xcolor Warning: Incompatible color definition on input line 278.
 
 
-Package xcolor Warning: Incompatible color definition on input line 285.
+Package xcolor Warning: Incompatible color definition on input line 278.
 
 
-Overfull \hbox (1551.25539pt too wide) in paragraph at lines 287--312
+Overfull \hbox (1551.25539pt too wide) in paragraph at lines 280--305
 [][] 
  []
 
 
-Package xcolor Warning: Incompatible color definition on input line 313.
+Package xcolor Warning: Incompatible color definition on input line 306.
 
 
-Package xcolor Warning: Incompatible color definition on input line 317.
+Package xcolor Warning: Incompatible color definition on input line 310.
 
 
-Package xcolor Warning: Incompatible color definition on input line 317.
+Package xcolor Warning: Incompatible color definition on input line 310.
 
 [2]
 
-Package xcolor Warning: Incompatible color definition on input line 356.
+Package xcolor Warning: Incompatible color definition on input line 349.
 
 
-Package xcolor Warning: Incompatible color definition on input line 360.
+Package xcolor Warning: Incompatible color definition on input line 353.
 
 
-Package xcolor Warning: Incompatible color definition on input line 360.
+Package xcolor Warning: Incompatible color definition on input line 353.
 
 
-Package xcolor Warning: Incompatible color definition on input line 388.
+Package xcolor Warning: Incompatible color definition on input line 381.
 
 
-Package xcolor Warning: Incompatible color definition on input line 392.
+Package xcolor Warning: Incompatible color definition on input line 385.
 
 
-Package xcolor Warning: Incompatible color definition on input line 392.
+Package xcolor Warning: Incompatible color definition on input line 385.
 
 [3]
+
+Package xcolor Warning: Incompatible color definition on input line 407.
+
 
 Package xcolor Warning: Incompatible color definition on input line 414.
 
 
-Package xcolor Warning: Incompatible color definition on input line 421.
+Package xcolor Warning: Incompatible color definition on input line 414.
 
 
-Package xcolor Warning: Incompatible color definition on input line 421.
-
-
-Overfull \hbox (7.99359pt too wide) in paragraph at lines 425--425
+Overfull \hbox (7.99359pt too wide) in paragraph at lines 418--418
 []\T1/lmtt/m/n/10 Joining, by = c("week_no", "abalone_id", "shell_length_mm", "
 whole_wt_g", "no_major_rings")[] 
  []
 
 
-Package xcolor Warning: Incompatible color definition on input line 427.
+Package xcolor Warning: Incompatible color definition on input line 420.
 
 
-Package xcolor Warning: Incompatible color definition on input line 433.
+Package xcolor Warning: Incompatible color definition on input line 426.
 
 
-Package xcolor Warning: Incompatible color definition on input line 433.
+Package xcolor Warning: Incompatible color definition on input line 426.
 
 [4]
 
-Package xcolor Warning: Incompatible color definition on input line 534.
+Package xcolor Warning: Incompatible color definition on input line 527.
 
 
-Package xcolor Warning: Incompatible color definition on input line 548.
+Package xcolor Warning: Incompatible color definition on input line 541.
 
 
-Package xcolor Warning: Incompatible color definition on input line 548.
+Package xcolor Warning: Incompatible color definition on input line 541.
 
 
-Package xcolor Warning: Incompatible color definition on input line 548.
+Package xcolor Warning: Incompatible color definition on input line 541.
 
 [5]
 
-Package xcolor Warning: Incompatible color definition on input line 548.
+Package xcolor Warning: Incompatible color definition on input line 541.
 
 
-Package xcolor Warning: Incompatible color definition on input line 548.
+Package xcolor Warning: Incompatible color definition on input line 541.
 
 
-Package xcolor Warning: Incompatible color definition on input line 562.
+Package xcolor Warning: Incompatible color definition on input line 547.
 
 
-Package xcolor Warning: Incompatible color definition on input line 567.
+Package xcolor Warning: Incompatible color definition on input line 560.
 
 
-Package xcolor Warning: Incompatible color definition on input line 567.
+Package xcolor Warning: Incompatible color definition on input line 560.
 
-<AbRepro_files/figure-latex/simple plots-1.pdf, id=77, 469.755pt x 325.215pt>
+
+Package xcolor Warning: Incompatible color definition on input line 574.
+
+
+Package xcolor Warning: Incompatible color definition on input line 582.
+
+
+Package xcolor Warning: Incompatible color definition on input line 582.
+
+
+Package xcolor Warning: Incompatible color definition on input line 592.
+
+
+Package xcolor Warning: Incompatible color definition on input line 597.
+
+
+Package xcolor Warning: Incompatible color definition on input line 597.
+
+<AbRepro_files/figure-latex/simple plots-1.pdf, id=95, 469.755pt x 325.215pt>
 File: AbRepro_files/figure-latex/simple plots-1.pdf Graphic file (type pdf)
 <use AbRepro_files/figure-latex/simple plots-1.pdf>
 Package pdftex.def Info: AbRepro_files/figure-latex/simple plots-1.pdf  used on
- input line 573.
+ input line 603.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
 
-Package xcolor Warning: Incompatible color definition on input line 575.
+Package xcolor Warning: Incompatible color definition on input line 605.
+
+[6]
+
+Package xcolor Warning: Incompatible color definition on input line 610.
 
 
-Package xcolor Warning: Incompatible color definition on input line 580.
+Package xcolor Warning: Incompatible color definition on input line 610.
 
-
-Package xcolor Warning: Incompatible color definition on input line 580.
-
-<AbRepro_files/figure-latex/simple plots-2.pdf, id=78, 469.755pt x 325.215pt>
+<AbRepro_files/figure-latex/simple plots-2.pdf, id=101, 469.755pt x 325.215pt>
 File: AbRepro_files/figure-latex/simple plots-2.pdf Graphic file (type pdf)
 <use AbRepro_files/figure-latex/simple plots-2.pdf>
 Package pdftex.def Info: AbRepro_files/figure-latex/simple plots-2.pdf  used on
- input line 586.
+ input line 616.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 589.
-[6 <./AbRepro_files/figure-latex/simple plots-1.pdf>] [7 <./AbRepro_files/figur
-e-latex/simple plots-2.pdf>]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 589.
+[7 <./AbRepro_files/figure-latex/simple plots-1.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 623.
+
+
+Package xcolor Warning: Incompatible color definition on input line 653.
+
+
+Package xcolor Warning: Incompatible color definition on input line 653.
+
+
+Package xcolor Warning: Incompatible color definition on input line 653.
+
+[8 <./AbRepro_files/figure-latex/simple plots-2.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 653.
+
+
+Package xcolor Warning: Incompatible color definition on input line 653.
+
+<AbRepro_files/figure-latex/gonad stage-1.pdf, id=132, 469.755pt x 325.215pt>
+File: AbRepro_files/figure-latex/gonad stage-1.pdf Graphic file (type pdf)
+<use AbRepro_files/figure-latex/gonad stage-1.pdf>
+Package pdftex.def Info: AbRepro_files/figure-latex/gonad stage-1.pdf  used on 
+input line 655.
+(pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 655--658
+[][]
+ []
+
+
+Package xcolor Warning: Incompatible color definition on input line 682.
+
+[9 <./AbRepro_files/figure-latex/gonad stage-1.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 709.
+
+
+Package xcolor Warning: Incompatible color definition on input line 709.
+
+<AbRepro_files/figure-latex/gonad size-1.pdf, id=143, 469.755pt x 325.215pt>
+File: AbRepro_files/figure-latex/gonad size-1.pdf Graphic file (type pdf)
+<use AbRepro_files/figure-latex/gonad size-1.pdf>
+Package pdftex.def Info: AbRepro_files/figure-latex/gonad size-1.pdf  used on i
+nput line 711.
+(pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 711--721
+[][]
+ []
+
+[10]
+
+Package xcolor Warning: Incompatible color definition on input line 726.
+
+
+Package xcolor Warning: Incompatible color definition on input line 737.
+
+
+Package xcolor Warning: Incompatible color definition on input line 737.
+
+<AbRepro_files/figure-latex/gonad stage month-1.pdf, id=148, 469.755pt x 325.21
+5pt>
+File: AbRepro_files/figure-latex/gonad stage month-1.pdf Graphic file (type pdf
+)
+<use AbRepro_files/figure-latex/gonad stage month-1.pdf>
+Package pdftex.def Info: AbRepro_files/figure-latex/gonad stage month-1.pdf  us
+ed on input line 739.
+(pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 739--745
+[][]
+ []
+
+[11 <./AbRepro_files/figure-latex/gonad size-1.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 750.
+
+
+Package xcolor Warning: Incompatible color definition on input line 762.
+
+
+Package xcolor Warning: Incompatible color definition on input line 762.
+
+<AbRepro_files/figure-latex/gonad stage yr month-1.pdf, id=160, 469.755pt x 325
+.215pt>
+File: AbRepro_files/figure-latex/gonad stage yr month-1.pdf Graphic file (type 
+pdf)
+<use AbRepro_files/figure-latex/gonad stage yr month-1.pdf>
+Package pdftex.def Info: AbRepro_files/figure-latex/gonad stage yr month-1.pdf 
+ used on input line 764.
+(pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 764--771
+[][]
+ []
+
+[12 <./AbRepro_files/figure-latex/gonad stage month-1.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 776.
+
+
+Package xcolor Warning: Incompatible color definition on input line 802.
+
+
+Package xcolor Warning: Incompatible color definition on input line 802.
+
+
+Package xcolor Warning: Incompatible color definition on input line 802.
+
+[13 <./AbRepro_files/figure-latex/gonad stage yr month-1.pdf>]
+
+Package xcolor Warning: Incompatible color definition on input line 802.
+
+
+Package xcolor Warning: Incompatible color definition on input line 802.
+
+<AbRepro_files/figure-latex/vit stage yr month-1.pdf, id=182, 469.755pt x 325.2
+15pt>
+File: AbRepro_files/figure-latex/vit stage yr month-1.pdf Graphic file (type pd
+f)
+<use AbRepro_files/figure-latex/vit stage yr month-1.pdf>
+Package pdftex.def Info: AbRepro_files/figure-latex/vit stage yr month-1.pdf  u
+sed on input line 804.
+(pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 820.
+[14 <./AbRepro_files/figure-latex/vit stage yr month-1.pdf>]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 820.
 (AbRepro.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 589.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 589.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 820.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 820.
 Package rerunfilecheck Info: File `AbRepro.out' has not changed.
-(rerunfilecheck)             Checksum: 70B8923201AC30B0D59FCDCA67173A50;1354.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 589.
+(rerunfilecheck)             Checksum: CC31E9A2A5740A674788E86E1927AFDF;3214.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 820.
  ) 
 Here is how much of TeX's memory you used:
- 14447 strings out of 492973
- 214044 string characters out of 3126249
- 381229 words of memory out of 3000000
- 18025 multiletter control sequences out of 15000+200000
- 41838 words of font info for 57 fonts, out of 3000000 for 9000
+ 14505 strings out of 492973
+ 216004 string characters out of 3126249
+ 381007 words of memory out of 3000000
+ 18050 multiletter control sequences out of 15000+200000
+ 35216 words of font info for 64 fonts, out of 3000000 for 9000
  1141 hyphenation exceptions out of 8191
- 32i,7n,38p,471b,455s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 32i,7n,38p,542b,455s stack positions out of 5000i,500n,10000p,200000b,50000s
 {C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/enc/dvips/lm/lm-ec.e
 nc}{C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/enc/dvips/lm/lm-ts1
 .enc}<C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/type1/public/lm/l
 mbx12.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/type1/public
 /lm/lmr10.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/type1/pu
-blic/lm/lmr17.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/type
-1/public/lm/lmri12.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts
-/type1/public/lm/lmtk10.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/
-fonts/type1/public/lm/lmtt10.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX
- 2.9/fonts/type1/public/lm/lmtti10.pfb>
-Output written on AbRepro.pdf (7 pages, 262925 bytes).
+blic/lm/lmtk10.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/fonts/typ
+e1/public/lm/lmtt10.pfb><C:/Users/jaimem/AppData/Local/Programs/MiKTeX 2.9/font
+s/type1/public/lm/lmtti10.pfb>
+Output written on AbRepro.pdf (14 pages, 302233 bytes).
 PDF statistics:
- 144 PDF objects out of 1000 (max. 8388607)
- 26 named destinations out of 1000 (max. 500000)
- 8275 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 226 PDF objects out of 1000 (max. 8388607)
+ 43 named destinations out of 1000 (max. 500000)
+ 6292 words of extra memory for PDF output out of 10000 (max. 10000000)
 

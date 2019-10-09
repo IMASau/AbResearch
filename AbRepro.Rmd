@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
 ```{r preamble, include=FALSE}
 library(knitr)
@@ -5,6 +10,13 @@ library(magrittr)
 library(kableExtra)
 library(tidyverse)
 library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(reshape2)
+
+source("C:/GitCode/AbResearch/stderr.r")
 
 # options(width=90, dev='win.metafile', fig.fullwidth=TRUE) # when using word
 options(width=90, fig.fullwidth=TRUE)
@@ -104,10 +116,26 @@ g3sfdat <- g3.sf %>% filter(qarea > 0) %>%
 stagedat <- left_join(histodat, g3sfdat ) %>% 
  ungroup()
 
+## add month.yr variable to dataframe
+stagedat <- stagedat %>%
+ mutate(sample_month = lubridate::month(sample_date, label = TRUE, abbr = TRUE),
+        sample_year = year(sample_date),
+        month.yr = interaction(sample_month, sample_year))
+
+## summarise the stagedat dataframe for each gonad stage recorded in each month.yr
+stagedat.summ <- stagedat %>%
+ group_by(sample_year, sample_month, month.yr) %>%
+ summarise_each(funs(mean), pc_rec_dev:pc_necrotic)
+
+## ensure month.yr is a factor
+stagedat.summ$month.yr <- as.factor(stagedat.summ$month.yr)
+
+## transform the stagedat summary from wide to long format
+stagedat.summ.long <- melt(stagedat.summ, id.vars = c('sample_year', 'sample_month', 'month.yr'))
 
 ```
 
-## simple stage frequency plots
+## Simple stage frequency plots
 
 Some basic plots of the relationship between shell length and the number of vits and previts, colour coded by month, and with a bubble size set by the section area sampled.
 ```{r simple plots}
@@ -123,3 +151,135 @@ geom_point(alpha = 0.9)
 
 ```
 
+## Plot mean area of gonad for each gonad stage for month and year with error bars
+
+```{r gonad stage, message=F, warning=F}
+## select gonad pc stage data and convert to long format
+stagedat.1 <- stagedat %>%
+ select(abalone_id,sample_year, sample_month, month.yr, 
+        pc_rec_dev, pc_locules, pc_mature, pc_spawning, pc_necrotic) %>% 
+ melt(id.vars = c('abalone_id', 'sample_year', 'sample_month', 'month.yr'))
+
+## summarise gonad pc stage data for mean and se
+stagedat.summ.long.1 <- stagedat.1 %>% 
+ group_by(sample_year, sample_month, month.yr, variable) %>%
+ summarise(mean.pc = mean(value),
+           se.pc = stderr(value))
+
+## change the variable names for plotting in facet grid
+levels(stagedat.summ.long.1$variable) <- c('Developing', 'Locules', 'Mature', 'Spawning', 'Necrotic') 
+
+## plot mean for each gonad stage for month and year including error bars
+stagedat.summ.long.1 %>% 
+ ggplot(aes(x = month.yr, y = mean.pc, colour = variable, group = 1)) +
+ geom_point()+
+ geom_line() +
+ geom_errorbar(aes(ymin = mean.pc - se.pc, ymax = mean.pc + se.pc), width = 0.5)+
+ facet_grid(variable ~ .) +
+ ylab('Area of gonad (%)') +
+ xlab('Month') +
+ theme_bw() +
+ theme(legend.position = 'none')+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+No clear seasonal pattern in gonad state that would indicate a defined or consistent spawning period between years. 
+
+Spawning or necrotic gonad tissue was uncommon (i.e. <25 %) and remained relatively stable across the entire sampling period with no evident peaks to indicate a spawning event had recently occured.
+
+Pre-mature and mature gonad tissue were generally more common (25-50%) however fluctuated between months and displayed no clear seasonal pattern throughout the sampling period. Some evidence of less mature tissue between October to December of 1989 and 1990 following more elevated levels in the months prior (June to August).
+
+Interestingly, there appears to be some inverse relationship between mature and locule tissue between October and December of 1989 and to a lesser extent in the same months of 1990 and 1991. These patterns may be relative of a recent partial spawning event and the start of developing new folucules in the gonad, however the absence of a relationship between more reproductive gonad tissue (i.e. elevated presence of spawning or necrotic tissue) woud suggest that a major spawning event was unlikely to have occured.
+
+## Plot mean area of gonad sampled with error bars
+
+```{r gonad size, message=F, warning=F}
+## select gonad area sampled data and convert to long format
+nadarea.dat <- stagedat %>%
+ select(abalone_id,sample_year, sample_month, month.yr, 
+        sum_area) %>% 
+ melt(id.vars = c('abalone_id', 'sample_year', 'sample_month', 'month.yr'))
+
+## summarise gonad area sampled data for mean and se
+nadarea.dat.summ <- nadarea.dat %>% 
+  filter(!is.na(value)) %>%
+ group_by(sample_year, sample_month, month.yr, variable) %>%
+ summarise(mean.size = mean(value),
+           se.size = stderr(value))
+
+## plot mean gonad area sampled for month and year including error bars
+nadarea.dat.summ %>% 
+ ggplot(aes(x = month.yr, y = mean.size, group = 1)) +
+ geom_point()+
+ geom_line() +
+ geom_errorbar(aes(ymin = mean.size - se.size, ymax = mean.size + se.size), width = 0.5)+
+ ylab(bquote('Gonad area sampled ('*~mm^2*')')) +
+ xlab('Month') +
+ theme_bw() +
+ theme(legend.position = 'none')+
+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+Assuming the gonad area sampled in the sum of the area of the four cross-section quandrants. Therefore a larger area sampled would suggests a larger proportion of reproductive gonad tissue in cross-section relative to digestive gland. The results indicate a clear seasonal trend in cross-sectional gonad area are present across all years, peaking from March to Jun/July (Autumn) and declining through winter leading into summer months. These peaks are particualry evident from March to Jun/July in 1990 and 1991 suggesting increased reproductive activity likely occurs during autumn.
+
+## Plot mean pc of each gonad stage in each month (all years)
+
+```{r gonad stage month, warning=F}
+stagedat.summ.long.1 %>% 
+ ggplot(aes(x = sample_month, y = mean.pc, fill = variable)) +
+ geom_bar(position = 'fill', stat = 'identity') +
+ scale_y_continuous(labels = scales::percent_format()) +
+ ylab('Area of gonad (%)') +
+ xlab('Month') +
+  scale_fill_discrete(name = 'Gonad stage', labels = c('Developing', 'Locules', 'Mature', 'Spawning', 'Necrotic')) +
+  theme_bw()
+
+```
+Pooling the gonad state data across years for each month indicates that developing and locules gonad tissue is most common through the warmer months, October to March. From April to July, developing tissue falls below 20% and is replaced with a higher proportion of more reproductively active tissue, particualry in April. 
+
+## plot mean pc of each gonand stage in each yr.month
+```{r gonad stage yr month, warning=F}
+stagedat.summ.long.1 %>% 
+ ggplot(aes(x = month.yr, y = mean.pc, fill = variable)) +
+ geom_bar(position = 'fill', stat = 'identity') +
+ scale_y_continuous(labels = scales::percent_format()) +
+ ylab('Area of gonad (%)') +
+ xlab('Month') +
+  scale_fill_discrete(name = 'Gonad stage', labels = c('Developing', 'Locules', 'Mature', 'Spawning', 'Necrotic')) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+Splitting the gonad state data into year and month reveals some seasonal pattern particualry in 1990 and 1991. In both years developing and locules tissue is more apparent in the warmer months of October to March, compared to autumn (April to June) where mature and necrotic tissue is more common. These data suggest peak spawning occurs during these cooling months of April to June.
+
+## plot mean pc of vitellogenesis stage in each yr.month
+```{r vit stage yr month}
+# select vitellegenic data and convert to long format
+vitsdat <- stagedat %>% 
+        select(abalone_id,sample_year, sample_month, month.yr, 
+               vits, previts) %>% 
+        melt(id.vars = c('abalone_id', 'sample_year', 'sample_month', 'month.yr'))
+
+# summarise vitellegenic data for mean and se
+vitsdat.summ <- vitsdat %>% 
+        filter(!is.na(value)) %>% 
+        group_by(sample_year, sample_month, month.yr, variable) %>%
+        summarise(mean.vit = mean(value),
+                  se.vit = stderr(value))
+
+vitsdat.summ %>% 
+        ggplot(aes(x = month.yr, y = mean.vit, fill = variable)) +
+        geom_bar(position = 'fill', stat = 'identity', colour = 'black') +
+        scale_y_continuous(labels = scales::percent_format()) +
+        ylab('Vitellogenesis (%)') +
+        xlab('Month') +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+        theme(legend.title = element_blank(), legend.position = 'top') +
+        scale_fill_manual(values = c('grey', 'white'), labels = c('Vitellogenic', 'Pre-vitellogenic'))
+
+```
+
+Examining the revised gonad staging data also reveals some evidence of a seasonality in condition across years. Typically, vitellogenic tissue progressively increases from November/December onwards, peaking between April and July, and in most cases declines rapidly in the months following. 
+
+In January 1990 the sudden peak in vitellogenic tissue seems abnormal compared to other occurances where the peak has typically followed a more gradual increase in vitellogenic tissue in the months prior. Whilst the January 1990 data may represent an abnormal spawning event, in most years the vitellogenesis data would suggest the peak spawning period occurs between April and July.

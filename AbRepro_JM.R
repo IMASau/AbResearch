@@ -1,4 +1,14 @@
+## load libaries and custom functions
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(reshape2)
+
 source("C:/GitCode/AbResearch/stderr.r")
+
+## load 'stagedat' datframe created by Craig Mundy from original compliction of reproductive data
+# either add this script to end of his RMD file or create an RDS file which can be imported to this script.
 
 ## add month.yr variable to dataframe
 stagedat <- stagedat %>%
@@ -80,3 +90,32 @@ stagedat.summ.long.1 %>%
  ylab('Area of mature gonad (%)') +
  xlab('Month') +
  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+## plot mean pc of vitellogenesis stage in each yr.month
+# select vitellegenic data and convert to long format
+vitsdat <- stagedat %>% 
+        select(abalone_id,sample_year, sample_month, month.yr, 
+               vits, previts) %>% 
+        melt(id.vars = c('abalone_id', 'sample_year', 'sample_month', 'month.yr'))
+
+# summarise vitellegenic data for mean and se
+vitsdat.summ <- vitsdat %>% 
+        filter(!is.na(value)) %>% 
+        group_by(sample_year, sample_month, month.yr, variable) %>%
+        summarise(mean.vit = mean(value),
+                  se.vit = stderr(value))
+
+vitsdat.summ %>% 
+        ggplot(aes(x = month.yr, y = mean.vit, fill = variable)) +
+        geom_bar(position = 'fill', stat = 'identity', colour = 'black') +
+        scale_y_continuous(labels = scales::percent_format()) +
+        ylab('Vitellogenesis (%)') +
+        xlab('Month') +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+        theme(legend.title = element_blank(), legend.position = 'top') +
+        scale_fill_manual(values = c('grey', 'white'), labels = c('Vitellogenic', 'Pre-vitellogenic'))
+        
+
+
+
