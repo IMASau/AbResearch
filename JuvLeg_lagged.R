@@ -122,10 +122,10 @@ bigablegalmeans <- bigablegal %>%
 pooled <- left_join(juvmeans, bigabsubmeans, by = c("site", "yr.season"))
 pooled <- left_join(pooled, bigablegalmeans, by = c("site", "yr.season"))
 
-ggpairs(pooled, columns = 3:5,  aes(colour = site), diag='blank') +
+GGally::ggpairs(pooled, columns = 3:5,  aes(colour = site), diag='blank') +
  theme(axis.text.x = element_text(angle = 90, hjust = 1),legend.position="right") +
- xlab(bquote('Abalone Abundance ('*~m^2*')')) + 
- ylab(bquote('Abalone Abundance ('*~m^2*')')) 
+ xlab(bquote('Abalone abundance ('*~m^2*')')) + 
+ ylab(bquote('Abalone abundance ('*~m^2*')')) 
 
 
 ## recode by habitat complexity
