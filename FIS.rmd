@@ -229,7 +229,7 @@ leg.counts$yr.season <-
                                            "2016.Summer", "2016.Winter", "2016.Spring", 
                                            "2017.Summer", "2017.Winter", "2017.Spring", 
                                            "2018.Summer", "2018.Winter", "2018.Spring", 
-                                           "2019.Summer", '2019.Winter'))
+                                           "2019.Summer", '2019.Winter', '2019.Spring'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(leg.counts$site == "GAR")
@@ -332,7 +332,7 @@ legs.counts.join$yr.season <-
                     "2016.Summer", "2016.Winter", "2016.Spring", 
                     "2017.Summer", "2017.Winter", "2017.Spring", 
                     "2018.Summer", "2018.Winter", "2018.Spring", 
-                    "2019.Summer", '2019.Winter'))
+                    "2019.Summer", '2019.Winter', '2019.Spring'))
 
 ## adjust misclassified seasons
 pick <- which(legs.counts.join$site == "GAR")
@@ -387,7 +387,7 @@ legs.sl$yr.season <-
                                          "2016.Summer", "2016.Winter", "2016.Spring", 
                                          "2017.Summer", "2017.Winter", "2017.Spring", 
                                          "2018.Summer", "2018.Winter", "2018.Spring", 
-                                         "2019.Summer", '2019.Winter'))
+                                         "2019.Summer", '2019.Winter', '2019.Spring'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(legs.sl$site == "GAR")
@@ -741,7 +741,8 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2018.Winter" = '2018.Wi', 
                    "2018.Spring" = '2018.Sp',
                    "2019.Summer" = '2019.Su',
-                   "2019.Winter" = '2019.Wi')
+                   "2019.Winter" = '2019.Wi',
+                   "2019.Spring" = '2019.Sp')
 ```
 
 ### Size frequency plot
@@ -769,7 +770,8 @@ arm.leg.site$yr.season <- factor(arm.leg.site$yr.season,
                                             "2016.Summer", "2018.Winter", 
                                             "2016.Winter", "2018.Spring",  
                                             "2016.Spring", "2019.Summer", 
-                                            "2017.Summer", "2019.Winter"))
+                                            "2017.Summer", "2019.Winter",
+                                            '', "2019.Spring"))
 
 
 ## generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
@@ -805,7 +807,8 @@ ann_text$yr.season <- factor(ann_text$yr.season,
                                             "2016.Summer", "2018.Winter", 
                                             "2016.Winter", "2018.Spring",  
                                             "2016.Spring", "2019.Summer", 
-                                            "2017.Summer", "2019.Winter"))
+                                            "2017.Summer", "2019.Winter",
+                                            '', "2019.Spring"))
 
 ## generate plot using 'if...else' statement to determine plot type depending on whether a site has ARMs installed
 arm.leg.plot <- if(is.na(plot.n.ARM$yr.season)){
@@ -844,7 +847,7 @@ ggplot(data = arm.leg.site)+
 
 # print(arm.leg.plot)
 
-# setwd('C:/CloudStor/R_Stuff/FIS')
+setwd('C:/CloudStor/R_Stuff/FIS')
 ggsave(filename = paste('ARM_LEG_LF_', i, '.pdf', sep = ''),
        plot = arm.leg.plot, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('ARM_LEG_LF_', i, '.wmf', sep = ''),
@@ -861,18 +864,18 @@ arm.leg.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.leg.sl.RDS')
 
 ## subset chosen site and last four sampling seasons for powerpoint presentation
 unique(arm.leg.sl$site)
-selected.site <- 'SEY'
-selected.season <- c('2018.Winter', '2018.Spring', '2019.Summer', '2019.Winter')
+selected.site <- 'GEO'
+selected.season <- c('2018.Spring', '2019.Summer', '2019.Winter', '2019.Spring')
 
 arm.leg.site.lastfour <- arm.leg.sl %>% 
   filter(site %in% selected.site & yr.season %in% selected.season)
 
 ## re-order data so that facet plots in vertical order of two columns
 arm.leg.site.lastfour$yr.season <- factor(arm.leg.site.lastfour$yr.season, 
-                                 levels = c("2018.Winter",
-                                            "2018.Spring",  
+                                 levels = c("2018.Spring",  
                                             "2019.Summer", 
-                                            "2019.Winter"))
+                                            "2019.Winter",
+                                            "2019.Spring"))
 
 ## generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
 plot.n.LEG.lastfour <- arm.leg.site.lastfour %>% 
@@ -886,9 +889,9 @@ plot.n.ARM.lastfour <- arm.leg.site.lastfour %>%
  summarise(n = paste('n =', n()))
 
 ## manually generate dataframe to annotate 'no data' for missing seasons
-ann_text <- data.frame(x = 90, y = 40, 
-                       lab = 'NO DATA', 
-                       yr.season = c('2018.Spring', '2019.Summer'))
+# ann_text <- data.frame(x = 90, y = 40, 
+#                        lab = 'NO DATA', 
+#                        yr.season = c('2018.Spring', '2019.Summer'))
 
 arm.leg.plot.lastfour <- ggplot(data = arm.leg.site.lastfour)+
  geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 10, fill = 'blue')+
@@ -897,9 +900,9 @@ arm.leg.plot.lastfour <- ggplot(data = arm.leg.site.lastfour)+
  theme_bw()+
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- coord_cartesian(ylim = c(-40, 115), xlim = c(0, 180))+
+ coord_cartesian(ylim = c(-50, 115), xlim = c(0, 180))+
  geom_hline(yintercept = 0, size = 0.1)+
- geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
+ # geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
  geom_text(data = plot.n.LEG.lastfour, aes(x = 160, y = 50, label = n), 
            colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
  geom_text(data = plot.n.ARM.lastfour, aes(x = 10, y = -30, label = n), 
@@ -912,6 +915,8 @@ print(arm.leg.plot.lastfour)
 ggsave(filename = paste('ARM_LEG_LF_LASTFOUR_', selected.site, '.pdf', sep = ''), 
        plot = arm.leg.plot.lastfour, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('ARM_LEG_LF_LASTFOUR_', selected.site, '.wmf', sep = ''), 
+       plot = arm.leg.plot.lastfour, units = 'mm', width = 190, height = 250)
+ggsave(filename = paste('ARM_LEG_LF_LASTFOUR_', selected.site, '.png', sep = ''), 
        plot = arm.leg.plot.lastfour, units = 'mm', width = 190, height = 250)
 
 ```
@@ -948,7 +953,8 @@ arm.leg.site.den$yr.season <-
                                                 "2017.Summer", "2017.Winter", 
                                                 "2017.Spring", "2018.Summer", 
                                                 "2018.Winter", "2018.Spring",
-                                                "2019.Summer", "2019.Winter"))
+                                                "2019.Summer", "2019.Winter",
+                                                '2019.Spring'))
 
 ## summarise data for arm and leg density
 leg.summ <- arm.leg.site.den %>%
@@ -1016,6 +1022,8 @@ arm.leg.den <- grid.arrange(
 ggsave(filename = paste('ARM_LEG_DENSITY_', i, '.pdf', sep = ''), 
        plot = arm.leg.den)
 ggsave(filename = paste('ARM_LEG_DENSITY_', i, '.wmf', sep = ''), 
+       plot = arm.leg.den)
+ggsave(filename = paste('ARM_LEG_DENSITY_', i, '.png', sep = ''), 
        plot = arm.leg.den)
 }
 

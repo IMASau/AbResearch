@@ -48,28 +48,29 @@ load(myFile)
 ##-------------------------------------------------------------------------------------------------------##
 
 # NOTE: latest docketinfo query below is missing data from year 2000, therefore temporarily use the
-# older dockect information to extract this data for analysis of compiled.docket.00.07 data
+# older docket information to extract this data for analysis of compiled.docket.00.07 data
 
-load('AbProcessors_2018_10_09.RData')
+# load('AbProcessors_2018_10_09.RData')
 
 # rename dataframe
 
-docketinfo.pre2001 <- docketinfo
+# docketinfo.pre2001 <- docketinfo
 
 # rename columns from SQL format
 
-names(docketinfo.pre2001)[names(docketinfo.pre2001) == 'docket_number'] <- 'docket.number'
+# names(docketinfo.pre2001)[names(docketinfo.pre2001) == 'docket_number'] <- 'docket.number'
 
 # remove unessary dataframes
 
-rm(list=ls()[! ls() %in% c('docketinfo.pre2001')])
+# rm(list=ls()[! ls() %in% c('docketinfo.pre2001')])
 
 
 ##-------------------------------------------------------------------------------------------------------##
 
 # load most recent abalone processor details
 
-docketinfo <- readRDS('docketinfo2.RDS')
+# docketinfo <- readRDS('docketinfo2.RDS')
+docketinfo <- readRDS('C:/CloudStor/R_Stuff/AutoAssess/docketinfo3.rds')
 
 load('Dev_MM3.Rdata')
 
@@ -85,16 +86,19 @@ docketinfo <- docketinfo %>%
 
 # change 'docket_number' and 'certifcate_holder' column name out of SQL format in docketinfo
 
-names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
+# names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
+docketinfo <- docketinfo %>% 
+   rename(docket.number = docket_number,
+          processorname = certificate_holder)
 
-# NOTE: certifcate_holder removed from latest docketinfo so added temporarily
-docketinfo$certificate_holder <- NA
-colnames(docketinfo)[colnames(docketinfo) == "certificate_holder"] <- "processorname"
+# # NOTE: certifcate_holder removed from latest docketinfo so added temporarily
+# docketinfo$certificate_holder <- NA
+# colnames(docketinfo)[colnames(docketinfo) == "certificate_holder"] <- "processorname"
 
 # change processorname toupper
 
 docketinfo <- docketinfo %>%
- mutate_at('processorname', funs(toupper))
+ dplyr::mutate_at('processorname', funs(toupper))
 
 # add newzone using function (NOTE: G zone needs to be manually re-named)
 
@@ -117,11 +121,11 @@ docketinfo$processorname[docketinfo$processorname %in%
 # than 6 fishing dates per record.
 
 docketinfo <- docketinfo %>%
- separate(daylist, c('daylist_1', 'daylist_2', 'daylist_3', 'daylist_4', 'daylist_5', 'daylist_6'), sep = ',', remove = F) %>%
+ separate(daylist, c('daylist_1', 'daylist_2', 'daylist_3', 'daylist_4', 'daylist_5', 'daylist_6', 'daylist_7', 'daylist_8'), sep = ',', remove = F) %>%
  mutate_at(vars(starts_with('daylist_')), funs(as.Date)) %>%
  ungroup() %>%
- mutate(daylist_max = pmax(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, na.rm = T)) %>%
- select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6))
+ mutate(daylist_max = pmax(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, daylist_7, daylist_8, na.rm = T)) %>%
+ select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, daylist_7, daylist_8))
 
 ##-------------------------------------------------------------------------------------------------------##
 ## compiled.docket.FeMM ####
@@ -1329,6 +1333,7 @@ compiled.df.csiro <- bind_rows(compiled.df, csiroMM.sub)
 ab.2016MM.raw <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/DataSummary_from_1Jan2016_to_31Dec2016.csv')
 ab.2019MM.raw.1 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/Dave's recent stuff/DataSummary_from_1Mar2017_to_15May2019.csv")
 ab.2019MM.raw.2 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_8April2019_to_15April2019.csv")
+ab.2019MM.raw.3 <- readRDS('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TasmanianSeafoods2019/TasmanianSeafoodsOct2019.RDS')
 
 # fix incorrect MesrTime from raw data input
 
@@ -1336,20 +1341,26 @@ ab.2019MM.raw.2$MesrTime <- sub('04/08/2019', '08/04/2019', ab.2019MM.raw.2$Mesr
 
 # row.bind data together
 
-ab.2019MM.raw <- bind_rows(ab.2016MM.raw, ab.2019MM.raw.1, ab.2019MM.raw.2)
+ab.2019MM.raw <- bind_rows(ab.2016MM.raw, ab.2019MM.raw.1, ab.2019MM.raw.2) %>%
+   rename_all(tolower) %>% 
+   mutate(downloaddate = dmy_hms(downloaddate),
+          mesrtime = dmy_hms(mesrtime)) %>% 
+   bind_rows(ab.2019MM.raw.3) %>% 
+   select(datasource, entitlement, zone, docket, order, mesrtime, size, weight, downloaddate)
+
 
 # remove unesseary varibales (zone, entitlement, order)
 
-ab.2019MM <- subset(ab.2019MM.raw, select = c('DataSource', 'DownloadDate', 'Docket', 'Size', 'MesrTime'))
+ab.2019MM <- subset(ab.2019MM.raw, select = c('datasource', 'downloaddate', 'docket', 'size', 'mesrtime'))
 
 
-# re-format some of the data and variable names
-
-colnames(ab.2019MM) <- tolower(colnames(ab.2019MM))
-ab.2019MM$msr.date <- dmy_hms(ab.2019MM$mesrtime)
-ab.2019MM$msr.date <- date(ab.2019MM$msr.date)
-ab.2019MM$downloaddate <- dmy_hms(ab.2019MM$downloaddate)
-ab.2019MM$downloaddate <- date(ab.2019MM$downloaddate)
+# # re-format some of the data and variable names
+# 
+# colnames(ab.2019MM) <- tolower(colnames(ab.2019MM))
+ab.2019MM$msr.date <- as.Date(ab.2019MM$mesrtime)
+# ab.2019MM$msr.date <- date(ab.2019MM$msr.date)
+# ab.2019MM$downloaddate <- dmy_hms(ab.2019MM$downloaddate)
+# ab.2019MM$downloaddate <- date(ab.2019MM$downloaddate)
 
 # remove measure time
 

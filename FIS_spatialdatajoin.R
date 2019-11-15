@@ -1,3 +1,4 @@
+library(readxl)
 library(splitstackshape)
 library(geosphere)
 library(data.table)
@@ -14,85 +15,89 @@ setwd('C:/CloudStor/R_Stuff/FIS')
 
 ## source site data for FIS sites
 
-fis.sites <- read.xlsx("C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/Abalone_FIS_Sites.xlsx",
-                    sheet = "ARM_LEG",
-                    detectDates = TRUE)
+fis.sites <- read_xlsx("C:/CloudStor/Shared/Fisheries/Research/Abalone/AbResearchData/pop/Abalone_FIS_Sites_lastupdate12-10-2019.xlsx",
+                    sheet = "ARM_LEG")
 
 ## source most recent juvenile and adult data sets
 
-bigabcounts <- readRDS('C:/CloudStor/R_Stuff/FIS/bigabcounts.RDS')
-abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
+# bigabcounts <- readRDS('C:/CloudStor/R_Stuff/FIS/bigabcounts.RDS')
+# abcounts <- readRDS('C:/CloudStor/R_Stuff/ARMs/abcounts.RDS')
 
-##----------------------------------------------------------------------------##
-## clean FIS transect survey data ####
+arm.leg.density <- readRDS('C:/Cloudstor/R_Stuff/FIS/arm.leg.counts.RDS')
 
-## add column to identify FIS and ARM data
-bigabcounts$sampmethod <- 'FIS'
-abcounts$sampmethod <- 'ARM'
-
-## convert sampyear to factor from bigabcounts df
-bigabcounts$sampyear <- as.factor(bigabcounts$sampyear)
-
-## join FIS and ARM data
-fisarm.abund <- bind_rows(bigabcounts, abcounts)
-
-## rename duplicated sites (NOTE: need to update these in FIS and ARM analysis scripts)
-unique(fisarm.abund$site)
-fisarm.abund$site <- gsub('MP', 'IB', fisarm.abund$site)
-fisarm.abund$site <- gsub('SB', 'IB', fisarm.abund$site)
-fisarm.abund$site <- gsub('OS', 'OB', fisarm.abund$site)
-
-## re-label sampling method
-unique(fisarm.abund$sampmethod)
-fisarm.abund$sampmethod <- gsub('FIS', 'LEG', fisarm.abund$sampmethod)
-
-## add unique index code to identify site and method
-
-fisarm.abund$site.index <- as.factor(paste(fisarm.abund$site, fisarm.abund$sampmethod, fisarm.abund$string, sep="_"))
+# ##----------------------------------------------------------------------------##
+# ## clean FIS transect survey data ####
+# 
+# ## add column to identify FIS and ARM data
+# bigabcounts$sampmethod <- 'FIS'
+# abcounts$sampmethod <- 'ARM'
+# 
+# ## convert sampyear to factor from bigabcounts df
+# bigabcounts$sampyear <- as.factor(bigabcounts$sampyear)
+# 
+# ## join FIS and ARM data
+# fisarm.abund <- bind_rows(bigabcounts, abcounts)
+# 
+# ## rename duplicated sites (NOTE: need to update these in FIS and ARM analysis scripts)
+# unique(fisarm.abund$site)
+# fisarm.abund$site <- gsub('MP', 'IB', fisarm.abund$site)
+# fisarm.abund$site <- gsub('SB', 'IB', fisarm.abund$site)
+# fisarm.abund$site <- gsub('OS', 'OB', fisarm.abund$site)
+# 
+# ## re-label sampling method
+# unique(fisarm.abund$sampmethod)
+# fisarm.abund$sampmethod <- gsub('FIS', 'LEG', fisarm.abund$sampmethod)
+# 
+# ## add unique index code to identify site and method
+# 
+# fisarm.abund$site.index <- as.factor(paste(fisarm.abund$site, fisarm.abund$sampmethod, fisarm.abund$string, sep="_"))
 
 ##----------------------------------------------------------------------------##
 ## clean FIS site data ####
 
 ## rename site column
 
-fis.sites <- fis.sites %>%
- mutate(site = name) %>%
- dplyr::select(-name)
+fis.sites <- dplyr::rename(fis.sites, site = name)
+
+# fis.sites <- fis.sites %>%
+#  mutate(site = name) %>%
+#  dplyr::select(-name)
 
 ## split current site names and identify variables (i.e. string, position, etc)
 
 df.1 <- cSplit(fis.sites, 'site', '-', drop = F)
+str(df.1)
 df.2 <- df.1 %>%
- mutate(fis.method = site_2, site.name = site_3, fis.string = site_4, fis.position = site_5) %>%
+ mutate(fis.site = site_2, fis.method = site_3, fis.string = site_4, fis.position = site_5) %>%
  dplyr::select(-c(site_1, site_2, site_3, site_4, site_5))
 
-## re-label FIS methods
+# ## re-label FIS methods
+# 
+# unique(df.2$fis.method)
+# df.2$fis.method <- gsub('J', 'ARM', df.2$fis.method)
+# df.2$fis.method <- gsub('PB', 'LEG', df.2$fis.method)
+# df.2$fis.method <- gsub('LF', 'LEG', df.2$fis.method)
 
-unique(df.2$fis.method)
-df.2$fis.method <- gsub('J', 'ARM', df.2$fis.method)
-df.2$fis.method <- gsub('PB', 'LEG', df.2$fis.method)
-df.2$fis.method <- gsub('LF', 'LEG', df.2$fis.method)
+# ## re-label site names to match FIS data
+# 
+# sort(unique(fisarm.abund$site))
+# sort(unique(df.2$site.name))
+# 
+# df.2$site.name <- gsub('SEYMOUR', 'SEY', df.2$site.name)
+# df.2$site.name <- gsub('GEO', 'GEO', df.2$site.name)
+# df.2$site.name <- gsub('GARDENS', 'GAR', df.2$site.name)
+# df.2$site.name <- gsub('MUNROES', 'MUN', df.2$site.name)
+# df.2$site.name <- gsub('OHARA', 'OHA', df.2$site.name)
+# df.2$site.name <- gsub('SADINNER', 'INN', df.2$site.name)
+# df.2$site.name <- gsub('SADOUTER', 'OUT', df.2$site.name)
+# df.2$site.name <- gsub('BET', 'BET', df.2$site.name)
+# df.2$site.name <- gsub('THUMBS', 'THU', df.2$site.name)
+# df.2$site.name <- gsub('TELOPEA', 'TEL', df.2$site.name)
 
-## re-label site names to match FIS data
-
-sort(unique(fisarm.abund$site))
-sort(unique(df.2$site.name))
-
-df.2$site.name <- gsub('SEYMOUR', 'SEY', df.2$site.name)
-df.2$site.name <- gsub('GEO', 'GEO', df.2$site.name)
-df.2$site.name <- gsub('GARDENS', 'GAR', df.2$site.name)
-df.2$site.name <- gsub('MUNROES', 'MUN', df.2$site.name)
-df.2$site.name <- gsub('OHARA', 'OHA', df.2$site.name)
-df.2$site.name <- gsub('SADINNER', 'INN', df.2$site.name)
-df.2$site.name <- gsub('SADOUTER', 'OUT', df.2$site.name)
-df.2$site.name <- gsub('BET', 'BET', df.2$site.name)
-df.2$site.name <- gsub('THUMBS', 'THU', df.2$site.name)
-df.2$site.name <- gsub('TELOPEA', 'TEL', df.2$site.name)
-
-## re-label string number
-
-unique(df.2$fis.string)
-df.2$fis.string[is.na(df.2$fis.string)] <- 1
+# ## re-label string number
+# 
+# unique(df.2$fis.string)
+# df.2$fis.string[is.na(df.2$fis.string)] <- 1
 
 ## re-label start and end points of ARM and LEG strings
 
@@ -107,7 +112,7 @@ df.2$fis.position[is.na(df.2$fis.position)] <- 0
 
 ## add unique index code to identify site and method
 
-df.2$site.index <- as.factor(paste(df.2$site.name, df.2$fis.method, df.2$fis.string, sep="_"))
+df.2$site.index <- as.factor(paste(df.2$fis.site, df.2$fis.method, df.2$fis.string, sep="_"))
 
 ##----------------------------------------------------------------------------##
 # ## create file for Lowrance GPS plotter
@@ -133,6 +138,15 @@ df.4 <- fisarm.abund %>%
  summarise(mean.absm = mean(absm.fis),
            n.absm = length(ab_n.fis),
            sd.absm = sd(absm.fis))
+
+df.4 <- arm.leg.density %>% 
+        mutate(absm.fis = if_else(!is.na(absm.leg), absm.leg, absm.arm),
+               abn.fis = if_else(!is.na(ab_n), ab_n, dat.ab_n)) %>% 
+        group_by(dat.survindex, survdate) %>%
+        summarise(mean.absm = mean(absm.fis),
+                  n.absm = length(abn.fis),
+                  sd.absm = sd(absm.fis))
+        
 
 ##----------------------------------------------------------------------------##
 ## join site and FIS ARM and LEG data ####
