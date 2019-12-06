@@ -90,12 +90,17 @@ fis.sites.mid.sp <- spTransform(fis.sites.mid.sp, projstring.mga55)
 tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
                , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
 
+ab.blocks <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
+                  , layer = 'Ab_Blocks_MGAZ55', verbose = F)
+
 ## convert to map projection
 tas.sp <- spTransform(tas.sp, projstring.mga55)
+ab.blocks <- spTransform(ab.blocks, projstring.mga55)
 
 ## plot map of Tasmania and site positions
 plot(tas.sp)
 points(fis.sites.sp, cex = 2, pch = 16, col = 'red')
+plot(ab.blocks)
 
 ########################
 crs(tas.sp)

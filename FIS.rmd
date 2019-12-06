@@ -439,7 +439,7 @@ tab_names_arms <- excel_sheets(path = xl_arm_data)
 
 ## create list from seperate sheets
 list_all_arms <- lapply(tab_names_arms, function(x) read_excel(path = xl_arm_data, 
-                                                               sheet = x))
+                                                               sheet = x, guess_max = 10000))
 
 ## remove list items (i.e. sheets) that are irrelevant
 list_all_arms_2 <- list_all_arms[-c(2, 10)]
@@ -466,7 +466,7 @@ arms.df <- dplyr::rename(arms.df, rock.plate.2 = rockorplate)
 arms.df <- dplyr::rename(arms.df, tag.col = tagcolour)
 arms.df <- dplyr::rename(arms.df, tag.id.col = printcolour)
 arms.df <- dplyr::rename(arms.df, tag.id = tag_id)
-arms.df <- dplyr::rename(arms.df, tag.recep = tr)
+arms.df <- dplyr::rename(arms.df, tag.recap = tr)
 arms.df$string <- as.factor(arms.df$string)
 arms.df$rock.plate.3 <- gsub('r', 'R', arms.df$rock.plate.3)
 arms.df$string = gsub('North', 1, arms.df$string)
@@ -1018,7 +1018,7 @@ arm.leg.den <- grid.arrange(
                                 ncol = 1), ncol = 1))
 
 ## save combined plot to file 
-#setwd('C:/CloudStor/R_Stuff/FIS')
+setwd('C:/CloudStor/R_Stuff/FIS')
 ggsave(filename = paste('ARM_LEG_DENSITY_', i, '.pdf', sep = ''), 
        plot = arm.leg.den)
 ggsave(filename = paste('ARM_LEG_DENSITY_', i, '.wmf', sep = ''), 
@@ -1091,6 +1091,11 @@ lag4.l <- bigablegalmeans %>%
  filter(yr.season == "2018.Spring" & site %in% c('BET', 'BRB', 'BRS', 'GEO')) %>%
  select(site, Legal) %>%
  dplyr::rename(Legal.2018.Spring = Legal)
+
+lag5.l <- bigablegalmeans %>%
+ filter(yr.season == "2019.Spring" & site %in% c('BET', 'BRB', 'BRS', 'GEO')) %>%
+ select(site, Legal) %>%
+ dplyr::rename(Legal.2019.Spring = Legal)
 
 lag1.j <- juvmeans %>% 
  filter(yr.season == "2016.Spring" & site %in% c('BET', 'BRB', 'BRS', 'GEO')) %>%
@@ -1166,7 +1171,7 @@ sub.leg.3 <- melt(legs.counts.join,id.vars=c('legs.dat.join.survindex', 'site', 
 
 ## select site
 unique(sub.leg$site)
-selected.site <- 'GAR'
+selected.site <- 'BRB'
 
 #create negative values for sub-legal animals
 sub.leg.dat <- sub.leg.2 %>%
@@ -1209,7 +1214,7 @@ leg.den.bar <- ggplot(sub.leg.dat, aes(x = yr.season, y = value, fill = variable
                              "2016.Summer", "2016.Winter", "2016.Spring", 
                              "2017.Summer", "2017.Winter", "2017.Spring", 
                              "2018.Summer", "2018.Winter", "2018.Spring", 
-                             "2019.Summer", "2019.Winter"), labels = season_labels, drop = F)
+                             "2019.Summer", "2019.Winter", "2019.Spring"), labels = season_labels, drop = F)
 
 leg.den.bar.2 <- ggplot(sub.leg.dat.2, aes(x = yr.season, y = value, fill = variable))+
  stat_summary(geom = 'bar', position = 'identity', fun.data = my.stderr, colour = 'black')+
@@ -1237,7 +1242,7 @@ leg.den.bar.2 <- ggplot(sub.leg.dat.2, aes(x = yr.season, y = value, fill = vari
                              "2016.Summer", "2016.Winter", "2016.Spring", 
                              "2017.Summer", "2017.Winter", "2017.Spring", 
                              "2018.Summer", "2018.Winter", "2018.Spring", 
-                             "2019.Summer", "2019.Winter"), labels = season_labels, drop = F)+
+                             "2019.Summer", "2019.Winter", "2019.Spring"), labels = season_labels, drop = F)+
  theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
 
 leg.density <- grid.arrange(
