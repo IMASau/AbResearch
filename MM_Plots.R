@@ -48,10 +48,10 @@ stock.assessment.year <- 2019
 ##-------------------------------------------------------------------------------------------------------##
 # Identify zone/blocks/processors ####
 
-# identify stock assessment zone of interest
-stock.assessment.zone <- 'E'
+# # identify stock assessment zone of interest
+# stock.assessment.zone <- 'E'
 
-# identify unique blocks sampled in year and zone of interest
+# identify unique zones and blocks sampled in stock assessment year
 df.2019.blocks <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year
          # & newzone == stock.assessment.zone
@@ -590,6 +590,7 @@ for(i in processors.2019) {
   
 }
 
+##-------------------------------------------------------------------------------------------------------##
 # PLOT 5: Map catches in fish year ####
 
 # create map indicating blocks sampled in stock assessment year (for processor)
@@ -660,3 +661,80 @@ tmap_save(
   height = 5.57,
   units = 'in'
 )
+
+##-------------------------------------------------------------------------------------------------------##
+## PLOT 6: Boxplot weight ####
+
+df.1 <- compiledMM.df.final %>% 
+  filter(!is.na(whole.weight)
+         & between(whole.weight, 1, 2000))
+
+plotdat.n <- df.1 %>%
+  group_by(blockno, fishquarter) %>%
+  summarize(n = n())
+
+quarter.whole.weight.boxplot <-
+  ggplot(df.1, aes(
+    x = blockno,
+    y = whole.weight,
+    fill = factor(fishquarter)
+  )) +
+  # geom_boxplot(outlier.colour = "black", outlier.size = 1.5, position = position_dodge(preserve = 'single')) +
+  geom_boxplot(
+    outlier.colour = "black",
+    outlier.size = 1.5,
+    position = position_dodge(0.85)
+  ) +
+  geom_text(
+    data = plotdat.n,
+    aes(y = 1600, label = n),
+    size = 3,
+    angle = 0,
+    position = position_dodge(width = 0.85)
+  ) +
+  # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+  xlab('BlockNo') +
+  ylab(paste('Whole weight (g)')) +
+  coord_cartesian(ylim = c(100, 1600)) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(colour = "black"),
+    axis.text.x = element_text(angle = 0, vjust = 0.5),
+    legend.position = 'top'
+  ) +
+  scale_fill_grey(
+    name = 'Quarter',
+    breaks = c('1', '2', '3', '4'),
+    labels = c('Q1', 'Q2', 'Q3', 'Q4')
+  )
+
+print(quarter.whole.weight.boxplot)
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.pdf', sep = ''),
+  plot = quarter.whole.weight.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.wmf', sep = ''),
+  plot = quarter.whole.weight.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.png', sep = ''),
+  plot = quarter.whole.weight.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+
+##-------------------------------------------------------------------------------------------------------##
+
+

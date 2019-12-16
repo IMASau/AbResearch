@@ -1,4 +1,6 @@
 library(sp)
+library(sf)
+library(tmaptools)
 library(maptools)
 library(rgeos)
 library(tidyverse)
@@ -48,7 +50,7 @@ fis.sites$fis.position <- gsub(3, 0, fis.sites$fis.position)
 fis.sites$fis.position[is.na(fis.sites$fis.position)] <- 0
 fis.sites$fis.position <- as.numeric(fis.sites$fis.position)
 
-fis.site <- fis.sites %>% 
+fis.selected.site <- fis.sites %>% 
  filter(fis.site %in% c('BET'))
 
 ##----------------------------------------------------------------------------##
@@ -65,10 +67,10 @@ fis.sites.mid <- fis.sites %>%
 
 ##----------------------------------------------------------------------------##
 ## convert to spatial points dataframe
-fis.site.sp <- fis.site
+fis.selected.site.sp <- fis.selected.site
 fis.sites.sp <- fis.sites
 fis.sites.mid.sp <- fis.sites.mid
-coordinates(fis.site.sp) <- ~longitude+latitude
+coordinates(fis.selected.site.sp) <- ~longitude+latitude
 coordinates(fis.sites.sp) <- ~longitude+latitude
 coordinates(fis.sites.mid.sp) <- ~long.mid+lat.mid
 
@@ -76,12 +78,12 @@ coordinates(fis.sites.mid.sp) <- ~long.mid+lat.mid
 projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 proj4string(fis.sites.sp) <- projstring.wgs84
-proj4string(fis.site.sp) <- projstring.wgs84
+proj4string(fis.selected.site.sp) <- projstring.wgs84
 proj4string(fis.sites.mid.sp) <- projstring.wgs84
 
 ## convert to UTM
 fis.sites.sp <- spTransform(fis.sites.sp, projstring.mga55)
-fis.site.sp <- spTransform(fis.site.sp, projstring.mga55)
+fis.selected.site.sp <- spTransform(fis.selected.site.sp, projstring.mga55)
 fis.sites.mid.sp <- spTransform(fis.sites.mid.sp, projstring.mga55)
 ##----------------------------------------------------------------------------##
 ## plot positions ####
@@ -105,29 +107,44 @@ plot(ab.blocks)
 ########################
 crs(tas.sp)
 crs(fis.sites.sp)
-crs(fis.site.sp)
+crs(fis.selected.site.sp)
 
 tas.sp_fis.sites.sp_crop <- crop(tas.sp, fis.sites.sp)
 plot(tas.sp_fis.sites.sp_crop)
 points(fis.sites.sp, cex = 2, pch = 16, col = 'red')
 
-tas.sp_fis.site.sp_crop <- crop(tas.sp, fis.site.sp)
-plot(tas.sp_fis.site.sp_crop)
-points(fis.site.sp, cex = 2, pch = 16, col = 'blue')
+# tas.sp_fis.site.sp_crop <- crop(tas.sp, fis.selected.site.sp)
+# plot(tas.sp_fis.site.sp_crop)
+# points(fis.selected.site.sp, cex = 2, pch = 16, col = 'blue')
+
+fis.selected.site.sf <- st_as_sf(fis.selected.site.sp)
+
+# map.df <- crop_shape(tas.sp, fis.selected.site.sp)
+# 
+# tm_shape(tas.sp, bbox = fis.selected.site.sf)+
+#         tm_polygons()+
+#         tm_shape(fis.selected.site.sf)+
+#         tm_symbols(size = 2, col = 'red')
+
+buffer <- 100
+
+bbox(fis.selected.site.sp)
+
+site.bounds <- c(left = 539317.9 - buffer, bottom = 5234232.0 - buffer, top = 539592.6 + buffer, 5234333 + buffer)
+site.grid <- expand.grid(lon_bound = c(site.bounds[1], site.bounds[3]), 
+                         lat_bound = c(site.bounds[2], site.bounds[4]))
+coordinates(site.grid) <- ~ lon_bound + lat_bound
+proj4string(site.grid) <- projstring.mga55
+
+tm_shape(tas.sp, bbox = site.grid)+
+        tm_polygons()+
+        tm_shape(fis.selected.site.sf)+
+        tm_symbols(size = 2, col = 'red')+
+        tm_compass()+
+        tm_scale_bar()
 
 
-df.1 <- as(extent(fis.site.sp), 'SpatialPolygons')
-df.1
-proj4string(df.1) <- CRS(proj4string(tas.sp))
-crs(tas.sp)
-crs(df.1)
-df.1
-plot(df.1)
-site.crop <- crop(tas.sp, df.1)
-site.crop
-plot(site.crop)
 
-extent(tas.sp)
 
 # ########################
 # buffer.zone <- 0.11
