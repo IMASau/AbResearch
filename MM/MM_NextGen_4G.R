@@ -13,9 +13,9 @@ library(lubridate)
 
 ## Local working folder
 
-#sftp.local <- "R:/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
+sftp.local <- "R:/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
 
-sftp.local <- "c:/CloudStor/Shared/AbTrack/NextGen/Data/"
+#sftp.local <- "c:/CloudStor/Shared/AbTrack/NextGen/Data/"
 
 
 ##---------------------------------------------------------------------------##
@@ -68,8 +68,8 @@ tail(fs.pre)
 ## Extract info from data packet ####
 
 
-## manual choice of input file
-infile <- choose.files(paste0(sftp.local,"/*.txt"))
+## Step 1: Manual choice of input file ####
+infile <- choose.files(paste0(sftp.local,"/07*.txt"))
 
 ## Specific file
 #infile <- paste0(sftp.local,"/", sftp.files$InFileName[5])
@@ -95,8 +95,20 @@ logged.data <- logged.data %>%  mutate(plaindate = as.Date(local_date, tz="Austr
 
 tail(logged.data)
 
+
 ##---------------------------------------------------------------------------##
-## Extract Battery voltage  ####
+## Check LoggerName data ####
+logname <- filter(logged.data, identifier == 32962) 
+logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",", remove = FALSE,
+                     convert = TRUE) %>%
+ as.data.frame()
+
+#head(logname)
+tail(logname)
+
+
+##---------------------------------------------------------------------------##
+## Step 2: Extract Battery voltage  ####
 
 loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
  separate(datapack, c("volts"), sep = ",", remove = FALSE,
@@ -108,7 +120,7 @@ tail(loggerbattery)
 
 
 ##---------------------------------------------------------------------------##
-## Extract GPS RMC Part A  ####
+## Step 3A: Extract GPS RMC Part A  ####
 gps.RMC_A <- filter(logged.data, identifier == 220) %>%
  separate(datapack, c("longitude","latitude"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
@@ -120,7 +132,7 @@ tail(gps.RMC_A)
 
 
 ##---------------------------------------------------------------------------##
-## Extract GPS RMC Part B ####
+## Step 3B: Extract GPS RMC Part B ####
 gps.RMC_B <- filter(logged.data, identifier == 221) %>%
  separate(datapack, c("valid","speed", "course","variation"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
@@ -131,7 +143,7 @@ tail(gps.RMC_B)
 
 
 ##---------------------------------------------------------------------------##
-## Join RMC Part A & B   ####
+## Step 3C: Join RMC Part A & B   ####
 
 gps.RMC <- left_join(gps.RMC_B,select(gps.RMC_A, local_date, longitude, latitude), by=c("local_date")) 
 
@@ -143,18 +155,9 @@ pick <- which(duplicated(gps.RMC$local_date) == TRUE)
 gps.RMC[pick,]
 
 
-##---------------------------------------------------------------------------##
-## Extract LoggerName data ####
-logname <- filter(logged.data, identifier == 32962) 
-logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",", remove = FALSE,
-                     convert = TRUE) %>%
- as.data.frame()
-
-#head(logname)
-tail(logname)
 
 ##---------------------------------------------------------------------------##
-## Extract Docket details ####
+## Step 4: Extract Docket details ####
 docket <- filter(logged.data, identifier == 32963) 
 docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
@@ -165,7 +168,7 @@ tail(docket)
 
 
 ##---------------------------------------------------------------------------##
-## Extract Weight length ####
+## Step 5: Extract Weight length ####
 ablength <- filter(logged.data, identifier == 32964) 
 ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
@@ -176,7 +179,7 @@ tail(ablength)
 
 
 ##---------------------------------------------------------------------------##
-## Extract Weight  ####
+## Step 6: Extract Weight  ####
 abweight <- filter(logged.data, identifier == 32965) 
 abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
@@ -188,7 +191,7 @@ tail(abweight)
 
 
 ##---------------------------------------------------------------------------##
-## join components into a flat form ####
+## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
                           select(logname, rawutc, abalonenum), by = "rawutc") %>% 
@@ -196,4 +199,17 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
  left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
  left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
  
+tail(lengthweight)
+
+
+
+##----------------------------------------------## 
+## Extras: Manual date check ####
+
+checktime <- 1579611010
+
+pointintime <- as.POSIXct(checktime, origin = "1970-01-01", tz = "GMT")
+
+localpointintime <- as.POSIXct(checktime, origin = "1970-01-01", tz = "Australia/BRISBANE")
+localpointintime
 
