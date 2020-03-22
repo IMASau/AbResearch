@@ -69,10 +69,10 @@ tail(fs.pre)
 
 
 ## manual choice of input file
-infile <- choose.files(paste0(sftp.local,"/*.txt"))
+infile <- choose.files(paste0(sftp.local,"07020055_20200122.txt"))
 
 ## Specific file
-#infile <- paste0(sftp.local,"/", sftp.files$InFileName[5])
+# infile <- paste0(sftp.local,"/", sftp.files$InFileName[5])
 
 logged.data <- read.csv(infile,
                             skip = 6,
@@ -195,5 +195,6 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
  left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
  left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
  left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
- 
+
+IMAS056 <- lengthweight
 

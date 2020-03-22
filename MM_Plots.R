@@ -356,7 +356,7 @@ for (i in df.2019.unique.zones) {
       filter(
         newzone == i
         & blocklist == j
-        & between(fishyear, 1981, 1996)
+        & between(fishyear, 1992, 2019)
         & between(shell.length, 100, 220)
       )
     
@@ -396,7 +396,7 @@ for (i in df.2019.unique.zones) {
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           axis.line = element_line(colour = "black"),
-          axis.text.x = element_text(angle = 0, vjust = 0.5)
+          axis.text.x = element_text(angle = 45, vjust = 0.5)
         )
       
       # print(mm.zone.boxplot)
@@ -736,5 +736,94 @@ ggsave(
 )
 
 ##-------------------------------------------------------------------------------------------------------##
+# Tasmania Seafoods grading post 2019
 
+tas.seafoods.df <- compiledMM.df.final %>% 
+  filter(processorname == 'TASMANIAN SEAFOODS PTY LTD' 
+         & !is.na(whole.weight)
+         & between(whole.weight, 1, 2000))
+  
+tas.seafoods.df <- tas.seafoods.df %>% 
+  mutate(grade = dplyr::if_else(whole.weight <= 400, 'xsmall',
+                         dplyr::if_else(between(whole.weight, 401, 600), 'small',
+                                 dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))))
+
+
+df.1 <- tas.seafoods.df %>% 
+  group_by(docket.number) %>% 
+  summarise(ab.meas = n())
+
+df.2 <- tas.seafoods.df %>% 
+  group_by(docket.number, grade) %>% 
+  summarise(grade.meas = n())
+
+df.3 <- left_join(df.2, df.1, by = 'docket.number') %>% 
+  mutate(grade.perc = (grade.meas / ab.meas) * 100)
+
+df.4 <- tas.seafoods.df %>% 
+  select(c(docket.number, msr.date, daylist_max, blockno, subblockno, fishyear)) %>% 
+  distinct()
+
+df.5 <- left_join(df.3, df.4, by = 'docket.number')
+
+df.6 <- df.5 %>% 
+  group_by(blockno, grade) %>% 
+  mutate(position = cumsum(grade.perc - 0.5 * grade.perc))
+
+ggplot(df.6, aes(x = 1, y = grade.perc, fill = grade))+
+  geom_bar(width = 1, stat = 'identity', position = position_fill())+
+  coord_polar(theta = 'y')+
+  theme(axis.ticks = element_blank(), axis.title = element_blank(), 
+        axis.text.y = , panel.grid  = element_blank(),
+        axis.text.x = element_blank())+ 
+  geom_text(aes(label = sprintf("%1.2f%%", 100 * grade.perc), y = position))+
+  facet_grid(. ~ blockno)
+
+##-------------------------------------------------------------------------------------------------------##
+# Size limits for plots ####
+
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(gsubfn)
+library(ggplot2)
+library(lubridate)
+
+size.limits <- read.csv("C:/Users/jaimem/Desktop/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+
+colnames(size.limits) <- tolower(colnames(size.limits))
+names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+
+df.1 <- size.limits %>%
+  mutate(zone.subblockno = paste(abzone, subblockno, sep = '-')) %>% 
+  gather(yearmonth, lml, `jan-62`:`dec-19`) %>% 
+  mutate(yearmonth = gsub('jan', 1, yearmonth)) %>% 
+  mutate(yearmonth = gsub('feb', 2, yearmonth)) %>% 
+  mutate(yearmonth = gsub('mar', 3, yearmonth)) %>% 
+  mutate(yearmonth = gsub('apr', 4, yearmonth)) %>% 
+  mutate(yearmonth = gsub('may', 5, yearmonth)) %>% 
+  mutate(yearmonth = gsub('jun', 6, yearmonth)) %>% 
+  mutate(yearmonth = gsub('jul', 7, yearmonth)) %>% 
+  mutate(yearmonth = gsub('aug', 8, yearmonth)) %>% 
+  mutate(yearmonth = gsub('sep', 9, yearmonth)) %>% 
+  mutate(yearmonth = gsub('oct', 10, yearmonth)) %>% 
+  mutate(yearmonth = gsub('nov', 11, yearmonth)) %>% 
+  mutate(yearmonth = gsub('dec', 12, yearmonth)) %>% 
+  mutate(yearmonth2 = yearmonth) %>% 
+  separate(yearmonth2, sep = '-', into = c('fishmonth', 'fishyear'), convert = T) %>% 
+  mutate(fishyear = if_else(fishyear < 10, paste(200, fishyear, sep = ''),
+                            if_else(between(fishyear, 62, 99), paste(19, fishyear, sep = ''),
+                                    paste(20, fishyear, sep = '')))) %>% 
+  mutate(monthyear = paste(fishmonth, fishyear, sep = '-')) %>% 
+  mutate(lml.index = paste(zone.subblockno, monthyear, sep = '-')) %>%
+  mutate(fishday = 1) %>%
+  mutate(fishdate = paste(fishyear, fishmonth, fishday, sep = '-'))
+
+df.1$fishdate <- as.Date(strptime(df.1$fishdate, "%Y-%m-%d"))
+
+unique(df.1$subblockno)
+df.1 %>% 
+  filter(subblockno == '4A') %>%  
+  ggplot(aes(x = fishdate, y = lml))+
+  geom_line()
 

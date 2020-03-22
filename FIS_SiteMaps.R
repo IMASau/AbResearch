@@ -50,6 +50,7 @@ fis.sites$fis.position <- gsub(3, 0, fis.sites$fis.position)
 fis.sites$fis.position[is.na(fis.sites$fis.position)] <- 0
 fis.sites$fis.position <- as.numeric(fis.sites$fis.position)
 
+# subset data for selected site
 fis.selected.site <- fis.sites %>% 
  filter(fis.site %in% c('BET'))
 
@@ -117,6 +118,7 @@ points(fis.sites.sp, cex = 2, pch = 16, col = 'red')
 # plot(tas.sp_fis.site.sp_crop)
 # points(fis.selected.site.sp, cex = 2, pch = 16, col = 'blue')
 
+# convert sp to sf
 fis.selected.site.sf <- st_as_sf(fis.selected.site.sp)
 
 # map.df <- crop_shape(tas.sp, fis.selected.site.sp)
@@ -126,9 +128,13 @@ fis.selected.site.sf <- st_as_sf(fis.selected.site.sp)
 #         tm_shape(fis.selected.site.sf)+
 #         tm_symbols(size = 2, col = 'red')
 
-buffer <- 100
+# add buffer around sites so that map has border
+buffer <- 200
 
-bbox(fis.selected.site.sp)
+# extract bbox of selected site data
+site.bounds <- as.data.frame(bbox(fis.selected.site.sp))
+
+site.bounds <- site.bounds$min - buffer
 
 site.bounds <- c(left = 539317.9 - buffer, bottom = 5234232.0 - buffer, top = 539592.6 + buffer, 5234333 + buffer)
 site.grid <- expand.grid(lon_bound = c(site.bounds[1], site.bounds[3]), 
