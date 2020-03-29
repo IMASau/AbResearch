@@ -3,7 +3,7 @@
 myWorkDrive <- "C:/"  ## Craig and Hugh
 
 
-myWorkFolder <- "R_Stuff/SAM/Logistic"
+myWorkFolder <- "R_Stuff/Logistic"
 myWorkPath <- paste(myWorkDrive,myWorkFolder,sep="")
 setwd(myWorkPath)
 
