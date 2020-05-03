@@ -24,6 +24,8 @@ library(tmap)
 library(sf)
 library(janitor)
 library(xtable)
+library(gsubfn)
+library(ggplot2)
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 ##-------------------------------------------------------------------------------------------------------##
 # Load data ####
@@ -176,6 +178,94 @@ setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
 write.xlsx(processor.summary, 'MM_Processor_Summary_2019.xlsx', sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
 print(xtable(processor.summary, type = 'latex'), file = 'MM_Processor_Summary_2019.tex')
+##-------------------------------------------------------------------------------------------------------##
+# Size limits for plots ####
+
+# load legal minimum length data
+size.limits <- read.csv("C:/Users/jaimem/Desktop/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+
+# clean lml data
+colnames(size.limits) <- tolower(colnames(size.limits))
+names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+
+# convert lml data to long format and create lml index variable
+size.limits.tab <- size.limits %>%
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2019`) %>% 
+  mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
+  mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
+  mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
+  mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
+  mutate(monthyear = gsub('may', 5, monthyear)) %>% 
+  mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
+  mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
+  mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
+  mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
+  mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
+  mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
+  mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
+  mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
+  select(sizelimit.index, sizelimit)
+
+# add columns that count number of blocks and subblocks in compiledMM.df
+compiledMM.df.final <- compiledMM.df.final %>%
+  mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
+  mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
+  mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
+  mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
+
+# add column to determine if the same block was fished where multiple sub-blocks are listed in compiledMM.df
+compiledMM.df.final <- compiledMM.df.final %>%
+  mutate(same.block = if_else(!is.na(blocklist_1) & is.na(blocklist_2), 1,
+                              if_else(is.na(blocklist_5) & is.na(blocklist_4) & is.na(blocklist_3) & blocklist_1 == blocklist_2, 1,
+                                      if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
+                                              if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
+                                                      if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
+
+# create lml index variable in compiledMM.df
+compiledMM.df.final <- compiledMM.df.final %>%
+  mutate(sizelimit.index = if_else(
+    numsubblocks == 1 & subblockno %in% c('A', 'B', 'C', 'D', 'E'),
+    paste(
+      newzone,
+      blockno,
+      lubridate::month(daylist_max),
+      fishyear,
+      sep = '-'
+    ),
+    if_else(
+      numsubblocks == 1 & is.na(subblockno),
+      paste(
+        newzone,
+        blockno,
+        lubridate::month(daylist_max),
+        fishyear,
+        sep = '-'
+      ),
+      if_else(
+        numsubblocks == 1,
+        paste(
+          newzone,
+          subblockno,
+          lubridate::month(daylist_max),
+          fishyear,
+          sep = '-'
+        ),
+        if_else(
+          numsubblocks > 1 & same.block == 1,
+          paste(
+            newzone,
+            blockno,
+            lubridate::month(daylist_max),
+            fishyear,
+            sep = '-'
+          ),        
+          NA_character_
+          
+        )
+      ))))
+
+# join size limit data and compiledMM.df to include size limit for each observation
+compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
 
 ##-------------------------------------------------------------------------------------------------------##
 # PLOT 1: LF zone x block x year ####
@@ -356,7 +446,7 @@ for (i in df.2019.unique.zones) {
       filter(
         newzone == i
         & blocklist == j
-        & between(fishyear, 1992, 2019)
+        & between(fishyear, 1980, stock.assessment.year - 1)
         & between(shell.length, 100, 220)
       )
     
@@ -375,6 +465,12 @@ for (i in df.2019.unique.zones) {
         group_by(fishyear, blockno) %>%
         summarize(n = n())
       
+      # generate table of size limits for each year to add to boxplot
+      
+      size.limit <- plotdat.block %>% 
+        group_by(fishyear, blockno) %>% 
+        summarise(legal.min.length = max(sizelimit))
+      
       # generate boxplot of shell lengths for chosen grouping variable
       
       mm.zone.boxplot <-
@@ -382,11 +478,13 @@ for (i in df.2019.unique.zones) {
         geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
         geom_text(
           data = plotdat.n,
-          aes(y = 220, label = n, ),
+          aes(y = 220, label = n),
           size = 3,
           angle = 90
         ) +
         # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+        geom_point(data = size.limit, aes(x = fishyear, y = legal.min.length), 
+                   shape = 95, size = 7, colour = "red")+
         xlab('Year') +
         ylab(paste('BlockNo', j, 'Shell Length (mm)')) +
         coord_cartesian(ylim = c(100, 225)) +
@@ -736,7 +834,96 @@ ggsave(
 )
 
 ##-------------------------------------------------------------------------------------------------------##
-# Tasmania Seafoods grading post 2019
+# PLOT 7: Boxplot block x quarter ####
+
+# create boxplots for each block and quarter fished in the stock assessment year (for processor)
+
+# select data for stock assessment year
+df.1 <- compiledMM.df.final %>%
+  filter(fishyear == stock.assessment.year
+         & numblocks <= 1)
+
+# generate a count of records for each year to add label to boxplot
+plotdat.n <- df.1 %>%
+  group_by(blockno, fishquarter) %>%
+  summarize(n = n())
+
+sl <- df.1 %>% 
+  group_by(fishyear, blockno, fishquarter) %>% 
+  summarise(legal.min.length = max(sizelimit))
+
+# create plot
+quarter.boxplot <-
+  ggplot(df.1, aes(
+    x = blockno,
+    y = shell.length,
+    fill = factor(fishquarter)
+  )) +
+  # geom_boxplot(outlier.colour = "black", outlier.size = 1.5, position = position_dodge(preserve = 'single')) +
+  geom_boxplot(
+    outlier.colour = "black",
+    outlier.size = 1.5,
+    position = position_dodge(0.85)
+  ) +
+  geom_text(
+    data = plotdat.n,
+    aes(y = 220, label = n),
+    size = 3,
+    angle = 90,
+    position = position_dodge(width = 0.85)
+  ) +
+  geom_point(
+    data = sl,
+    aes(x = factor(blockno), y = legal.min.length),
+    shape = 95,
+    size = 7,
+    colour = "red",
+    position = position_dodge(width = 0.85)
+  ) +
+  xlab('BlockNo') +
+  ylab(paste('Shell Length (mm)')) +
+  coord_cartesian(ylim = c(100, 225)) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(colour = "black"),
+    axis.text.x = element_text(angle = 0, vjust = 0.5),
+    legend.position = 'top'
+  ) +
+  scale_fill_grey(start = 0.8, end = 0.5,
+    name = 'Quarter',
+    breaks = c('1', '2', '3', '4'),
+    labels = c('Q1', 'Q2', 'Q3', 'Q4')
+  )+
+  guides(fill = guide_legend(override.aes = list(shape = NA)))
+
+print(quarter.boxplot)
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+ggsave(
+  filename = paste('Quarter_MM_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('Quarter_MM_Boxplot_', stock.assessment.year, '.wmf', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('Quarter_MM_Boxplot_', stock.assessment.year, '.png', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+
+##-------------------------------------------------------------------------------------------------------##
+# Tasmanian Seafoods grading post 2019
 
 tas.seafoods.df <- compiledMM.df.final %>% 
   filter(processorname == 'TASMANIAN SEAFOODS PTY LTD' 
@@ -770,60 +957,111 @@ df.6 <- df.5 %>%
   group_by(blockno, grade) %>% 
   mutate(position = cumsum(grade.perc - 0.5 * grade.perc))
 
-ggplot(df.6, aes(x = 1, y = grade.perc, fill = grade))+
+grade.plot <- ggplot(df.6, aes(x = '', y = grade.perc, fill = grade))+
   geom_bar(width = 1, stat = 'identity', position = position_fill())+
-  coord_polar(theta = 'y')+
+  coord_polar(theta = 'y', start = 0)+
   theme(axis.ticks = element_blank(), axis.title = element_blank(), 
         axis.text.y = , panel.grid  = element_blank(),
-        axis.text.x = element_blank())+ 
-  geom_text(aes(label = sprintf("%1.2f%%", 100 * grade.perc), y = position))+
+        axis.text.x = element_blank())+
+  # geom_text(aes(label = sprintf("%1.2f%%", 100 * grade.perc), y = position))+
   facet_grid(. ~ blockno)
 
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight_Grading.pdf', sep = ''),
+  plot = grade.plot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight_Grading.wmf', sep = ''),
+  plot = grade.plot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight_Grading.png', sep = ''),
+  plot = grade.plot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+
 ##-------------------------------------------------------------------------------------------------------##
-# Size limits for plots ####
+# Decadal boxplot vs stock assessment year
 
-library(dplyr)
-library(tidyr)
-library(readxl)
-library(gsubfn)
-library(ggplot2)
-library(lubridate)
+# add decade to df
+df.7 <- compiledMM.df.final %>% 
+  mutate(decade = if_else(between(fishyear, 1980, 1989), '1980s',
+                          if_else(between(fishyear, 1990, 1999), '1990s',
+                                  if_else(between(fishyear, 2000, 2009), '2000s',
+                                          if_else(between(fishyear, 2010, 2019), '2010s', NA_character_))))) 
 
-size.limits <- read.csv("C:/Users/jaimem/Desktop/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+# select data for block
+df.7.dat.2019 <- df.7 %>%
+  filter(
+    newzone == 'E'
+    & blocklist == 13
+    & fishyear == 2019
+    & between(shell.length, 100, 220)
+  )
 
-colnames(size.limits) <- tolower(colnames(size.limits))
-names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+df.7.dat.histo <- df.7 %>%
+  filter(
+    newzone == 'E'
+    & blocklist == 13
+    & between(fishyear, 1980, stock.assessment.year - 1)
+    & between(shell.length, 100, 220)
+  )
 
-df.1 <- size.limits %>%
-  mutate(zone.subblockno = paste(abzone, subblockno, sep = '-')) %>% 
-  gather(yearmonth, lml, `jan-62`:`dec-19`) %>% 
-  mutate(yearmonth = gsub('jan', 1, yearmonth)) %>% 
-  mutate(yearmonth = gsub('feb', 2, yearmonth)) %>% 
-  mutate(yearmonth = gsub('mar', 3, yearmonth)) %>% 
-  mutate(yearmonth = gsub('apr', 4, yearmonth)) %>% 
-  mutate(yearmonth = gsub('may', 5, yearmonth)) %>% 
-  mutate(yearmonth = gsub('jun', 6, yearmonth)) %>% 
-  mutate(yearmonth = gsub('jul', 7, yearmonth)) %>% 
-  mutate(yearmonth = gsub('aug', 8, yearmonth)) %>% 
-  mutate(yearmonth = gsub('sep', 9, yearmonth)) %>% 
-  mutate(yearmonth = gsub('oct', 10, yearmonth)) %>% 
-  mutate(yearmonth = gsub('nov', 11, yearmonth)) %>% 
-  mutate(yearmonth = gsub('dec', 12, yearmonth)) %>% 
-  mutate(yearmonth2 = yearmonth) %>% 
-  separate(yearmonth2, sep = '-', into = c('fishmonth', 'fishyear'), convert = T) %>% 
-  mutate(fishyear = if_else(fishyear < 10, paste(200, fishyear, sep = ''),
-                            if_else(between(fishyear, 62, 99), paste(19, fishyear, sep = ''),
-                                    paste(20, fishyear, sep = '')))) %>% 
-  mutate(monthyear = paste(fishmonth, fishyear, sep = '-')) %>% 
-  mutate(lml.index = paste(zone.subblockno, monthyear, sep = '-')) %>%
-  mutate(fishday = 1) %>%
-  mutate(fishdate = paste(fishyear, fishmonth, fishday, sep = '-'))
+df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
 
-df.1$fishdate <- as.Date(strptime(df.1$fishdate, "%Y-%m-%d"))
+# generate plot for zone and block combination only if data is present
 
-unique(df.1$subblockno)
-df.1 %>% 
-  filter(subblockno == '4A') %>%  
-  ggplot(aes(x = fishdate, y = lml))+
-  geom_line()
-
+  # convert required grouping variable to factor for boxplot
+  
+  df.7.block$fishyear <- as.factor(df.7.block$fishyear)
+  df.7.block$decade <- as.factor(df.7.block$decade)
+  
+  # # generate a count of records for each year to add to boxplot
+  # 
+  # plotdat.n <- plotdat.block %>%
+  #   group_by(fishyear, blockno) %>%
+  #   summarize(n = n())
+  
+  # # generate table of size limits for each year to add to boxplot
+  # 
+  # size.limit <- plotdat.block %>% 
+  #   group_by(fishyear, blockno) %>% 
+  #   summarise(legal.min.length = max(sizelimit))
+  
+  # generate boxplot of shell lengths for chosen grouping variable
+  
+  mm.zone.boxplot <-
+    ggplot(df.7.block, aes(x = fishyear, y = shell.length)) +
+    geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+    # # geom_text(
+    #   data = plotdat.n,
+    #   aes(y = 220, label = n),
+    #   size = 3,
+    #   angle = 90
+    # ) +
+    # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+    # geom_point(data = size.limit, aes(x = fishyear, y = legal.min.length), 
+               # shape = 95, size = 7, colour = "red")+
+    xlab('Year') +
+    # ylab(paste('BlockNo', j, 'Shell Length (mm)')) +
+    coord_cartesian(ylim = c(100, 225)) +
+    theme_bw() +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.line = element_line(colour = "black"),
+      axis.text.x = element_text(angle = 0, vjust = 0.5)
+    )+
+    facet_wrap(.~decade, scales = 'free_x', nrow = 2)
+  
+  print(mm.zone.boxplot)

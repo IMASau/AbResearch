@@ -1,4 +1,3 @@
-
 library(sftp)
 library(RCurl)
 library(tidyverse)
@@ -10,30 +9,45 @@ library(RDCOMClient)
 library(openxlsx)
 library(fuzzyjoin)
 library(lubridate)
+library(vroom)
+library(readtext)
+library(quanteda)
 
 ## Local working folder
 
-sftp.local <- "R:/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
+sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
 
 #sftp.local <- "c:/CloudStor/Shared/AbTrack/NextGen/Data/"
 
 
 ##---------------------------------------------------------------------------##
 ## Using base functions
-localfiles <- list.files(sftp.local,  pattern = "*.txt") %>%
- as.data.frame()
-colnames(localfiles) <- c("InFileName")
+# localfiles <- list.files(sftp.local,  pattern = "*.txt") %>%
+#  as.data.frame()
+# colnames(localfiles) <- c("InFileName")
 
-tail(localfiles)
+# tail(localfiles)
+
+##---------------------------------------------------------------------------##
+## Extract .txt files from sftp download folder and compile into dataframe
+## Measuring board .txt files are denoted with '07' prefix
+
+localfiles <- list.files(sftp.local,  pattern = "^07.*txt", full.names = T) 
+
+localfiles.dat <- lapply (localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
+                  colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+localfiles.df <- do.call(rbind, localfiles.dat)
+
+logged.data <- localfiles.df
 
 #localfiles[58,]
 
-filesize <- file.size(paste0(sftp.local,"/", localfiles$InFileName)) %>%
+filesize <- file.size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
  as.numeric()
 
 tail(filesize)
 
-fileinf <- file.info(paste0(sftp.local,"/", localfiles$InFileName)) 
+fileinf <- file.info(paste0(sftp.local,"/", localfiles.df$InFileName)) 
 
 tail(fileinf)
 
@@ -44,21 +58,18 @@ tail(fileinf)
 
 ##Get info about files in local sftp folder (uses library(fs))
 ## Need to loop through this, or work out how to use apply
-locals <- file_info(paste0(sftp.local,"/",localfiles$InFileName)) %>%
- as.data.frame()
-
-tail(locals)
-
-## Note: modification_time from file_info appears to = creation date on the ftp server
-
-## Need to loop through this, or work out how to use apply
-fs.pre <- file_size(paste0(sftp.local,"/", localfiles$InFileName)) %>%
- as.numeric()
-
-tail(fs.pre)
-
-
-
+# locals <- file_info(paste0(sftp.local,"/",localfiles.df$InFileName)) %>%
+#  as.data.frame()
+# 
+# tail(locals)
+# 
+# ## Note: modification_time from file_info appears to = creation date on the ftp server
+# 
+# ## Need to loop through this, or work out how to use apply
+# fs.pre <- file_size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
+#  as.numeric()
+# 
+# tail(fs.pre)
 
 #sftp.files$OutFileName <- paste0("archive/",sftp.files$InFileName)
 
@@ -68,28 +79,28 @@ tail(fs.pre)
 ## Extract info from data packet ####
 
 
-<<<<<<< HEAD
+# <<<<<<< HEAD
 ## manual choice of input file
-infile <- choose.files(paste0(sftp.local,"07020055_20200122.txt"))
-=======
+# infile <- choose.files(paste0(sftp.local,"07020055_20200122.txt"))
+# =======
 ## Step 1: Manual choice of input file ####
-infile <- choose.files(paste0(sftp.local,"/07*.txt"))
->>>>>>> 8207f5d73c94c99dec08f59769fe392c758f236f
+# infile <- choose.files(paste0(sftp.local,"/07*.txt"))
+# >>>>>>> 8207f5d73c94c99dec08f59769fe392c758f236f
 
 ## Specific file
 # infile <- paste0(sftp.local,"/", sftp.files$InFileName[5])
 
-logged.data <- read.csv(infile,
-                            skip = 6,
-                            header=FALSE, 
-                            sep=',', 
-                            as.is=TRUE,
-                            colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"))
+# logged.data <- read.csv(infile,
+#                             skip = 6,
+#                             header=FALSE, 
+#                             sep=',', 
+#                             as.is=TRUE,
+#                             colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"))
 
 colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
 
 
-infile
+# infile
 unique(logged.data$logname)
 ## Number of records for each identifier
 table(logged.data$identifier)
@@ -203,13 +214,36 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
  left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
  left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
  left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
-<<<<<<< HEAD
 
-IMAS056 <- lengthweight
-=======
- 
 tail(lengthweight)
+# <<<<<<< HEAD
 
+measure.board.df <- lengthweight
+
+##---------------------------------------------------------------------------##
+## Step 8: clean and save dataframe ####
+
+# remove measuring board testing data (pre-deployment lognames and random test docket numbers) 
+measure.board.df <- measure.board.df %>% 
+        filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
+                       !docketnum %in% c(45575, 111111, 123456, 222222, 323232, 
+                                         333333, 454545, 474747, 555555, 565656,
+                                         616161, 654321, 666666, 811881))
+# save RDS of dataframe
+saveRDS(measure.board.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
+
+##---------------------------------------------------------------------------##
+## Quick summaries ####
+
+# quick summary of measureboard data
+measure.board.df %>% filter(!is.na(docketnum)) %>%  
+        group_by(docketnum) %>% 
+        summarise(sampdate = max(plaindate),
+                  n = n(),
+                  minsl = min(shelllength),
+                  medsl = median(shelllength),
+                  maxweight = max(wholeweight)) %>% 
+        arrange(sampdate)
 
 
 ##----------------------------------------------## 

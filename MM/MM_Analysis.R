@@ -1442,7 +1442,7 @@ docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$
 n_occur <- data.frame(table(docket.uniq$docket.number))
 range(n_occur$Freq)
 
-# join unique dockets to ab.2016MM
+# join unique dockets to ab.2019MM
 
 ab.2019MM.unique <- inner_join(ab.2019MM, docket.uniq)
 

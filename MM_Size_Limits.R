@@ -71,6 +71,13 @@ compiledMM.df.final <- compiledMM.df.final %>%
  mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
 
 compiledMM.df.final <- compiledMM.df.final %>%
+        mutate(same.block = if_else(!is.na(blocklist_1) & is.na(blocklist_2), 1,
+                                     if_else(is.na(blocklist_5) & is.na(blocklist_4) & is.na(blocklist_3) & blocklist_1 == blocklist_2, 1,
+                                             if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
+                                                     if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
+                                                             if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
+
+compiledMM.df.final <- compiledMM.df.final %>%
         mutate(sizelimit.index = if_else(
                 numsubblocks == 1 & subblockno %in% c('A', 'B', 'C', 'D', 'E'),
                 paste(
@@ -98,16 +105,25 @@ compiledMM.df.final <- compiledMM.df.final %>%
                                 fishyear,
                                 sep = '-'
                         ),
+                if_else(
+                                numsubblocks > 1 & same.block == 1,
+                                paste(
+                                        newzone,
+                                        blockno,
+                                        lubridate::month(daylist_max),
+                                        fishyear,
+                                        sep = '-'
+                                ),        
                         NA_character_
                         
                 )
-        )))
+        ))))
 
-df.2 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
 
 
-df.1 %>% 
-        filter(sizelimit.index == 'E-13-4-1987') %>% 
+compiledMM.df.final %>% 
+        filter(sizelimit.index == 'E-13-4-2012') %>% 
         select(sizelimit)
         
 
@@ -117,52 +133,8 @@ compiledMM.df.final %>%
 
 unique(compiledMM.df.final$sizelimit.index)
 ##########################
-tas.live.lobster <- bind_rows(IMAS055, IMAS056)
-
-str(tas.live.lobster)
-unique(tas.live.lobster$docketnum)
-
-tas.live.lobster.dat <- tas.live.lobster %>% 
-        filter(docketnum %in% c(812108, 812302))
-
-tas.live.lobster.dat <- tas.live.lobster.dat %>% 
-        mutate(grade = dplyr::if_else(wholeweight <= 400, 'xsmall',
-                                      dplyr::if_else(between(wholeweight, 401, 600), 'small',
-                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))))
 
 
-df.1 <- tas.live.lobster.dat %>% 
-        group_by(docketnum) %>% 
-        summarise(ab.meas = n())
-
-df.2 <- tas.live.lobster.dat %>% 
-        group_by(docketnum, grade) %>% 
-        summarise(grade.meas = n())
-
-df.3 <- left_join(df.2, df.1, by = 'docketnum') %>% 
-        mutate(grade.perc = (grade.meas / ab.meas) * 100)
-
-df.4 <- tas.live.lobster.dat %>% 
-        group_by(docketnum) %>% 
-        summarise(mean.weight = mean(wholeweight),
-                  min.weight = min(wholeweight),
-                  max.weight = max(wholeweight),
-                  mean.size = mean(shelllength),
-                  min.size = min(shelllength),
-                  max.size = max(shelllength))
-
-df.6 <- df.3 %>% 
-        group_by(docketnum, grade) %>% 
-        mutate(position2 = cumsum(grade.perc - 0.5 * grade.perc))
-
-ggplot(df.6, aes(x = 1, y = grade.perc, fill = grade))+
-        geom_bar(width = 1, stat = 'identity', position = position_fill())+
-        coord_polar(theta = 'y')+
-        theme(axis.ticks = element_blank(), axis.title = element_blank(), 
-              axis.text.y = , panel.grid  = element_blank(),
-              axis.text.x = element_blank())+ 
-        geom_text(aes(label = sprintf("%1.2f%%", 100 * grade.perc), y = position2))+
-        facet_grid(. ~ docketnum)        
 
 ############
 library(dplyr)
