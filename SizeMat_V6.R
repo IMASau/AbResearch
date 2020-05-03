@@ -72,12 +72,12 @@ SamList <- droplevels(subset(SamList, (I + M)> 150, drop=TRUE))
 
 
 ## Routine Outlier Removal: Unusual large immature animals
-pick <- which((samdata$SPC_ShellLength >139) & (samdata$Mat=="I"))
+pick <- which((samdata$SPC_ShellLength > 139) & (samdata$Mat=="I"))
 outlier <- samdata[pick,]
 samdata <- samdata[-pick,]
 
 ## Routine Outlier Removal: Unusual small mature animals
-pick <- which((samdata$SPC_ShellLength <60) & (samdata$Mat=="M"))
+pick <- which((samdata$SPC_ShellLength < 60) & (samdata$Mat=="M"))
 outlier <- rbind(outlier,samdata[pick,])
 samdata <- samdata[-pick,]
 
@@ -310,7 +310,7 @@ for (i in 1:NumSites) {
 SiteNames <- unique(samdata[,c(1:7,14)])
 SamResults <- inner_join(SamList, SiteNames, by="SiteCode")
 
-write.xlsx(SamResults, "C:/CloudStor/R_Stuff/Logistic/SamResultsBoot2018.xlsx")
+write.xlsx(SamResults, "C:/CloudStor/R_Stuff/Logistic/SamResultsBoot2019.xlsx")
 
 
 ##Size at Emergence ####

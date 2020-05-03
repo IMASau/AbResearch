@@ -3,7 +3,7 @@ library(data.table)
 library(dplyr)
 rm(list=ls())   # Cleanup the R console if required
 
-setwd("D:/Fisheries Research/Abalone/SAM/Growth code")
+setwd("c:/CloudStor/R_Stuff/Logistic")
 #source("C:/A_CSIRO/Rcode/CEUtils/lm_utils.r")
 #source("C:/A_CSIRO/Rcode/CEUtils/abalone_utils.r")
 #source("C:/A_CSIRO/Rcode/CEUtils/abdata_utils.r")
@@ -12,9 +12,11 @@ source("C:/GitCode/AbResearch/IL_funs.r")
 #source("D:/Fisheries Research/Abalone/SAM/MH growth code/abalonesubblks.r")
 #source(paste("D:/Fisheries Research/Abalone/SAM/MH growth code/fishMH.r",sep=""))
 
+getwd()
+
 #load("c:/CloudStor/R_Stuff/SAM/Logistic/IL_output200916.RData")
 
-GwthRaw<-read.csv("GwthDatablacklip.csv", header=TRUE)
+GwthRaw <- read.csv("GwthDatablacklip.csv", header=TRUE)
 dim(GwthRaw)
 head(GwthRaw,20)
 summary(GwthRaw)
@@ -38,7 +40,7 @@ unique(GwthRaw$SiteN)
 
 #Gwth<-droplevels(subset(GwthRaw, Dt >= 0.25 & Dt < 5))
 
-
+i <- 1
 sitechar <- as.data.frame(matrix(0,nrow=Nsites,ncol=7,dimnames=list(sitenos,c("SiteId","Name",
                   "Longitude","Latitude","StatBlock","Recap_Year","Records"))))
 for (i in 1:Nsites) {
@@ -63,7 +65,8 @@ sitechar <- sitechar[order(sitechar[,5]),]
   ILcolumns <- c("L50", "L95", "MaxDL", "MaxSig", "SiteName")
   ILOutput <- matrix(0,nrow=Nsites,ncol=length(ILcolumns),dimnames=list(sitenos,ILcolumns))
   
- 
+  p <- 459
+  
   for (p in sitenos) {
   absite <- getsitedata(p,Gwth)
    bins <- seq(min(absite$Dt),max(absite$Dt),0.1)
