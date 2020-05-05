@@ -1,3 +1,10 @@
+# This script collates all available .txt files uploaded to the sftp server from the Next Gen 4G measuring
+# boards and joins them to their assocaited docketinfo. These data are then joined to the previously 
+# collated historical abalone length frequency dataframe pre-2020.
+
+##---------------------------------------------------------------------------##
+# load libaries ####
+
 library(sftp)
 library(RCurl)
 library(tidyverse)
@@ -13,24 +20,16 @@ library(vroom)
 library(readtext)
 library(quanteda)
 
-## Local working folder
+##---------------------------------------------------------------------------##
+## Local working folder ####
 
 sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
 
-#sftp.local <- "c:/CloudStor/Shared/AbTrack/NextGen/Data/"
-
-
 ##---------------------------------------------------------------------------##
-## Using base functions
-# localfiles <- list.files(sftp.local,  pattern = "*.txt") %>%
-#  as.data.frame()
-# colnames(localfiles) <- c("InFileName")
+## Extract .txt files ####
 
-# tail(localfiles)
-
-##---------------------------------------------------------------------------##
-## Extract .txt files from sftp download folder and compile into dataframe
-## Measuring board .txt files are denoted with '07' prefix
+## Extract data from sftp download folder and compile into dataframe
+## Note: measuring board .txt files are denoted with '07' prefix
 
 localfiles <- list.files(sftp.local,  pattern = "^07.*txt", full.names = T) 
 
@@ -39,8 +38,6 @@ localfiles.dat <- lapply (localfiles, read.table, sep = ",", header = F, row.nam
 localfiles.df <- do.call(rbind, localfiles.dat)
 
 logged.data <- localfiles.df
-
-#localfiles[58,]
 
 filesize <- file.size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
  as.numeric()
@@ -51,77 +48,37 @@ fileinf <- file.info(paste0(sftp.local,"/", localfiles.df$InFileName))
 
 tail(fileinf)
 
-
-#file_info(paste0(sftp.local,"/",localfiles)) %>%
-#  as.data.frame()
-
-
-##Get info about files in local sftp folder (uses library(fs))
-## Need to loop through this, or work out how to use apply
-# locals <- file_info(paste0(sftp.local,"/",localfiles.df$InFileName)) %>%
-#  as.data.frame()
-# 
-# tail(locals)
-# 
-# ## Note: modification_time from file_info appears to = creation date on the ftp server
-# 
-# ## Need to loop through this, or work out how to use apply
-# fs.pre <- file_size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
-#  as.numeric()
-# 
-# tail(fs.pre)
-
-#sftp.files$OutFileName <- paste0("archive/",sftp.files$InFileName)
-
-#sftp_rename(sftp.files$InFileName[5], paste0("../archive/",sftp.files$InFileName[5]), sftp_connection = sftp_con, verbose = TRUE, curlPerformVerbose = FALSE)
-
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####
 
-
-# <<<<<<< HEAD
-## manual choice of input file
-# infile <- choose.files(paste0(sftp.local,"07020055_20200122.txt"))
-# =======
-## Step 1: Manual choice of input file ####
-# infile <- choose.files(paste0(sftp.local,"/07*.txt"))
-# >>>>>>> 8207f5d73c94c99dec08f59769fe392c758f236f
-
-## Specific file
-# infile <- paste0(sftp.local,"/", sftp.files$InFileName[5])
-
-# logged.data <- read.csv(infile,
-#                             skip = 6,
-#                             header=FALSE, 
-#                             sep=',', 
-#                             as.is=TRUE,
-#                             colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"))
+# rename variable names of dataframe
 
 colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
 
+# identify measuring board logger names
 
-# infile
 unique(logged.data$logname)
-## Number of records for each identifier
+
+# identify number of records for each identifier
 table(logged.data$identifier)
 
 logged.data$logger_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "GMT")
 logged.data$local_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
-logged.data <- logged.data %>%  mutate(plaindate = as.Date(local_date, tz="Australia/BRISBANE"))
+logged.data <- logged.data %>%  
+        mutate(plaindate = as.Date(local_date, tz="Australia/BRISBANE"))
 
 tail(logged.data)
 
 
 ##---------------------------------------------------------------------------##
 ## Check LoggerName data ####
+
 logname <- filter(logged.data, identifier == 32962) 
 logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
  as.data.frame()
 
-#head(logname)
 tail(logname)
-
 
 ##---------------------------------------------------------------------------##
 ## Step 2: Extract Battery voltage  ####
@@ -134,7 +91,6 @@ loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
 
 tail(loggerbattery)
 
-
 ##---------------------------------------------------------------------------##
 ## Step 3A: Extract GPS RMC Part A  ####
 gps.RMC_A <- filter(logged.data, identifier == 220) %>%
@@ -142,10 +98,7 @@ gps.RMC_A <- filter(logged.data, identifier == 220) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-#head(gps.RMC_A)
 tail(gps.RMC_A)
-
-
 
 ##---------------------------------------------------------------------------##
 ## Step 3B: Extract GPS RMC Part B ####
@@ -154,9 +107,7 @@ gps.RMC_B <- filter(logged.data, identifier == 221) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-#head(gps.RMC_B)
 tail(gps.RMC_B)
-
 
 ##---------------------------------------------------------------------------##
 ## Step 3C: Join RMC Part A & B   ####
@@ -170,8 +121,6 @@ table(gps.RMC$plaindate)
 pick <- which(duplicated(gps.RMC$local_date) == TRUE)
 gps.RMC[pick,]
 
-
-
 ##---------------------------------------------------------------------------##
 ## Step 4: Extract Docket details ####
 docket <- filter(logged.data, identifier == 32963) 
@@ -179,9 +128,7 @@ docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep =
                      convert = TRUE) %>%
  as.data.frame()
 
-#head(docket)
 tail(docket)
-
 
 ##---------------------------------------------------------------------------##
 ## Step 5: Extract Weight length ####
@@ -190,9 +137,7 @@ ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = "
                      convert = TRUE) %>%
  as.data.frame()
 
-#head(ablength)
 tail(ablength)
-
 
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
@@ -201,10 +146,7 @@ abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = "
                       convert = TRUE) %>%
  as.data.frame()
 
-#head(abweight)
 tail(abweight)
-
-
 
 ##---------------------------------------------------------------------------##
 ## Step 7: Join components into a flat form ####
@@ -216,44 +158,58 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
  left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
 
 tail(lengthweight)
-# <<<<<<< HEAD
 
 measure.board.df <- lengthweight
 
 ##---------------------------------------------------------------------------##
 ## Step 8: clean and save dataframe ####
 
-# remove measuring board testing data (pre-deployment lognames and random test docket numbers) 
+# remove measuring board testing data (pre-deployment logger names and random test docket numbers) 
 measure.board.df <- measure.board.df %>% 
         filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
                        !docketnum %in% c(45575, 111111, 123456, 222222, 323232, 
                                          333333, 454545, 474747, 555555, 565656,
                                          616161, 654321, 666666, 811881))
-# save RDS of dataframe
-saveRDS(measure.board.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
+
+# fix any known errors with measureboard data
+# Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
+measure.board.df <- measure.board.df %>% 
+        mutate(docketnum = replace(docketnum, docketnum == 812222, 812227))
+
+
 
 ##---------------------------------------------------------------------------##
-## Quick summaries ####
+## Step 9: assign measuring board to processor ####
 
-# quick summary of measureboard data
-measure.board.df %>% filter(!is.na(docketnum)) %>%  
-        group_by(docketnum) %>% 
-        summarise(sampdate = max(plaindate),
-                  n = n(),
-                  minsl = min(shelllength),
-                  medsl = median(shelllength),
-                  maxweight = max(wholeweight)) %>% 
-        arrange(sampdate)
+# load inventory of processors which held measuring boards 
 
+mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
+                       detectDates = T)
 
-##----------------------------------------------## 
-## Extras: Manual date check ####
+# where measuring board is still with processor and the enddate is missing replace with todays date
 
-checktime <- 1579611010
+mb.invent <- mb.invent %>% 
+        mutate(startdate = as.POSIXct(startdate),
+               enddate = as.POSIXct(enddate),
+               enddate = if_else(is.na(enddate), Sys.time(), enddate))
 
-pointintime <- as.POSIXct(checktime, origin = "1970-01-01", tz = "GMT")
+# join measuring board raw data with inventory data 
 
-localpointintime <- as.POSIXct(checktime, origin = "1970-01-01", tz = "Australia/BRISBANE")
-localpointintime
->>>>>>> 8207f5d73c94c99dec08f59769fe392c758f236f
+measure.board.next.gen.df <- fuzzy_left_join(
+        measure.board.df,
+        mb.invent,
+        by = c(
+                "logname" = "logname",
+                "logger_date" = "startdate",
+                "logger_date" = "enddate"
+        ),
+        match_fun = list(`==`, `>=`, `<=`)
+) %>% select(-c(logname.y, startdate, enddate, platformscales, comments)) %>%
+        mutate(logname = logname.x) %>%
+        select(-(logname.x)) %>%
+        filter(!is.na(docketnum))
 
+##---------------------------------------------------------------------------##
+## Step 10: save RDS of dataframe ####
+
+saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')

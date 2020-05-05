@@ -70,7 +70,8 @@ load(myFile)
 # load most recent abalone processor details
 
 # docketinfo <- readRDS('docketinfo2.RDS')
-docketinfo <- readRDS('C:/CloudStor/R_Stuff/AutoAssess/docketinfo3.rds')
+# docketinfo <- readRDS('C:/CloudStor/R_Stuff/AutoAssess/docketinfo3.rds')
+docketinfo <- readRDS('C:/CloudStor/R_Stuff/MMLF/docketinfo3.rds')
 
 # load('Dev_MM3.Rdata')
 
@@ -949,66 +950,6 @@ facMM.uniq <- facMM %>%
 facMM.uniq.di <- left_join(facMM.uniq, docketinfo, by = c("docket.number", "processorname"))
 
 ##-------------------------------------------------------------------------------------------------------##
-# ## compiled.docket.00.07.2000 ####
-# # NOTE: the latest docketinfo query is missing data from year 2000 therefore
-# # match old docketinfo to facMM.uniq datframe to test for duplicates
-# 
-# # REMOVE THIS SECTION ONCE DOCKETINFO QUERY IS FIXED!!!
-# 
-# facMM.uniq.di <- left_join(facMM.uniq, docketinfo.pre2001, by = c("docket.number", "processorname"))
-# 
-# # test on duplicates
-# 
-# test <- unique(facMM.uniq.di[c("docket.number","processorname")])
-# n_occur <- data.frame(table(test$docket.number))
-# range(n_occur$Freq)
-# 
-# # compile the final dataframe
-# 
-# compiled.docket.00.07 <- inner_join(facMM, facMM.uniq.di, by = c("docket.number","processorname")) %>%
-#  mutate(blocklist = blocklist.y) %>%
-#  select(-c(blocklist.x, blocklist.y))
-# 
-# # add date difference column
-# compiled.docket.00.07 <- compiled.docket.00.07 %>%
-#  ungroup() %>%
-#  mutate(msr.date = as.Date(msr.date)) %>%
-#  mutate(unloading_date = as.Date(unloading_date)) %>%
-#  mutate(msr.date.diff = as.numeric(msr.date - unloading_date))
-# 
-# # select records from year 2000
-# compiled.docket.00.07.2000 <- compiled.docket.00.07 %>%
-#  filter(fishyear == 2000)
-# 
-# # rename columns to lowercase
-# compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>% 
-#  rename_all(tolower)
-# 
-# # rename species variables and alter newzone
-# compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
-#  mutate(species = ifelse(species == 'Greenlip', 2, 1)) %>%
-#  mutate(newzone = ifelse(species == 2, 'G', newzone))
-# 
-# # populate blocklist and subblock list for records where no docketinfo is available but is present
-# # from the measuring board data
-# 
-# compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
-#  mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
-#  mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
-#  mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
-#  mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
-# 
-# # rename and remove columns to match compiledMM.df.final
-# 
-# compiled.docket.00.07.2000 <- compiled.docket.00.07.2000 %>%
-#  mutate(daylist_max = if_else(is.na(unloading_date), msr.date, unloading_date)) %>%
-#  mutate(meanSL = meansl, minSL = minsl, proc = processor_licence_id) %>%
-#  select(-c(diver, docket_return_type, joincode, qudo_id, received_location, related_qudo_id,
-#            total_landed_weight, unlicenced_processor, unlicenced_processor_name, zone_fishery_code,
-#            unloading_date, zone, minsl, meansl, processor_licence_id))
-
-
-##-------------------------------------------------------------------------------------------------------##
 
 # test on duplicates
 
@@ -1035,7 +976,7 @@ rm(list=ls()[! ls() %in% c('compiled.docket.00.07', 'compiled.docket.FeMM', 'com
 saveRDS(compiled.docket.00.07, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.00.07.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
-## Compile dataframes ####
+## compile dataframes ####
 
 # add variable to each dataframe to identify data source
 
@@ -1328,7 +1269,9 @@ csiroMM.sub$numblocks <- as.numeric(csiroMM.sub$numsubblocks)
 # # join to compiled.df
 
 compiled.df.csiro <- bind_rows(compiled.df, csiroMM.sub)
-saveRDS(compiled.df.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.df.csiro.RDS')
+compiled.docket.csiro <- compiled.df.csiro
+# saveRDS(compiled.df.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.df.csiro.RDS')
+saveRDS(compiled.docket.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.csiro.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
 ## compiled.docket.16.19 ####
@@ -1459,13 +1402,19 @@ saveRDS(compiled.docket.16.19, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.16.19.
 
 # join to compiled.df.csiro
 # compiledMM.df <- bind_rows(compiled.df.csiro, compiled.docket.16.19)
-compiled.docket <- bind_rows(compiled.df.csiro, compiled.docket.16.19)
+compiled.docket <- bind_rows(compiled.docket.csiro, compiled.docket.16.19)
 
 ##-------------------------------------------------------------------------------------------------------##
 ## compiled.docket.81.96 ####
+# this data comprises length frequency records collected by staff at fish processing
+# factories between 1981-1996. Data are entered on a database from which the following
+# .csv extract was produced.
+
+# import raw data
+
 ab.8196MM.raw <- read.csv("c:/CloudStor/R_Stuff/MMLF/mm_81_95.csv", header = TRUE, sep = ',', dec = '.', as.is = TRUE)
 
-## rename variables to match other datasources and remove unwanted variables
+# rename variables to match other datasources and remove unwanted variables
 
 ab.8196MM.df <- ab.8196MM.raw %>% 
    rename_all(tolower) %>% 
@@ -1521,13 +1470,107 @@ compiled.docket.81.96$proc <- as.character(compiled.docket.81.96$proc)
 # save dataframe
 saveRDS(compiled.docket.81.96, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.81.96.RDS')
 
-# join dataframe to running datfrane compilation
-compiledMM.df <- bind_rows(compiled.docket, compiled.docket.81.96)
+# join dataframe to historical length frequency compiled data frame
+compiled.docket <- bind_rows(compiled.docket, compiled.docket.81.96)
 
 ##-------------------------------------------------------------------------------------------------------##
-## Final data cleaning of compiledMM.df ####
+## compiled.docket.next.gen ####
+# this data collected since 2020 using the Next Generation 4G measuring boards which
+# upload data to the stfp server. Data are compiled in the seperate script 'MM_NextGen_4G.R'.
 
-# save a copy of the R file
+# import latest version of compiled next generation measuring board data
+
+measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+
+# match data to existing compiled dataframes
+# remove unecessary variables and rename variables to match compiledMM.df
+
+measure.board.next.gen.df.match <- measure.board.next.gen.df %>% 
+   select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+   rename(msr.date = plaindate,
+          docket.number = docketnum,
+          shell.length = shelllength,
+          whole.weight = wholeweight,
+          e.processor = processor) %>% 
+   mutate(e.processor = replace(e.processor, e.processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD', "RALPH'S TASMANIAN SEAFOOD PTY LTD"))
+
+# add variable to distinguish datasource
+measure.board.next.gen.df.match$datasource <- '2020NextGen4G'                  
+
+# extract docketinfo for e.processors listed in new data
+eproname <- as.data.frame(unique(measure.board.next.gen.df.match$e.processor))
+colnames(eproname) <- c("e.processor")
+e.processors <- eproname$e.processor
+
+docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors)) %>% 
+   rename(e.processor = processorname)
+
+# summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
+n.per.docket <- measure.board.next.gen.df.match %>% 
+   group_by(docket.number, msr.date, e.processor) %>%
+   summarise(n = length(shell.length),
+             meanSL = round(mean(shell.length, na.rm = T), 1),
+             minSL = round(min(shell.length), 1))
+
+# match docketinfo.epro to the n.per.docket dataframe
+docket.join <- inner_join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"))
+
+# add date difference column
+docket.join <- docket.join %>%
+   ungroup() %>%
+   mutate(msr.date = as.Date(msr.date)) %>%
+   mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
+
+# check for and seperate out dupilicated dockets
+n_occur <- data.frame(table(docket.join$docket.number))
+range(n_occur$Freq)
+docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
+
+# check
+n_occur <- data.frame(table(docket.uniq$docket.number))
+range(n_occur$Freq)
+
+# join unique dockets to df.1
+measure.board.next.gen.df.unique <- inner_join(measure.board.next.gen.df.match, docket.uniq)
+
+# subset data and filter out uneeded or duplicated variables
+compiled.docket.next.gen <- measure.board.next.gen.df.unique %>%
+   select(
+      docket.number,
+      msr.date,
+      proc,
+      e.processor,
+      numprocs,
+      proclist,
+      newzone,
+      numdays,
+      daylist,
+      daylist_max,
+      msr.date.diff,
+      numblocks,
+      blocklist,
+      numsubblocks,
+      subblocklist,
+      catch,
+      n,
+      meanSL,
+      minSL,
+      shell.length,
+      whole.weight,
+      datasource
+   ) %>% 
+   rename('processorname' = e.processor)
+
+# save RDS file
+
+saveRDS(compiled.docket.next.gen, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+
+# join dataframe to historical length frequency compiled data frame
+
+compiledMM.df <- bind_rows(compiled.docket, compiled.docket.next.gen)
+
+##-------------------------------------------------------------------------------------------------------##
+## save compiledMM.df ####
 
 saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 # compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
@@ -1539,7 +1582,13 @@ rm(list=ls()[! ls() %in% c('err.docket.match', 'abdb.distinct','abdb.docket.uniq
                            'Raw.MM.Output.error.docket', 'docketinfo', 
                            'compiled.docket.abdb', 'csiroMM', 'compiled.df.csiro',
                            'compiledMM.df')])
+
+
 ##-------------------------------------------------------------------------------------------------------##
+## final compiledMM.df ####
+
+# final data cleaning of compiledMM.df
+
 # Make a copy of the compiledMM.df if needed
 
 compiledMM.df.copy <- compiledMM.df
@@ -1839,516 +1888,514 @@ rm(list=ls()[! ls() %in% c('err.docket.match', 'abdb.distinct','abdb.docket.uniq
                            'compiledMM.df', 'compiledMM.df.final')])
 
 ##-------------------------------------------------------------------------------------------------------##
-## Plots of final data frame ####
-
-# load most recent MM data compelation for 1974-2015
-# (NOTE: data for 2000 is currently not included in this df as the latest docketinfo query does not extract these records
-#  and therfore can not be matched to more measuring board information)
-
-# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
-
-# set working directory to export plots
-
-setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots")
-
-##-------------------------------------------------------------------------------------------------------##
-# LF boxplot ####
-# Length frequency boxplot for zone and/or region for chosen time interval
-
-# 1. select zone and region
-
-# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
-# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
-# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
-# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
-# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
-
-zone <- 'E'
-region <- 'Actaeons'
-block <- 13
-
-# 2. extract plot data
-
-plotdat <-
- compiledMM.df.final %>% 
- filter(region.1 %in% region & 
-         newzone %in% zone &
-         same.region == 1 &
-         (between(shell.length, 100, 220)) & 
-         (between(fishyear, 2000, 2019)))
-
+# ## ****OLD PLOT STUFF CAN BE DELETED - PLOTS MOVED TO SEPERATE SCRIPT****
+# 
+# ## Plots of final data frame
+# 
+# # load most recent MM data compelation for 1974-2015
+# # (NOTE: data for 2000 is currently not included in this df as the latest docketinfo query does not extract these records
+# #  and therfore can not be matched to more measuring board information)
+# 
+# # compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# 
+# # set working directory to export plots
+# 
+# setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots")
+# 
+# ##-------------------------------------------------------------------------------------------------------##
+# # LF boxplot
+# # Length frequency boxplot for zone and/or region for chosen time interval
+# 
+# # 1. select zone and region
+# 
+# # E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
+# # W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
+# # N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
+# # BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
+# # G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
+# 
+# zone <- 'E'
+# region <- 'Actaeons'
+# block <- 13
+# 
+# # 2. extract plot data
+# 
 # plotdat <-
-#  compiledMM.df.final %>%
-#  filter(newzone %in% zone &
+#  compiledMM.df.final %>% 
+#  filter(region.1 %in% region & 
+#          newzone %in% zone &
 #          same.region == 1 &
-#          (between(shell.length, 100, 220)) &
-#          (between(fishyear, 2016, 2016)))
-
-# 3. convert required grouping variable to factor for boxplot
-
-plotdat$fishyear <- as.factor(plotdat$fishyear)
-#plotdat$fishquarter <- as.factor(plotdat$fishquarter)
-
-# 4. generate a count of records for each year to add to boxplot
-
-plotdat.n <- plotdat %>% 
- group_by(fishyear, region.1) %>% 
- summarize(n = n())
-
-# 5. generate boxplot of shell lengths for chosen grouping variable
-
-mm.zone.boxplot <- ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
- geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
- geom_text(data = plotdat.n, aes(y = 220, label = n,), size = 3, angle = 90) +
- # geom_hline(data = filter(plotdat, region.1 == 'Actaeons'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_hline(data = filter(plotdat, region.1 == 'Channel'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_hline(data = filter(plotdat, region.1 == 'Fortescue'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_hline(data = filter(plotdat, region.1 == 'StHelens'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_hline(data = filter(plotdat, region.1 == 'BichenoFreycinet'), aes(yintercept = 145),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_hline(data = filter(plotdat, region.1 == 'StormBay'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- #geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
- geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
- #facet_grid(. ~ region.1)+
- #ggtitle('Western Zone 1967-2016') +
- xlab('Year') +
- ylab('Shell Length (mm)')+ 
- coord_cartesian(ylim = c(100, 225))+
- theme_bw() + 
- theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-       axis.text.x = element_text(angle = 0, vjust = 0.5))
-
-print(mm.zone.boxplot)
-
-# 6. save plots to working directory
-
-ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.pdf', sep = ''), plot = mm.zone.boxplot)
-ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.wmf', sep = ''), plot = mm.zone.boxplot)
-
-##-------------------------------------------------------------------------------------------------------##
-## LF histogram #### 
-## Length frequency plot for zone, with block or region vertically adjacent every 5 years
-
-
-
-# 1. select zone
-
-zone <- 'E'
-
-# 2. select block from zone if using block as the overlay
-# unique((compiledMM.df %>% filter(newzone %in% zone))$blockno)
-# block.no <- c(13, 16, 22, 23, 29)
-
-# 3. select region from zone if using zone as the overlay
-
-ordered(unique((compiledMM.df.final %>% 
-                 filter(newzone %in% zone & 
-                         species == 1 & 
-                         same.region == 1))$region.1))
-
-# E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
-# W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
-# N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
-# BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
-# G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
-
-region.plot<- 'Actaeons'
-
-# 4. create list of regions for chosen zone
-
-region.2019 <- unique((compiledMM.df.final %>% 
-                        filter(newzone %in% zone))$region.1)
-
-# 5. select data for zone
-
-plotdat.2.zone <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>% 
- group_by(fishyear) %>%
- mutate(n = n())
-
-# 6. select data for zone and count the number of measurments
-
-plotdat.2.n.zone <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- summarise(zone.n = n(),
-           n = paste('n =', n()))
-
-# 7. select data for zone, and for chosen region or block  
-
-plotdat.2 <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & region.1 %in% region.plot 
-        & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- mutate(n = n())
-
-# 8. select data for zone, and for chosen region or block and count the number of measurments
-
-plotdat.2.n <- compiledMM.df.final %>% 
- filter(newzone %in% zone 
-        & region.1 %in% region.plot 
-        & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
-        & between(shell.length, 100, 220)
-        & same.region == 1) %>%
- group_by(fishyear) %>%
- summarise(region.n = n(),
-           n = paste('n =', n())) 
-
-# 9. join count of measurments for zone, and for chosen region or block, and create plot label
-
-plotdat.2.n.2.join <- 
- left_join(plotdat.2.n.zone, plotdat.2.n, by = "fishyear") %>%
- mutate(percent.region = round((region.n/zone.n)*100), 0) %>%
- mutate(n = ifelse(is.na(region.n), 'NO DATA',
-                   paste0('n = ', region.n, '\n', '(', percent.region, '%', ')')))
-
-# 10. generate plot (add or remove size limits where data is absent)
-
-mm.zone.plot.2 <- ggplot(plotdat.2, aes(shell.length))+
- geom_histogram(data = transform(subset(plotdat.2.zone, newzone %in% zone), region.1 = NULL), 
-                aes(y = -..density.. * 5), fill = 'white', col = 'black',  binwidth = 5)+
- geom_histogram(data = subset(plotdat.2, region.1 %in% region.2019), 
-                aes(y = ..density.. *5), fill = 'black', colour = 'black', binwidth = 5)+
- #overlay selected block or region
- #geom_histogram(data = subset(plotdat.2, blockno %in% block.no), fill = 'black', binwidth = 5)+
- theme_bw()+
- ylab(paste(region.plot, "region", " Percentage (%)")) +
- xlab("Shell Length (mm)")+
- #coord_cartesian(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
- coord_flip(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
- facet_grid(. ~ fishyear)+
- scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
- geom_text(data = plotdat.2.n.2.join, aes(x = 200, y = 0.2, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
- #add size limits for each time period
- geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
- geom_vline(data = filter(plotdat.2, fishyear == 2019), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)
- #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 120),colour = 'darkgreen', linetype = 'dashed', size = 0.5)
- #geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
- # geom_vline(aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
- # geom_text(data = plotdat.2.n, aes(x = 200, y = 100, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
-
-print(mm.zone.plot.2)
-
-# 11. save plots to file
-
-# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.pdf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
-ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.wmf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
-
-## LF histrogram/boxplot ####
-
-## Overlay 5-year histrogram with longterm boxplot
-mm.zone.plot.3 <- grid.arrange(
- arrangeGrob(cowplot::plot_grid(mm.zone.plot.2, mm.zone.boxplot, align = 'v', ncol = 1),
-             ncol = 1))
-
-ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.pdf', sep = ''), plot = mm.zone.plot.3)
-ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.wmf', sep = ''), plot = mm.zone.plot.3)
- 
-##############################################################################################################
-#
-#
-# 2019 MM abalone data - quick analysis of Tas Live Lobster catch April 2019 ####
-#
-#
-ab.2019MM.raw.a <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.csv')
-ab.2019MM.raw.b <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_15042019.csv')
-
-
-## create a backup
-ab.2019MM <- bind_rows(ab.2019MM.raw.a, ab.2019MM.raw.b)
-#ab.2019MM <- ab.2019MM.raw
-#ab.2019MM <- ab.2019MM.backup
-
-# convert dates
-ab.2019MM$unloading_date <- as.POSIXct(ab.2019MM$unloading_date, format = '%d/%m/%Y')
-ab.2019MM$msr.date <- as.POSIXct(ab.2019MM$msr.date, format = '%m/%d/%Y')
-
-## add column for fishing year, month and quarter
-ab.2019MM$fishyear <- ifelse(is.na(ab.2019MM$msr.date), year(ab.2019MM$unloading_date),
-                             year(ab.2019MM$msr.date))
-ab.2019MM$fishmonth <- month(ab.2019MM$msr.date)
-ab.2019MM$fishquarter <- quarter(ab.2019MM$msr.date)
-
-## add 1 mm to shell.length for April samples - measuring board was 1 mm out and could not be calibrated withou passcode
-ab.2019MM$shell.length <- ab.2019MM$shell.length + 1
-
-## size frequency histogram
-plotdat.3 <- ab.2019MM %>% 
- filter(zone_fishery_code == 'E') %>%
- group_by(blocklist) %>%
- mutate(n = n())
-
-plotdat.3.n <- ab.2019MM %>% 
- filter(zone_fishery_code == 'E') %>%
- group_by(blocklist) %>%
- summarise(n = paste('n =', n()))
-
-plotdat.3$blocklist <- as.factor(plotdat.3$blocklist)
-
-ggplot(plotdat.3, aes(shell.length, fill = blocklist))+
- geom_histogram(data = subset(plotdat.3, zone_fishery_code == 'E'), colour = 'black',  binwidth = 2)+
- #geom_histogram(data = subset(plotdat.3, blocklist == 29), fill = 'black', binwidth = 5)+
- theme_bw()+
- ylab("Frequency") +
- xlab("Shell Length (mm)")+
- xlim(100, 220)+
- ylim(0, 30)+
- facet_grid(blocklist ~., scales = "free_y")+
- ggtitle('Tassie Live Lobster - April 2019')+
- #add size limits for each time period
- geom_vline(data = filter(plotdat.3, blocklist == 13), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
- geom_vline(data = filter(plotdat.3, blocklist == 22), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
- geom_vline(data = filter(plotdat.3, blocklist == 24), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
- geom_vline(data = filter(plotdat.3, blocklist == 27), aes(xintercept = 145),colour = 'red', linetype = 'dashed', size = 1)+
- geom_vline(data = filter(plotdat.3, blocklist == 29), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
- geom_text(data = plotdat.3.n, aes(x = 200, y = 10, label = n), colour = 'black', inherit.aes = F, parse = F)+
- theme(legend.position = 'none')
-#geom_vline(aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 1)
-
-## size frequency histogram proportion
-plotdat.3$bins <- cut(plotdat.3$shell.length, breaks = seq(138,195, 2), right = FALSE)
-
-plotdat.4 <- plotdat.3 %>%
- dplyr:::group_by(blocklist, bins) %>%
- dplyr:::summarise(n = length(shell.length)) %>%
- dplyr:::mutate(ngr = sum(n)) %>% 
- dplyr:::mutate(prop = n/ngr*100)
-
-
-ggplot(plotdat.4, aes(x = bins, y = prop)) +
- geom_bar(aes(fill = factor(blocklist)), position = 'dodge', stat = "identity", col = 'black') +
- scale_y_continuous(
-  breaks = seq(0, 30, 5),
-  minor_breaks = seq(0 , 30, 1),
-  limits = c(0, 30),
-  expand = c(0, 0)
- )  +
- labs(x = "Shell length class",
-      y = "Proportion %",
-      title = "Tassie Live Lobster - April 2019",
-      fill = 'Block')+
- theme_bw() +
- theme(
-  axis.text.x = element_text(
-   size = 12,
-   color = "Black",
-   angle = 90,
-   vjust = 0.5
-  ),
-  axis.text.y = element_text(size = 14, color = "Black")
- )
-
-ggplot(plotdat.3, aes(x=shell.length, fill=as.factor(blocklist)))+ 
- geom_density( kernel="gaussian", alpha=.5)+
- labs(x = "Shell length class",
-      y = "Density",
-      title = "Tassie Live Lobster - April 2019",
-      fill = 'Block')
-
-##############################################################################################################
-## Processor milestone query ####
-
-df.1 <- compiledMM.df.final %>%
-   filter(fishyear >= 2000) %>%
-   group_by(processorname, fishyear) %>%
-   summarise(n = n()) %>%
-   spread(key = fishyear, value = n)
-   
-write.csv(df.1, file = 'C:/CloudStor/R_Stuff/MMLF/FisheryDataProcessorSampling_MilestoneReport13.1.csv',
-          na = '') 
-
-##############################################################################################################
-
-## Older plot stuff which can be deleted
-
-# ## loop to generate boxplot of shell lengths for each zone and export as .pdf
-# zones <- unique(compiledMM.df$newzone)
-# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+#          (between(shell.length, 100, 220)) & 
+#          (between(fishyear, 2000, 2019)))
 # 
-# for (i in zones){
-#  zone.plot <- ggplot(subset(compiledMM.df, newzone == i & (between(shell.length, 132, 200))),
-#                      aes(x = fishyear, y = shell.length, group = fishyear)) +
-#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-#   #geom_hline(aes(yintercept = 140), colour = 'red', linetype = 'dotted') +
-#   #ggtitle(ifelse(as.character(i) == 'W', 'Western Zone', i)) +
-#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-#   # ggtitle(i) +
-#   xlab('Year') +
-#   ylab('Shell length (mm)') + 
-#   theme_bw() + 
-#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-#         axis.text.x = element_text(angle = 45, vjust = 0.5))
-#  ggsave(filename = paste('MM_1967-2016_boxplot_', i, '.pdf', sep = ''), plot = zone.plot)
-#  dev.off()
-# }
+# # plotdat <-
+# #  compiledMM.df.final %>%
+# #  filter(newzone %in% zone &
+# #          same.region == 1 &
+# #          (between(shell.length, 100, 220)) &
+# #          (between(fishyear, 2016, 2016)))
 # 
-# ## loop to generate boxplot of black lip shell lengths for each block and export as .pdf
-# blocks <- unique(compiledMM.df$blockno)
-# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# # 3. convert required grouping variable to factor for boxplot
 # 
-# for (i in blocks){
-#  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 1),
-#                      aes(x = fishyear, y = shell.length, group = fishyear)) +
-#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-#   ggtitle(paste('Block ', i)) +
-#   xlab('Year') +
-#   ylab('Shell length (mm)') + 
-#   ylim(100, 250) +
-#   theme_bw() + 
-#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-#         axis.text.x = element_text(angle = 45, vjust = 0.5))
-#  ggsave(filename = paste('MM_1967-2016_boxplot_BL_Block ', i, '.pdf', sep = ''), plot = block.plot)
-#  dev.off()
-# }
+# plotdat$fishyear <- as.factor(plotdat$fishyear)
+# #plotdat$fishquarter <- as.factor(plotdat$fishquarter)
 # 
-# ## loop to generate boxplot of green lip shell lengths for each block and export as .pdf
-# blocks <- unique(compiledMM.df$blockno)
-# compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# # 4. generate a count of records for each year to add to boxplot
 # 
-# for (i in blocks){
-#  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 2),
-#                       aes(x = fishyear, y = shell.length, group = fishyear)) +
-#   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-#   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
-#   ggtitle(paste('Block ', i)) +
-#   xlab('Year') +
-#   ylab('Shell length (mm)') + 
-#   ylim(100, 250) +
-#   theme_bw() + 
-#   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-#         axis.text.x = element_text(angle = 45, vjust = 0.5))
-#  ggsave(filename = paste('MM_1967-2016_boxplot_GL_Block ', i, '.pdf', sep = ''), plot = block.plot)
-#  dev.off()
-# }
-
-# ## summary of median shell length for zone
-# plotdat.2.summary <- compiledMM.df %>% 
-#  #filter(fishyear %in% c(2000, 2005, 2010, 2013, 2015) & between(shell.length, 100, 220)) %>%
-#  filter(between(fishyear, 2000, 2015) & between(shell.length, 100, 220)) %>%
-#  group_by(newzone, fishyear) %>%
-#  summarise(median(shell.length))
+# plotdat.n <- plotdat %>% 
+#  group_by(fishyear, region.1) %>% 
+#  summarize(n = n())
 # 
-# ## plot proportion of catch by bin classes
-# plotdat.2$bins <- cut(plotdat.2$shell.length, breaks = seq(100,220, 5), right = FALSE)
+# # 5. generate boxplot of shell lengths for chosen grouping variable
 # 
-# test <- plotdat.2 %>%
-#  dplyr:::group_by(fishyear, bins) %>%
+# mm.zone.boxplot <- ggplot(plotdat, aes(x = fishyear, y = shell.length)) + 
+#  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+#  geom_text(data = plotdat.n, aes(y = 220, label = n,), size = 3, angle = 90) +
+#  # geom_hline(data = filter(plotdat, region.1 == 'Actaeons'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_hline(data = filter(plotdat, region.1 == 'Channel'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_hline(data = filter(plotdat, region.1 == 'Fortescue'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_hline(data = filter(plotdat, region.1 == 'StHelens'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_hline(data = filter(plotdat, region.1 == 'BichenoFreycinet'), aes(yintercept = 145),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_hline(data = filter(plotdat, region.1 == 'StormBay'), aes(yintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  #geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
+#  geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+#  #facet_grid(. ~ region.1)+
+#  #ggtitle('Western Zone 1967-2016') +
+#  xlab('Year') +
+#  ylab('Shell Length (mm)')+ 
+#  coord_cartesian(ylim = c(100, 225))+
+#  theme_bw() + 
+#  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+#        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+#        axis.text.x = element_text(angle = 0, vjust = 0.5))
+# 
+# print(mm.zone.boxplot)
+# 
+# # 6. save plots to working directory
+# 
+# ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.pdf', sep = ''), plot = mm.zone.boxplot)
+# ggsave(filename = paste(zone, 'Z', '_', region, '_LF_boxplot', '.wmf', sep = ''), plot = mm.zone.boxplot)
+# 
+# ##-------------------------------------------------------------------------------------------------------##
+# ## LF histogram
+# ## Length frequency plot for zone, with block or region vertically adjacent every 5 years
+# 
+# 
+# 
+# # 1. select zone
+# 
+# zone <- 'E'
+# 
+# # 2. select block from zone if using block as the overlay
+# # unique((compiledMM.df %>% filter(newzone %in% zone))$blockno)
+# # block.no <- c(13, 16, 22, 23, 29)
+# 
+# # 3. select region from zone if using zone as the overlay
+# 
+# ordered(unique((compiledMM.df.final %>% 
+#                  filter(newzone %in% zone & 
+#                          species == 1 & 
+#                          same.region == 1))$region.1))
+# 
+# # E = Actaeons < BichenoFreycinet < BrunyIsland < Channel < Fortescue < StHelens < StormBay
+# # W = Actaeons < Granville < NorthWest < SouthCoast < SouthWest < Strahan
+# # N = HunterIsland < KingIsland < NorthEast < NorthWest < StHelens
+# # BS = BassStraitIslands < CentralNorth < FurneauxGroup < HunterIsland
+# # G = CentralNorth < FurneauxGroup < KingIsland < NorthEast < NorthWest < PerkinsBay
+# 
+# region.plot<- 'Actaeons'
+# 
+# # 4. create list of regions for chosen zone
+# 
+# region.2019 <- unique((compiledMM.df.final %>% 
+#                         filter(newzone %in% zone))$region.1)
+# 
+# # 5. select data for zone
+# 
+# plotdat.2.zone <- compiledMM.df.final %>% 
+#  filter(newzone %in% zone 
+#         & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
+#         & between(shell.length, 100, 220)
+#         & same.region == 1) %>% 
+#  group_by(fishyear) %>%
+#  mutate(n = n())
+# 
+# # 6. select data for zone and count the number of measurments
+# 
+# plotdat.2.n.zone <- compiledMM.df.final %>% 
+#  filter(newzone %in% zone 
+#         & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
+#         & between(shell.length, 100, 220)
+#         & same.region == 1) %>%
+#  group_by(fishyear) %>%
+#  summarise(zone.n = n(),
+#            n = paste('n =', n()))
+# 
+# # 7. select data for zone, and for chosen region or block  
+# 
+# plotdat.2 <- compiledMM.df.final %>% 
+#  filter(newzone %in% zone 
+#         & region.1 %in% region.plot 
+#         & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
+#         & between(shell.length, 100, 220)
+#         & same.region == 1) %>%
+#  group_by(fishyear) %>%
+#  mutate(n = n())
+# 
+# # 8. select data for zone, and for chosen region or block and count the number of measurments
+# 
+# plotdat.2.n <- compiledMM.df.final %>% 
+#  filter(newzone %in% zone 
+#         & region.1 %in% region.plot 
+#         & fishyear %in% c(2000, 2005, 2010, 2015, 2019) 
+#         & between(shell.length, 100, 220)
+#         & same.region == 1) %>%
+#  group_by(fishyear) %>%
+#  summarise(region.n = n(),
+#            n = paste('n =', n())) 
+# 
+# # 9. join count of measurments for zone, and for chosen region or block, and create plot label
+# 
+# plotdat.2.n.2.join <- 
+#  left_join(plotdat.2.n.zone, plotdat.2.n, by = "fishyear") %>%
+#  mutate(percent.region = round((region.n/zone.n)*100), 0) %>%
+#  mutate(n = ifelse(is.na(region.n), 'NO DATA',
+#                    paste0('n = ', region.n, '\n', '(', percent.region, '%', ')')))
+# 
+# # 10. generate plot (add or remove size limits where data is absent)
+# 
+# mm.zone.plot.2 <- ggplot(plotdat.2, aes(shell.length))+
+#  geom_histogram(data = transform(subset(plotdat.2.zone, newzone %in% zone), region.1 = NULL), 
+#                 aes(y = -..density.. * 5), fill = 'white', col = 'black',  binwidth = 5)+
+#  geom_histogram(data = subset(plotdat.2, region.1 %in% region.2019), 
+#                 aes(y = ..density.. *5), fill = 'black', colour = 'black', binwidth = 5)+
+#  #overlay selected block or region
+#  #geom_histogram(data = subset(plotdat.2, blockno %in% block.no), fill = 'black', binwidth = 5)+
+#  theme_bw()+
+#  ylab(paste(region.plot, "region", " Percentage (%)")) +
+#  xlab("Shell Length (mm)")+
+#  #coord_cartesian(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+#  coord_flip(xlim = c(100, 220), ylim = c(-0.4, 0.4))+
+#  facet_grid(. ~ fishyear)+
+#  scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+#  geom_text(data = plotdat.2.n.2.join, aes(x = 200, y = 0.2, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
+#  #add size limits for each time period
+#  geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  geom_vline(data = filter(plotdat.2, fishyear == 2019), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)
+#  #geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 120),colour = 'darkgreen', linetype = 'dashed', size = 0.5)
+#  #geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 0.5)
+#  # geom_vline(aes(xintercept = 127),colour = 'red', linetype = 'dashed', size = 0.5)+
+#  # geom_text(data = plotdat.2.n, aes(x = 200, y = 100, label = n), colour = 'black', inherit.aes = F, parse = F, size = 3.5)
+# 
+# print(mm.zone.plot.2)
+# 
+# # 11. save plots to file
+# 
+# # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+# ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.pdf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
+# ggsave(filename = paste(region.plot, zone, '_LF_FRAG2_2019', '.wmf', sep = ''), plot = mm.zone.plot.2, width = 7.4, height = 5.57, units = 'in')
+# 
+# ## LF histrogram/boxplot
+# 
+# ## Overlay 5-year histrogram with longterm boxplot
+# mm.zone.plot.3 <- grid.arrange(
+#  arrangeGrob(cowplot::plot_grid(mm.zone.plot.2, mm.zone.boxplot, align = 'v', ncol = 1),
+#              ncol = 1))
+# 
+# ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.pdf', sep = ''), plot = mm.zone.plot.3)
+# ggsave(filename = paste(zone, '_', region.plot, '_LF&boxplot', '.wmf', sep = ''), plot = mm.zone.plot.3)
+#  
+# #
+# # 2019 MM abalone data - quick analysis of Tas Live Lobster catch April 2019
+# #
+# #
+# ab.2019MM.raw.a <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.csv')
+# ab.2019MM.raw.b <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_15042019.csv')
+# 
+# 
+# ## create a backup
+# ab.2019MM <- bind_rows(ab.2019MM.raw.a, ab.2019MM.raw.b)
+# #ab.2019MM <- ab.2019MM.raw
+# #ab.2019MM <- ab.2019MM.backup
+# 
+# # convert dates
+# ab.2019MM$unloading_date <- as.POSIXct(ab.2019MM$unloading_date, format = '%d/%m/%Y')
+# ab.2019MM$msr.date <- as.POSIXct(ab.2019MM$msr.date, format = '%m/%d/%Y')
+# 
+# ## add column for fishing year, month and quarter
+# ab.2019MM$fishyear <- ifelse(is.na(ab.2019MM$msr.date), year(ab.2019MM$unloading_date),
+#                              year(ab.2019MM$msr.date))
+# ab.2019MM$fishmonth <- month(ab.2019MM$msr.date)
+# ab.2019MM$fishquarter <- quarter(ab.2019MM$msr.date)
+# 
+# ## add 1 mm to shell.length for April samples - measuring board was 1 mm out and could not be calibrated withou passcode
+# ab.2019MM$shell.length <- ab.2019MM$shell.length + 1
+# 
+# ## size frequency histogram
+# plotdat.3 <- ab.2019MM %>% 
+#  filter(zone_fishery_code == 'E') %>%
+#  group_by(blocklist) %>%
+#  mutate(n = n())
+# 
+# plotdat.3.n <- ab.2019MM %>% 
+#  filter(zone_fishery_code == 'E') %>%
+#  group_by(blocklist) %>%
+#  summarise(n = paste('n =', n()))
+# 
+# plotdat.3$blocklist <- as.factor(plotdat.3$blocklist)
+# 
+# ggplot(plotdat.3, aes(shell.length, fill = blocklist))+
+#  geom_histogram(data = subset(plotdat.3, zone_fishery_code == 'E'), colour = 'black',  binwidth = 2)+
+#  #geom_histogram(data = subset(plotdat.3, blocklist == 29), fill = 'black', binwidth = 5)+
+#  theme_bw()+
+#  ylab("Frequency") +
+#  xlab("Shell Length (mm)")+
+#  xlim(100, 220)+
+#  ylim(0, 30)+
+#  facet_grid(blocklist ~., scales = "free_y")+
+#  ggtitle('Tassie Live Lobster - April 2019')+
+#  #add size limits for each time period
+#  geom_vline(data = filter(plotdat.3, blocklist == 13), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+#  geom_vline(data = filter(plotdat.3, blocklist == 22), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+#  geom_vline(data = filter(plotdat.3, blocklist == 24), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+#  geom_vline(data = filter(plotdat.3, blocklist == 27), aes(xintercept = 145),colour = 'red', linetype = 'dashed', size = 1)+
+#  geom_vline(data = filter(plotdat.3, blocklist == 29), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+#  geom_text(data = plotdat.3.n, aes(x = 200, y = 10, label = n), colour = 'black', inherit.aes = F, parse = F)+
+#  theme(legend.position = 'none')
+# #geom_vline(aes(xintercept = 140),colour = 'red', linetype = 'dashed', size = 1)
+# 
+# ## size frequency histogram proportion
+# plotdat.3$bins <- cut(plotdat.3$shell.length, breaks = seq(138,195, 2), right = FALSE)
+# 
+# plotdat.4 <- plotdat.3 %>%
+#  dplyr:::group_by(blocklist, bins) %>%
 #  dplyr:::summarise(n = length(shell.length)) %>%
 #  dplyr:::mutate(ngr = sum(n)) %>% 
-#  dplyr:::mutate(prop = n/ngr*100) %>%
-#  dplyr:::mutate(cum.prop = 100 - cumsum(prop))
+#  dplyr:::mutate(prop = n/ngr*100)
 # 
 # 
-# ggplot(test, aes(x = bins, y = prop)) +
-#  geom_bar(stat = "identity") +
-#  labs(x = "Shell length (mm)", y = "Percentage") +
+# ggplot(plotdat.4, aes(x = bins, y = prop)) +
+#  geom_bar(aes(fill = factor(blocklist)), position = 'dodge', stat = "identity", col = 'black') +
+#  scale_y_continuous(
+#   breaks = seq(0, 30, 5),
+#   minor_breaks = seq(0 , 30, 1),
+#   limits = c(0, 30),
+#   expand = c(0, 0)
+#  )  +
+#  labs(x = "Shell length class",
+#       y = "Proportion %",
+#       title = "Tassie Live Lobster - April 2019",
+#       fill = 'Block')+
 #  theme_bw() +
-#  facet_grid(fishyear~.)
+#  theme(
+#   axis.text.x = element_text(
+#    size = 12,
+#    color = "Black",
+#    angle = 90,
+#    vjust = 0.5
+#   ),
+#   axis.text.y = element_text(size = 14, color = "Black")
+#  )
+# 
+# ggplot(plotdat.3, aes(x=shell.length, fill=as.factor(blocklist)))+ 
+#  geom_density( kernel="gaussian", alpha=.5)+
+#  labs(x = "Shell length class",
+#       y = "Density",
+#       title = "Tassie Live Lobster - April 2019",
+#       fill = 'Block')
+# 
+# ## Processor milestone query
+# 
+# df.1 <- compiledMM.df.final %>%
+#    filter(fishyear >= 2000) %>%
+#    group_by(processorname, fishyear) %>%
+#    summarise(n = n()) %>%
+#    spread(key = fishyear, value = n)
+#    
+# write.csv(df.1, file = 'C:/CloudStor/R_Stuff/MMLF/FisheryDataProcessorSampling_MilestoneReport13.1.csv',
+#           na = '') 
 # 
 # 
+# ## Older plot stuff which can be deleted
 # 
-
-## quick plot to compare with data from 2019
- plotdat.3 <- compiledMM.df %>% filter(newzone == 'E' & fishyear == c(2015) & blockno == c(22, 24, 27, 29))
- ggplot(plotdat.3, aes(shell.length))+
-  geom_histogram()
-  #geom_histogram(data = subset(plotdat.2, fishyear == '2015'), fill = 'white', colour = 'black',  binwidth = 5)+
-  #geom_histogram(data = subset(plotdat.3, blockno == c(22, 24, 27, 29), fill = 'black', binwidth = 5))+
-  theme_bw()+
-  ylab("Frequency") +
-  xlab("Shell Length (mm)")+
-  xlim(100, 220)+
-  facet_grid(blockno ~ ., scales = "free_y")+
-  ggtitle('Eastern Zone 2000-2015 vs Block 29') +
-  #add size limits for each time period
-  # geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
-  # geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
-  # geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
-  # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
- geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
- 
-## summary to determine % of catches measured
-landings <- tasCE %>% 
- filter(gl.zone == 'G' & fishyear >= 2000) %>%
- group_by(fishyear, blockno) %>%
- summarise(landings = n())
-
-measured <- compiledMM.df %>%
- #mutate(fishyear = as.numeric(levels(fishyear)[fishyear])) %>%
- filter(newzone == 'G' & fishyear >= 2000) %>%
- group_by(fishyear, blockno) %>%
- summarise(measured = length(unique(docket.number)))
-
-measured_summary <- left_join(landings, measured, c("fishyear", "blockno")) %>%
- mutate(meas.propland = round((measured/landings)*100, 0))
- #filter(blockno == 13) %>%
- #filter(fishyear %in% c(2000, 2005, 2010, 2015))
-
-# ## proportion of catches measured summary
-# abcebl.docks <- abCEbl %>%
-#  group_by(newzone, fishyear) %>%
-#  summarise(bl.n = n_distinct(docket_number))
+# # ## loop to generate boxplot of shell lengths for each zone and export as .pdf
+# # zones <- unique(compiledMM.df$newzone)
+# # compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# # 
+# # for (i in zones){
+# #  zone.plot <- ggplot(subset(compiledMM.df, newzone == i & (between(shell.length, 132, 200))),
+# #                      aes(x = fishyear, y = shell.length, group = fishyear)) +
+# #   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+# #   #geom_hline(aes(yintercept = 140), colour = 'red', linetype = 'dotted') +
+# #   #ggtitle(ifelse(as.character(i) == 'W', 'Western Zone', i)) +
+# #   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+# #   # ggtitle(i) +
+# #   xlab('Year') +
+# #   ylab('Shell length (mm)') + 
+# #   theme_bw() + 
+# #   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+# #         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+# #         axis.text.x = element_text(angle = 45, vjust = 0.5))
+# #  ggsave(filename = paste('MM_1967-2016_boxplot_', i, '.pdf', sep = ''), plot = zone.plot)
+# #  dev.off()
+# # }
+# # 
+# # ## loop to generate boxplot of black lip shell lengths for each block and export as .pdf
+# # blocks <- unique(compiledMM.df$blockno)
+# # compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# # 
+# # for (i in blocks){
+# #  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 1),
+# #                      aes(x = fishyear, y = shell.length, group = fishyear)) +
+# #   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+# #   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+# #   ggtitle(paste('Block ', i)) +
+# #   xlab('Year') +
+# #   ylab('Shell length (mm)') + 
+# #   ylim(100, 250) +
+# #   theme_bw() + 
+# #   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+# #         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+# #         axis.text.x = element_text(angle = 45, vjust = 0.5))
+# #  ggsave(filename = paste('MM_1967-2016_boxplot_BL_Block ', i, '.pdf', sep = ''), plot = block.plot)
+# #  dev.off()
+# # }
+# # 
+# # ## loop to generate boxplot of green lip shell lengths for each block and export as .pdf
+# # blocks <- unique(compiledMM.df$blockno)
+# # compiledMM.df$fishyear <- as.factor(compiledMM.df$fishyear)
+# # 
+# # for (i in blocks){
+# #  block.plot <- ggplot(subset(compiledMM.df, blockno == i & (between(shell.length, 100, 250)) & species == 2),
+# #                       aes(x = fishyear, y = shell.length, group = fishyear)) +
+# #   geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+# #   geom_text(aes(label = ..count..), y = 240, stat = 'count',  size = 3, angle = 90) +
+# #   ggtitle(paste('Block ', i)) +
+# #   xlab('Year') +
+# #   ylab('Shell length (mm)') + 
+# #   ylim(100, 250) +
+# #   theme_bw() + 
+# #   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(),
+# #         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+# #         axis.text.x = element_text(angle = 45, vjust = 0.5))
+# #  ggsave(filename = paste('MM_1967-2016_boxplot_GL_Block ', i, '.pdf', sep = ''), plot = block.plot)
+# #  dev.off()
+# # }
 # 
-# abcegl.docks <- abCEgl %>%
-#  group_by(newzone, fishyear) %>%
-#  summarise(gl.n = n_distinct(docket_number))
+# # ## summary of median shell length for zone
+# # plotdat.2.summary <- compiledMM.df %>% 
+# #  #filter(fishyear %in% c(2000, 2005, 2010, 2013, 2015) & between(shell.length, 100, 220)) %>%
+# #  filter(between(fishyear, 2000, 2015) & between(shell.length, 100, 220)) %>%
+# #  group_by(newzone, fishyear) %>%
+# #  summarise(median(shell.length))
+# # 
+# # ## plot proportion of catch by bin classes
+# # plotdat.2$bins <- cut(plotdat.2$shell.length, breaks = seq(100,220, 5), right = FALSE)
+# # 
+# # test <- plotdat.2 %>%
+# #  dplyr:::group_by(fishyear, bins) %>%
+# #  dplyr:::summarise(n = length(shell.length)) %>%
+# #  dplyr:::mutate(ngr = sum(n)) %>% 
+# #  dplyr:::mutate(prop = n/ngr*100) %>%
+# #  dplyr:::mutate(cum.prop = 100 - cumsum(prop))
+# # 
+# # 
+# # ggplot(test, aes(x = bins, y = prop)) +
+# #  geom_bar(stat = "identity") +
+# #  labs(x = "Shell length (mm)", y = "Percentage") +
+# #  theme_bw() +
+# #  facet_grid(fishyear~.)
+# # 
+# # 
+# # 
 # 
-# mm.docks <- compiledMM.df %>%
-#  group_by(newzone, fishyear) %>%
-#  summarise(mm.n = n_distinct(docket.number))
+# ## quick plot to compare with data from 2019
+#  plotdat.3 <- compiledMM.df %>% filter(newzone == 'E' & fishyear == c(2015) & blockno == c(22, 24, 27, 29))
+#  ggplot(plotdat.3, aes(shell.length))+
+#   geom_histogram()
+#   #geom_histogram(data = subset(plotdat.2, fishyear == '2015'), fill = 'white', colour = 'black',  binwidth = 5)+
+#   #geom_histogram(data = subset(plotdat.3, blockno == c(22, 24, 27, 29), fill = 'black', binwidth = 5))+
+#   theme_bw()+
+#   ylab("Frequency") +
+#   xlab("Shell Length (mm)")+
+#   xlim(100, 220)+
+#   facet_grid(blockno ~ ., scales = "free_y")+
+#   ggtitle('Eastern Zone 2000-2015 vs Block 29') +
+#   #add size limits for each time period
+#   # geom_vline(data = filter(plotdat.2, fishyear == 2000), aes(xintercept = 132),colour = 'red', linetype = 'dashed', size = 1)+
+#   # geom_vline(data = filter(plotdat.2, fishyear == 2005), aes(xintercept = 136),colour = 'red', linetype = 'dashed', size = 1)+
+#   # geom_vline(data = filter(plotdat.2, fishyear == 2010), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)+
+#   # geom_vline(data = filter(plotdat.2, fishyear == 2015), aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
+#  geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 1)
+#  
+# ## summary to determine % of catches measured
+# landings <- tasCE %>% 
+#  filter(gl.zone == 'G' & fishyear >= 2000) %>%
+#  group_by(fishyear, blockno) %>%
+#  summarise(landings = n())
 # 
-# n.docks <- full_join(abcebl.docks, mm.docks) %>%
-#  left_join(abcegl.docks) %>%
-#  mutate(prop.measured = ifelse(newzone == 'G', round((mm.n/gl.n)*100, 0), round((mm.n/bl.n)*100, 0))) %>%
-#  filter(between(fishyear, 2000, 2015) & newzone == 'N')
-# #filter(fishyear %in% c(2000, 2005, 2010, 2015))
-
-## boxplot of size structure for block vs overall for year(need to overlay bar plot of %landings measured)
-plotdat.3a <- compiledMM.df %>% 
- filter(blockno == 13 & fishyear == c(2000, 2005, 2010, 2015)) %>%
- mutate(join.code = 'block.13') %>%
- select(fishyear, join.code, shell.length)
-
-plotdat.3b <- compiledMM.df %>% 
- filter(newzone == 'E' & fishyear == c(2000, 2005, 2010, 2015)) %>%
- mutate(join.code = 'eastern.zone') %>%
- select(fishyear, join.code, shell.length)
-
-plotdat.4 <- bind_rows(plotdat.3a, plotdat.3b)
-
-ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) + 
- geom_boxplot(aes(fill = join.code), outlier.colour = "orange", outlier.size = 1.5, 
-              width = .6)+
- theme_bw()+
- ylim(125, 220)+
- ylab("Shell length (mm)") +
- xlab("Year")
- geom_bar(data = measured_summary, aes(x = fishyear, y = meas.propland), stat = 'identity')+
- scale_y_continuous(sec.axis = sec_axis(~./50))
- 
- 
-ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) +
-  + geom_point()+
-  + stat_summary(fun.data = my.stderr, geom = 'point', colour = 'red')
-
-       
- 
-
-
+# measured <- compiledMM.df %>%
+#  #mutate(fishyear = as.numeric(levels(fishyear)[fishyear])) %>%
+#  filter(newzone == 'G' & fishyear >= 2000) %>%
+#  group_by(fishyear, blockno) %>%
+#  summarise(measured = length(unique(docket.number)))
+# 
+# measured_summary <- left_join(landings, measured, c("fishyear", "blockno")) %>%
+#  mutate(meas.propland = round((measured/landings)*100, 0))
+#  #filter(blockno == 13) %>%
+#  #filter(fishyear %in% c(2000, 2005, 2010, 2015))
+# 
+# # ## proportion of catches measured summary
+# # abcebl.docks <- abCEbl %>%
+# #  group_by(newzone, fishyear) %>%
+# #  summarise(bl.n = n_distinct(docket_number))
+# # 
+# # abcegl.docks <- abCEgl %>%
+# #  group_by(newzone, fishyear) %>%
+# #  summarise(gl.n = n_distinct(docket_number))
+# # 
+# # mm.docks <- compiledMM.df %>%
+# #  group_by(newzone, fishyear) %>%
+# #  summarise(mm.n = n_distinct(docket.number))
+# # 
+# # n.docks <- full_join(abcebl.docks, mm.docks) %>%
+# #  left_join(abcegl.docks) %>%
+# #  mutate(prop.measured = ifelse(newzone == 'G', round((mm.n/gl.n)*100, 0), round((mm.n/bl.n)*100, 0))) %>%
+# #  filter(between(fishyear, 2000, 2015) & newzone == 'N')
+# # #filter(fishyear %in% c(2000, 2005, 2010, 2015))
+# 
+# ## boxplot of size structure for block vs overall for year(need to overlay bar plot of %landings measured)
+# plotdat.3a <- compiledMM.df %>% 
+#  filter(blockno == 13 & fishyear == c(2000, 2005, 2010, 2015)) %>%
+#  mutate(join.code = 'block.13') %>%
+#  select(fishyear, join.code, shell.length)
+# 
+# plotdat.3b <- compiledMM.df %>% 
+#  filter(newzone == 'E' & fishyear == c(2000, 2005, 2010, 2015)) %>%
+#  mutate(join.code = 'eastern.zone') %>%
+#  select(fishyear, join.code, shell.length)
+# 
+# plotdat.4 <- bind_rows(plotdat.3a, plotdat.3b)
+# 
+# ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) + 
+#  geom_boxplot(aes(fill = join.code), outlier.colour = "orange", outlier.size = 1.5, 
+#               width = .6)+
+#  theme_bw()+
+#  ylim(125, 220)+
+#  ylab("Shell length (mm)") +
+#  xlab("Year")
+#  geom_bar(data = measured_summary, aes(x = fishyear, y = meas.propland), stat = 'identity')+
+#  scale_y_continuous(sec.axis = sec_axis(~./50))
+#  
+#  
+# ggplot(plotdat.4, aes(x = fishyear, y = shell.length)) +
+#   + geom_point()+
+#   + stat_summary(fun.data = my.stderr, geom = 'point', colour = 'red')
+# 
+#        
+#  
+# 
+# 

@@ -1,4 +1,5 @@
-# script for joining 2020 Next Gen 4G measuring board data to historical abalone length frequency data
+# This script joins Next Gen 4G measuring board data to previosly collated historical abalone 
+# length frequency data
 
 # remove unecessary variables and rename variables to match compiledMM.df
 df.1 <- measure.board.pre.docket.df %>% 

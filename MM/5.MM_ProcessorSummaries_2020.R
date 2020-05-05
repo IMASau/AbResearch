@@ -1,6 +1,7 @@
 # This script provides a preliminary analysis of measuring board data prior to catch dockets being processed
 # by DPIPWE and further catch details becoming available. These analysis are intended to provide processors with
 # near real-time summary of catches which they have measured.
+
 ##-------------------------------------------------------------------------------------------------------##
 # load libaries ####
 library(openxlsx)
@@ -16,63 +17,64 @@ library(scales)
 # load data ####
 
 # load latest measuring board data that comes from MM_NextGen_4G.R script
-measure.board.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
+# measure.board.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
+measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
-# load measuring board inventory data and assign to measurment data
-mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
-                       detectDates = T)
+# # load measuring board inventory data and assign to measurment data
+# mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
+#                        detectDates = T)
 ##-------------------------------------------------------------------------------------------------------##
-# compile data ####
-
-# where measuring board is still with processor and the enddate is missing replace with todays date
-mb.invent <- mb.invent %>% 
-        mutate(startdate = as.POSIXct(startdate),
-               enddate = as.POSIXct(enddate),
-               enddate = if_else(is.na(enddate), Sys.time(), enddate))
-
-# join measuring board raw data with inventory data 
-measure.board.pre.docket.df <- fuzzy_left_join(
-        measure.board.df,
-        mb.invent,
-        by = c(
-                "logname" = "logname",
-                "logger_date" = "startdate",
-                "logger_date" = "enddate"
-        ),
-        match_fun = list(`==`, `>=`, `<=`)
-) %>% select(-c(logname.y, startdate, enddate, platformscales, comments)) %>%
-        mutate(logname = logname.x) %>%
-        select(-(logname.x)) %>%
-        filter(!is.na(docketnum))
-
-# fix any known errors with measureboard data
-# Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
-measure.board.pre.docket.df <- measure.board.pre.docket.df %>% 
-        mutate(docketnum = replace(docketnum, docketnum == 812222, 812227))
+# # compile data ####
+# 
+# # where measuring board is still with processor and the enddate is missing replace with todays date
+# mb.invent <- mb.invent %>% 
+#         mutate(startdate = as.POSIXct(startdate),
+#                enddate = as.POSIXct(enddate),
+#                enddate = if_else(is.na(enddate), Sys.time(), enddate))
+# 
+# # join measuring board raw data with inventory data 
+# measure.board.pre.docket.df <- fuzzy_left_join(
+#         measure.board.df,
+#         mb.invent,
+#         by = c(
+#                 "logname" = "logname",
+#                 "logger_date" = "startdate",
+#                 "logger_date" = "enddate"
+#         ),
+#         match_fun = list(`==`, `>=`, `<=`)
+# ) %>% select(-c(logname.y, startdate, enddate, platformscales, comments)) %>%
+#         mutate(logname = logname.x) %>%
+#         select(-(logname.x)) %>%
+#         filter(!is.na(docketnum))
+# 
+# # fix any known errors with measureboard data
+# # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
+# measure.board.pre.docket.df <- measure.board.pre.docket.df %>% 
+#         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227))
 
 # quick summary of catches measured by processor
-measure.board.pre.docket.df %>% group_by(processor) %>% 
+measure.board.next.gen.df %>% group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
                   n = n()) %>% 
         as.data.frame()
 
 # add weight grading categories used by processors
-mb.pre.docket.grade.df <- measure.board.pre.docket.df %>%
+mb.next.gen.grade.df <- measure.board.next.gen.df %>%
         filter(wholeweight != 0) %>%
         mutate(grade = dplyr::if_else(wholeweight <= 400, 'small', #0-400g can also be labelled xsmall
                                       dplyr::if_else(between(wholeweight, 401, 600), 'small',
                                                      dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))))
 
 # list of unique processors for summary and plot loops
-processors <- unique(mb.pre.docket.grade.df$processor)
+processors <- unique(mb.next.gen.grade.df$processor)
 
 # determine number of abalone measured per docket
-docknum.n.meas <- mb.pre.docket.grade.df %>% 
+docknum.n.meas <- mb.next.gen.grade.df %>% 
         group_by(docketnum, processor, plaindate) %>% 
         summarise(ab.meas = n())
 
 # determine number of abalone measured by grade per docket
-docknum.grade.meas <- mb.pre.docket.grade.df %>% 
+docknum.grade.meas <- mb.next.gen.grade.df %>% 
         group_by(docketnum, grade) %>% 
         summarise(grade.meas = n())
 
@@ -96,7 +98,7 @@ grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = 'docketnum')
         as.data.frame() 
         
 # create length and weight summary table
-length.weight.summary <- mb.pre.docket.grade.df %>%
+length.weight.summary <- mb.next.gen.grade.df %>%
         filter(wholeweight != 0 & processor == i) %>% 
         group_by(docketnum, processor, plaindate) %>% 
         summarise('mean.weight (g)' = round(mean(wholeweight), 0),
@@ -193,7 +195,7 @@ docket.pie.plot <- ggplot(data = pie.plot.dat, aes(x = "", y = grade.perc, fill 
 
 print(docket.pie.plot)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
         filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.pdf', sep = ''),
         plot = docket.pie.plot,
@@ -246,7 +248,7 @@ ggplot(data = multi.pie.plot.dat, aes(x = "", y = grade.perc, fill = grade)) +
 
 for (i in processors) {
         
-weight.plot.dat <- mb.pre.docket.grade.df %>%
+weight.plot.dat <- mb.next.gen.grade.df %>%
         filter(!is.na(wholeweight)
                & between(wholeweight, 1, 2000)
                & processor == i)
@@ -296,7 +298,7 @@ weight.boxplot <-
 
 print(weight.boxplot)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
         filename = paste(i, '_weight_pre-docket_boxplot_2020', '.pdf', sep = ''),
         plot = weight.boxplot,
@@ -325,7 +327,7 @@ ggsave(
 
 for (i in docket.nums){
 
-plot.length.freq.dat <- mb.pre.docket.grade.df %>% 
+plot.length.freq.dat <- mb.next.gen.grade.df %>% 
         filter(docketnum == i &
                        between(shelllength, 120, 200))
 
@@ -345,7 +347,7 @@ length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
 
 print(length.freq.plot)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 
 ggsave(
         filename = paste('Docket no. ', i, '_lengthfrequency_pre-docket_2020', '.pdf', sep = ''),
@@ -376,7 +378,7 @@ ggsave(
 
 for (i in processors) {
         
-        length.plot.dat <- mb.pre.docket.grade.df %>%
+        length.plot.dat <- mb.next.gen.grade.df %>%
                 filter(!is.na(shelllength)
                        & between(shelllength, 120, 200)
                        & processor == i)
@@ -422,7 +424,7 @@ for (i in processors) {
         
         print(length.boxplot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
         ggsave(
                 filename = paste(i, '_length_pre-docket_boxplot_2020', '.pdf', sep = ''),
                 plot = length.boxplot,
@@ -449,15 +451,15 @@ for (i in processors) {
 ##---------------------------------------------------------------------------##
 ## Docket report: compiled summary of docketnum per processor  ####
 
-docket.unique <- unique(measure.board.pre.docket.df$docketnum)
-processor.unique <- unique(measure.board.pre.docket.df$processor)
+docket.unique <- unique(measure.board.next.gen.df$docketnum)
+processor.unique <- unique(measure.board.next.gen.df$processor)
 
 grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
                      lab = c('Small', 'Medium', 'Large'))
 
 # overlay length frequency with boxplot
 for (i in docket.unique) {
-        plot.length.freq.dat <- mb.pre.docket.grade.df %>%
+        plot.length.freq.dat <- measure.board.next.gen.df %>%
                 filter(docketnum == i &
                                between(shelllength, 120, 200))
         
@@ -515,7 +517,7 @@ for (i in docket.unique) {
                         ymin = 0.3
                 )
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
         ggsave(
                 filename = paste(i, 'length.summary.plot', '.pdf', sep = ''),
                 plot = length.plot,
@@ -529,7 +531,7 @@ for (i in docket.unique) {
 # overlay weight frequency with boxplot
 
 for (j in docket.unique) {
-                plot.weight.freq.dat <- mb.pre.docket.grade.df %>%
+                plot.weight.freq.dat <- measure.board.next.gen.df %>%
                         filter(docketnum == j &
                                        wholeweight != 0)
                 
@@ -662,7 +664,7 @@ for (j in docket.unique) {
                                 ymax = 0.4
                         )
                 
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
                 ggsave(
                         filename = paste(j, 'wt.summary.plot', '.pdf', sep = ''),
                         plot = wt.plot,
