@@ -1,7 +1,11 @@
-#### MARKET MEASURE ANALYSIS ####
+# The following script collates all available historical abalone market measuring data into a single dataframe.
+# The first four compilations are data extracted from various TAFI/IMAS databases and cross-checked for duplication.
+# Additional data collected by CSIRO and others and held in various formats are also included. 
+# More recent data are compiled from electronic measuring boards. 
+# On-going market measuring data is added from the MM_NextGen4GCompile.R script.
 
-# for windows 8 database connections use this in windows explorer
-# C:\Windows\SysWOW64\odbcad32.exe
+# Created by: Hugh Jones (2015) and Jaime McAllister
+
 ##-------------------------------------------------------------------------------------------------------##
 ## Libaries and Functions ####
 

@@ -2,6 +2,8 @@
 # by DPIPWE and further catch details becoming available. These analysis are intended to provide processors with
 # near real-time summary of catches which they have measured.
 
+# Created by: Jaime McAllister
+
 ##-------------------------------------------------------------------------------------------------------##
 # load libaries ####
 library(openxlsx)

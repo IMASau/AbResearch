@@ -1,3 +1,8 @@
+# The following script is used to produce various catch sampling plots for the Tasmanian Abalone Stock 
+# Assessment Report and miscellaneous plots using data comipled in MM_HistoricalDataCompile.R.
+
+# Created by: Jaime McAllister
+
 # Load libaries ####
 # load required libaries and custom functions for plotting
 library(RODBC)

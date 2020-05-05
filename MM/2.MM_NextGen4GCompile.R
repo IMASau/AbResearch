@@ -1,6 +1,8 @@
-# This script collates all available .txt files uploaded to the sftp server from the Next Gen 4G measuring
-# boards and joins them to their assocaited docketinfo. These data are then joined to the previously 
-# collated historical abalone length frequency dataframe pre-2020.
+# The following script collates all available .txt files uploaded to the sftp server from the Next Gen 4G measuring
+# boards. These data can then be joined to historical length frequency data and associated docket information
+# in MM_HistoricalDataCompile.R.
+
+# Created by: Craig Mundy and Jaime McAllister
 
 ##---------------------------------------------------------------------------##
 # load libaries ####

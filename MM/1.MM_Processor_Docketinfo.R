@@ -1,8 +1,11 @@
 # The following scipt is used to extract docket details from processors held in FILMS database 
-# which are then matched to length frequency/measuring board data compiled in MM_Analysis.R. Run the script
-# periodically to refresh with the latest processor data in order to match with new measuring board data.
+# which are then matched to length frequency/measuring board data compiled in MM_Analysis.R. 
+
+# Run the script periodically to refresh with the latest processor data in order to match with new measuring board data.
 # NOTE: there can be a delay between processors submitting catch dockets and DPIPWE entering data on FILMS
 # and it may not be possible to match with more recent length frequency data unitl these are processed.
+
+# Created by: Craig Mundy (edited by: Jaime McAllister) 
 
 ##--------------------------------------------------------------------------##
 # load libaries ####
