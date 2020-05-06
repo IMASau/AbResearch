@@ -1286,6 +1286,9 @@ saveRDS(compiled.docket.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.csiro.
 ab.2016MM.raw <- read.csv('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/DataSummary_from_1Jan2016_to_31Dec2016.csv')
 ab.2019MM.raw.1 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/Dave's recent stuff/DataSummary_from_1Mar2017_to_15May2019.csv")
 ab.2019MM.raw.2 <- read.csv("R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_8April2019_to_15April2019.csv")
+
+# import data for Tasmanian Seafoods compiled in 'TasmanianSeafoods2019_MM_Compile.R' script.
+
 ab.2019MM.raw.3 <- readRDS('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TasmanianSeafoods2019/TasmanianSeafoodsOct2019.RDS')
 
 # fix incorrect MesrTime from raw data input
