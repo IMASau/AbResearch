@@ -41,14 +41,14 @@ localfiles.df <- do.call(rbind, localfiles.dat)
 
 logged.data <- localfiles.df
 
-filesize <- file.size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
- as.numeric()
-
-tail(filesize)
-
-fileinf <- file.info(paste0(sftp.local,"/", localfiles.df$InFileName)) 
-
-tail(fileinf)
+# filesize <- file.size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
+#  as.numeric()
+# 
+# tail(filesize)
+# 
+# fileinf <- file.info(paste0(sftp.local,"/", localfiles.df$InFileName)) 
+# 
+# tail(fileinf)
 
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####

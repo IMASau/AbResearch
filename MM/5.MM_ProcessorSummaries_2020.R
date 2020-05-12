@@ -22,40 +22,9 @@ library(scales)
 # measure.board.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
 measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
-# # load measuring board inventory data and assign to measurment data
-# mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
-#                        detectDates = T)
-##-------------------------------------------------------------------------------------------------------##
-# # compile data ####
-# 
-# # where measuring board is still with processor and the enddate is missing replace with todays date
-# mb.invent <- mb.invent %>% 
-#         mutate(startdate = as.POSIXct(startdate),
-#                enddate = as.POSIXct(enddate),
-#                enddate = if_else(is.na(enddate), Sys.time(), enddate))
-# 
-# # join measuring board raw data with inventory data 
-# measure.board.pre.docket.df <- fuzzy_left_join(
-#         measure.board.df,
-#         mb.invent,
-#         by = c(
-#                 "logname" = "logname",
-#                 "logger_date" = "startdate",
-#                 "logger_date" = "enddate"
-#         ),
-#         match_fun = list(`==`, `>=`, `<=`)
-# ) %>% select(-c(logname.y, startdate, enddate, platformscales, comments)) %>%
-#         mutate(logname = logname.x) %>%
-#         select(-(logname.x)) %>%
-#         filter(!is.na(docketnum))
-# 
-# # fix any known errors with measureboard data
-# # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
-# measure.board.pre.docket.df <- measure.board.pre.docket.df %>% 
-#         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227))
-
 # quick summary of catches measured by processor
-measure.board.next.gen.df %>% group_by(processor) %>% 
+measure.board.next.gen.df %>% 
+        group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
                   n = n()) %>% 
         as.data.frame()
@@ -459,6 +428,7 @@ processor.unique <- unique(measure.board.next.gen.df$processor)
 grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
                      lab = c('Small', 'Medium', 'Large'))
 
+## Plot 6: ltfrq vs bp ####
 # overlay length frequency with boxplot
 for (i in docket.unique) {
         plot.length.freq.dat <- measure.board.next.gen.df %>%
@@ -530,6 +500,7 @@ for (i in docket.unique) {
         
 }
 
+## Plot 7: wtfrq vs bp vs pie ####
 # overlay weight frequency with boxplot
 
 for (j in docket.unique) {
@@ -580,7 +551,7 @@ for (j in docket.unique) {
                         ) +
                         scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
                 
-                print(weight.freq.plot)
+                # print(weight.freq.plot)
                 
                 xbp.wt <- ggplot(
                         plot.weight.freq.dat,
@@ -597,10 +568,11 @@ for (j in docket.unique) {
                                 position = position_dodge(0.85),
                                 width = 0.3
                         ) +
+                        stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
                         rotate() +
                         theme_transparent()
                 
-                print(xbp.wt)
+                # print(xbp.wt)
                 
                 xbp_grob <- ggplotGrob(xbp.wt)
                 xmin.wt <- min(plot.weight.freq.dat$wholeweight)
@@ -648,7 +620,7 @@ for (j in docket.unique) {
                         # labs(fill = (paste('Grade')))
                 
                 
-                print(docket.pie.plot)
+                # print(docket.pie.plot)
                 
                 pp_grob <- ggplotGrob(docket.pie.plot)
                 

@@ -145,6 +145,15 @@ legs.df.2 <- legs.df %>%
   select(-c(estimate.2, all_comments)) %>%
   as.data.frame()
 
+## remove any characters or obvious erroes from shell length (e.g. where 'estimate (E)' or 0 has been entered in the raw data)
+
+str(legs.df.2$sllength) #check
+legs.df.2 <- legs.df.2 %>% 
+  mutate(estimate = if_else(grepl('E', sllength), 'E', estimate),
+         sllength = as.numeric(gsub('E', '', sllength))) %>% 
+  filter(sllength != 0)
+# str(legs.df.2$sllength) #check
+
 ## remove data with no site name or shell length
 legs.df.2 <- filter(legs.df.2, !is.na(site))
 legs.df.2 <- filter(legs.df.2, !is.na(sllength))
