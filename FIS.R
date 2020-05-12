@@ -11,10 +11,11 @@
 ## Email: jaime.mcallister@utas.edu.au
 
 ##--------------------------------------------------------------------------------------##
-## set working directory for Mac and PC
+## set working directory
 setwd('C:/CloudStor/R_Stuff/FIS')
 
 ##--------------------------------------------------------------------------------------##
+## Load libraries ####
 ## load library packages
 library(dplyr)
 library(ggplot2)
@@ -31,7 +32,7 @@ library(tibble)
 library(data.table)
 
 ##--------------------------------------------------------------------------------------##
-## load custom functions
+## Load functions ####
 source("C:/GitCode/AbResearch/getSeason.r")
 source("C:/GitCode/AbResearch/errorUpper2.r")
 source("C:/GitCode/AbResearch/stderr.r")
@@ -43,7 +44,7 @@ source("C:/GitCode/AbResearch/stderr.r")
 xl_data <- 'R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2018/Ab_pop_bio_Lenght_density_2016.xlsx'
 
 ##--------------------------------------------------------------------------------------## 
-## Compile and clean LEG data ####
+## LEG compile and clean data ####
 
 ## LEG data is first compiled into a single dataframe which enables some cleaning of data 
 ## to occur prior to being seperated into abundance and size structure data for analysis.
@@ -138,9 +139,8 @@ legs.df.2$eastwest <- gsub('R', 'E', legs.df.2$eastwest)
 legs.df.2$survindex <- as.factor(paste(legs.df.2$site, legs.df.2$survdate, legs.df.2$string, 
                                     legs.df.2$transect, sep="_"))
 
-
 ##--------------------------------------------------------------------------------------##
-## LEG density dataframe ####
+## LEG density data ####
 
 ## To generate density estimates for LEG data, individual length data first need to be 
 ## converted to counts then density.
@@ -323,7 +323,7 @@ for (i in 1:length(list_legscounts.site)) {
 saveRDS(list_legscounts.site, 'C:/CloudStor/R_Stuff/FIS/list_legscounts.site.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## LEG size frequency dataframe ####
+## LEG size data ####
 
 ## create a copy of the original LEG dataframe
 legs.sl <- legs.df.2
@@ -384,7 +384,7 @@ saveRDS(list_legs.sl.site, 'C:/CloudStor/R_Stuff/FIS/list_legs.sl.site.RDS')
 xl_arm_data <- 'R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2018/Juvenile_data_2016.xlsx'
 
 ##--------------------------------------------------------------------------------------##
-## Compile and clean ARM data ####
+## ARM compile and clean data ####
 
 ## identify sheets in excel workbook
 tab_names_arms <- excel_sheets(path = xl_arm_data)
@@ -463,7 +463,7 @@ arms.df.2$site <- gsub('G6', 'GEO', arms.df.2$site)
 arms.df.2$site <- gsub('G7', 'GEO', arms.df.2$site)
 
 ##--------------------------------------------------------------------------------------##
-## ARM size frequency dataframe ####
+## ARM size data ####
 
 ## A. Extract records with abs for length frequency analysis
 arms.sl <- arms.df.2 %>% 
@@ -517,7 +517,7 @@ for (i in 1:length(list_arms.sl.site)) {
 saveRDS(list_arms.sl.site, 'C:/CloudStor/R_Stuff/FIS/list_arms.sl.site.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## ARM density dataframe ####
+## ARM density data ####
 
 ## determine the surface area of the ARM (diameter = 400 mm)
 platearea <- pi*0.2^2
@@ -604,12 +604,12 @@ arms.counts.join$absm_juv <- arms.counts.join$ab_n_juv/platearea
 saveRDS(arms.counts.join, 'C:/CloudStor/R_Stuff/FIS/arms.counts.join.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## Combine ARM and LEG dataframes ####
+## ARM:LEG combine data ####
 
 ## For the 2018 Abalone Stock Assessment Report ARM and LEG data were combined so that both 
 ## sources of size data could be displayed on the one figure/plot.
 
-## Density data combined ####
+## ARM:LEG density data combined ####
 
 ## load most recent juvenile and adult data sets
 leg.counts <- readRDS('C:/CloudStor/R_Stuff/FIS/leg.counts.RDS')
@@ -638,7 +638,7 @@ saveRDS(arm.leg.counts, 'C:/CloudStor/R_Stuff/FIS/arm.leg.counts.RDS')
 
 ##--------------------------------------------------------------------------------------##
 
-## Size data combined ####
+## ARM:LEG size data combined ####
 
 ## load most recent ARM and LEG size frequency data sets
 legs.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/legs.sl.RDS')
@@ -697,10 +697,10 @@ season_labels <- c("2015.Summer" = '2015.Su',
 
 ## load most recent combined ARM and LEG size frequency data set
 arm.leg.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.leg.sl.RDS')
-
+  
 ## exract unique sites and yr.seasons
 arm.leg.sites <- unique(arm.leg.sl$site)
-arm.leg.seasons <- data.frame(yr.season = unique(arm.leg.sl$yr.season))
+arm.leg.seasons <- data.frame(yr.season = unique(arm.leg.sl$yr.season)) 
 
 ## loop through sites to generate arm and leg plots autonomously
 for (i in arm.leg.sites){
@@ -717,7 +717,7 @@ arm.leg.site$yr.season <- factor(arm.leg.site$yr.season,
                                             "2016.Winter", "2019.Summer",  
                                             "2016.Spring", "2019.Winter", 
                                             "2017.Summer", "2019.Spring",
-                                            "2017.Winter", "2020.Summer"))
+                                            "2017.Winter", '2020.Summer'))
 
 
 ## generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
@@ -754,7 +754,7 @@ ann_text$yr.season <- factor(ann_text$yr.season,
                                             "2016.Winter", "2019.Summer",  
                                             "2016.Spring", "2019.Winter", 
                                             "2017.Summer", "2019.Spring",
-                                            "2017.Winter", "2020.Summer"))
+                                            "2017.Winter", '2020.Summer'))
 
 ## generate plot using 'if...else' statement to determine plot type depending on 
 ## whether a site has ARMs installed
@@ -792,7 +792,7 @@ ggplot(data = arm.leg.site)+
         theme(legend.position = 'none')
          }
 
- print(arm.leg.plot)
+ # print(arm.leg.plot)
 
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 ggsave(filename = paste('ARM_LEG_LF_', i, '.pdf', sep = ''),
@@ -809,18 +809,18 @@ arm.leg.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.leg.sl.RDS')
 
 ## subset chosen site and last four sampling seasons for powerpoint presentation
 unique(arm.leg.sl$site)
-selected.site <- 'GEO'
-selected.season <- c('2018.Spring', '2019.Summer', '2019.Winter', '2019.Spring')
+selected.site <- 'BRS'
+selected.season <- c('2019.Summer', '2019.Winter', '2019.Spring', '2020.Summer')
 
 arm.leg.site.lastfour <- arm.leg.sl %>% 
   filter(site %in% selected.site & yr.season %in% selected.season)
 
 ## re-order data so that facet plots in vertical order of two columns
 arm.leg.site.lastfour$yr.season <- factor(arm.leg.site.lastfour$yr.season, 
-                                 levels = c("2018.Spring",  
-                                            "2019.Summer", 
+                                 levels = c("2019.Summer", 
                                             "2019.Winter",
-                                            "2019.Spring"))
+                                            "2019.Spring",
+                                            "2020.Summer"))
 
 ## generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
 plot.n.LEG.lastfour <- arm.leg.site.lastfour %>% 
@@ -854,9 +854,9 @@ arm.leg.plot.lastfour <- ggplot(data = arm.leg.site.lastfour)+
            colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
  geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)
 
-print(arm.leg.plot.lastfour)
+# print(arm.leg.plot.lastfour)
 
-#setwd('C:/CloudStor/R_Stuff/FIS')
+#setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 ggsave(filename = paste('ARM_LEG_LF_LASTFOUR_', selected.site, '.pdf', sep = ''), 
        plot = arm.leg.plot.lastfour, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('ARM_LEG_LF_LASTFOUR_', selected.site, '.wmf', sep = ''), 
@@ -1124,7 +1124,7 @@ sub.leg.3 <- melt(legs.counts.join,id.vars=c('legs.dat.join.survindex', 'site', 
 
 ## select site
 unique(sub.leg$site)
-selected.site <- 'BRB'
+selected.site <- 'BRS'
 
 #create negative values for sub-legal animals
 sub.leg.dat <- sub.leg.2 %>%
@@ -1161,7 +1161,7 @@ leg.den.bar <- ggplot(sub.leg.dat, aes(x = yr.season, y = value, fill = variable
  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
  theme(legend.background = element_blank())+
  coord_cartesian(ylim = c(-2, 2))+
- annotate('text', x = c(1, 13, 14), y = 0.6, label = 'NO DATA', angle = 90)+ 
+ annotate('text', x = c(1, 2, 11), y = 0.6, label = 'NO DATA', angle = 90)+ 
  #enter manually but work on conditional statement
  scale_x_discrete(breaks = c("2015.Summer", "2015.Winter", "2015.Spring", 
                              "2016.Summer", "2016.Winter", "2016.Spring", 
@@ -1190,7 +1190,7 @@ leg.den.bar.2 <- ggplot(sub.leg.dat.2, aes(x = yr.season, y = value, fill = vari
  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
  theme(legend.background = element_blank())+
  coord_cartesian(ylim = c(-0.5, 0.5))+
- annotate('text', x = c(1, 13, 14), y = 0.15, label = 'NO DATA', angle = 90)+ #manually add no data to missing season data 
+ annotate('text', x = c(1, 2, 11), y = 0.15, label = 'NO DATA', angle = 90)+ #manually add no data to missing season data 
  #enter manually but work on conditional statement
  scale_x_discrete(breaks = c("2015.Summer", "2015.Winter", "2015.Spring", 
                              "2016.Summer", "2016.Winter", "2016.Spring", 
@@ -1205,6 +1205,7 @@ leg.density <- grid.arrange(
                                 align = 'v', ncol = 1), ncol = 1))
 
 ## save plot to file 
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 ggsave(filename = paste('LEG_DENSITY_', selected.site, '.pdf', sep = ''), plot = leg.density)
 ggsave(filename = paste('LEG_DENSITY_', selected.site, '.wmf', sep = ''), plot = leg.density)
 
