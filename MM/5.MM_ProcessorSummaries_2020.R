@@ -110,17 +110,17 @@ length.weight.summary.formated <- length.weight.summary %>%
 ggsave(
         filename = paste(i, '_GradeSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
         plot = grade.summary.formated,
-        width = 7.4,
-        height = 5.57,
-        units = 'in'
+        width = 200,
+        height = 297,
+        units = 'mm'
 )
 
 ggsave(
         filename = paste(i, '_SizeWeightSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
         plot = length.weight.summary.formated,
-        width = 11.69,
-        height = 5.57,
-        units = 'in'
+        width = 200,
+        height = 297,
+        units = 'mm'
 )
 
 }

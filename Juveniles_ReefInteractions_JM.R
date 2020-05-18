@@ -1,5 +1,8 @@
 #clear environment
 #rm(list=ls(all=TRUE))
+
+##--------------------------------------------------------------------------------------##
+## Load libaries ####
 library(tidyverse)
 library(broom)
 library(lubridate)
@@ -11,32 +14,85 @@ library(openxlsx)
 library(Hmisc)
 library(reshape2)
 library(dplyr)
+library(ggsci)
 
-## import raw data from Excel for Lippies and Trumpeter surveys
+##--------------------------------------------------------------------------------------##
+## Functions ####
+
+## Create function to assign sampling records to a season
+getSeason.reef <- function(DATES) {
+        Wi <- as.Date("2012-06-01", format = "%Y-%m-%d") # Winter 
+        Sp <- as.Date("2012-09-01",  format = "%Y-%m-%d") # Spring 
+        Su <- as.Date("2012-12-01",  format = "%Y-%m-%d") # Summer 
+        # Looks like autumn threshold date is a month out so I have changed - Jaime
+        #Au <- as.Date("2012-04-01",  format = "%Y-%m-%d") # Autumn 
+        Au <- as.Date("2012-03-01",  format = "%Y-%m-%d") # Autumn
+        
+        # Convert dates from any year to 2012 dates
+        d <- as.Date(strftime(DATES, format="2012-%m-%d"))
+        
+        ifelse (d >= Wi & d < Sp, "Winter",
+                ifelse (d >= Sp & d < Su, "Spring",
+                        ifelse (d >= Su | d < Au, "Summer", "Autumn")))
+}
+
+## Create function for standard error calculations
+stderr.reef <- function(x) {
+        sqrt(var(x[!is.na(x)]) / length(x[!is.na(x)]))
+}
+
+my.stderr.reef <- function(x) {
+        meany <- mean(x)
+        ymin  <- mean(x) - stderr.reef(x)
+        ymax  <- mean(x) + stderr.reef(x)
+        # assemble the named output
+        out <- c(y = meany, ymin = ymin, ymax = ymax)
+        return(out)
+}
+
+## Load RI data ####
+
 juv_lip <- read.xlsx(
- "C:/Users/jaimem/Documents/JaimeMcAllister/RVA R-scripts/Abalone_data exploration.xlsx",
- sheet = "Raw data Lippies",
- detectDates = TRUE)
+        "R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2015 FRDC 024 Environmental Interactions/Reef interactions/Abalone plates/Lippies/Data/Abalone plates_Juv Abs & Inv assemblages_DataLippies Cleaned.xlsx",
+        sheet = "Juvenile Abalone",
+        detectDates = TRUE)
 
 juv_trump <- read.xlsx(
- "C:/Users/jaimem/Documents/JaimeMcAllister/RVA R-scripts/Abalone_data exploration.xlsx",
- sheet = "Raw data Trumpeter",
- detectDates = TRUE)
+        "R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2015 FRDC 024 Environmental Interactions/Reef interactions/Abalone plates/Trumpeter/Data/Abalone plates_Juv Abs & Inv assemblages_DataTrumpeter Cleaned.xlsx",
+        sheet = "Juvenile Abalone",
+        detectDates = TRUE)
 
-## check structure of raw data
+juv_lip_resurvey <-read.xlsx(
+        "R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/Abalone Plate Recon Data.xlsx",
+        sheet = "Sheet1",
+        detectDates = TRUE)
+
+##--------------------------------------------------------------------------------------##
+## set working directory
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+
+##--------------------------------------------------------------------------------------##
+## Compile RI data ####
+
+## check structure of raw data to ensure bind_rows will work properly
 str(juv_lip)
 str(juv_trump)
+str(juv_lip_resurvey)
 
-## convert SIZE.AB1 from character to numeric
-juv_lip$SIZE.AB1 <- as.numeric(juv_lip$SIZE.AB1)
+## fix juv_lip$SIZE.AB1 variable where 'Plate missing' is in wrong column and convert from 
+## character to numeric
+juv_lip <- juv_lip %>% 
+        mutate(NO.ABS = if_else(SIZE.AB1 == 'Plate missing', SIZE.AB1, NO.ABS),
+               SIZE.AB1 = as.numeric(gsub('Plate missing', NA_character_, SIZE.AB1)))
 
 ## merge raw data sets
-juv <- bind_rows(juv_lip, juv_trump)
+juv <- bind_rows(juv_lip, juv_trump, juv_lip_resurvey)
 
-## convert var names to lower case
+##--------------------------------------------------------------------------------------##
+## Clean RI data ####
+
+## convert varible names to lower case
 colnames(juv) <- tolower(colnames(juv))
-
-str(juv)
 
 ## convert juv data from wide to long format
 juv_long <- melt(juv, id.var = c('site', 'date', 'diver', 'collector', 'no.abs'), value.name = 'length')
@@ -47,287 +103,330 @@ juv_long_split <- juv_long %>%
           into = c("site", "string"), 
           sep = "(?<=[A-Za-z])(?=[0-9])")
 
-## rename collector column to plate
+## rename column variables
 names(juv_long_split)[names(juv_long_split)=="collector"] <- "plate"
 names(juv_long_split)[names(juv_long_split)=="length"] <- "ab_sl"
 names(juv_long_split)[names(juv_long_split)=="date"] <- "survdate"
 
-## convert site/string names to only 1 and 2
-juv <- juv_long_split %>%
+## convert string names to only 1 and 2
+juv_long_split <- juv_long_split %>%
  mutate(string = gsub('3', '1', string),
         string = gsub('4', '2', string),
         string = gsub('5', '1', string),
         string = gsub('6', '2', string))
 
+## convert variables to factors
+juv_long_split$string <- as.factor(juv_long_split$string)
+juv_long_split$plate <- as.factor(juv_long_split$plate)
 
+## convert site names to match abalone assessment terminology
+juv_long_split <- juv_long_split %>% 
+        mutate(site = gsub('GIII', 'GEO', site))
 
-## convert data values to factors
-juv$string <- as.factor(juv$string)
-juv$plate <- as.factor(juv$plate)
+##--------------------------------------------------------------------------------------##
+## RI abalone data ####
 
-## data cleaning ####
+juv.df <- juv_long_split %>% 
+        select(site, survdate, diver, string, plate, ab_sl)
 
-str(juv)
+## save a copy of the R files
+saveRDS(juv.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.df.RDS')
 
-## fix site names for several records from GIII on 2017-03-22 which have clearly been filled down in sequence 
-## in the raw data.
-# juv <- juv %>%
-#  mutate(site = gsub('G4', 'GIII', site),
-#         site = gsub('G5', 'GIII', site),
-#         site = gsub('G6', 'GIII', site),
-#         site = gsub('G7', 'GIII', site),
-#         site = gsub('G3', 'GIII', site))
+##--------------------------------------------------------------------------------------##
+## Size RI data ####
+juv.sl <- filter(juv.df, !is.na(ab_sl))
 
-## remove characters from site names. 
-# juv$site <- gsub( "_", "", juv$site)
-
-## check site names.
-unique(juv$site)
-
-## Checking for outliers ####
-## most animals should be < 140 mm with the majority < 80 mm
-filter(juv, !is.na(ab_sl)) %>%
- ggplot() +
- geom_histogram(mapping = aes(x = ab_sl), binwidth = 5)
-
-filter(juv, !is.na(ab_sl)) %>%
- count(cut_width(ab_sl, 5))
-
-filter(juv, !is.na(ab_sl)) %>%
- ggplot(aes(x=site, y=ab_sl)) +
- geom_boxplot()
-
-## subset data to include only seasonal routine sampling sites (i.e. BI, BRB, BRS, GIII, SP, TG)
-#juv <- subset(juv, site %nin% c('OS', 'SB'))
-
-### Prepare dataframes for length frequency and abundance analyses ----
-
-## A. Extract records with abs for length frequency analysis ----
-juv.sl <- filter(juv, !is.na(ab_sl))
-
-## construct  date, quarter and season variables ----
-
-#http://stackoverflow.com/questions/9500114/find-which-season-a-particular-date-belongs-to
-
-## Define function to assign records to a season
-getSeason <- function(DATES) {
- Wi <- as.Date("2012-06-01", format = "%Y-%m-%d") # Winter 
- Sp <- as.Date("2012-09-01",  format = "%Y-%m-%d") # Spring 
- Su <- as.Date("2012-12-01",  format = "%Y-%m-%d") # Summer 
- # Looks like autumn threshold date is a month out so I have changed - Jaime
- #Au <- as.Date("2012-04-01",  format = "%Y-%m-%d") # Autumn 
- Au <- as.Date("2012-03-01",  format = "%Y-%m-%d") # Autumn
- 
- # Convert dates from any year to 2012 dates
- d <- as.Date(strftime(DATES, format="2012-%m-%d"))
- 
- ifelse (d >= Wi & d < Sp, "Winter",
-         ifelse (d >= Sp & d < Su, "Spring",
-                 ifelse (d >= Su | d < Au, "Summer", "Autumn")))
-}
-
-
-#datain$season <- getSeason(datain$pred.date)
-
-
-stderr <- function(x) {
- sqrt(var(x[!is.na(x)]) / length(x[!is.na(x)]))
-}
-
-my.stderr <- function(x) {
- meany <- mean(x)
- ymin  <- mean(x) - stderr(x)
- ymax  <- mean(x) + stderr(x)
- # assemble the named output
- out <- c(y = meany, ymin = ymin, ymax = ymax)
- return(out)
-}
-
+## add quarter, year and season variables
 #juv.sl$q <- quarter(juv.sl$survdate, with_year = TRUE)
 juv.sl$sampyear <- as.factor(year(juv.sl$survdate)) 
-juv.sl$season <- getSeason(juv.sl$survdate) 
+juv.sl$season <- getSeason.reef(juv.sl$survdate) 
 
-## recode autumn samples as summer
-#juv.sl$season <- gsub( "Autumn", "Summer", juv.sl$season)
+## add yr.season variable and arrange in order
 juv.sl$season <- as.factor(juv.sl$season)
 juv.sl$season <- ordered(juv.sl$season, levels=c("Summer","Winter","Spring", 'Autumn'))
 juv.sl$yr.season <- interaction(juv.sl$sampyear,juv.sl$season)
-levels(juv.sl$yr.season)
+# levels(juv.sl$yr.season)
 juv.sl$yr.season <-
- ordered(juv.sl$yr.season, levels = c("2016.Summer", "2017.Autumn", "2017.Winter", "2017.Spring",
-                                      "2017.Summer", "2018.Autumn", "2018.Winter", '2018.Summer'))
-## recode Gardens 2015.summer samples as 2015.spring (Why?)
-# pick <- which(juv.sl$site == "TG")
-# juv.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", juv.sl$yr.season[pick])
-# juv.sl$yr.season <- droplevels(juv.sl$yr.season)
+ ordered(juv.sl$yr.season, levels = c("2016.Winter", "2016.Spring", "2016.Summer", 
+                                      "2017.Autumn", "2017.Winter", "2017.Spring", "2017.Summer", 
+                                      "2018.Autumn", "2018.Winter", '2018.Spring', "2018.Summer",
+                                      "2019.Autumn", "2019.Winter", "2019.Spring"))
 
-unique(juv.sl$survdate)
-unique(juv.sl$yr.season)
+## save a copy of the R files
+saveRDS(juv.sl, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.sl.RDS')
 
-## B. Extract and prepare records with abs for abundance analyses ----
-#juv$ab_sl <- NAToUnknown(x = juv$ab_sl, unknown = 0)
-## NOTE:  sites were surveyed on different days, and not always entirely in the one season
+##--------------------------------------------------------------------------------------##
+## Density RI data ####
 
-
-#platearea <- 0.503 #  var for planar area of reef covered by juvenile collector
-# need to check this as I have surface area of plate @ 0.126 m2. The above is surface area of a plate with diameter of
-# 800 mm (looks like 0.4 m was used in the equation rather than 0.2 m)
+## plate area for calculating density
 platearea <- 0.126
 
+## make copy of juv.df
+juv.den <- juv.df
+
 ## create unique ID/index for each ARM and survdate combination
-juv$survindex <- as.factor(paste(juv$site, juv$survdate, juv$string, juv$plate, sep="_"))
+juv.den$survindex <- as.factor(paste(juv$site, juv$survdate, juv$string, juv$plate, sep="_"))
 
 ## subset and count number of animals per ARM by survdate (subset by size class if required)
-dat <- filter(juv, !is.na(ab_sl))  %>%
- #dat <- filter(juv, ab_sl >=25 & ab_sl < 100) %>%
- #dat <- filter(juv, ab_sl <25 ) %>% 
- #dat <- filter(juv, ab_sl <= 100) %>%
+juv.dat <- filter(juv.den, !is.na(ab_sl))  %>%
+ #dat <- filter(juv.den, ab_sl >=25 & ab_sl < 100) %>%
+ #dat <- filter(juv.den, ab_sl <25 ) %>% 
+ #dat <- filter(juv.den, ab_sl <= 100) %>%
  group_by(survindex) %>%
  summarise(ab_n=n()) %>%  #as.data.frame()
  complete(survindex, fill = list(ab_n = 0)) %>%
  as.data.frame()
 
-# ## USe all data -------------------##
-# dat <- group_by(juv, survindex) %>%
-#  summarise(ab_n =n()) %>%  #as.data.frame()
-#  complete(survindex, fill = list(ab_n = 0)) %>%
-#  as.data.frame()
-
-## calculate abs per square metre 
-dat$absm <- dat$ab_n * (1/platearea)
+## calculate abalone per square metre 
+juv.dat$absm <- juv.dat$ab_n * (1/platearea)
 
 ## unpack survindex variables and create new dataframe
-abcounts <- data.frame(separate(dat, survindex, sep = "_", into = c("site", "survdate", "string","plate"), convert = TRUE), dat$survindex, dat$ab_n, dat$absm)
+juv.abcounts <- data.frame(separate(juv.dat, survindex, sep = "_", 
+                                into = c("site", "survdate", "string", "plate"), 
+                                convert = TRUE), juv.dat$survindex, juv.dat$ab_n, juv.dat$absm)
 
-## format date variable and add year/season variables
-abcounts$survdate <- as.Date(strptime(abcounts$survdate, "%Y-%m-%d"))
-abcounts$sampyear <- as.factor(year(abcounts$survdate)) 
-abcounts$season <- getSeason(abcounts$survdate) 
+## format date variable and add year and season variables
+juv.abcounts$survdate <- as.Date(strptime(juv.abcounts$survdate, "%Y-%m-%d"))
+juv.abcounts$sampyear <- as.factor(year(juv.abcounts$survdate)) 
+juv.abcounts$season <- getSeason.reef(juv.abcounts$survdate) 
 
-## recode autumn samples as summer
-# abcounts$season <- gsub( "Autumn", "Summer", abcounts$season)
-# abcounts$season <- as.factor(abcounts$season)
-# abcounts$season <- ordered(abcounts$season, levels=c("Summer","Winter","Spring"))
+## add yr.season variable and arrange in order
+juv.abcounts$yr.season <- interaction(juv.abcounts$sampyear,juv.abcounts$season)
+juv.abcounts$yr.season <-
+ ordered(juv.abcounts$yr.season, levels = c("2016.Winter", "2016.Spring", "2016.Summer", 
+                                            "2017.Autumn", "2017.Winter", "2017.Spring", "2017.Summer", 
+                                            "2018.Autumn", "2018.Winter", '2018.Spring', "2018.Summer",
+                                            "2019.Autumn", "2019.Winter", "2019.Spring"))
 
-## create variable identifying year and season
-abcounts$yr.season <- interaction(abcounts$sampyear,abcounts$season)
-abcounts$yr.season <-
- ordered(abcounts$yr.season, levels = c("2016.Summer", "2017.Autumn", "2017.Winter", "2017.Spring",
-                                        "2017.Summer", "2018.Autumn", "2018.Winter", '2018.Summer'))
+juv.abcounts <- juv.abcounts %>% 
+        select(-c(juv.dat.ab_n, juv.dat.absm)) %>% 
+        rename(survindex = juv.dat.survindex)
 
-## recode Gardens 2015.summer samples as 2015.spring (Why?)
-# pick <- which(abcounts$site == "TG")
-# abcounts$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", abcounts$yr.season[pick])
-# abcounts$yr.season <- droplevels(abcounts$yr.season)
+## save a copy of the R files
+saveRDS(juv.abcounts, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.abcounts.RDS')
 
-levels(abcounts$yr.season)
+##--------------------------------------------------------------------------------------##
+## AB data ####
+## load most recent compiled ARM size and density data from Abalone Fishery Independant Surveys
 
-# Betsey<-droplevels(subset(juv, site== "BI" & string== "2"))
-# Betsey10<-droplevels(subset(Betsey, plate >=5))
-# Betsey10<-droplevels(subset(Betsey10, plate <=7))
+arms.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arms.sl.RDS')
 
-# #remove NAs
-# Betsey10[complete.cases(Betsey10[,5]),]
+arm.counts <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.counts.RDS')
 
-##------------------------------------------------------##
-##------------------------------------------------------##
+# re-classify abalone data seasons to match Reef Interactions seasons
+arms.sl <- arms.sl %>%
+        select(-season, yr.season) %>% 
+        mutate(season = getSeason.reef(survdate),
+               yr.season = interaction(sampyear, season))
 
-## Figures and summaries for length frequency analyses ####
+arm.counts <- arm.counts %>%
+        select(-season, yr.season) %>% 
+        mutate(season = getSeason.reef(survdate),
+               yr.season = interaction(sampyear, season))
+
+##--------------------------------------------------------------------------------------##
+# Density data join ####
+# join abalone density data to reef interactions density data
+
+# filter abalone data for matching sites and seasons spanning the reef interactions study
+arm.abcounts <- arm.counts %>% 
+        filter(site %in% c('BET', 'GEO', 'BRS') &
+                       yr.season %in% c('2016.Summer',
+                                        '2016.Spring',
+                                        '2016.Winter',
+                                        '2017.Autumn',
+                                        '2017.Winter',
+                                        '2017.Spring',
+                                        '2017.Summer',
+                                        '2018.Autumn',
+                                        '2018.Winter',
+                                        '2018.Spring',
+                                        '2019.Summer',
+                                        '2019.Autumn'))
+
+# remove repeated variables and rename variables to match reef interactions data
+arm.abcounts <- arm.abcounts %>% 
+        select(-c(dat.ab_n, dat.absm)) %>% 
+        rename(survindex = dat.survindex) %>% 
+        mutate(string = as.factor(string))
+
+## combine reef interactions and abalone dataframes noting that there are 12 records where the abalone counts 
+## vary between the two datasets by <3 abalone for GEO and BRS. 
+## decision made to remove duplicate records by using only data for GEO and BRS abalone database.
+
+# # indentify difference in counts between data sets and retain only mis-matched records
+# juv.abcounts.mismatch <- left_join(juv.abcounts, arm.abcounts, by = "survindex") %>% 
+#         mutate(ab_n.diff = ab_n.x - ab_n.y) %>%
+#         filter(!is.na(ab_n.diff) & 
+#                        ab_n.diff != 0) %>%
+#         # mutate(ab_n.diff = 1) %>% 
+#         select(survindex, ab_n.diff) %>% 
+#         as.data.frame()
+# 
+# # join mis-matched records to reef interactions data and remove mis-matched data before binding to abalone data
+# # and removing remaining duplicate records
+# arm.abcounts.df <- left_join(juv.abcounts, juv.abcounts.mismatch, by = 'survindex') %>% 
+#         filter(is.na(ab_n.diff)) %>% 
+#         bind_rows(arm.abcounts) %>% 
+#         distinct(survindex, .keep_all = T) %>% 
+#         select(-ab_n.diff)
+
+# filter for unique reef interactions data and join to abalone data
+arm.abcounts.df <- juv.abcounts %>% 
+        filter(!site %in% c('GEO', 'BRS')) %>% 
+        # mutate(survdate = as.POSIXct(survdate)) %>% 
+        bind_rows(arm.abcounts)
+
+# convert summer to autumn for all data and place in order
+arm.abcounts.df <- arm.abcounts.df %>% 
+        mutate(season = gsub('Summer', 'Autumn', season),
+               yr.season = gsub('Summer', 'Autumn', yr.season))
+
+arm.abcounts.df$yr.season <-
+        ordered(df.2$yr.season, levels = c("2016.Autumn",
+                                                "2016.Winter",
+                                                "2016.Spring",
+                                                "2017.Autumn",
+                                                "2017.Winter", 
+                                                "2017.Spring",
+                                                "2018.Autumn",
+                                                "2018.Winter",
+                                                "2018.Spring",
+                                                "2019.Autumn"))
+
+## save a copy of the R files
+saveRDS(arm.abcounts.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.df.RDS')
+
+##--------------------------------------------------------------------------------------##
+# Size data join ####
+# join abalone size data to reef interaction size data
+
+# filter abalone data for matching sites and seasons spanning the reef interactions study
+arms.absl <- arms.sl %>% 
+        filter(site %in% c('BET', 'GEO', 'BRS') &
+                       yr.season %in% c('2016.Summer',
+                                        '2016.Spring',
+                                        '2016.Winter',
+                                        '2017.Autumn',
+                                        '2017.Winter',
+                                        '2017.Spring',
+                                        '2017.Summer',
+                                        '2018.Autumn',
+                                        '2018.Winter',
+                                        '2018.Spring',
+                                        '2019.Summer',
+                                        '2019.Autumn'))
+
+# select variables to match reef interactions data
+arms.absl.match <- arms.absl %>% 
+        select(c(site, survdate, string, plate, sllength, sampyear, season, yr.season)) %>% 
+        rename(ab_sl = sllength)
+
+# filter for unique reef interactions data and join to abalone data
+arm.sl.df <- juv.sl %>% 
+        filter(!site %in% c('GEO', 'BRS')) %>% 
+        mutate(survdate = as.POSIXct(survdate)) %>% 
+        bind_rows(arms.absl.match)
+
+# convert summer to autumn for all data and place in order
+arm.sl.df <- arm.sl.df %>% 
+        mutate(season = gsub('Summer', 'Autumn', season),
+               yr.season = gsub('Summer', 'Autumn', yr.season))
+
+arm.sl.df$yr.season <-
+        ordered(arm.sl.df$yr.season, levels = c("2016.Autumn",
+                                                "2016.Winter",
+                                                "2016.Spring",
+                                                "2017.Autumn",
+                                                "2017.Winter", 
+                                                "2017.Spring",
+                                                "2018.Autumn",
+                                                "2018.Winter",
+                                                "2018.Spring",
+                                                "2019.Autumn"))
+
+## save a copy of the R files
+saveRDS(arm.sl.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.sl.df.RDS')
+
+##--------------------------------------------------------------------------------------##
+## load latest RDS data
+arm.sl.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.sl.df.RDS')
+arm.abcounts.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.df.RDS')
+
+## Plots: size ####
 
 # create short label names for plot facets  
-season_labels <- c("2016.Summer" = '2016.Su',
-                   "2016.Winter" = '2016.Wi', 
-                   "2016.Spring" = '2016.Sp', 
-                   "2017.Summer" = '2017.Su', 
+season_labels <- c("2016.Autumn" = '2016.Au',
+                   "2016.Winter" = '2016.Wi',
+                   "2016.Spring" = '2016.Sp',
                    "2017.Autumn" = '2017.Au',
                    "2017.Winter" = '2017.Wi', 
                    "2017.Spring" = '2017.Sp',
                    "2018.Autumn" = '2018.Au',
-                   "2018.Summer" = '2018.Su')
-
-unique(juv.sl$yr.season)
-
-# ggplot(abcounts, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
-#  geom_bar(stat="identity")+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#  facet_grid(. ~ site)
-
-# ## length frequency distribution plot of year.season x site
-
-# ggplot(juv.sl, aes(x=ab_sl, color=site)) +
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  theme_bw()+
-#  geom_histogram(binwidth = 10) +
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#  theme(legend.position="none") +
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  facet_grid(site ~ yr.season)
-# #facet_grid(site ~ yr.season, scales = "free_y")
-
-# ## length frequency density plot of year.season x site
-
-# ggplot(juv.sl, aes(x=ab_sl, color=site)) +
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
-#  #stat_density(geom = "line", position = "identity") +
-#  geom_density(alpha = .2) +
-#  theme_bw()+
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#  theme(legend.position="none") +
-#   facet_grid(site ~ yr.season)
-
+                   "2018.Winter" = '2018.Wi',
+                   "2018.Spring" = '2018.Sp',
+                   "2019.Autumn" = '2019.Au')
 
 ## length frequency distribution plot of site x year.season
 
-ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
+plot.n.ARM <- arm.sl.df %>% 
+        group_by(site, yr.season) %>%
+        summarise(n = paste('n =', n()))
+
+arm.size.plot <- ggplot(arm.sl.df, aes(x = ab_sl, color = site, fill = site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
  theme_bw()+
  geom_histogram(binwidth = 10) +
- theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+ geom_text(data = plot.n.ARM, aes(x = 125, y = 35, label = n), color = 'black', size = 3)+
+ scale_fill_jco(alpha = 0.6)+
+ scale_color_jco()+
+ theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + 
  theme(legend.position="none") +
- #ggtitle(paste(dum$SubBlockNo, FishYear))+
- #labs(title= Yeardum$SubBlockNo, size=10)+
  facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
- #facet_grid(yr.season ~ site, scales = "free_y")
 
-## length frequency density plot of year.season x site
+# print(arm.size.plot)
 
-ggplot(juv.sl, aes(x=ab_sl, color=site)) + 
- ylab("Frequency") +
- xlab("Shell Length (mm)")+
- geom_histogram(aes(y=..density..), alpha=.2, binwidth = 10)+
- #stat_density(geom = "line", position = "identity") +
- geom_density(alpha = .2) +
- theme_bw()+
- theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
- theme(legend.position="none") +
- facet_grid(site ~ yr.season, scales = "free_y")
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_SizeFrequency_Au2016_Au2019', '.pdf', sep = ''),
+        plot = arm.size.plot,
+        width = 8.3,
+        height = 11.7,
+        units = 'in'
+)
 
-# ## length frequency density plot of year.season (all sites combined)
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_SizeFrequency_Au2016_Au2019', '.png', sep = ''),
+        plot = arm.size.plot,
+        width = 8.3,
+        height = 11.7,
+        units = 'in'
+)
 
-# ggplot(juv.sl, aes(x=ab_sl)) + 
+# ## length frequency density plot of year.season x site
+# 
+# ggplot(juv.sl, aes(x = ab_sl, color = site)) + 
 #  ylab("Frequency") +
 #  xlab("Shell Length (mm)")+
-#  geom_histogram(aes(y=..density..),alpha=.2, binwidth = 10)+
-#  geom_density(alpha=.2) +
+#  geom_histogram(aes(y = ..density..), alpha = 0.2, binwidth = 10)+
+#  #stat_density(geom = "line", position = "identity") +
+#  geom_density(alpha = .2) +
 #  theme_bw()+
-#  facet_grid( ~ yr.season)
+#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+#  theme(legend.position="none") +
+#  facet_grid(yr.season ~ site, scales = "free_y")
 
 ## Figures and summaries for abundance analyses ####
 
 ## create summary table of abalone per squre meter for site and year.season
-ab_n.summary <- abcounts %>% 
- group_by(site, sampyear, survdate, season) %>%
- summarise(ab_n = n())
+ab_n.summary <- arm.abcounts.df %>% 
+ group_by(site, yr.season) %>%
+ summarise(ab_n = sum(ab_n))
 
 ## boxplot showing year x season abundance
 
-ggplot(abcounts, aes(y=absm, x=site))+
+ggplot(arm.abcounts.df, aes(y = absm, x = site))+
  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
  theme_bw()+
  facet_grid(season ~ sampyear)+
@@ -336,20 +435,19 @@ ggplot(abcounts, aes(y=absm, x=site))+
  ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
 ## line plot showing abalone abundance per season for each year for each site
-abcounts.2 <- abcounts
-str(abcounts.2)
-ggplot(abcounts.2, aes(y=absm, x=sampyear, group=season))+
- aes(colour = season)+scale_colour_brewer(palette = 'Set1')+
- theme_bw()+
- facet_grid(site ~ string, scales = "free_y" )+
- theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
- stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
- stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
- stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- xlab('Year')+
- ylab(bquote('Juvenile Abalone Abundance ('*~m^2*')'))+
- ggtitle('Abalone Recruitment Modules (ARM)')+
- theme(plot.title = element_text(hjust = 0.5))
+
+# ggplot(arm.abcounts.df, aes(y=absm, x=sampyear, group=season))+
+#  aes(colour = season)+scale_colour_brewer(palette = 'Set1')+
+#  theme_bw()+
+#  facet_grid(site ~ string, scales = "free_y" )+
+#  theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
+#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr.reef, size=1) + #fun.y=mean, linetype="dashed")+
+#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr.reef) +
+#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr.reef, width = 0.125, size = 1) +
+#  xlab('Year')+
+#  ylab(bquote('Juvenile Abalone Abundance ('*~m^2*')'))+
+#  ggtitle('Abalone Recruitment Modules (ARM)')+
+#  theme(plot.title = element_text(hjust = 0.5))
 
 # ggplot(abcounts.2, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
 #   geom_bar(stat="identity") +
@@ -374,15 +472,18 @@ ggplot(abcounts.2, aes(y=absm, x=sampyear, group=season))+
 #  theme_bw()+
 #  facet_grid(yr.season ~ string)
 
-ggplot(abcounts, aes(x=ab_n, fill=string, color=site)) + 
+ggplot(arm.abcounts.df, aes(x = ab_n, fill = site, color = site)) + #can change fill = string
  ylab("Frequency") +
- xlab("N")+
+ xlab("no. abalone per ARM")+
  geom_histogram(alpha = 0.2, binwidth = 1)+
  #ggtitle(paste(dum$SubBlockNo, FishYear))+
  #labs(title= Yeardum$SubBlockNo, size=10)+
  #geom_histogram(binwidth=50)+
  theme_bw()+
- facet_grid(yr.season ~ site)
+ scale_fill_jco(alpha = 0.6)+
+ scale_color_jco()+
+ theme(legend.position="none") +
+ facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
 
 # ggplot(juv.sl, aes(x=ab_sl, group=as.factor(site), color=as.factor(site))) +
 #  geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
@@ -403,17 +504,45 @@ ggplot(abcounts, aes(x=ab_n, fill=string, color=site)) +
 #  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
 #  facet_grid(site ~ ., scales = "free_y" )
 
-abcounts$string <- factor(as.integer(abcounts.2$string), levels = c(1,2))
-ggplot(abcounts.2, aes(x=yr.season, y=absm, group = string)) + 
- aes(colour = string) +  theme_bw() +
+# Plot: ARM density, string seperated and sites faceted
+
+arm.abcounts.df$string <- factor(as.integer(arm.abcounts.df$string), levels = c(1,2))
+
+arm.abcount.plot <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group = string)) + 
+ aes(colour = site) +
+ scale_color_jco(alpha = 1)+
+ theme_bw() +
  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
- ylab(bquote('Abalone Abundance ('*~m^2*')')) +
- theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
- # coord_cartesian(ylim = c(0, 15)) +
- stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
- stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
- stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(site ~ ., scales = "free_y" )
+ ylab(bquote('ARM Density ('*~m^2*')')) +
+        scale_x_discrete(labels = season_labels, drop = F)+
+ theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+ # coord_cartesian(ylim = c(0, 30)) +
+ stat_summary(geom = "line", position = position_dodge(0.2), fun.data = my.stderr.reef, size = 0.5, aes(linetype = string)) + #fun.y=mean, linetype="dashed")+
+ stat_summary(geom = "point", position = position_dodge(0.2), fun.data = my.stderr.reef) +
+ stat_summary(geom = "errorbar", position = position_dodge(0.2), fun.data = my.stderr.reef, width = 0.125, size = 0.5) +
+ theme(legend.position = 'none')+
+ facet_grid(site ~ ., scales = "free_y")
+ # facet_wrap(site ~ ., ncol = 2, drop = F, scales = 'free_y')
+ # facet_grid(site ~ .)
+
+print(arm.abcount.plot)
+
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_ARMDensity_Au2016_Au2019', '.pdf', sep = ''),
+        plot = arm.abcount.plot,
+        width = 8.3,
+        height = 11.7,
+        units = 'in'
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_ARMDensity_Au2016_Au2019', '.png', sep = ''),
+        plot = arm.abcount.plot,
+        width = 8.3,
+        height = 11.7,
+        units = 'in'
+)
 
 ## juvenile abundance/m2 plot of site x year.season
 
@@ -442,74 +571,57 @@ ggplot(abcounts.2, aes(x=yr.season, y=absm, group = string)) +
 #  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
 #  facet_grid(site ~ ., scales = "free_y" )
 
-ggplot(abcounts, aes(x=yr.season, y=ab_n, group = string)) + 
- aes(colour = string) +  theme_bw() +
- xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
- ylab(bquote('Abalone Abundance (abalone/plate)')) +
- theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
- # coord_cartesian(ylim = c(0, 15)) +
- stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
- stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
- stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
- facet_grid(site ~ ., scales = "free_y" )
+# ggplot(arm.abcounts.df, aes(x=yr.season, y=ab_n, group = string)) + 
+#  aes(colour = string) +  theme_bw() +
+#  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+#  ylab(bquote('Abalone Abundance (abalone/plate)')) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#  # coord_cartesian(ylim = c(0, 15)) +
+#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
+#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
+#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
+#  facet_grid(site ~ ., scales = "free_y" )
 
-## Figures and summaries for habitat complexity abalone abundance/m2 ####
+# Plot: ARM density, string pooled and sites combined
 
-unique(abcounts$site)
+arm.abcount.plot.combined <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group = site)) + 
+        aes(colour = site) +
+        scale_color_jco(alpha = 1)+
+        theme_bw() +
+        xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+        ylab(bquote('ARM Density ('*~m^2*')')) +
+        scale_x_discrete(labels = season_labels, drop = F)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+        # coord_cartesian(ylim = c(0, 30)) +
+        stat_summary(geom = "line", position = position_dodge(0.2), fun.data = my.stderr.reef, size = 0.5, aes(linetype = string)) + #fun.y=mean, linetype="dashed")+
+        stat_summary(geom = "point", position = position_dodge(0.2), fun.data = my.stderr.reef) +
+        stat_summary(geom = "errorbar", position = position_dodge(0.2), fun.data = my.stderr.reef, width = 0.125, size = 0.5)+
+        theme(legend.position = c(0.5, 0.92), 
+              legend.title = element_blank(),
+              legend.background = element_blank())+
+        guides(col = guide_legend(nrow = 1, byrow = TRUE))
 
-# add variable for site habitat complexity
-pick1 <- which(abcounts$site %in% c("BBS"))
-abcounts$habitat[pick1] <- "high"
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_ARMDensityCombined_Au2016_Au2019', '.pdf', sep = ''),
+        plot = arm.abcount.plot.combined,
+        width = 200,
+        height = 150,
+        units = 'mm'
+)
 
-pick2 <- which(abcounts$site %in% c("LIP", "SIS", "CQE", "TBN", "GIII"))
-abcounts$habitat[pick2] <- "medium"
-
-pick3 <- which(abcounts$site %in% c("BRS"))
-abcounts$habitat[pick3] <- "low"
-
-#mydataset <- droplevels(subset(abcounts, yr.season=="2015.Spring"))
-mydataset <- abcounts
-mydataset$habitat <- as.factor(mydataset$habitat)
-mydataset$habitat <-
- ordered(mydataset$habitat, levels = c("low","medium", "high"))
-
-mydataset$site <- factor(mydataset$site, levels = c("BBS",  "BRS",  "CQE",  "GIII", "LIP",  "SIS",  "TBN"))
-
-mydataset$string <- factor(as.integer(mydataset$string), levels = c(1,2))
-
-ggplot(mydataset, aes(x=site, y=absm, group = as.factor(string))) + 
- aes(colour = string) +  theme_bw() +
- xlab("Site") + #ggtitle("Shell length 0mm to 100mm") +
- ylab(bquote('Abalone Abundance ('*~m^2*')')) +
- theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
- # coord_cartesian(ylim = c(0, 15)) +
- #stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
- stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr, size = 2) +
- stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.25, size = 1) +
- facet_grid( ~ habitat , scales = "free_x" )
-
-##------------------------------------------------------##
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~BY SITE ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# see values shown in ?stat_summary
-
-stderr <- function(x) {
- sqrt(var(x[!is.na(x)]) / length(x[!is.na(x)]))
-}
-
-my.stderr <- function(x) {
- meany <- mean(x)
- ymin  <- mean(x) - stderr(x)
- ymax  <- mean(x) + stderr(x)
- # assemble the named output
- out <- c(y = meany, ymin = ymin, ymax = ymax)
- return(out)
-}
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_ARMDensityCombined_Au2016_Au2019', '.png', sep = ''),
+        plot = arm.abcount.plot.combined,
+        width = 200,
+        height = 150,
+        units = 'mm'
+)
 
 
 unique(abcounts$site)
 
-subdat <- filter(abcounts, site =='CQE')
+subdat <- filter(juv.abcounts, site =='CQE')
 subdat$string <- as.factor(subdat$string)
 
 ggplot(subdat, aes(y=ab_n, x=yr.season, fill=string)) +
@@ -717,7 +829,7 @@ mysite <- "CQE"
 
 ## box plot of abalone counts for individual ARMs
 
-filter(abcounts, site==mysite, !is.na(plate)) %>%
+filter(juv.abcounts, site==mysite, !is.na(plate)) %>%
  group_by(string, yr.season, plate) %>%
  summarise(cnts = sum(ab_n)) %>%
  mutate(stringdex = paste0(as.character(string),'_',as.character(plate))) %>%
@@ -730,7 +842,7 @@ filter(abcounts, site==mysite, !is.na(plate)) %>%
  ggtitle(mysite)+
  theme(plot.title = element_text(hjust = 0.5))
 
-## STOP HERE FLORA
+## STOP HERE 13-05-2020 ####
 
 ##-----------------------------------------------------------------##
 ## MDD ####
