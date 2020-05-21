@@ -1,4 +1,31 @@
 ##---------------------------------------------------------------------------##
+# load libaries ####
+
+library(sftp)
+library(RCurl)
+library(tidyverse)
+library(fs)
+library(keyring)
+library(tools)
+library(R.utils)
+library(RDCOMClient)
+library(openxlsx)
+library(fuzzyjoin)
+library(lubridate)
+library(vroom)
+library(readtext)
+library(quanteda)
+library(openxlsx)
+library(fuzzyjoin)
+library(lubridate)
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(ggsci)
+library(ggpubr)
+library(scales)
+
+##---------------------------------------------------------------------------##
 ## Local working folder ####
 
 # sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
@@ -11,8 +38,8 @@ woodham <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
 
 ## Extract data from sftp download folder and compile into dataframe
 ## Note: measuring board .txt files are normally denoted with '07' prefix however these are field-based
-## measuring boards and are linked to a diver GPS unit. They only record length data as there is no 
-## weight integration.
+## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
+## no weight integration.
 
 localfiles <- list.files(woodham,  pattern = "^05.*txt", full.names = T) 
 
@@ -52,6 +79,10 @@ logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",",
                      convert = TRUE) %>%
  as.data.frame()
 
+# remove duplicate records resulting from upload failures or loggers going out of range
+logname <- logname %>% 
+  distinct(logname, seqindex, identifier, .keep_all = T)
+
 tail(logname)
 
 ##---------------------------------------------------------------------------##
@@ -88,12 +119,15 @@ tail(gps.RMC_B)
 
 gps.RMC <- left_join(gps.RMC_B,select(gps.RMC_A, local_date, longitude, latitude), by=c("local_date")) 
 
+# remove duplicate records resulting from upload failures or loggers going out of range 
+# and filter out measuring board records
+gps.RMC <- gps.RMC %>%
+  distinct(logname, seqindex, identifier, .keep_all = T) %>% 
+  filter(grepl('^07', logname))
+ 
 tail(gps.RMC)
 
 table(gps.RMC$plaindate)
-
-pick <- which(duplicated(gps.RMC$local_date) == TRUE)
-gps.RMC[pick,]
 
 ##---------------------------------------------------------------------------##
 ## Step 4: Extract Docket details ####
@@ -102,14 +136,22 @@ docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep =
                     convert = TRUE) %>%
  as.data.frame()
 
+# remove duplicate records resulting from upload failures or loggers going out of range
+docket <- docket %>% 
+  distinct(logname, seqindex, identifier, .keep_all = T)
+
 tail(docket)
 
 ##---------------------------------------------------------------------------##
-## Step 5: Extract Weight length ####
+## Step 5: Extract length ####
 ablength <- filter(logged.data, identifier == 32964) 
 ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()
+
+# remove duplicate records resulting from upload failures or loggers going out of range
+ablength <- ablength %>% 
+  distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
 tail(ablength)
 
@@ -119,6 +161,10 @@ abweight <- filter(logged.data, identifier == 32965)
 abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()
+
+# remove duplicate records resulting from upload failures or loggers going out of range
+abweight <- abweight %>% 
+  distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
 tail(abweight)
 
@@ -135,21 +181,64 @@ tail(lengthweight)
 
 measure.board.df <- lengthweight
 
-measure.board.df.woodum <- measure.board.df
+measure.board.df.woodham <- measure.board.df
 
 ##---------------------------------------------------------------------------##
 ## Step 10: save RDS of dataframe ####
 
-saveRDS(measure.board.df.woodham, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodum/measure.board.df.woodum.RDS')
+saveRDS(measure.board.df.woodham, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
 
-woodham.dates <- unique(measure.board.df.woodum$plaindate)
+##---------------------------------------------------------------------------##
+## summary table
 
+woodham.summary <- measure.board.df.woodham %>%
+  filter(!is.na(shelllength) &
+           grepl('^07', logname) &
+           between(shelllength, 120, 200)) %>%  
+  # distinct(plaindate, abalonenum, .keep_all = T) %>%  
+  group_by(plaindate) %>%  
+  summarise(n = n(),
+            'mean.size (mm)' = round(mean(shelllength), 0),
+            'min.size (mm)' = round(min(shelllength), 0),
+            'max.size (mm)' = round(max(shelllength), 0)) %>% 
+  rename('sampdate' = plaindate) %>% 
+  arrange(desc(sampdate)) %>%
+  ungroup() %>% 
+  as.data.frame()
+
+woodham.summary.formated <- woodham.summary %>% 
+  ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+
+ggsave(
+  filename = paste('Woodham_SizeSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
+  plot = woodham.summary.formated,
+  width = 11.69,
+  height = 5.57,
+  units = 'in'
+)
+
+##---------------------------------------------------------------------------##
+## size frequency plot
+
+woodham.dates <- unique(measure.board.df.woodham$plaindate)
 
 for (i in woodham.dates) {
- plot.length.freq.dat <- measure.board.df.woodum %>%
-  filter(!is.na(docketnum)&
+  plot.n.measured <- measure.board.df.woodham %>% 
+    filter(!is.na(shelllength) &
+             grepl('^07', logname) &
+             plaindate == i &
+             between(shelllength, 120, 200)) %>%
+    distinct(abalonenum, .keep_all = T) %>%  
+    summarise(n = paste('n =', n()))
+  
+ plot.length.freq.dat <- measure.board.df.woodham %>%
+  filter(!is.na(docketnum) &
+           grepl('^07', logname) &
           plaindate == i &
-          between(shelllength, 120, 200))
+          between(shelllength, 120, 200)) %>% 
+   distinct(abalonenum, .keep_all = T)
  
  length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
   geom_histogram(
@@ -159,7 +248,7 @@ for (i in woodham.dates) {
    binwidth = 5,
    alpha = 0.6
   ) +
-  coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.5)) +
+  coord_cartesian(xlim = c(120, 200), ylim = c(0, 0.5)) +
   theme_bw() +
   xlab("Shell Length (mm)")+
   ylab(paste(" Percentage (%)"))+
@@ -171,10 +260,11 @@ for (i in woodham.dates) {
    linetype = 'dashed',
    colour = 'red',
    size = 0.5
-  )
+  )+
+   geom_text(data = plot.n.measured, aes(x = 180, y = 0.4, label = n), color = 'black', size = 3)
   
  
- print(length.freq.plot)
+ # print(length.freq.plot)
  
  xbp.len <- ggplot(plot.length.freq.dat,
                    aes(
@@ -187,7 +277,7 @@ for (i in woodham.dates) {
    outlier.colour = "black",
    outlier.size = 1.5,
    position = position_dodge(0.85),
-   width = 0.5
+   width = 0.25
   ) +
   rotate() +
   theme_transparent()
@@ -208,7 +298,7 @@ for (i in woodham.dates) {
  
  setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
  ggsave(
-  filename = paste(i, 'length.summary.plot', '.pdf', sep = ''),
+  filename = paste(as_date(i), '_length.summary.plot', '.pdf', sep = ''),
   plot = length.plot,
   width = 7.4,
   height = 5.57,
@@ -217,29 +307,4 @@ for (i in woodham.dates) {
  
 }
 
-measure.board.df.woodham <- measure.board.df.woodum
 
-woodham.summary <- measure.board.df.woodham %>%
- filter(!is.na(shelllength)) %>% 
- group_by(plaindate) %>% 
- summarise(n = n(),
-           'mean.size (mm)' = round(mean(shelllength), 0),
-           'min.size (mm)' = round(min(shelllength), 0),
-           'max.size (mm)' = round(max(shelllength), 0)) %>% 
- rename('sampdate' = plaindate) %>% 
- arrange(desc(sampdate)) %>%
- ungroup() %>% 
- as.data.frame()
-
-woodham.summary.formated <- woodham.summary %>% 
- ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
-
-setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodum")
-
-ggsave(
- filename = paste('Woodham_SizeSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
- plot = woodham.summary.formated,
- width = 11.69,
- height = 5.57,
- units = 'in'
-)

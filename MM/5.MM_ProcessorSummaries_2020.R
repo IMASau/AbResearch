@@ -118,7 +118,7 @@ ggsave(
 ggsave(
         filename = paste(i, '_SizeWeightSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
         plot = length.weight.summary.formated,
-        width = 200,
+        width = 250,
         height = 297,
         units = 'mm'
 )
