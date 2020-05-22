@@ -15,6 +15,7 @@ library(dplyr)
 library(ggsci)
 library(ggpubr)
 library(scales)
+library(gridExtra)
 ##-------------------------------------------------------------------------------------------------------##
 # load data ####
 
@@ -46,7 +47,7 @@ docknum.n.meas <- mb.next.gen.grade.df %>%
 
 # determine number of abalone measured by grade per docket
 docknum.grade.meas <- mb.next.gen.grade.df %>% 
-        group_by(docketnum, grade) %>% 
+        group_by(docketnum, grade, processor) %>% 
         summarise(grade.meas = n())
 
 ##-------------------------------------------------------------------------------------------------------##
@@ -56,9 +57,9 @@ for(i in processors){
 
 # join number of abalone measured per docket and grade, and calculate percentage measured per grade to 
 # create grade summary table
-grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = 'docketnum') %>% 
+grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
         filter(processor == i) %>% 
-        mutate(grade.perc = round((grade.meas / ab.meas) * 100)) %>% 
+        mutate(grade.perc = round((grade.meas / ab.meas) * 100)) %>%   
         ungroup() %>% 
         select(-c(grade.meas, processor)) %>% 
         spread(grade, grade.perc) %>% 
@@ -395,6 +396,17 @@ for (j in new.dockets) {
                         units = 'in'
                 )
         }
+
+## combine arm and leg plot on the same page
+plot.a <- grid.arrange(
+        arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
+                                       ncol = 1), ncol = 1))
+ggsave(
+        filename = paste(paste(file.zone, j, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+        plot = plot.a,
+        width = 200,
+        height = 297,
+        units = 'mm')
 
 #---------------------------------------------------------------------------##
 ## Plot 3: Grades ####

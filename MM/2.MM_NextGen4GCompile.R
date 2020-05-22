@@ -41,15 +41,6 @@ localfiles.df <- do.call(rbind, localfiles.dat)
 
 logged.data <- localfiles.df
 
-# filesize <- file.size(paste0(sftp.local,"/", localfiles.df$InFileName)) %>%
-#  as.numeric()
-# 
-# tail(filesize)
-# 
-# fileinf <- file.info(paste0(sftp.local,"/", localfiles.df$InFileName)) 
-# 
-# tail(fileinf)
-
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####
 
@@ -57,20 +48,19 @@ logged.data <- localfiles.df
 
 colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
 
-# identify measuring board logger names
-
-unique(logged.data$logname)
-
-# identify number of records for each identifier
-table(logged.data$identifier)
+# # identify measuring board logger names
+# 
+# unique(logged.data$logname)
+# 
+# # identify number of records for each identifier
+# table(logged.data$identifier)
 
 logged.data$logger_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "GMT")
 logged.data$local_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
 logged.data <- logged.data %>%  
         mutate(plaindate = as.Date(local_date, tz="Australia/BRISBANE"))
 
-tail(logged.data)
-
+# tail(logged.data)
 
 ##---------------------------------------------------------------------------##
 ## Check LoggerName data ####
@@ -114,21 +104,32 @@ tail(gps.RMC_B)
 ##---------------------------------------------------------------------------##
 ## Step 3C: Join RMC Part A & B   ####
 
-gps.RMC <- left_join(gps.RMC_B,select(gps.RMC_A, local_date, longitude, latitude), by=c("local_date")) 
+gps.RMC <- left_join(gps.RMC_B, select(gps.RMC_A, logname, local_date, longitude, latitude), 
+                     by=c("local_date", 'logname')) 
 
-tail(gps.RMC)
+# remove duplicate records resulting from upload failures or loggers going out of range 
+# and filter out measuring board records
+gps.RMC <- gps.RMC %>%
+        distinct(logname, seqindex, identifier, .keep_all = T) %>%  
+        filter(grepl('^07', logname))
 
-table(gps.RMC$plaindate)
-
-pick <- which(duplicated(gps.RMC$local_date) == TRUE)
-gps.RMC[pick,]
+# tail(gps.RMC)
+# 
+# table(gps.RMC$plaindate)
+# 
+# pick <- which(duplicated(gps.RMC$local_date) == TRUE)
+# gps.RMC[pick,]
 
 ##---------------------------------------------------------------------------##
 ## Step 4: Extract Docket details ####
 docket <- filter(logged.data, identifier == 32963) 
-docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep = ",", remove = FALSE,
+docket <-  separate(docket, datapack, c("abalonenum", "zone", "docketnum"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
  as.data.frame()
+
+# remove duplicate records resulting from upload failures or loggers going out of range
+docket <- docket %>% 
+        distinct(logname, seqindex, identifier, .keep_all = T)
 
 tail(docket)
 
@@ -139,6 +140,10 @@ ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = "
                      convert = TRUE) %>%
  as.data.frame()
 
+# remove duplicate records resulting from upload failures or loggers going out of range
+ablength <- ablength %>% 
+        distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
+
 tail(ablength)
 
 ##---------------------------------------------------------------------------##
@@ -148,16 +153,20 @@ abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = "
                       convert = TRUE) %>%
  as.data.frame()
 
+# remove duplicate records resulting from upload failures or loggers going out of range
+abweight <- abweight %>% 
+        distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
+
 tail(abweight)
 
 ##---------------------------------------------------------------------------##
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, rawutc, abalonenum), by = "rawutc") %>% 
- left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
- left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
- left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
+                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%    
+ left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>%  
+ left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>% 
+ left_join(select(abweight, logname, rawutc, wholeweight), by = c('logname', "rawutc"))
 
 tail(lengthweight)
 

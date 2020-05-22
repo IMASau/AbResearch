@@ -133,7 +133,7 @@ juv.df <- juv_long_split %>%
 saveRDS(juv.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.df.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## Size RI data ####
+## RI Length data ####
 juv.sl <- filter(juv.df, !is.na(ab_sl))
 
 ## add quarter, year and season variables
@@ -156,7 +156,7 @@ juv.sl$yr.season <-
 saveRDS(juv.sl, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.sl.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## Density RI data ####
+## RI density data ####
 
 ## plate area for calculating density
 platearea <- 0.126
@@ -206,7 +206,7 @@ juv.abcounts <- juv.abcounts %>%
 saveRDS(juv.abcounts, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.abcounts.RDS')
 
 ##--------------------------------------------------------------------------------------##
-## AB data ####
+## AB abalone data ####
 ## load most recent compiled ARM size and density data from Abalone Fishery Independant Surveys
 
 arms.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arms.sl.RDS')
@@ -225,7 +225,7 @@ arm.counts <- arm.counts %>%
                yr.season = interaction(sampyear, season))
 
 ##--------------------------------------------------------------------------------------##
-# Density data join ####
+# Join density data ####
 # join abalone density data to reef interactions density data
 
 # filter abalone data for matching sites and seasons spanning the reef interactions study
@@ -298,7 +298,7 @@ arm.abcounts.df$yr.season <-
 saveRDS(arm.abcounts.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.df.RDS')
 
 ##--------------------------------------------------------------------------------------##
-# Size data join ####
+# Join length data ####
 # join abalone size data to reef interaction size data
 
 # filter abalone data for matching sites and seasons spanning the reef interactions study
@@ -349,11 +349,11 @@ arm.sl.df$yr.season <-
 saveRDS(arm.sl.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.sl.df.RDS')
 
 ##--------------------------------------------------------------------------------------##
+## Plots: data ####
+
 ## load latest RDS data
 arm.sl.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.sl.df.RDS')
 arm.abcounts.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.df.RDS')
-
-## Plots: size ####
 
 # create short label names for plot facets  
 season_labels <- c("2016.Autumn" = '2016.Au',
@@ -367,6 +367,22 @@ season_labels <- c("2016.Autumn" = '2016.Au',
                    "2018.Spring" = '2018.Sp',
                    "2019.Autumn" = '2019.Au')
 
+# dataframe for plot colours when split by region (from scales package pal_jco)
+plot.colours <- c(
+        "SIS" = '#8F7700FF',
+        "LIP" = '#003C67FF',
+        "CQE" = '#CD534CFF',
+        "BBS" = '#0073C2FF',
+        "TBN" = '#3B3B3BFF',
+        "BET" = '#EFC000FF',
+        "BRS" = '#868686FF',
+        "GEO" = '#7AA6DCFF' 
+)
+
+plot.colours$plotcolour <- as.character(plot.colours$plotcolour)
+
+##--------------------------------------------------------------------------------------##
+## Plot 1: LF histogram ####
 ## length frequency distribution plot of site x year.season
 
 plot.n.ARM <- arm.sl.df %>% 
@@ -434,6 +450,28 @@ ggplot(arm.abcounts.df, aes(y = absm, x = site))+
  xlab('Site')+
  ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
+## boxplot of size vs year.season
+trump.sl <- arm.sl.df %>% 
+        filter(site %in% c('TBN', 'CQE', 'BBS', 'BET'))
+
+lipp.sl <- arm.sl.df %>% 
+        filter(site %in% c('LIP', 'BRS', 'GEO', 'SIS'))
+
+
+lipp.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
+        stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
+                     colour = 'red', fill = 'red')+
+        theme_bw()+
+        facet_grid(site ~ .)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
+        xlab('Site')+
+        ylab(bquote('Abalone Abundance ('*~m^2*')'))+
+        geom_hline(aes(yintercept = 50),colour = 'red', linetype = 'dashed', size = 0.5)+
+        theme(legend.position = 'none')+
+        scale_fill_manual(values = plot.colours)
+        
+        
 ## line plot showing abalone abundance per season for each year for each site
 
 # ggplot(arm.abcounts.df, aes(y=absm, x=sampyear, group=season))+
