@@ -184,10 +184,20 @@ measure.board.df <- lengthweight
 measure.board.df.woodham <- measure.board.df
 
 ##---------------------------------------------------------------------------##
+# manually add zone and docket number to measurboard dataframe where missing
+woodham.docketnums <- data.frame(plaindate = as.Date(c("2020-05-05", "2020-05-06", "2020-05-18", "2020-05-19")), 
+                                 zone = c('AE', 'AE', 'AE', 'AE'), 
+                                 docketnum = c(525976, 525977, 525979, 525980))
+
+measure.board.df.woodham <- left_join(select(measure.board.df.woodham, -c(zone, docketnum)), 
+                                      woodham.docketnums, by = 'plaindate')
+
+##---------------------------------------------------------------------------##
 ## Step 10: save RDS of dataframe ####
 
 saveRDS(measure.board.df.woodham, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
 
+# measure.board.df.woodham <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
 ##---------------------------------------------------------------------------##
 ## summary table
 

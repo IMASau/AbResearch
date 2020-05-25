@@ -379,7 +379,9 @@ plot.colours <- c(
         "GEO" = '#7AA6DCFF' 
 )
 
-plot.colours$plotcolour <- as.character(plot.colours$plotcolour)
+plot.colours.2 <- data.frame(site = c("SIS", "LIP", "CQE", "BBS", "TBN", "BET", "BRS", "GEO"),
+                            fill.color = c('#8F7700FF', '#003C67FF', '#CD534CFF', '#0073C2FF', '#3B3B3BFF', '#EFC000FF', '#868686FF', '#7AA6DCFF'),
+                            fill.alpha = 0.6)
 
 ##--------------------------------------------------------------------------------------##
 ## Plot 1: LF histogram ####
@@ -451,6 +453,10 @@ ggplot(arm.abcounts.df, aes(y = absm, x = site))+
  ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
 ## boxplot of size vs year.season
+arm.sl.n <- arm.sl.df %>% 
+        group_by(site, yr.season) %>%
+        summarise(ab_n = n())
+
 trump.sl <- arm.sl.df %>% 
         filter(site %in% c('TBN', 'CQE', 'BBS', 'BET'))
 
@@ -458,19 +464,54 @@ lipp.sl <- arm.sl.df %>%
         filter(site %in% c('LIP', 'BRS', 'GEO', 'SIS'))
 
 
-lipp.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
-        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
+lipp.sl.bp <- lipp.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5, alpha = 0.8)+
         stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
                      colour = 'red', fill = 'red')+
         theme_bw()+
         facet_grid(site ~ .)+
         theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
         xlab('Site')+
-        ylab(bquote('Abalone Abundance ('*~m^2*')'))+
-        geom_hline(aes(yintercept = 50),colour = 'red', linetype = 'dashed', size = 0.5)+
+        ylab(bquote('Shell length (mm)'))+
+        geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
         theme(legend.position = 'none')+
-        scale_fill_manual(values = plot.colours)
-        
+        scale_fill_manual(values = plot.colours)+
+        geom_text(data = arm.sl.n %>% filter(site %in% c('LIP', 'BRS', 'GEO', 'SIS')), 
+                  aes(x = yr.season, y = 150, label = ab_n), 
+                  colour = 'black', inherit.aes = F, parse = F, size = 3)
+
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_SizeBoxPlot_Au2016_Au2019', '.pdf', sep = ''),
+        plot = lipp.sl.bp,
+        width = 9,
+        height = 9,
+        units = 'cm'
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_SizeFrequency_Au2016_Au2019', '.png', sep = ''),
+        plot = lipp.sl.bp,
+        width = 9,
+        height = 9,
+        units = 'cm'
+)
+
+trump.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5, alpha = 0.8)+
+        stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
+                     colour = 'red', fill = 'red')+
+        theme_bw()+
+        facet_grid(site ~ .)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
+        xlab('Site')+
+        ylab(bquote('Shell length (mm)'))+
+        geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
+        theme(legend.position = 'none')+
+        scale_fill_manual(values = plot.colours)+
+        geom_text(data = arm.sl.n %>% filter(site %in% c('TBN', 'CQE', 'BBS', 'BET')), 
+                  aes(x = yr.season, y = 150, label = ab_n), 
+                  colour = 'black', inherit.aes = F, parse = F, size = 3)
         
 ## line plot showing abalone abundance per season for each year for each site
 
