@@ -379,18 +379,20 @@ plot.colours <- c(
         "GEO" = '#7AA6DCFF' 
 )
 
-plot.colours.2 <- data.frame(site = c("SIS", "LIP", "CQE", "BBS", "TBN", "BET", "BRS", "GEO"),
-                            fill.color = c('#8F7700FF', '#003C67FF', '#CD534CFF', '#0073C2FF', '#3B3B3BFF', '#EFC000FF', '#868686FF', '#7AA6DCFF'),
-                            fill.alpha = 0.6)
+# plot.colours.2 <- data.frame(site = c("SIS", "LIP", "CQE", "BBS", "TBN", "BET", "BRS", "GEO"),
+#                             fill.color = c('#8F7700FF', '#003C67FF', '#CD534CFF', '#0073C2FF', '#3B3B3BFF', '#EFC000FF', '#868686FF', '#7AA6DCFF'),
+#                             fill.alpha = 0.6)
 
 ##--------------------------------------------------------------------------------------##
 ## Plot 1: LF histogram ####
-## length frequency distribution plot of site x year.season
+## length frequency plot of all sites x year.season
 
+# create geom_text label for number of samples 
 plot.n.ARM <- arm.sl.df %>% 
         group_by(site, yr.season) %>%
         summarise(n = paste('n =', n()))
 
+# create plot
 arm.size.plot <- ggplot(arm.sl.df, aes(x = ab_sl, color = site, fill = site)) + 
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
@@ -421,135 +423,101 @@ ggsave(
         height = 11.7,
         units = 'in'
 )
-
-# ## length frequency density plot of year.season x site
-# 
-# ggplot(juv.sl, aes(x = ab_sl, color = site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(aes(y = ..density..), alpha = 0.2, binwidth = 10)+
-#  #stat_density(geom = "line", position = "identity") +
-#  geom_density(alpha = .2) +
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
-#  theme(legend.position="none") +
-#  facet_grid(yr.season ~ site, scales = "free_y")
-
-## Figures and summaries for abundance analyses ####
+##--------------------------------------------------------------------------------------##
 
 ## create summary table of abalone per squre meter for site and year.season
 ab_n.summary <- arm.abcounts.df %>% 
  group_by(site, yr.season) %>%
  summarise(ab_n = sum(ab_n))
 
-## boxplot showing year x season abundance
+# ## boxplot showing year x season abundance
+# 
+# ggplot(arm.abcounts.df, aes(y = absm, x = site))+
+#  geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
+#  theme_bw()+
+#  facet_grid(season ~ sampyear)+
+#  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+#  xlab('Site')+
+#  ylab(bquote('Abalone Abundance ('*~m^2*')'))
 
-ggplot(arm.abcounts.df, aes(y = absm, x = site))+
- geom_boxplot(outlier.colour = "orange", outlier.size = 1.5)+
- theme_bw()+
- facet_grid(season ~ sampyear)+
- theme(axis.text.x = element_text(angle = 90, hjust = 1))+
- xlab('Site')+
- ylab(bquote('Abalone Abundance ('*~m^2*')'))
+##--------------------------------------------------------------------------------------##
+## Plot 2: BP length ####
+## boxplot of regional lengths vs year.season
 
-## boxplot of size vs year.season
-arm.sl.n <- arm.sl.df %>% 
+# create geom_text label for number of samples 
+plot.n.ARM2 <- arm.sl.df %>% 
         group_by(site, yr.season) %>%
         summarise(ab_n = n())
 
-trump.sl <- arm.sl.df %>% 
-        filter(site %in% c('TBN', 'CQE', 'BBS', 'BET'))
+# split survey sites into regional values
+trump.sl <- c('TBN', 'CQE', 'BBS', 'BET')
+lipp.sl <- c('LIP', 'BRS', 'GEO', 'SIS')
 
-lipp.sl <- arm.sl.df %>% 
-        filter(site %in% c('LIP', 'BRS', 'GEO', 'SIS'))
-
-
-lipp.sl.bp <- lipp.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
+# create plot for Lippies survey
+lipp.sl.bp <- arm.sl.df %>% 
+        filter(site %in% lipp.sl) %>% 
+        ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
         geom_boxplot(outlier.colour = "orange", outlier.size = 1.5, alpha = 0.8)+
         stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
                      colour = 'red', fill = 'red')+
         theme_bw()+
-        facet_grid(site ~ .)+
+        scale_x_discrete(labels = season_labels, drop = F)+
         theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
         xlab('Site')+
         ylab(bquote('Shell length (mm)'))+
         geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
         theme(legend.position = 'none')+
         scale_fill_manual(values = plot.colours)+
-        geom_text(data = arm.sl.n %>% filter(site %in% c('LIP', 'BRS', 'GEO', 'SIS')), 
+        geom_text(data = plot.n.ARM2 %>% filter(site %in% lipp.sl), 
                   aes(x = yr.season, y = 150, label = ab_n), 
-                  colour = 'black', inherit.aes = F, parse = F, size = 3)
+                  colour = 'black', inherit.aes = F, parse = F, size = 3)+
+        facet_grid(site ~ .)
+
+# print(lipp.sl.bp)
+
+trump.sl.bp <- arm.sl.df %>% 
+        filter(site %in% trump.sl) %>% 
+        ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5, alpha = 0.8)+
+        stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
+                     colour = 'red', fill = 'red')+
+        theme_bw()+
+        scale_x_discrete(labels = season_labels, drop = F)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
+        xlab('Site')+
+        ylab(bquote('Shell length (mm)'))+
+        geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
+        theme(legend.position = 'none')+
+        scale_fill_manual(values = plot.colours)+
+        geom_text(data = plot.n.ARM2 %>% filter(site %in% trump.sl), 
+                  aes(x = yr.season, y = 150, label = ab_n), 
+                  colour = 'black', inherit.aes = F, parse = F, size = 3)+
+        facet_grid(site ~ .)
+
+# print(trump.sl.bp)
 
 setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
 ggsave(
-        filename = paste('Reef Interactions_AbaloneResurvey_SizeBoxPlot_Au2016_Au2019', '.pdf', sep = ''),
-        plot = lipp.sl.bp,
-        width = 9,
-        height = 9,
-        units = 'cm'
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesSizeBoxPlot_Au2016_Au2019', '.pdf', sep = ''),
+        plot = lipp.sl.bp
 )
 
 ggsave(
-        filename = paste('Reef Interactions_AbaloneResurvey_SizeFrequency_Au2016_Au2019', '.png', sep = ''),
-        plot = lipp.sl.bp,
-        width = 9,
-        height = 9,
-        units = 'cm'
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesSizeBoxPlot_Au2016_Au2019', '.png', sep = ''),
+        plot = lipp.sl.bp
+)
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_TrumpeterSizeBoxPlot_Au2016_Au2019', '.pdf', sep = ''),
+        plot = trump.sl.bp
 )
 
-trump.sl %>% ggplot(aes(y = ab_sl, x = yr.season, fill = site))+
-        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5, alpha = 0.8)+
-        stat_summary(fun.y = mean, geom = 'point', size = 1.5, 
-                     colour = 'red', fill = 'red')+
-        theme_bw()+
-        facet_grid(site ~ .)+
-        theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
-        xlab('Site')+
-        ylab(bquote('Shell length (mm)'))+
-        geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
-        theme(legend.position = 'none')+
-        scale_fill_manual(values = plot.colours)+
-        geom_text(data = arm.sl.n %>% filter(site %in% c('TBN', 'CQE', 'BBS', 'BET')), 
-                  aes(x = yr.season, y = 150, label = ab_n), 
-                  colour = 'black', inherit.aes = F, parse = F, size = 3)
-        
-## line plot showing abalone abundance per season for each year for each site
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_TrumpeterSizeBoxPlot_Au2016_Au2019', '.png', sep = ''),
+        plot = trump.sl.bp
+)
 
-# ggplot(arm.abcounts.df, aes(y=absm, x=sampyear, group=season))+
-#  aes(colour = season)+scale_colour_brewer(palette = 'Set1')+
-#  theme_bw()+
-#  facet_grid(site ~ string, scales = "free_y" )+
-#  theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr.reef, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr.reef) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr.reef, width = 0.125, size = 1) +
-#  xlab('Year')+
-#  ylab(bquote('Juvenile Abalone Abundance ('*~m^2*')'))+
-#  ggtitle('Abalone Recruitment Modules (ARM)')+
-#  theme(plot.title = element_text(hjust = 0.5))
-
-# ggplot(abcounts.2, aes(y=absm, x=yr.season)) + # not convinced of this plot - yaxis numbers wrong
-#   geom_bar(stat="identity") +
-#   theme_bw() +
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#   facet_grid(. ~ site)
-
-
-# ggplot(Pick, aes(Ab_Sum, fill=survdate)) + geom_bar(position="dodge")
-
-## Frequency distribution plot of N by plate 
-
-# cnt.dat <- droplevels(subset(abcounts, site=="BRB"))
-# 
-# ggplot(cnt.dat, aes(x=ab_n, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("N")+
-#  geom_histogram(alpha = 0.2, binwidth = 1)+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(yr.season ~ string)
+##--------------------------------------------------------------------------------------##        
+## frequency distribution of number per arm x yr.season
 
 ggplot(arm.abcounts.df, aes(x = ab_n, fill = site, color = site)) + #can change fill = string
  ylab("Frequency") +
@@ -564,6 +532,7 @@ ggplot(arm.abcounts.df, aes(x = ab_n, fill = site, color = site)) + #can change 
  theme(legend.position="none") +
  facet_grid(yr.season ~ site, labeller = labeller(yr.season = season_labels))
 
+##--------------------------------------------------------------------------------------##
 # ggplot(juv.sl, aes(x=ab_sl, group=as.factor(site), color=as.factor(site))) +
 #  geom_histogram(stat = "bin", colour="grey", binwidth = 5)+
 #  scale_x_continuous(limits=c(0, 150))
@@ -582,17 +551,20 @@ ggplot(arm.abcounts.df, aes(x = ab_n, fill = site, color = site)) + #can change 
 #  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
 #  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
 #  facet_grid(site ~ ., scales = "free_y" )
+##--------------------------------------------------------------------------------------##
+## Plot 3: ARM density #### 
+## ARM density line plot per site x string x yr.season
 
-# Plot: ARM density, string seperated and sites faceted
-
+# ensure string is a factor
 arm.abcounts.df$string <- factor(as.integer(arm.abcounts.df$string), levels = c(1,2))
 
+# create line plot
 arm.abcount.plot <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group = string)) + 
  aes(colour = site) +
  scale_color_jco(alpha = 1)+
  theme_bw() +
  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
- ylab(bquote('ARM Density ('*~m^2*')')) +
+ ylab(bquote('ARM Density (no. '*~m^-2*')')) +
         scale_x_discrete(labels = season_labels, drop = F)+
  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
  # coord_cartesian(ylim = c(0, 30)) +
@@ -601,11 +573,10 @@ arm.abcount.plot <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group =
  stat_summary(geom = "errorbar", position = position_dodge(0.2), fun.data = my.stderr.reef, width = 0.125, size = 0.5) +
  theme(legend.position = 'none')+
  facet_grid(site ~ ., scales = "free_y")
- # facet_wrap(site ~ ., ncol = 2, drop = F, scales = 'free_y')
- # facet_grid(site ~ .)
 
-print(arm.abcount.plot)
+# print(arm.abcount.plot)
 
+# save plot
 setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
 ggsave(
         filename = paste('Reef Interactions_AbaloneResurvey_ARMDensity_Au2016_Au2019', '.pdf', sep = ''),
@@ -622,53 +593,88 @@ ggsave(
         height = 11.7,
         units = 'in'
 )
+##--------------------------------------------------------------------------------------##
+## Plot 4: ARM density #### 
+## ARM regional density line plot per site x string x yr.season
 
-## juvenile abundance/m2 plot of site x year.season
+# split survey sites into regional values
+trump.counts <- c('TBN', 'CQE', 'BBS', 'BET')
+lipp.counts <- c('LIP', 'BRS', 'GEO', 'SIS')
 
-# abcounts.2$string <- factor(as.integer(abcounts.2$string), levels = c(1,2))
-# ggplot(abcounts.2, aes(x=site, y=absm, group = string)) + 
-#  aes(colour = string) +  theme_bw() +
-#  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance ('*~m^2*')')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-#  # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(yr.season ~ ., scales = "free_y" )
+# ensure string is a factor
+arm.abcounts.df$string <- factor(as.integer(arm.abcounts.df$string), levels = c(1,2))
 
-## juvenile abunance n/ARM plot of year.season x site
+# create Lippies line plot
+arm.lipp.abcount.plot <- arm.abcounts.df %>% 
+        filter(site %in% lipp.counts) %>% 
+        ggplot(aes(x = yr.season, y = absm, group = string)) + 
+        aes(colour = site) +
+        scale_color_manual(values = plot.colours, aes(alpha = 1))+
+        theme_bw() +
+        xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+        ylab(bquote('ARM Density (no. '*~m^-2*')')) +
+        scale_x_discrete(labels = season_labels, drop = F)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+        # coord_cartesian(ylim = c(0, 30)) +
+        stat_summary(geom = "line", position = position_dodge(0.2), fun.data = my.stderr.reef, size = 0.5, aes(linetype = string)) + #fun.y=mean, linetype="dashed")+
+        stat_summary(geom = "point", position = position_dodge(0.2), fun.data = my.stderr.reef) +
+        stat_summary(geom = "errorbar", position = position_dodge(0.2), fun.data = my.stderr.reef, width = 0.125, size = 0.5) +
+        theme(legend.position = 'none')+
+        facet_grid(site ~ ., scales = "free_y")
 
-# ggplot(abcounts, aes(x=yr.season, y=ab_n, group = string)) + 
-#  aes(colour = string) +  theme_bw() +
-#  #xlab("Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance (abalone/plate)')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-#  # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(site ~ ., scales = "free_y" )
+# create Trumpeter line plot
+arm.trump.abcount.plot <- arm.abcounts.df %>% 
+        filter(site %in% trump.counts) %>% 
+        ggplot(aes(x = yr.season, y = absm, group = string)) + 
+        aes(colour = site) +
+        scale_color_manual(values = plot.colours, aes(alpha = 1))+
+        theme_bw() +
+        xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
+        ylab(bquote('ARM Density (no. '*~m^-2*')')) +
+        scale_x_discrete(labels = season_labels, drop = F)+
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+        # coord_cartesian(ylim = c(0, 30)) +
+        stat_summary(geom = "line", position = position_dodge(0.2), fun.data = my.stderr.reef, size = 0.5, aes(linetype = string)) + #fun.y=mean, linetype="dashed")+
+        stat_summary(geom = "point", position = position_dodge(0.2), fun.data = my.stderr.reef) +
+        stat_summary(geom = "errorbar", position = position_dodge(0.2), fun.data = my.stderr.reef, width = 0.125, size = 0.5) +
+        theme(legend.position = 'none')+
+        facet_grid(site ~ ., scales = "free_y")
 
-# ggplot(arm.abcounts.df, aes(x=yr.season, y=ab_n, group = string)) + 
-#  aes(colour = string) +  theme_bw() +
-#  xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
-#  ylab(bquote('Abalone Abundance (abalone/plate)')) +
-#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-#  # coord_cartesian(ylim = c(0, 15)) +
-#  stat_summary(geom="line", position=position_dodge(0.2), fun.data=my.stderr, size=1) + #fun.y=mean, linetype="dashed")+
-#  stat_summary(geom="point", position=position_dodge(0.2), fun.data=my.stderr) +
-#  stat_summary(geom="errorbar", position=position_dodge(0.2), fun.data=my.stderr, width = 0.125, size = 1) +
-#  facet_grid(site ~ ., scales = "free_y" )
+# print(arm.lipp.abcount.plot)
 
-# Plot: ARM density, string pooled and sites combined
+# save plot
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesARMDensity_Au2016_Au2019', '.pdf', sep = ''),
+        plot = arm.lipp.abcount.plot
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesARMDensity_Au2016_Au2019', '.png', sep = ''),
+        plot = arm.lipp.abcount.plot
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_TrumpeterARMDensity_Au2016_Au2019', '.pdf', sep = ''),
+        plot = arm.trump.abcount.plot
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_TrumpeterARMDensity_Au2016_Au2019', '.png', sep = ''),
+        plot = arm.trump.abcount.plot
+)
+
+##--------------------------------------------------------------------------------------##
+## Plot 5: ARM density #### 
+## ARM density of site strings combined x yr.season
 
 arm.abcount.plot.combined <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group = site)) + 
         aes(colour = site) +
-        scale_color_jco(alpha = 1)+
+        # scale_color_jco(alpha = 1)+
+        scale_color_jco(labels = c('TBN', 'CQE', 'BBS', 'BET', 'LIP', 'BRS', 'GEO', 'SIS'))+
         theme_bw() +
         xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
-        ylab(bquote('ARM Density ('*~m^2*')')) +
+        ylab(bquote('ARM Density (no. '*~m^-2*')')) +
         scale_x_discrete(labels = season_labels, drop = F)+
         theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
         # coord_cartesian(ylim = c(0, 30)) +
@@ -678,7 +684,9 @@ arm.abcount.plot.combined <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm
         theme(legend.position = c(0.5, 0.92), 
               legend.title = element_blank(),
               legend.background = element_blank())+
-        guides(col = guide_legend(nrow = 1, byrow = TRUE))
+        guides(col = guide_legend(nrow = 2, byrow = TRUE))
+
+# print(arm.abcount.plot.combined)
 
 setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
 ggsave(
@@ -696,219 +704,10 @@ ggsave(
         height = 150,
         units = 'mm'
 )
-
-
-unique(abcounts$site)
-
-subdat <- filter(juv.abcounts, site =='CQE')
-subdat$string <- as.factor(subdat$string)
-
-ggplot(subdat, aes(y=ab_n, x=yr.season, fill=string)) +
- ggtitle("Cape Queen Elizabeth")+
- xlab("Sample date") + 
- ylab("Blacklip Abalone Abundance") +
- geom_bar(stat="identity")+
- scale_fill_grey(start = 0.3, end = 0.7)+
- theme_bw()+
- theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-       text = element_text(size=16),
-       legend.position=c(.95,.88)) +
- facet_grid(sampyear ~ season)
-
-# #  +scale_x_discrete(limits=c("27 Jun", "28 Jul", "18 Aug", "25 Sep", "08 Oct", "09 Oct"))
-# 
-# Pick <- abcounts
-# GIII <- droplevels(subset(Pick, Pick$Site=="CQE"))
-# 
-# ggplot(GIII, aes(y=Ab_Sum, x=survdate, fill=string)) +
-#  ggtitle("George 3rd Rock")+
-#  xlab("Sample date") + 
-#  ylab("Blacklip Abalone Abundance") +
-#  geom_bar(stat="identity")+
-#  ylim(0,50)+
-#  scale_fill_grey(start = 0.3, end = 0.7)+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-#        text = element_text(size=16),
-#        legend.position=c(.95,.88))
-# 
-# # scale_x_discrete(limits=c("11 Aug", "21 Sep", "13 Oct"))
-# 
-# BR_B<-droplevels(subset(Pick, Pick$Site=="BR_B"))
-# 
-# ggplot(BR_B, aes(y=Ab_Sum, x=survdate, fill=string)) +
-#  ggtitle("Black Reef Boulder")+
-#  xlab("Sample date") + 
-#  ylab("Blacklip Abalone Abundance") +
-#  geom_bar(stat="identity")+
-#  ylim(0,50)+
-#  scale_fill_grey(start = 0.3, end = 0.7)+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-#        text = element_text(size=16),
-#        legend.position=c(.95,.88))+
-#  scale_x_discrete(limits=c("12 Aug", "30 Sep", "13 Oct"))
-# 
-# 
-# 
-# BR_S<-droplevels(subset(Pick, Pick$Site=="BR_S"))
-# 
-# ggplot(BR_S, aes(y=Ab_Sum, x=survdate, fill=string)) +
-#  ggtitle("Black Reef Slab")+
-#  xlab("Sample date") + 
-#  ylab("Blacklip Abalone Abundance") +
-#  geom_bar(stat="identity")+
-#  ylim(0,50)+
-#  scale_fill_grey(start = 0.3, end = 0.7)+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-#        text = element_text(size=16),
-#        legend.position=c(.1,.87))+
-#  scale_x_discrete(limits=c("24 Jul", "11 Aug", "30 Sep", "13 Oct"))
-# 
-# SP<-droplevels(subset(Pick, Pick$Site=="SP"))
-# 
-# ggplot(SP, aes(y=Ab_Sum, x=survdate, fill=string)) +
-#  ggtitle("Seymour Point")+
-#  xlab("Sample date") + 
-#  ylab("Blacklip Abalone Abundance") +
-#  geom_bar(stat="identity")+
-#  ylim(0,50)+
-#  scale_fill_grey(start = 0.3, end = 0.7)+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-#        text = element_text(size=16),
-#        legend.position=c(.1,.87))+
-#  scale_x_discrete(limits=c("29 Jul", "20 Aug", "09 Sep"))
-# 
-# TG<-droplevels(subset(Pick, Pick$Site=="TG"))
-# 
-# ggplot(TG, aes(y=Ab_Sum, x=survdate, fill=string)) +
-#  ggtitle("The Gardens")+
-#  xlab("Sample date") + 
-#  ylab("Blacklip Abalone Abundance") +
-#  geom_bar(stat="identity")+
-#  ylim(0,50)+
-#  scale_fill_grey(start = 0.3, end = 0.7)+
-#  theme_bw()+
-#  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust=0.2), 
-#        text = element_text(size=16),
-#        legend.position=c(.1,.87))+
-#  scale_x_discrete(limits=c("29 Jul", "20 Aug", "09 Sep"))
-# 
-# ## Length frequency plots by site ####
-# 
-# TG.sl <- droplevels(subset(juv.sl, site=="CQE"))
-# 
-# 
-# ggplot(TG.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.2, binwidth = 5)+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-# 
-# 
-# BI.sl <- droplevels(subset(juv.sl, site=="BI"))
-# 
-# ggplot(BI.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.2, binwidth = 5)+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-# 
-# 
-# BRS.sl <- droplevels(subset(juv.sl, site=="BRS"))
-# 
-# ggplot(BRS.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-# 
-# BRB.sl <- droplevels(subset(juv.sl, site=="BRB"))
-# 
-# ggplot(BRB.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-# 
-# 
-# GIII.sl <- droplevels(subset(juv.sl, site=="G3"))
-# 
-# ggplot(GIII.sl, aes(x=ab_sl)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.5, binwidth = 10, fill = "red", col=I("black"))+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-# 
-# SP.sl <- droplevels(subset(juv.sl, site=="SP"))
-# 
-# ggplot(SP.sl, aes(x=ab_sl, color=site)) + 
-#  ylab("Frequency") +
-#  xlab("Shell Length (mm)")+
-#  geom_histogram(alpha = 0.2, binwidth = 5)+
-#  #ggtitle(paste(dum$SubBlockNo, FishYear))+
-#  #labs(title= Yeardum$SubBlockNo, size=10)+
-#  #geom_histogram(binwidth=50)+
-#  theme_bw()+
-#  facet_grid(sampyear ~ season)
-
-## plots of abalone counts per ARM ####
-
-unique(abcounts$site)
-#abcounts.test <- subset(abcounts, !is.na(plate))
-
-# Flora - change mysite names here to generate ab counts per string/plate combination
-# "BBS"  "BRS"  "CQE"  "GIII" "LIP"  "SIS"  "TBN"
-
-mysite <- "CQE"
-
-# plotdat <- filter(abcounts, site==mysite & !is.na(plate)) %>%
-#  mutate(string = factor(string)) %>%
-#  group_by(string, yr.season, plate) %>%
-#  summarise(cnts = sum(ab_n)) %>%
-#  spread(yr.season, cnts)
-# 
-# pairs(plotdat[3:10],panel=panel.smooth,main = paste0("Site: ",mysite))
-# 
-# ggpairs(plotdat, columns = 3:12,  aes(colour = string)) +
-#  theme(axis.text.x = element_text(angle = 90, hjust = 1),
-#        legend.position = "right") +
-#  xlab(bquote('Abalone Abundance (count/plate)')) +
-#  ylab(bquote('Abalone Abundance (count/plate)'))
-# 
-# 
-# plotdat2 <- filter(abcounts, site==mysite & !is.na(plate)) %>%
-#  mutate(stringdex = paste0(string,'_',plate)) %>%
-#  group_by(stringdex) %>%
-#  summarise(cnts = sum(ab_n)) 
-
-#hist(plotdat2$cnts, breaks = 20)
-
+##--------------------------------------------------------------------------------------##
 ## box plot of abalone counts for individual ARMs
 
-filter(juv.abcounts, site==mysite, !is.na(plate)) %>%
+filter(arm.abcounts.df, site == 'BRS', !is.na(plate)) %>%
  group_by(string, yr.season, plate) %>%
  summarise(cnts = sum(ab_n)) %>%
  mutate(stringdex = paste0(as.character(string),'_',as.character(plate))) %>%
@@ -918,12 +717,10 @@ filter(juv.abcounts, site==mysite, !is.na(plate)) %>%
  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
  ylab('Abalone Abundance (count/ARM)')+
  xlab('ARM (string_ARM number)')+
- ggtitle(mysite)+
+ # ggtitle(mysite)+
  theme(plot.title = element_text(hjust = 0.5))
 
-## STOP HERE 13-05-2020 ####
-
-##-----------------------------------------------------------------##
+##--------------------------------------------------------------------------------------##
 ## MDD ####
 # https://www.r-bloggers.com/power-analysis-and-sample-size-calculation-for-agriculture/
 # 
@@ -1081,50 +878,3 @@ power.t.test(n=20, delta=NULL, sd=sd_pool, sig.level=0.05, power=0.95)
 
 
 
-## Boulder Rolling ####
-
-boulders <- read.xlsx(
- "D:/OneDrive - University of Tasmania/Fisheries Research/Abalone/AbResearchData/pop/ResearchSurveys.xlsx",
- sheet = "boulders",
- detectDates = TRUE)
-
-
-## A. Extract records with abs for length frequency analysis ----
-boulder.sl <- filter(boulders, ab_sl > 0 & sampleperiod == 2)
-
-filter(boulders, ab_sl > 0 & sampleperiod == 2) %>%
- ggplot(aes(x=interaction(patch, site ), y=ab_sl)) +
- geom_boxplot() +
- theme_bw() +
- theme(text = element_text(size=16)) + 
- scale_y_continuous(breaks = seq(0,160, 20)) +
- ylab("Shell length") +
- xlab("Site")
-
-filter(boulders, ab_sl > 0 & sampleperiod == 2) %>%
- group_by(site, patch) %>%
- summarise(ab_n =n(), med = median(ab_sl)) %>%  #as.data.frame()
- complete(site, patch, fill = list(ab_n = 0)) %>%
- as.data.frame()
-
-filter(juv.sl, yr.season == "2015.Spring") %>%
- group_by(site) %>%
- summarise(ab_n =n(), med = median(ab_sl)) %>%  #as.data.frame()
- complete(site, fill = list(ab_n = 0)) %>%
- as.data.frame()
-
-
-bld.dat <- filter(boulders, ab_sl > 0 & sampleperiod == 2) %>%
- group_by(site, patch, quadrat) %>%
- summarise(ab_n =n()) %>%  #as.data.frame()
- complete(site, patch, quadrat, fill = list(ab_n = 0)) %>%
- as.data.frame()
-
-
-ggplot(bld.dat, aes(y=ab_n, x=interaction(site, patch))) +
- geom_bar(stat="identity")+
- theme_bw()+
- theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
-#  facet_grid(. ~ site)
-#  
-#  

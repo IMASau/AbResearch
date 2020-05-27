@@ -31,11 +31,17 @@ measure.board.next.gen.df %>%
         as.data.frame()
 
 # add weight grading categories used by processors
-mb.next.gen.grade.df <- measure.board.next.gen.df %>%
-        filter(wholeweight != 0) %>%
-        mutate(grade = dplyr::if_else(wholeweight <= 400, 'small', #0-400g can also be labelled xsmall
-                                      dplyr::if_else(between(wholeweight, 401, 600), 'small',
-                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))))
+# mb.next.gen.grade.df <- measure.board.next.gen.df %>%
+#         filter(wholeweight != 0) %>%
+#         mutate(grade = dplyr::if_else(wholeweight <= 400, 'small', #0-400g can also be labelled xsmall
+#                                       dplyr::if_else(between(wholeweight, 401, 600), 'small',
+#                                                      dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))))
+
+mb.next.gen.grade.df <- measure.board.next.gen.df %>% 
+        mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
+                                      dplyr::if_else(between(wholeweight, 1, 600), 'small', #0-400g can also be labelled xsmall
+                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))),
+               wholeweight = replace(wholeweight, wholeweight == 0, NA))
 
 # list of unique processors for summary and plot loops
 processors <- unique(mb.next.gen.grade.df$processor)
@@ -43,10 +49,19 @@ processors <- unique(mb.next.gen.grade.df$processor)
 # determine number of abalone measured per docket
 docknum.n.meas <- mb.next.gen.grade.df %>% 
         group_by(zone, docketnum, processor, plaindate) %>% 
-        summarise(ab.meas = n())
+        summarise(ab.meas = n()) 
+
+docknum.n.weighed <- mb.next.gen.grade.df %>% 
+        filter(!is.na(wholeweight)) %>%
+        group_by(zone, docketnum, processor, plaindate) %>% 
+        summarise(ab.weighed = n())
+        
+
+docknum.n <- left_join(docknum.n.meas, docknum.n.weighed)
 
 # determine number of abalone measured by grade per docket
 docknum.grade.meas <- mb.next.gen.grade.df %>% 
+        filter(!is.na(wholeweight)) %>% 
         group_by(docketnum, grade, processor) %>% 
         summarise(grade.meas = n())
 
@@ -57,9 +72,9 @@ for(i in processors){
 
 # join number of abalone measured per docket and grade, and calculate percentage measured per grade to 
 # create grade summary table
-grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
+grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
         filter(processor == i) %>% 
-        mutate(grade.perc = round((grade.meas / ab.meas) * 100)) %>%   
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
         ungroup() %>% 
         select(-c(grade.meas, processor)) %>% 
         spread(grade, grade.perc) %>% 
@@ -70,7 +85,8 @@ grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = c('docketnum
         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
         rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum,
-               'Abalone\nmeasured' = ab.meas) %>% 
+               'Abalone\nmeasured' = ab.meas,
+               'Abalone\nweighed' = ab.weighed) %>% 
         select(-zone) %>% 
         as.data.frame() 
         
@@ -397,17 +413,6 @@ for (j in new.dockets) {
                 )
         }
 
-## combine arm and leg plot on the same page
-plot.a <- grid.arrange(
-        arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
-                                       ncol = 1), ncol = 1))
-ggsave(
-        filename = paste(paste(file.zone, j, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
-        plot = plot.a,
-        width = 200,
-        height = 297,
-        units = 'mm')
-
 #---------------------------------------------------------------------------##
 ## Plot 2b: LT + WT combined ####
 # combine weight and length summaryplot on the same page
@@ -491,7 +496,7 @@ for (i in new.dockets) {
                 theme_bw() +
                 theme(panel.grid = element_blank()) +
                 xlab("Whole weight (g)") +
-                ylab(paste("Docket no.", j, " Percentage (%)")) +
+                ylab(paste("Docket no.", i, " Percentage (%)")) +
                 geom_vline(aes(xintercept = 400),
                            colour = 'red',
                            linetype = 'dotted') +
@@ -929,3 +934,71 @@ for (i in processors) {
                 units = 'in'
         )
 }
+
+##---------------------------------------------------------------------------##
+## Tas Seafoods ####
+## Tasmanian Seafoods Diver Summary - Mark Fleming
+
+tas.seafoods.divers.may2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_May2020_DiverDetails.xlsx",
+                       detectDates = T)
+
+tas.seafoods.grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
+        filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
+        mutate(grade.perc = round((grade.meas / ab.meas) * 100)) %>%   
+        ungroup() %>% 
+        select(-c(grade.meas, processor)) %>% 
+        spread(grade, grade.perc) %>% 
+        rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>%
+        arrange(desc(plaindate)) %>%
+        ungroup() %>% 
+        mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
+        rename('Sample\ndate' = plaindate,
+               'Docket\nno.' = docketnum,
+               'Abalone\nmeasured' = ab.meas) %>% 
+        select(-zone) %>% 
+        as.data.frame()
+
+tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.may2020, by = c('Docket\nno.' = 'docketnum')) %>% 
+        select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
+        rename('Dive\ndate' = divedate,
+               'Diver\nname' = diver,
+               'Date\nsampled' = 'Sample\ndate',
+               'Number\nsampled' = 'Abalone\nmeasured')
+
+tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>% 
+        ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+print(tas.seafoods.grade.summary.formated)
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+ggsave(
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_MAY2020', '.pdf', sep = ''),
+        plot = tas.seafoods.grade.summary.formated,
+        width = 200,
+        height = 297,
+        units = 'mm'
+)
+##---------------------------------------------------------------------------##
+## Excel Export ####
+## raw data Excel export for processors
+
+df.1 <- measure.board.next.gen.df %>% 
+        mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
+                                      dplyr::if_else(between(wholeweight, 1, 600), 'small', #0-400g can also be labelled xsmall
+                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))),
+               wholeweight = replace(wholeweight, wholeweight == 0, NA))
+
+for(i in processors){
+        df.2 <- df.1 %>%
+                filter(processor == i)
+        
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        write.xlsx(df.2,
+                   file = paste(i, '_MeasuringBoardData_', Sys.Date(), '.xlsx'),
+                   sheetName = "Sheet1",
+                   col.names = TRUE,
+                   row.names = TRUE,
+                   append = FALSE)
+}
+##---------------------------------------------------------------------------##
