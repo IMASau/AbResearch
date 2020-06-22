@@ -50,7 +50,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2019
+stock.assessment.year <- 2020
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify zone/blocks/processors ####
@@ -79,115 +79,11 @@ processors.2019 <- compiledMM.df.final %>%
   pull()
 
 ##-------------------------------------------------------------------------------------------------------##
-# Fish year summary ####
-
-# create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
-fishyear.summary.df <- compiledMM.df.final %>%
-  dplyr::filter(fishyear == stock.assessment.year
-         & numblocks <= 1) %>%
-  group_by(newzone, blocklist) %>%
-  summarise(catches = n_distinct(docket.number),
-            n = n(),
-            med.sl = as.character(median(shell.length)),
-            max.sl = as.character(max(shell.length))) %>%
-  rename(Zone = newzone,
-         BlockNo = blocklist) %>% 
-  as.data.frame()
-
-# rename column headings
-colnames(fishyear.summary.df) <- c('Zone', 'Block\nNo', 'Catches\nMeasured', 'Abalone\nMeasured', 'Median\nSL', 'Max\nSL')
-
-# add totals for numeric columns (Note: median and max have been converted to characters)
-fishyear.summary.df <- adorn_totals(fishyear.summary.df, fill = '')
-
-# save Excel and Latex tables
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2019.xlsx', sheetName = "Sheet1", 
-           col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2019.tex')
-
-##-------------------------------------------------------------------------------------------------------##
-# Processor x fish year summary ####
-
-# create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
-
-for(i in processors.2019) {
-  processor.fishyear.summary.df <- compiledMM.df.final %>%
-    dplyr::filter(fishyear == stock.assessment.year
-                  & numblocks <= 1
-                  & processorname == i) %>%
-    group_by(newzone, blocklist) %>%
-    summarise(
-      catches = n_distinct(docket.number),
-      n = n(),
-      med.sl = as.character(median(shell.length)),
-      max.sl = as.character(max(shell.length))
-    ) %>%
-    rename(Zone = newzone,
-           BlockNo = blocklist) %>%
-    as.data.frame()
-  
-  # rename column headings
-  colnames(processor.fishyear.summary.df) <-
-    c(
-      'Zone',
-      'Block\nNo',
-      'Catches\nMeasured',
-      'Abalone\nMeasured',
-      'Median\nSL',
-      'Max\nSL'
-    )
-  
-  # add totals for numeric columns (Note: median and max have been converted to characters)
-  processor.fishyear.summary.df <-
-    adorn_totals(processor.fishyear.summary.df, fill = '')
-  
-  # save Excel and Latex tables
-  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-  write.xlsx(
-    processor.fishyear.summary.df,
-    file = paste(i, '_Sampling_Summary_', stock.assessment.year, '.xlsx'),
-    sheetName = "Sheet1",
-    col.names = TRUE,
-    row.names = TRUE,
-    append = FALSE
-  )
-  print(
-    xtable(processor.fishyear.summary.df, type = 'latex'),
-    file = paste(i, '_Sampling_Summary_', stock.assessment.year, '.tex')
-  )
-  
-}
-
-##-------------------------------------------------------------------------------------------------------##
-# Processor summary ####
-
-# quick summary of processor details
-processor.summary <- compiledMM.df.final %>%
-  dplyr::filter(fishyear == stock.assessment.year
-                & numblocks <= 1) %>%
-  group_by(processorname) %>%
-  summarise(catches = n_distinct(docket.number),
-            n = n()) %>%
-  as.data.frame()
-
-colnames(processor.summary) <- c('Processor', 'Catches\nMeasured', 'Abalone\nMeasured')
-
-processor.summary$Processor <- tolower(processor.summary$Processor)
-processor.summary$Processor <- str_to_title(processor.summary$Processor)
-
-processor.summary <- adorn_totals(processor.summary, fill = '')
-
-# save Excel and Latex tables
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-write.xlsx(processor.summary, 'MM_Processor_Summary_2019.xlsx', sheetName = "Sheet1", 
-           col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(processor.summary, type = 'latex'), file = 'MM_Processor_Summary_2019.tex')
-##-------------------------------------------------------------------------------------------------------##
-# Size limits for plots ####
+# Size limits data ####
+# Add size limit data to filter out measurement errors and for reference points on plots.
 
 # load legal minimum length data
-size.limits <- read.csv("C:/Users/jaimem/Desktop/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
 
 # clean lml data
 colnames(size.limits) <- tolower(colnames(size.limits))
@@ -195,7 +91,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2019`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2020`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
@@ -271,6 +167,162 @@ compiledMM.df.final <- compiledMM.df.final %>%
 
 # join size limit data and compiledMM.df to include size limit for each observation
 compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+##-------------------------------------------------------------------------------------------------------##
+# Quick summaries ####
+
+compiledMM.df.final %>% 
+  filter(fishyear == stock.assessment.year & 
+           numblocks <= 1 &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+  group_by(processorname) %>% 
+  summarise(catches.measured = n_distinct(docket.number),
+            n = n()) %>% 
+  # mutate(processorname = if_else(processorname == "SEAFOOD TRADERS PTY LTD", 'WOODHAM', processorname)) %>% 
+  as.data.frame() %>%
+  arrange(desc(processorname)) %>% 
+  adorn_totals(fill = '')
+
+compiledMM.df.final %>% 
+  filter(fishyear == stock.assessment.year &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+  group_by(processorname) %>% 
+  summarise(catches.measured = n_distinct(docket.number),
+            n = n()) %>% 
+  mutate(processorname = if_else(processorname == "SEAFOOD TRADERS PTY LTD", 'WOODHAM', processorname)) %>% 
+  as.data.frame() %>%
+  arrange(desc(processorname)) %>% 
+  adorn_totals(fill = '')
+
+##-------------------------------------------------------------------------------------------------------##
+# Fish year summary ####
+
+# create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
+fishyear.summary.df <- compiledMM.df.final %>%
+  dplyr::filter(fishyear == stock.assessment.year
+         & numblocks <= 1
+         & between(shell.length, sizelimit - 5, 220)) %>%
+  group_by(newzone, blocklist) %>%
+  summarise(catches = n_distinct(docket.number),
+            n = n(),
+            med.sl = round(median(shell.length), 1),
+            max.sl = round(max(shell.length), 1)) %>%
+  rename(Zone = newzone,
+         BlockNo = blocklist) %>% 
+  mutate(med.sl = as.character(med.sl),
+         max.sl = as.character(max.sl)) %>% 
+  as.data.frame()
+
+# rename column headings
+colnames(fishyear.summary.df) <- c('Zone', 'Block\nNo', 'Catches\nmeasured', 'Abalone\nmeasured', 'Median\nSL', 'Max\nSL')
+
+# add totals for numeric columns (Note: median and max have been converted to characters)
+fishyear.summary.df <- adorn_totals(fishyear.summary.df, fill = '')
+
+# create formated summary tables for report layout
+fishyear.summary.df.formated <- fishyear.summary.df %>% 
+  ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+# save Excel and Latex tables
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_2020.pdf', sep = ''),
+  plot = fishyear.summary.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_2020.png', sep = ''),
+  plot = fishyear.summary.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2020.xlsx', sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2020.tex')
+
+##-------------------------------------------------------------------------------------------------------##
+# Processor x fish year summary ####
+
+# create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
+
+for(i in processors.2019) {
+  processor.fishyear.summary.df <- compiledMM.df.final %>%
+    dplyr::filter(fishyear == stock.assessment.year
+                  & numblocks <= 1
+                  & processorname == i
+                  & between(shell.length, sizelimit - 5, 220)) %>%
+    group_by(newzone, blocklist) %>%
+    summarise(
+      catches = n_distinct(docket.number),
+      n = n(),
+      med.sl = as.character(median(shell.length)),
+      max.sl = as.character(max(shell.length))
+    ) %>%
+    rename(Zone = newzone,
+           BlockNo = blocklist) %>%
+    as.data.frame()
+  
+  # rename column headings
+  colnames(processor.fishyear.summary.df) <-
+    c(
+      'Zone',
+      'Block\nNo',
+      'Catches\nMeasured',
+      'Abalone\nMeasured',
+      'Median\nSL',
+      'Max\nSL'
+    )
+  
+  # add totals for numeric columns (Note: median and max have been converted to characters)
+  processor.fishyear.summary.df <-
+    adorn_totals(processor.fishyear.summary.df, fill = '')
+  
+  # save Excel and Latex tables
+  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  write.xlsx(
+    processor.fishyear.summary.df,
+    file = paste(i, '_Sampling_Summary_', stock.assessment.year, '.xlsx'),
+    sheetName = "Sheet1",
+    col.names = TRUE,
+    row.names = TRUE,
+    append = FALSE
+  )
+  print(
+    xtable(processor.fishyear.summary.df, type = 'latex'),
+    file = paste(i, '_Sampling_Summary_', stock.assessment.year, '.tex')
+  )
+  
+}
+
+##-------------------------------------------------------------------------------------------------------##
+# Processor summary ####
+
+# quick summary of processor details
+processor.summary <- compiledMM.df.final %>%
+  dplyr::filter(fishyear == stock.assessment.year
+                & numblocks <= 1) %>%
+  group_by(processorname) %>%
+  summarise(catches = n_distinct(docket.number),
+            n = n()) %>%
+  as.data.frame()
+
+colnames(processor.summary) <- c('Processor', 'Catches\nMeasured', 'Abalone\nMeasured')
+
+processor.summary$Processor <- tolower(processor.summary$Processor)
+processor.summary$Processor <- str_to_title(processor.summary$Processor)
+
+processor.summary <- adorn_totals(processor.summary, fill = '')
+
+# save Excel and Latex tables
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+write.xlsx(processor.summary, 'MM_Processor_Summary_2019.xlsx', sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+print(xtable(processor.summary, type = 'latex'), file = 'MM_Processor_Summary_2019.tex')
 
 ##-------------------------------------------------------------------------------------------------------##
 # PLOT 1: LF zone x block x year ####
@@ -435,7 +487,6 @@ for (i in df.2019.unique.blocks) {
 # PLOT 2: Boxplot block x year ####
 
 ## create box plots for each block sampled in the stock assessment year and compare with historical records
-
 for (i in df.2019.unique.zones) {
   for (j in df.2019.unique.blocks) {
     # select data for block
@@ -444,7 +495,7 @@ for (i in df.2019.unique.zones) {
         newzone == i
         & blocklist == j
         & fishyear == stock.assessment.year
-        & between(shell.length, 100, 220)
+        & between(shell.length, sizelimit - 5, 220) 
       )
     
     plotdat.block.historic <- compiledMM.df.final %>%
@@ -452,7 +503,7 @@ for (i in df.2019.unique.zones) {
         newzone == i
         & blocklist == j
         & between(fishyear, 1980, stock.assessment.year - 1)
-        & between(shell.length, 100, 220)
+        & between(shell.length, sizelimit - 5, 220)
       )
     
     plotdat.block <- bind_rows(plotdat.block, plotdat.block.historic)
@@ -506,21 +557,21 @@ for (i in df.2019.unique.zones) {
       
       setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2019', '.pdf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.pdf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2019', '.wmf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.wmf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2019', '.png', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.png', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
@@ -544,17 +595,25 @@ for (i in processors.2019) {
   df.1 <- compiledMM.df.final %>%
     filter(processorname == i
            & fishyear == stock.assessment.year
-           & numblocks <= 1)
+           & numblocks <= 1
+           & between(shell.length, sizelimit - 5, 220)) %>% 
+    mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
   
   # generate a count of records for each year to add label to boxplot
   plotdat.n <- df.1 %>%
-    group_by(blockno, fishquarter) %>%
+    group_by(zone.blockno, fishquarter) %>%
     summarize(n = n())
+  
+  # generate table of size limits for each year to add to boxplot
+  
+  size.limit <- df.1 %>% 
+    group_by(zone.blockno, fishquarter) %>% 
+    summarise(legal.min.length = max(sizelimit))
   
   # create plot
   quarter.boxplot <-
     ggplot(df.1, aes(
-      x = blockno,
+      x = zone.blockno,
       y = shell.length,
       fill = factor(fishquarter)
     )) +
@@ -571,8 +630,10 @@ for (i in processors.2019) {
       angle = 90,
       position = position_dodge(width = 0.85)
     ) +
+    geom_point(data = size.limit, aes(x = zone.blockno, y = legal.min.length), 
+               shape = 95, size = 7, colour = "red")+
     # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-    xlab('BlockNo') +
+    xlab('Zone-BlockNo') +
     ylab(paste('Shell Length (mm)')) +
     coord_cartesian(ylim = c(100, 225)) +
     theme_bw() +
@@ -582,31 +643,39 @@ for (i in processors.2019) {
       axis.text.x = element_text(angle = 0, vjust = 0.5),
       legend.position = 'top'
     ) +
-    scale_fill_grey(
-      name = 'Quarter',
-      breaks = c('1', '2', '3', '4'),
-      labels = c('Q1', 'Q2', 'Q3', 'Q4')
-    )
+    # scale_fill_grey(start = 0.8, end = 0.3,
+    #   name = 'Quarter',
+    #   breaks = c('1', '2', '3', '4'),
+    #   labels = c('Q1', 'Q2', 'Q3', 'Q4')
+      scale_fill_manual(values = c('1' = "#4D4D4D", 
+                                   '2' = "#CCCCCC", 
+                                   '3' = "#AEAEAE", 
+                                   '4' = "#888888"),
+                      name = 'Quarter',
+                      breaks = c('1', '2', '3', '4'),
+                      labels = c('Q1', 'Q2', 'Q3', 'Q4')
+    )+
+    guides(fill = guide_legend(override.aes = list(shape = NA)))
   
-  print(quarter.boxplot)
+  # print(quarter.boxplot)
   
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   ggsave(
-    filename = paste(i, '_Quarter_MM_Boxplot_2019', '.pdf', sep = ''),
+    filename = paste(i, '_Quarter_MM_Boxplot_2020', '.pdf', sep = ''),
     plot = quarter.boxplot,
     width = 7.4,
     height = 5.57,
     units = 'in'
   )
   ggsave(
-    filename = paste(i, '_Quarter_MM_Boxplot_2019', '.wmf', sep = ''),
+    filename = paste(i, '_Quarter_MM_Boxplot_2020', '.wmf', sep = ''),
     plot = quarter.boxplot,
     width = 7.4,
     height = 5.57,
     units = 'in'
   )
   ggsave(
-    filename = paste(i, '_Quarter_MM_Boxplot_2019', '.png', sep = ''),
+    filename = paste(i, '_Quarter_MM_Boxplot_2020', '.png', sep = ''),
     plot = quarter.boxplot,
     width = 7.4,
     height = 5.57,
@@ -624,8 +693,11 @@ for (i in processors.2019) {
 tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
                   , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
 
-ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
-                        , layer = 'Ab_Blocks_MGAZ55', verbose = F)
+# ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
+#                         , layer = 'Ab_Blocks_MGAZ55', verbose = F)
+
+new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
+                            , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
 
 # set projection
 projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
@@ -633,7 +705,9 @@ projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 # convert maps to projection
 tas.sp <- spTransform(tas.sp, projstring.mga55)
-ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
+# ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
+# new.ab.blocks.sp <- spTransform(new.ab.blocks.sp, projstring.mga55)
+# df <- st_as_sf(new.ab.blocks.sp)
 
 # generate maps
 
@@ -642,17 +716,18 @@ for(i in processors.2019) {
   df.1 <- compiledMM.df.final %>%
     filter(fishyear == stock.assessment.year
            & processorname == i
-           & numblocks <= 1)
+           & numsubblocks <= 1)
   
   df.1 <- df.1 %>%
-    group_by(blockno) %>%
+    group_by(subblockno) %>%
     summarise(n = n_distinct(docket.number))
   
-  ab.blocks.sp.2 <- ab.blocks.sp
+  # ab.blocks.sp.2 <- ab.blocks.sp
+  ab.blocks.sp.2 <- new.ab.blocks.sp
   
   # add data to attribute table of spatial dataframe (e.g. number of catches per block in fishyear xxxx)
   ab.blocks.poly <-
-    merge(ab.blocks.sp.2, df.1, by.x = 'BLOCK_NO', by.y = 'blockno')
+    merge(ab.blocks.sp.2, df.1, by.x = 'SubBlockNo', by.y = 'subblockno')
   
   # https://atlan.com/courses/introduction-to-gis-r/lesson3-static-maps/
   
@@ -663,6 +738,10 @@ for(i in processors.2019) {
   # df.3$n[is.na(df.3$n)] <- 0
   
   # need to fix this code to maintain colour catergories across all processors
+  
+  df.3 <- df.3 %>% 
+    mutate(subblock.sampled = if_else(n > 0, as.character(SubBlockNo), ''))
+  
   catch.plot <- df.3 %>%
     # filter(n >= 0) %>%
     tm_shape() +
@@ -674,7 +753,11 @@ for(i in processors.2019) {
             colorNA = 'white',
             palette = '-Spectral') +
     tm_borders(lwd = 0.5) +
-    tm_text('n', size = 0.75)
+    tm_text('n', size = 0.75)+
+    tm_shape(df.3)+
+    tm_text('subblock.sampled', size = 0.25, just = 'bottom', ymod = -0.4)
+  
+  # print(catch.plot)
   
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   
@@ -702,8 +785,11 @@ for(i in processors.2019) {
 tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
                   , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
 
-ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
-                        , layer = 'Ab_Blocks_MGAZ55', verbose = F)
+# ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
+#                         , layer = 'Ab_Blocks_MGAZ55', verbose = F)
+
+new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
+                            , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
 
 # set projection
 projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
@@ -711,20 +797,20 @@ projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 # convert maps to projection
 tas.sp <- spTransform(tas.sp, projstring.mga55)
-ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
+# ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
 
 # summarise dataframe to determine number of catches measured per block by processor
 df.1 <- compiledMM.df.final %>%
   dplyr::filter(fishyear == stock.assessment.year
-         & numblocks <= 1)%>%
-  group_by(blockno) %>%
+         & numsubblocks <= 1) %>%
+  group_by(subblockno) %>%
   summarise(n = n_distinct(docket.number))
 
-ab.blocks.sp.2 <- ab.blocks.sp
+ab.blocks.sp.2 <- new.ab.blocks.sp
 
 # add data to attribute table of spatial dataframe (e.g. number of catches per block in fishyear xxxx)
 ab.blocks.poly <-
-  merge(ab.blocks.sp.2, df.1, by.x = 'BLOCK_NO', by.y = 'blockno')
+  merge(ab.blocks.sp.2, df.1, by.x = 'SubBlockNo', by.y = 'subblockno')
 
 # https://atlan.com/courses/introduction-to-gis-r/lesson3-static-maps/
 
@@ -734,6 +820,9 @@ df.3 <- st_as_sf(ab.blocks.poly)
 # # convert non-sampled blocks (i.e. NA) to zero
 # df.3$n[is.na(df.3$n)] <- 0
 
+df.3 <- df.3 %>% 
+  mutate(subblock.sampled = if_else(n > 0, as.character(SubBlockNo), ''))
+
 # need to fix this code to maintain colour catergories across all processors
 catch.plot <- df.3 %>%
   # filter(n >= 0) %>%
@@ -741,14 +830,19 @@ catch.plot <- df.3 %>%
   tm_fill(
     col = 'n',
     title = 'Catches \nmeasured',
-    breaks = c(0, 2, 5, 10, 15),
+    breaks = c(0, 2, 5, 10, 15, 20),
+    labels = c('0 to 2', '2 to 5', '5 to 10', '10 to 15', '>15'),
     style = 'fixed',
     textNA = 'No data',
     colorNA = 'white',
     palette = '-Spectral'
   ) +
   tm_borders(lwd = 0.5) +
-  tm_text('n', size = 0.75)
+  tm_text('n', size = 0.75)+
+  tm_shape(df.3)+
+  tm_text('subblock.sampled', size = 0.25, just = 'bottom', ymod = -0.4)
+
+print(catch.plot)
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
 
@@ -769,16 +863,20 @@ tmap_save(
 ## PLOT 6: Boxplot weight ####
 
 df.1 <- compiledMM.df.final %>% 
-  filter(!is.na(whole.weight)
-         & between(whole.weight, 1, 2000))
+  filter(fishyear == stock.assessment.year,
+         !is.na(whole.weight)
+         & between(whole.weight, 1, 2000),
+         numsubblocks <= 1)
 
 plotdat.n <- df.1 %>%
-  group_by(blockno, fishquarter) %>%
+  group_by(subblockno, fishquarter) %>%
   summarize(n = n())
+
+grades <- data.frame(x = 1, y = c(500, 700, 900), lab = c('small', 'medium', 'large'))
 
 quarter.whole.weight.boxplot <-
   ggplot(df.1, aes(
-    x = blockno,
+    x = subblockno,
     y = whole.weight,
     fill = factor(fishquarter)
   )) +
@@ -796,7 +894,7 @@ quarter.whole.weight.boxplot <-
     position = position_dodge(width = 0.85)
   ) +
   # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-  xlab('BlockNo') +
+  xlab('SubBlockNo') +
   ylab(paste('Whole weight (g)')) +
   coord_cartesian(ylim = c(100, 1600)) +
   theme_bw() +
@@ -806,32 +904,36 @@ quarter.whole.weight.boxplot <-
     axis.text.x = element_text(angle = 0, vjust = 0.5),
     legend.position = 'top'
   ) +
-  scale_fill_grey(
+  scale_fill_grey(start = 0.8, end = 0.3,
     name = 'Quarter',
     breaks = c('1', '2', '3', '4'),
     labels = c('Q1', 'Q2', 'Q3', 'Q4')
-  )
+  ) +
+  geom_hline(aes(yintercept = 400), colour = 'red', linetype = 'dotted')+
+  geom_hline(aes(yintercept = 600), colour = 'red', linetype = 'dotted')+
+  geom_hline(aes(yintercept = 800), colour = 'red', linetype = 'dotted')+
+  geom_text(data = grades, aes(x = x-0.5, y = y, label = lab), inherit.aes = FALSE, vjust = 0.5, hjust = 0.5, size = 4, angle = 90)
 
 print(quarter.whole.weight.boxplot)
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
 
 ggsave(
-  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.pdf', sep = ''),
+  filename = paste('Quarter_MM_Weight_Boxplot', '_', stock.assessment.year, '.pdf', sep = ''),
   plot = quarter.whole.weight.boxplot,
   width = 7.4,
   height = 5.57,
   units = 'in'
 )
 ggsave(
-  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.wmf', sep = ''),
+  filename = paste('Quarter_MM_Weight_Boxplot', '_', stock.assessment.year, '.wmf', sep = ''),
   plot = quarter.whole.weight.boxplot,
   width = 7.4,
   height = 5.57,
   units = 'in'
 )
 ggsave(
-  filename = paste('TASMANIAN SEAFOODS PTY LTD', '_', stock.assessment.year, '_WholeWeight.png', sep = ''),
+  filename = paste('Quarter_MM_Weight_Boxplot', '_', stock.assessment.year, '.png', sep = ''),
   plot = quarter.whole.weight.boxplot,
   width = 7.4,
   height = 5.57,
@@ -846,7 +948,8 @@ ggsave(
 # select data for stock assessment year
 df.1 <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year
-         & numblocks <= 1)
+         & numblocks <= 1 &
+           shell.length >= sizelimit - 5)
 
 # generate a count of records for each year to add label to boxplot
 plotdat.n <- df.1 %>%
@@ -874,7 +977,7 @@ quarter.boxplot <-
     data = plotdat.n,
     aes(y = 220, label = n),
     size = 3,
-    angle = 90,
+    angle = 0,
     position = position_dodge(width = 0.85)
   ) +
   geom_point(
@@ -895,7 +998,7 @@ quarter.boxplot <-
     axis.text.x = element_text(angle = 0, vjust = 0.5),
     legend.position = 'top'
   ) +
-  scale_fill_grey(start = 0.8, end = 0.5,
+  scale_fill_grey(start = 0.8, end = 0.3,
     name = 'Quarter',
     breaks = c('1', '2', '3', '4'),
     labels = c('Q1', 'Q2', 'Q3', 'Q4')
@@ -906,14 +1009,14 @@ print(quarter.boxplot)
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
 ggsave(
-  filename = paste('Quarter_MM_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
+  filename = paste('Quarter_MM_Size_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
   plot = quarter.boxplot,
   width = 7.4,
   height = 5.57,
   units = 'in'
 )
 ggsave(
-  filename = paste('Quarter_MM_Boxplot_', stock.assessment.year, '.wmf', sep = ''),
+  filename = paste('Quarter_MM_Size_Boxplot_', stock.assessment.year, '.wmf', sep = ''),
   plot = quarter.boxplot,
   width = 7.4,
   height = 5.57,

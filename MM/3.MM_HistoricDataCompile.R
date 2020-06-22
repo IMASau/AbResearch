@@ -1276,7 +1276,7 @@ compiled.df.csiro <- bind_rows(compiled.df, csiroMM.sub)
 compiled.docket.csiro <- compiled.df.csiro
 # saveRDS(compiled.df.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.df.csiro.RDS')
 saveRDS(compiled.docket.csiro, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.csiro.RDS')
-
+compiled.docket.csiro <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.csiro.RDS')
 ##-------------------------------------------------------------------------------------------------------##
 ## compiled.docket.16.19 ####
 ## post 2016 MM abalone data from measuring boards provided by Gary Carlos in summary .csv files
@@ -1405,7 +1405,7 @@ compiled.docket.16.19 <- subset(ab.2019MM.unique, select = c("docket.number", "m
                                                              "shell.length", "whole.weight"))
 
 saveRDS(compiled.docket.16.19, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.16.19.RDS')
-# compiled.docket.16.19 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.16.19.RDS')
+compiled.docket.16.19 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.16.19.RDS')
 
 # join to compiled.df.csiro
 # compiledMM.df <- bind_rows(compiled.df.csiro, compiled.docket.16.19)
@@ -1476,10 +1476,11 @@ compiled.docket.81.96$proc <- as.character(compiled.docket.81.96$proc)
 
 # save dataframe
 saveRDS(compiled.docket.81.96, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.81.96.RDS')
+compiled.docket.81.96 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.81.96.RDS')
 
 # join dataframe to historical length frequency compiled data frame
-compiled.docket <- bind_rows(compiled.docket, compiled.docket.81.96)
-
+compiled.docket.pre.2020 <- bind_rows(compiled.docket, compiled.docket.81.96)
+saveRDS(compiled.docket.pre.2020, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.pre.2020.RDS')
 ##-------------------------------------------------------------------------------------------------------##
 ## compiled.docket.next.gen ####
 # this data collected since 2020 using the Next Generation 4G measuring boards which
@@ -1571,10 +1572,121 @@ compiled.docket.next.gen <- measure.board.next.gen.df.unique %>%
 # save RDS file
 
 saveRDS(compiled.docket.next.gen, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+# compiled.docket.next.gen <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
 
 # join dataframe to historical length frequency compiled data frame
 
-compiledMM.df <- bind_rows(compiled.docket, compiled.docket.next.gen)
+# load most recent compile of historic data
+compiled.docket.pre.2020 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.pre.2020.RDS')
+
+# merge most recent compile of historic data with next gen measureboard data
+compiledMM.df <- bind_rows(compiled.docket.pre.2020, compiled.docket.next.gen)
+
+# save RDS file
+saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+
+##-------------------------------------------------------------------------------------------------------##
+## compiled.docket.woodham ####
+## this data has been collected by Greg Woodham since January 2020 using a 
+## next generation measuring board paired to his gps logger which transfers the data via 4G.
+## These board differ in that they rely on the gps logger to transfer the data rather than an
+## inbuilt 4G modem. Data differ in that block details are sometimes manually provided for multi-day
+## trips where multiple catches/blocks may be added to the same docket number (e.g. western zone).
+
+# import latest version of compiled next generation woodham measuring board data
+
+measure.board.df.woodham <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
+
+# match data to existing compiled dataframes
+# remove unecessary variables and rename variables to match compiledMM.df
+
+measure.board.df.woodham.match <- measure.board.df.woodham %>% 
+   select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+   rename(msr.date = plaindate,
+          docket.number = docketnum,
+          shell.length = shelllength,
+          whole.weight = wholeweight)
+
+# join to measureboard data to docketinfo
+measure.board.df.woodham.docketinfo <- left_join(measure.board.df.woodham.match, docketinfo, by = "docket.number")
+
+# adjust blocklist and subblocklist for records where the block number has been recorded for the sample
+# these mainly refer to multi-day trips where multiple catches are recorded on the same docket number however
+# the measurer (i.e. diver) has noted specifically the sub-block they measured the catch from.
+# Note: the sub-block provided by the diver may differ slightly from the processor docketinfo.
+
+measure.board.df.woodham.docketinfo <- measure.board.df.woodham.docketinfo %>% 
+   mutate(processorname = 'GREG WOODHAM',
+          proc = NA,
+          numprocs = NA,
+          proclist = NA,
+          blocklist = ifelse(!is.na(blockno), parse_number(as.character(blockno)), blocklist),
+          subblocklist = ifelse(!is.na(blockno), as.character(blockno), subblocklist)) %>% 
+   select(-blockno)
+
+# add variable to distinguish datasource
+measure.board.df.woodham.docketinfo$datasource <- '2020WOODHAM'
+
+# summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
+n.per.docket <- measure.board.df.woodham.docketinfo %>% 
+   group_by(docket.number, msr.date) %>%
+   summarise(n = length(shell.length),
+             meanSL = round(mean(shell.length, na.rm = T), 1),
+             minSL = round(min(shell.length), 1))
+
+# match docketinfo.epro to the n.per.docket dataframe
+docket.join <- inner_join(n.per.docket, measure.board.df.woodham.docketinfo, by = c("docket.number", 'msr.date'))
+
+# add date difference column
+docket.join <- docket.join %>%
+   ungroup() %>%
+   mutate(msr.date = as.Date(msr.date)) %>%
+   mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
+
+# subset data and filter out uneeded or duplicated variables
+compiled.docket.woodham <- docket.join %>%
+   select(
+      docket.number,
+      msr.date,
+      proc,
+      processorname,
+      numprocs,
+      proclist,
+      newzone,
+      numdays,
+      daylist,
+      daylist_max,
+      msr.date.diff,
+      numblocks,
+      blocklist,
+      numsubblocks,
+      subblocklist,
+      catch,
+      n,
+      meanSL,
+      minSL,
+      shell.length,
+      whole.weight,
+      datasource
+   )
+
+# save RDS file
+
+saveRDS(compiled.docket.woodham, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.woodham.RDS')
+
+# join dataframe to historical length frequency compiled data frame
+
+# load most recent compile of historic data
+compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+
+# merge most recent compile of historic data and next gen measureboard data with woodham data
+# will need to place a filter here or check for duplication as more data is compiled and
+# added (9-06-2020) 
+compiledMM.df <- bind_rows(compiledMM.df, compiled.docket.woodham)
+
+## save compiledMM.df ####
+
+saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
 ## save compiledMM.df ####

@@ -96,9 +96,11 @@ length.weight.summary <- mb.next.gen.grade.df %>%
         group_by(docketnum, processor, plaindate, zone) %>% 
         summarise('Mean\nweight\n(g)' = round(mean(wholeweight), 0),
                   'Min\nweight\n(g)' = min(wholeweight),
+                  'Median\nweight\n(g)' = round(median(wholeweight), 0),
                   'Max\nweight\n(g)' = max(wholeweight),
                   'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
                   'Min\nsize\n(mm)' = round(min(shelllength), 0),
+                  'Median\nsize\n(mm)' = round(median(shelllength), 0),
                   'Max\nsize\n(mm)' = round(max(shelllength), 0)) %>% 
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
@@ -172,11 +174,19 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
         mutate(docket.number = as.numeric(docket.number)) %>% 
         pull(docket.number)
 
+# load vector of incomplete measureboard data for existing docket numbers determined in 
+# MM_NextGen4GCompile.RDS
+docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+
+# identify complete existing dockets
+existing.dockets.complete <- setdiff(existing.dockets, docket.incomplete)
+
 # identify all dockets in measuring board dataframe
 docket.unique <- unique(measure.board.next.gen.df$docketnum)
 
 # identify dockets missing from summary folder
-new.dockets <- setdiff(docket.unique, existing.dockets)
+# new.dockets <- setdiff(docket.unique, existing.dockets)
+new.dockets <- setdiff(docket.unique, existing.dockets.complete)
 
 # # idenitfy processors in measuring board dataframe
 # processor.unique <- unique(measure.board.next.gen.df$processor)
@@ -194,6 +204,8 @@ for (i in new.dockets) {
                 filter(docketnum == i &
                                between(shelllength, 120, 200))
         
+        plot.zone <- unique(plot.length.freq.dat$zone)
+        
         length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
                 geom_histogram(
                         aes(y = ..density.. * 5),
@@ -205,7 +217,7 @@ for (i in new.dockets) {
                 coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.4)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
@@ -270,6 +282,8 @@ for (j in new.dockets) {
                         filter(docketnum == j &
                                        wholeweight != 0)
                 
+                plot.zone <- unique(plot.length.freq.dat$zone)
+                
                 weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
                         geom_histogram(
                                 aes(y = ..density.. * 50),
@@ -283,7 +297,7 @@ for (j in new.dockets) {
                         theme_bw() +
                         theme(panel.grid = element_blank()) +
                         xlab("Whole weight (g)") +
-                        ylab(paste("Docket no.", j, " Percentage (%)")) +
+                        ylab(paste("Docket no.", plot.zone, j, " Percentage (%)")) +
                         geom_vline(aes(xintercept = 400),
                                    colour = 'red',
                                    linetype = 'dotted') +
@@ -423,6 +437,8 @@ for (i in new.dockets) {
                 filter(docketnum == i &
                                between(shelllength, 120, 200))
         
+        plot.zone <- unique(plot.length.freq.dat$zone)
+        
         length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
                 geom_histogram(
                         aes(y = ..density.. * 5),
@@ -431,10 +447,10 @@ for (i in new.dockets) {
                         binwidth = 5,
                         alpha = 0.6
                 ) +
-                coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.4)) +
+                coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.45)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
@@ -491,12 +507,12 @@ for (i in new.dockets) {
                         binwidth = 50,
                         alpha = 0.6
                 ) +
-                coord_cartesian(xlim = c(300, 1200),
+                coord_cartesian(xlim = c(300, 1300),
                                 ylim = c(0, 0.35)) +
                 theme_bw() +
                 theme(panel.grid = element_blank()) +
                 xlab("Whole weight (g)") +
-                ylab(paste("Docket no.", i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
                 geom_vline(aes(xintercept = 400),
                            colour = 'red',
                            linetype = 'dotted') +
@@ -939,12 +955,12 @@ for (i in processors) {
 ## Tas Seafoods ####
 ## Tasmanian Seafoods Diver Summary - Mark Fleming
 
-tas.seafoods.divers.may2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_May2020_DiverDetails.xlsx",
+tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_June2020_DiverDetails.xlsx",
                        detectDates = T)
 
-tas.seafoods.grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
+tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
-        mutate(grade.perc = round((grade.meas / ab.meas) * 100)) %>%   
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
         ungroup() %>% 
         select(-c(grade.meas, processor)) %>% 
         spread(grade, grade.perc) %>% 
@@ -955,11 +971,11 @@ tas.seafoods.grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by =
         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
         rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum,
-               'Abalone\nmeasured' = ab.meas) %>% 
+               'Abalone\nmeasured' = ab.weighed) %>% 
         select(-zone) %>% 
         as.data.frame()
 
-tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.may2020, by = c('Docket\nno.' = 'docketnum')) %>% 
+tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>% 
         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
         rename('Dive\ndate' = divedate,
                'Diver\nname' = diver,
@@ -969,11 +985,11 @@ tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods
 tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>% 
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
-print(tas.seafoods.grade.summary.formated)
+# print(tas.seafoods.grade.summary.formated)
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_MAY2020', '.pdf', sep = ''),
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_JUNE2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
         height = 297,

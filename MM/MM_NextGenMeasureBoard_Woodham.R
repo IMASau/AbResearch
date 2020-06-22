@@ -185,9 +185,10 @@ measure.board.df.woodham <- measure.board.df
 
 ##---------------------------------------------------------------------------##
 # manually add zone and docket number to measurboard dataframe where missing
-woodham.docketnums <- data.frame(plaindate = as.Date(c("2020-05-05", "2020-05-06", "2020-05-18", "2020-05-19")), 
-                                 zone = c('AE', 'AE', 'AE', 'AE'), 
-                                 docketnum = c(525976, 525977, 525979, 525980))
+woodham.docketnums <- data.frame(plaindate = as.Date(c("2020-05-05", "2020-05-06", "2020-05-18", "2020-05-19", "2020-05-25", "2020-05-26", "2020-05-27")), 
+                                 zone = c('AE', 'AE', 'AE', 'AE', 'AW', 'AW', 'AW'), 
+                                 docketnum = c(525976, 525977, 525979, 525980, 813251, 813251, 813251),
+                                 blockno = c(NA, NA, NA, NA, '11B', '11B', '12B'))
 
 measure.board.df.woodham <- left_join(select(measure.board.df.woodham, -c(zone, docketnum)), 
                                       woodham.docketnums, by = 'plaindate')
@@ -206,15 +207,21 @@ woodham.summary <- measure.board.df.woodham %>%
            grepl('^07', logname) &
            between(shelllength, 120, 200)) %>%  
   # distinct(plaindate, abalonenum, .keep_all = T) %>%  
-  group_by(plaindate) %>%  
-  summarise(n = n(),
-            'mean.size (mm)' = round(mean(shelllength), 0),
-            'min.size (mm)' = round(min(shelllength), 0),
-            'max.size (mm)' = round(max(shelllength), 0)) %>% 
-  rename('sampdate' = plaindate) %>% 
-  arrange(desc(sampdate)) %>%
+  group_by(plaindate, docketnum, zone) %>% 
+  summarise('Number\nmeasured' = n(),
+            'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+            'Min\nsize\n(mm)' = round(min(shelllength), 0),
+            'Max\nsize\n(mm)' = round(max(shelllength), 0)) %>% 
+  arrange(desc(plaindate)) %>%
   ungroup() %>% 
-  as.data.frame()
+  mutate_if(is.factor,
+            fct_explicit_na,
+            na_level = '') %>%
+  mutate(docketnum = paste(zone, docketnum, sep = '')) %>% 
+  rename('Dive date' = plaindate,
+         'Docket\nnumber' = docketnum) %>%
+  as.data.frame() %>% 
+  select(-zone)
 
 woodham.summary.formated <- woodham.summary %>% 
   ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
@@ -224,6 +231,50 @@ setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
 ggsave(
   filename = paste('Woodham_SizeSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
   plot = woodham.summary.formated,
+  width = 11.69,
+  height = 5.57,
+  units = 'in'
+)
+
+##---------------------------------------------------------------------------##
+## summary table with % above reference points
+
+woodham.summary.ref <- measure.board.df.woodham %>%
+  filter(!is.na(shelllength) &
+           grepl('^07', logname) &
+           between(shelllength, 120, 200)) %>%  
+  # distinct(plaindate, abalonenum, .keep_all = T) %>%  
+  group_by(plaindate, docketnum, zone) %>%  
+  summarise('Number\nmeasured' = n(),
+            'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+            'Min\nsize\n(mm)' = round(min(shelllength), 0),
+            'Max\nsize\n(mm)' = round(max(shelllength), 0),
+            n = n(),
+            ref.a = sum(shelllength >= 150),
+            ref.b = sum(shelllength >= 155),
+            ref.c = sum(shelllength >= 160),
+            '>150mm\n(%)' = round((ref.a/n)*100),
+            '>155mm\n(%)' = round((ref.b/n)*100),
+            '>160mm\n(%)' = round((ref.c/n)*100)) %>% 
+  arrange(desc(plaindate)) %>%
+  ungroup() %>% 
+  mutate_if(is.factor,
+            fct_explicit_na,
+            na_level = '') %>%
+  mutate(docketnum = paste(zone, docketnum, sep = '')) %>% 
+  rename('Dive date' = plaindate,
+         'Docket\nnumber' = docketnum) %>%
+  select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
+  as.data.frame()
+
+woodham.summary.reference.limits <- woodham.summary.ref %>% 
+  ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+
+ggsave(
+  filename = paste('Woodham_SizeSummaryReferenceLimits_Formatted_', Sys.Date(), '.pdf', sep = ''),
+  plot = woodham.summary.reference.limits,
   width = 11.69,
   height = 5.57,
   units = 'in'
@@ -244,8 +295,7 @@ for (i in woodham.dates) {
     summarise(n = paste('n =', n()))
   
  plot.length.freq.dat <- measure.board.df.woodham %>%
-  filter(!is.na(docketnum) &
-           grepl('^07', logname) &
+  filter(grepl('^07', logname) & #!is.na(docketnum) &
           plaindate == i &
           between(shelllength, 120, 200)) %>% 
    distinct(abalonenum, .keep_all = T)
@@ -264,9 +314,11 @@ for (i in woodham.dates) {
   ylab(paste(" Percentage (%)"))+
   # geom_vline(aes(xintercept = 138), colour = 'red',
   #            linetype = 'dashed', size = 0.5)+
- scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+ 
+  scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+ 
+ #   geom_vline(aes(xintercept = ifelse(zone == 'AW', 145, 138)),
+ #              linetype = 'dashed', colour = 'red', size = 0.5)+
  geom_vline(
-   aes(xintercept = 138),
+   aes(xintercept = 145),
    linetype = 'dashed',
    colour = 'red',
    size = 0.5
@@ -289,6 +341,7 @@ for (i in woodham.dates) {
    position = position_dodge(0.85),
    width = 0.25
   ) +
+   stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
   rotate() +
   theme_transparent()
  
@@ -317,4 +370,4 @@ for (i in woodham.dates) {
  
 }
 
-
+##---------------------------------------------------------------------------##

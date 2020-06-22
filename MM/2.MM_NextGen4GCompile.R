@@ -70,7 +70,7 @@ logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",",
                      convert = TRUE) %>%
  as.data.frame()
 
-tail(logname)
+# tail(logname)
 
 ##---------------------------------------------------------------------------##
 ## Step 2: Extract Battery voltage  ####
@@ -81,7 +81,7 @@ loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
  arrange(logname,local_date) %>% 
  as.data.frame()
 
-tail(loggerbattery)
+# tail(loggerbattery)
 
 ##---------------------------------------------------------------------------##
 ## Step 3A: Extract GPS RMC Part A  ####
@@ -90,7 +90,7 @@ gps.RMC_A <- filter(logged.data, identifier == 220) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-tail(gps.RMC_A)
+# tail(gps.RMC_A)
 
 ##---------------------------------------------------------------------------##
 ## Step 3B: Extract GPS RMC Part B ####
@@ -99,7 +99,7 @@ gps.RMC_B <- filter(logged.data, identifier == 221) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-tail(gps.RMC_B)
+# tail(gps.RMC_B)
 
 ##---------------------------------------------------------------------------##
 ## Step 3C: Join RMC Part A & B   ####
@@ -131,7 +131,7 @@ docket <-  separate(docket, datapack, c("abalonenum", "zone", "docketnum"), sep 
 docket <- docket %>% 
         distinct(logname, seqindex, identifier, .keep_all = T)
 
-tail(docket)
+# tail(docket)
 
 ##---------------------------------------------------------------------------##
 ## Step 5: Extract Weight length ####
@@ -144,7 +144,7 @@ ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = "
 ablength <- ablength %>% 
         distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
-tail(ablength)
+# tail(ablength)
 
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
@@ -157,7 +157,7 @@ abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = "
 abweight <- abweight %>% 
         distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
-tail(abweight)
+# tail(abweight)
 
 ##---------------------------------------------------------------------------##
 ## Step 7: Join components into a flat form ####
@@ -168,7 +168,7 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
  left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>% 
  left_join(select(abweight, logname, rawutc, wholeweight), by = c('logname', "rawutc"))
 
-tail(lengthweight)
+# tail(lengthweight)
 
 measure.board.df <- lengthweight
 
@@ -184,10 +184,10 @@ measure.board.df <- measure.board.df %>%
 
 # fix any known errors with measureboard data
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
+# Simon Leonard (RTS) informed me that zone for docket number 812576 should be AW not AN
 measure.board.df <- measure.board.df %>% 
-        mutate(docketnum = replace(docketnum, docketnum == 812222, 812227))
-
-
+        mutate(docketnum = replace(docketnum, docketnum == 812222, 812227),
+               zone = if_else(docketnum == 812576, 'AW', zone))
 
 ##---------------------------------------------------------------------------##
 ## Step 9: assign measuring board to processor ####
@@ -221,7 +221,27 @@ measure.board.next.gen.df <- fuzzy_left_join(
         filter(!is.na(docketnum))
 
 ##---------------------------------------------------------------------------##
-## Step 10: save RDS of dataframe ####
+## Step 10: incomplete uploads ####
+## search previous compiled dataframe for incomplete uploads for a docket number to pass onto
+## processor summary script
+
+# load previous measuring board data that comes from MM_NextGen_4G.R script
+measure.board.next.gen.df.old <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+
+docket.incomplete <- measure.board.next.gen.df.old %>% 
+        group_by(zone, docketnum) %>%  
+        summarise(abalonenum.start = min(abalonenum),
+                  abalonenum.end = max(abalonenum),
+                  n = n()) %>%  
+        filter(n < 100 & #search for samples with <100 abalone
+                       abalonenum.start == 0 & #include samples where start number is zero
+                       !docketnum %in% c(523229, 523632, 812108, 813512)) %>%  #remove samples where manual check of raw data found no refresh/or additional data
+        pull(docketnum)
+
+saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+
+##---------------------------------------------------------------------------##
+## Step 11: save RDS of dataframe ####
 
 saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 

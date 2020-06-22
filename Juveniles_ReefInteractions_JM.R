@@ -15,6 +15,7 @@ library(Hmisc)
 library(reshape2)
 library(dplyr)
 library(ggsci)
+library(effsize)
 
 ##--------------------------------------------------------------------------------------##
 ## Functions ####
@@ -463,7 +464,7 @@ lipp.sl.bp <- arm.sl.df %>%
         theme_bw()+
         scale_x_discrete(labels = season_labels, drop = F)+
         theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
-        xlab('Site')+
+        xlab('Year.Season')+
         ylab(bquote('Shell length (mm)'))+
         geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
         theme(legend.position = 'none')+
@@ -484,7 +485,7 @@ trump.sl.bp <- arm.sl.df %>%
         theme_bw()+
         scale_x_discrete(labels = season_labels, drop = F)+
         theme(axis.text.x = element_text(angle = 0, hjust = 0.5))+
-        xlab('Site')+
+        xlab('Year.Season')+
         ylab(bquote('Shell length (mm)'))+
         geom_hline(aes(yintercept = 25),colour = 'red', linetype = 'dashed', size = 0.5)+
         theme(legend.position = 'none')+
@@ -670,8 +671,7 @@ ggsave(
 
 arm.abcount.plot.combined <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm, group = site)) + 
         aes(colour = site) +
-        # scale_color_jco(alpha = 1)+
-        scale_color_jco(labels = c('TBN', 'CQE', 'BBS', 'BET', 'LIP', 'BRS', 'GEO', 'SIS'))+
+        scale_color_jco(alpha = 1)+
         theme_bw() +
         xlab("Year.Season") + #ggtitle("Shell length 0mm to 100mm") +
         ylab(bquote('ARM Density (no. '*~m^-2*')')) +
@@ -686,7 +686,7 @@ arm.abcount.plot.combined <- ggplot(arm.abcounts.df, aes(x = yr.season, y = absm
               legend.background = element_blank())+
         guides(col = guide_legend(nrow = 2, byrow = TRUE))
 
-# print(arm.abcount.plot.combined)
+print(arm.abcount.plot.combined)
 
 setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
 ggsave(
@@ -719,23 +719,99 @@ filter(arm.abcounts.df, site == 'BRS', !is.na(plate)) %>%
  xlab('ARM (string_ARM number)')+
  # ggtitle(mysite)+
  theme(plot.title = element_text(hjust = 0.5))
+##--------------------------------------------------------------------------------------##
+## Analysis: ANOVA ####
+
+## prepare data by adding size class variable to combined abalone and reef interactions ARM desnity data
+
+## add column to identify likely settlers (<25 mm) and possible migrants (>25 mm)
+arm.sl.df.2 <- arm.sl.df
+arm.sl.df.2$size_class <- ifelse(arm.sl.df$ab_sl <= 25, 1, 2)
+
+## create unique ID/index for each ARM and survdate combination
+arm.sl.df.2$survindex <- as.factor(paste(arm.sl.df.2$site, 
+                                         arm.sl.df.2$yr.season, 
+                                         arm.sl.df.2$survdate, 
+                                         arm.sl.df.2$string, 
+                                         arm.sl.df.2$plate, sep="_"))
+
+## subset and count number of animals per ARM by survindex
+arm.dat <- filter(arm.sl.df.2, !is.na(ab_sl))  %>%
+        group_by(size_class, survindex) %>%
+        summarise(ab_n=n()) %>%  #as.data.frame()
+        complete(survindex, fill = list(ab_n = 0)) %>%
+        as.data.frame()
+
+## calculate abalone per square metre 
+platearea <- pi*(0.2^2)
+arm.dat$absm <- arm.dat$ab_n * (1/platearea)
+
+## unpack survindex variables and create new dataframe
+arm.abcounts <- data.frame(separate(arm.dat, survindex, sep = "_", 
+                                    into = c("site", "yr.season", "survdate", "string", "plate"), 
+                                    convert = TRUE), arm.dat$survindex, arm.dat$ab_n, arm.dat$absm)
+
+
+arm.abcounts.sizeclass.df <- arm.abcounts %>% 
+        select(-c(arm.dat.ab_n, arm.dat.absm)) %>% 
+        rename(survindex = arm.dat.survindex)
+
+## save a copy of the R files
+saveRDS(arm.abcounts.sizeclass.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.sizeclass.df.RDS')
+
+## load data
+arm.abcounts.sizeclass.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.sizeclass.df.RDS')
+
+# For the alpha() function (transparency)
+arm.abcounts.sizeclass.df$site <- as.factor(arm.abcounts.sizeclass.df$site)
+arm.abcounts.sizeclass.df$survdate <- as.Date(arm.abcounts.sizeclass.df$survdate)
+arm.abcounts.sizeclass.df$survtime <- as.numeric(with(arm.abcounts.sizeclass.df, survdate - min(survdate)))
+library(scales)
+# Set colours, transparent
+palette(alpha(c("blue","red","forestgreen","darkorange"), 0.5))
+with(arm.abcounts.sizeclass.df[sample(nrow(arm.abcounts.sizeclass.df)),],
+     plot(jitter(survtime,3), absm, col=site, pch=19,
+          xlab="Year Season", ylab="Abalone (no. m-2)"))
+legend("topleft", levels(arm.abcounts.sizeclass.df$site), pch=19, col=palette())
 
 ##--------------------------------------------------------------------------------------##
-## MDD ####
+## Analysis: MDD ####
 # https://www.r-bloggers.com/power-analysis-and-sample-size-calculation-for-agriculture/
 # 
 ## power analysis and sample size
 ## 
 
-mysite <- "BRB"
-dat1 <- droplevels(filter(abcounts, site==mysite & yr.season == "2016.Summer" & string ==1)) %>%
- as.data.frame()
 
-dat2 <- droplevels(filter(abcounts, site==mysite & yr.season == "2017.Summer" & string ==1)) %>%
- as.data.frame()
 
-dat.ef <- droplevels(filter(abcounts, site==mysite & yr.season %in% c("2016.Summer", "2017.Summer") & string ==1)) %>%
- as.data.frame()
+# dat1 <- droplevels(filter(arm.abcounts.df, site==mysite & yr.season == "2016.Summer" & string == mystring)) %>%
+#  as.data.frame()
+# 
+# dat2 <- droplevels(filter(arm.abcounts.df, site==mysite & yr.season == "2017.Summer" & string == mystring)) %>%
+#  as.data.frame()
+
+# dat.ef <- droplevels(filter(abcounts, site==mysite & yr.season %in% c("2016.Summer", "2017.Summer") & string ==1)) %>%
+#  as.data.frame()
+
+# select site and string 
+mysite <- 'LIP'
+mystring <- 2
+
+dat1 <- arm.abcounts.df %>% 
+        filter(site == mysite &
+                       yr.season == '2018.Autumn' &
+                       string == mystring)
+
+dat2 <- arm.abcounts.df %>% 
+        filter(site == mysite &
+                       yr.season == '2019.Autumn' &
+                       string == mystring)
+
+dat.ef <- arm.abcounts.df %>% 
+        filter(site == mysite &
+                       string == mystring &
+                       yr.season %in% c('2018.Autumn', '2019.Autumn')) %>% 
+        mutate(yr.season = factor(yr.season, levels = c('2019.Autumn', '2018.Autumn'))) %>% 
+        as_data_frame()
 
 group_by(dat.ef, yr.season) %>%
  summarise(mnabs = mean(absm),
@@ -744,8 +820,12 @@ group_by(dat.ef, yr.season) %>%
 
 
 ## Using the effsize package
+
 t.test(dat1$absm, dat2$absm)
 cohen.d(dat2$absm, dat1$absm, pooled=TRUE, conf.level=0.95)
+
+# dat.ef$yr.season <- as.factor(dat.ef$yr.season)
+
 coh.d <- cohen.d(dat.ef$absm ~ dat.ef$yr.season, pooled=TRUE, conf.level=0.95)
 coh.d
 
@@ -795,8 +875,9 @@ ggplot(test) + geom_point(aes(x=delta, y=n))  +
  theme_bw() +
  theme(text = element_text(size=16))
 
-
-
+## plot power and sample size for given effect
+pwrt<-power.t.test(d=3,n= seq(50,1000,100),sd=sd_pool,sig.level=0.05,type="two.sample",alternative="two.sided")
+plot(pwrt$n,pwrt$power,type="b",xlab="sample size",ylab="power")
 
 http://sphweb.bumc.bu.edu/otlt/MPH-Modules/BS/R/R-Manual/R-Manual17.html
 http://online.sfsu.edu/efc/classes/biol458/labs/lab5/Lab-5-R-version.pdf
@@ -845,7 +926,7 @@ bootES(
  dat.ef,
  data.col = "absm",
  group.col = "yr.season",
- contrast = c("2016.Winter", "2016.Spring"),
+ contrast = c("2017.Autumn", "2019.Autumn"),
  effect.type = "hedges.g")
 
 
