@@ -3,6 +3,7 @@
 
 ##--------------------------------------------------------------------------------------##
 ## Load libaries ####
+suppressPackageStartupMessages({
 library(tidyverse)
 library(broom)
 library(lubridate)
@@ -16,7 +17,9 @@ library(reshape2)
 library(dplyr)
 library(ggsci)
 library(effsize)
-
+library(MASS)
+library(ggeffects)
+})
 ##--------------------------------------------------------------------------------------##
 ## Functions ####
 
@@ -348,6 +351,65 @@ arm.sl.df$yr.season <-
 
 ## save a copy of the R files
 saveRDS(arm.sl.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.sl.df.RDS')
+
+##--------------------------------------------------------------------------------------##
+## Density size data ####
+
+## add size class variable to combined abalone and reef interactions ARM density data
+## to identify recruitment (i.e. <25 mm) 
+
+## add column to identify likely recruits (<25 mm) and possible migrants (>25 mm)
+arm.sl.df.2 <- arm.sl.df
+arm.sl.df.2$size_class <- ifelse(arm.sl.df$ab_sl <= 25, 1, 2)
+
+## create unique ID/index for each ARM and survdate combination
+arm.sl.df.2$survindex <- as.factor(paste(arm.sl.df.2$site, 
+                                         arm.sl.df.2$yr.season, 
+                                         arm.sl.df.2$survdate, 
+                                         arm.sl.df.2$string, 
+                                         arm.sl.df.2$plate, sep="_"))
+
+## subset and count number of animals per ARM by survindex
+arm.dat <- filter(arm.sl.df.2, !is.na(ab_sl))  %>%
+        group_by(size_class, survindex) %>%
+        summarise(ab_n=n()) %>%  #as.data.frame()
+        complete(survindex, fill = list(ab_n = 0)) %>%
+        as.data.frame()
+
+## calculate abalone per square metre 
+platearea <- pi*(0.2^2)
+arm.dat$absm <- arm.dat$ab_n * (1/platearea)
+
+## unpack survindex variables and create new dataframe
+arm.abcounts <- data.frame(separate(arm.dat, survindex, sep = "_", 
+                                    into = c("site", "yr.season", "survdate", "string", "plate"), 
+                                    convert = TRUE), arm.dat$survindex, arm.dat$ab_n, arm.dat$absm)
+
+## unpack year and season variables
+
+arm.abcounts <- arm.abcounts %>% 
+        mutate(yr.season2 = yr.season)
+
+arm.abcounts.sizeclass.df <- arm.abcounts %>% 
+        dplyr::select(-c(arm.dat.ab_n, arm.dat.absm)) %>% 
+        rename(survindex = arm.dat.survindex)
+
+
+arm.abcounts.sizeclass.df <- data.frame(separate(arm.abcounts.sizeclass.df, yr.season2, sep = "\\.", 
+                                                 into = c("sampyear", "season"), 
+                                                 convert = TRUE))
+
+## create additional size variable to help filter all animals
+df.1 <- arm.abcounts.sizeclass.df
+df.2 <- df.1 %>%
+        group_by(site, yr.season, survdate, string, plate, survindex, sampyear, season) %>% 
+        summarise(ab_n = sum(ab_n),
+                  absm = sum(absm)) %>% 
+        mutate(size_class = 3)
+df.3 <- bind_rows(df.1, df.2)
+
+## save a copy of the R files
+saveRDS(df.3, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.sizeclass.df.RDS')
 
 ##--------------------------------------------------------------------------------------##
 ## Plots: data ####
@@ -722,57 +784,138 @@ filter(arm.abcounts.df, site == 'BRS', !is.na(plate)) %>%
 ##--------------------------------------------------------------------------------------##
 ## Analysis: ANOVA ####
 
-## prepare data by adding size class variable to combined abalone and reef interactions ARM desnity data
-
-## add column to identify likely settlers (<25 mm) and possible migrants (>25 mm)
-arm.sl.df.2 <- arm.sl.df
-arm.sl.df.2$size_class <- ifelse(arm.sl.df$ab_sl <= 25, 1, 2)
-
-## create unique ID/index for each ARM and survdate combination
-arm.sl.df.2$survindex <- as.factor(paste(arm.sl.df.2$site, 
-                                         arm.sl.df.2$yr.season, 
-                                         arm.sl.df.2$survdate, 
-                                         arm.sl.df.2$string, 
-                                         arm.sl.df.2$plate, sep="_"))
-
-## subset and count number of animals per ARM by survindex
-arm.dat <- filter(arm.sl.df.2, !is.na(ab_sl))  %>%
-        group_by(size_class, survindex) %>%
-        summarise(ab_n=n()) %>%  #as.data.frame()
-        complete(survindex, fill = list(ab_n = 0)) %>%
-        as.data.frame()
-
-## calculate abalone per square metre 
-platearea <- pi*(0.2^2)
-arm.dat$absm <- arm.dat$ab_n * (1/platearea)
-
-## unpack survindex variables and create new dataframe
-arm.abcounts <- data.frame(separate(arm.dat, survindex, sep = "_", 
-                                    into = c("site", "yr.season", "survdate", "string", "plate"), 
-                                    convert = TRUE), arm.dat$survindex, arm.dat$ab_n, arm.dat$absm)
-
-
-arm.abcounts.sizeclass.df <- arm.abcounts %>% 
-        select(-c(arm.dat.ab_n, arm.dat.absm)) %>% 
-        rename(survindex = arm.dat.survindex)
-
-## save a copy of the R files
-saveRDS(arm.abcounts.sizeclass.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.sizeclass.df.RDS')
+setwd('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey')
 
 ## load data
-arm.abcounts.sizeclass.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.sizeclass.df.RDS')
+arm.abcounts.df <- readRDS('R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/arm.abcounts.df.RDS')
 
-# For the alpha() function (transparency)
-arm.abcounts.sizeclass.df$site <- as.factor(arm.abcounts.sizeclass.df$site)
-arm.abcounts.sizeclass.df$survdate <- as.Date(arm.abcounts.sizeclass.df$survdate)
-arm.abcounts.sizeclass.df$survtime <- as.numeric(with(arm.abcounts.sizeclass.df, survdate - min(survdate)))
-library(scales)
-# Set colours, transparent
-palette(alpha(c("blue","red","forestgreen","darkorange"), 0.5))
-with(arm.abcounts.sizeclass.df[sample(nrow(arm.abcounts.sizeclass.df)),],
-     plot(jitter(survtime,3), absm, col=site, pch=19,
-          xlab="Year Season", ylab="Abalone (no. m-2)"))
-legend("topleft", levels(arm.abcounts.sizeclass.df$site), pch=19, col=palette())
+# split survey sites into regional values
+trump.counts <- c('TBN', 'CQE', 'BBS', 'BET')
+lipp.counts <- c('LIP', 'BRS', 'GEO', 'SIS')
+
+# select data for region (i.e. lippies or trumpeter)
+
+region <- lipp.counts
+
+all.abcounts <- arm.abcounts.df %>% 
+        filter(site %in% region) %>%
+        mutate(sampyear = as.factor(sampyear))
+
+# run GLM for region
+m3 <- MASS::glm.nb(ab_n ~ site * sampyear + season, 
+                   data = all.abcounts, link="log")
+
+# view GLM and save data to .csv
+summary(m3)
+# summary(aov(m3))
+anova(m3)
+write.csv(data.frame(anova(m3)), "StormBay ANOVA all sizes.csv")
+
+# create data frame from GLM for plotting
+m3.df <- ggpredict(m3, terms = c("season", "sampyear", "site")) %>% 
+        mutate(yr.season = paste(group, x, sep = '.'),
+               facet = as.character(facet),
+               ab_sm = predicted/0.126,
+               ab_sm_low = conf.low/0.126,
+               ab_sm_high = if_else(conf.high == 'Inf', 0, conf.high/0.126))
+
+# identify seasons used in the GLM to annotate on plot where predicted values are used
+GLM.yr.seasons <- all.abcounts %>% 
+        group_by(site, yr.season) %>% 
+        summarise(pred = n()) %>% 
+        mutate(yr.season = as.character(yr.season))
+
+# create data frame of all years and seasons sampled (i.e. 2016-2019)
+yr.seasons <- data.frame(site = region, yr.season = c("2016.Autumn",
+                                                            "2016.Winter",
+                                                            "2016.Spring",
+                                                            "2017.Autumn",
+                                                            "2017.Winter",
+                                                            "2017.Spring",
+                                                            "2018.Autumn",
+                                                            "2018.Winter",
+                                                            "2018.Spring",
+                                                            "2019.Autumn",
+                                                            "2019.Winter",
+                                                            "2019.Spring"))
+
+yr.seasons <- yr.seasons %>% 
+        expand(site, yr.season)
+
+all.yr.seasons <- left_join(yr.seasons, GLM.yr.seasons)  
+
+# identify predicted season in the GLM and re-order data for plot
+pred.yr.seasons <- left_join(m3.df, all.yr.seasons, by = c('yr.season', 'facet' = 'site')) %>%  
+        mutate(pred = as.numeric(ifelse(is.na(pred), ab_sm_high + 0.5, NA_character_)),
+               yr.season = as.factor(yr.season))
+
+pred.yr.seasons$yr.season <-
+        ordered(pred.yr.seasons$yr.season, levels = c("2016.Autumn",
+                                                 "2016.Winter",
+                                                 "2016.Spring",
+                                                 "2017.Autumn",
+                                                 "2017.Winter",
+                                                 "2017.Spring",
+                                                 "2018.Autumn",
+                                                 "2018.Winter",
+                                                 "2018.Spring",
+                                                 "2019.Autumn",
+                                                 "2019.Winter",
+                                                 "2019.Spring"))
+# create plot x-axis labels
+season_labels.2 <- c("2016.Autumn" = '2016.Au',
+                   "2016.Winter" = '2016.Wi',
+                   "2016.Spring" = '2016.Sp',
+                   "2017.Autumn" = '2017.Au',
+                   "2017.Winter" = '2017.Wi', 
+                   "2017.Spring" = '2017.Sp',
+                   "2018.Autumn" = '2018.Au',
+                   "2018.Winter" = '2018.Wi',
+                   "2018.Spring" = '2018.Sp',
+                   "2019.Autumn" = '2019.Au',
+                   "2019.Winter" = '2019.Wi',
+                   "2019.Spring" = '2019.Sp')
+
+
+# create plot of predicted ARM densities
+m3.plot <- ggplot(data = pred.yr.seasons, aes(x = yr.season, y = ab_sm, colour = facet, group = facet))+
+        geom_point(position = position_dodge(0.75))+
+        geom_line(position = position_dodge(0.75))+
+        geom_errorbar(aes(ymin = ab_sm_low, 
+                          ymax = ab_sm_high), position = position_dodge(0.75))+
+        guides(col = guide_legend(nrow = 1, byrow = TRUE))+
+        geom_point(data = pred.yr.seasons, aes(y = pred), position = position_dodge(0.75), shape = 8, size = 1)+
+        xlab("Year.Season") +
+        ylab(bquote('ARM Density (no. '*~m^-2*')'))+
+        scale_x_discrete(labels = season_labels.2, drop = F)+
+        scale_color_manual(values = plot.colours, aes(alpha = 1))+
+        theme_bw()+
+        theme(legend.position = c(0.5, 0.92), 
+              legend.title = element_blank(),
+              legend.background = element_blank())
+        
+        
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesPredictedARMDensity_Au2016_Au2019', '.pdf', sep = ''),
+        plot = m3.plot,
+        width = 200,
+        height = 150,
+        units = 'mm'
+)
+
+ggsave(
+        filename = paste('Reef Interactions_AbaloneResurvey_LippiesPredictedARMDensity_Au2016_Au2019', '.png', sep = ''),
+        plot = m3.plot,
+        width = 200,
+        height = 150,
+        units = 'mm'
+)
+
+# plot(ggeffects::ggpredict(m3, terms = c("site")))
+# plot(ggeffects::ggpredict(m3, terms = c("season")))
+# plot(ggeffects::ggpredict(m3, terms = c("sampyear")))
+# dev.off()
+
 
 ##--------------------------------------------------------------------------------------##
 ## Analysis: MDD ####

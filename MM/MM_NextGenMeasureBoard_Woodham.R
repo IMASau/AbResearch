@@ -1,14 +1,15 @@
 ##---------------------------------------------------------------------------##
 # load libaries ####
 
-library(sftp)
+suppressPackageStartupMessages({
+# library(sftp)
 library(RCurl)
 library(tidyverse)
 library(fs)
 library(keyring)
 library(tools)
 library(R.utils)
-library(RDCOMClient)
+# library(RDCOMClient)
 library(openxlsx)
 library(fuzzyjoin)
 library(lubridate)
@@ -24,7 +25,7 @@ library(dplyr)
 library(ggsci)
 library(ggpubr)
 library(scales)
-
+})
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
 
@@ -184,11 +185,18 @@ measure.board.df <- lengthweight
 measure.board.df.woodham <- measure.board.df
 
 ##---------------------------------------------------------------------------##
+# remove testing data
+measure.board.df.woodham <- measure.board.df.woodham %>% 
+  filter(plaindate != '2020-06-30')
+
+##---------------------------------------------------------------------------##
 # manually add zone and docket number to measurboard dataframe where missing
-woodham.docketnums <- data.frame(plaindate = as.Date(c("2020-05-05", "2020-05-06", "2020-05-18", "2020-05-19", "2020-05-25", "2020-05-26", "2020-05-27")), 
-                                 zone = c('AE', 'AE', 'AE', 'AE', 'AW', 'AW', 'AW'), 
-                                 docketnum = c(525976, 525977, 525979, 525980, 813251, 813251, 813251),
-                                 blockno = c(NA, NA, NA, NA, '11B', '11B', '12B'))
+woodham.docketnums <- data.frame(plaindate = as.Date(c("2020-05-05", "2020-05-06", "2020-05-18", "2020-05-19", 
+                                                       "2020-05-25", "2020-05-26", "2020-05-27", "2020-06-22", 
+                                                       "2020-06-24", "2020-06-25", "2020-07-07", "2020-07-08")), 
+                                 zone = c('AE', 'AE', 'AE', 'AE', 'AW', 'AW', 'AW', 'AW', 'AW', 'AW', 'G', 'G'), 
+                                 docketnum = c(525976, 525977, 525979, 525980, 813251, 813251, 813251, NA, NA, NA, NA, NA),
+                                 blockno = c(NA, NA, NA, NA, '11B', '11B', '12B', '11C', '10B', '12A', '39A', '31B'))
 
 measure.board.df.woodham <- left_join(select(measure.board.df.woodham, -c(zone, docketnum)), 
                                       woodham.docketnums, by = 'plaindate')
@@ -315,14 +323,16 @@ for (i in woodham.dates) {
   # geom_vline(aes(xintercept = 138), colour = 'red',
   #            linetype = 'dashed', size = 0.5)+
   scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+ 
- #   geom_vline(aes(xintercept = ifelse(zone == 'AW', 145, 138)),
- #              linetype = 'dashed', colour = 'red', size = 0.5)+
- geom_vline(
-   aes(xintercept = 145),
-   linetype = 'dashed',
-   colour = 'red',
-   size = 0.5
-  )+
+   geom_vline(aes(xintercept = ifelse(zone == 'AW', 145, 
+                                      ifelse(zone == 'AE', 138,
+                                             ifelse(zone == 'G', 145, 138)))),
+              linetype = 'dashed', colour = 'red', size = 0.5)+
+ # geom_vline(
+ #   aes(xintercept = 145),
+ #   linetype = 'dashed',
+ #   colour = 'red',
+ #   size = 0.5
+ #  )+
    geom_text(data = plot.n.measured, aes(x = 180, y = 0.4, label = n), color = 'black', size = 3)
   
  
@@ -371,3 +381,32 @@ for (i in woodham.dates) {
 }
 
 ##---------------------------------------------------------------------------##
+df.1 <- measure.board.df.woodham %>% 
+  sf::st_as_sf(coords = c('longitude', 'latitude'))
+# GDA2020 <- CRS(SRS_string='EPSG:7855')
+df.1 <- df.1 %>% 
+  # st_set_crs(GDA2020) %>% 
+  filter(plaindate == '2020-07-08' &
+           abalonenum != 449)
+
+ggplot() + 
+  geom_sf(fill = 'salmon', color = 'white') +
+  geom_sf(data = df.1) +
+  theme_minimal() +
+  ylab("Latitude") +
+  xlab("Longitude")
+
+outname.point <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measureboardGPSdata2020-07-08.gpkg"
+st_write(df.1, dsn = outname.point, layer = "point", driver = "GPKG")
+
+
+df.2 <- measure.board.df.woodham %>% 
+  filter(plaindate == '2020-07-07')
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham')
+write.xlsx(df.2,
+           file = 'measureboardGPSdata2020-07-07.xlsx',
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)

@@ -6,6 +6,7 @@
 
 ##-------------------------------------------------------------------------------------------------------##
 # load libaries ####
+suppressPackageStartupMessages({
 library(openxlsx)
 library(fuzzyjoin)
 library(lubridate)
@@ -16,6 +17,7 @@ library(ggsci)
 library(ggpubr)
 library(scales)
 library(gridExtra)
+})        
 ##-------------------------------------------------------------------------------------------------------##
 # load data ####
 
@@ -171,7 +173,7 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
                                      'docket.processor'), sep = '_') %>% 
         select(docket.number) %>% 
         separate(docket.number, into = c('docket.zone', 'docket.number'), "(?<=[A-Z])(?=[0-9])") %>% 
-        mutate(docket.number = as.numeric(docket.number)) %>% 
+        mutate(docket.number = as.numeric(docket.number)) %>%  
         pull(docket.number)
 
 # load vector of incomplete measureboard data for existing docket numbers determined in 
@@ -958,6 +960,9 @@ for (i in processors) {
 tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_June2020_DiverDetails.xlsx",
                        detectDates = T)
 
+tas.seafoods.divers.2020 <- tas.seafoods.divers.2020 %>% 
+        distinct(docketnum, .keep_all = T)
+
 tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
         mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
@@ -989,10 +994,10 @@ tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>%
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_JUNE2020', '.pdf', sep = ''),
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_JULY2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 297,
+        height = 350,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##

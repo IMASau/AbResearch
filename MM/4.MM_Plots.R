@@ -170,28 +170,31 @@ compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimi
 ##-------------------------------------------------------------------------------------------------------##
 # Quick summaries ####
 
-compiledMM.df.final %>% 
+# number of catches measured where a single block was reported
+proc.block <- compiledMM.df.final %>% 
   filter(fishyear == stock.assessment.year & 
            numblocks <= 1 &
          between(shell.length, sizelimit - 5, 220)) %>% 
   group_by(processorname) %>% 
-  summarise(catches.measured = n_distinct(docket.number),
-            n = n()) %>% 
-  # mutate(processorname = if_else(processorname == "SEAFOOD TRADERS PTY LTD", 'WOODHAM', processorname)) %>% 
+  summarise(catches.single.block = n_distinct(docket.number),
+            single.block.n = n()) %>% 
   as.data.frame() %>%
   arrange(desc(processorname)) %>% 
   adorn_totals(fill = '')
 
-compiledMM.df.final %>% 
+# number of catches measured where multiple blocks were reported and measurements can't be allocated to a
+# specific block
+proc.multiblock <- compiledMM.df.final %>% 
   filter(fishyear == stock.assessment.year &
          between(shell.length, sizelimit - 5, 220)) %>% 
   group_by(processorname) %>% 
   summarise(catches.measured = n_distinct(docket.number),
-            n = n()) %>% 
-  mutate(processorname = if_else(processorname == "SEAFOOD TRADERS PTY LTD", 'WOODHAM', processorname)) %>% 
+            multi.block.n = n()) %>% 
   as.data.frame() %>%
   arrange(desc(processorname)) %>% 
   adorn_totals(fill = '')
+
+df.1 <- left_join(proc.block, proc.multiblock, by = c('processorname'))
 
 ##-------------------------------------------------------------------------------------------------------##
 # Fish year summary ####

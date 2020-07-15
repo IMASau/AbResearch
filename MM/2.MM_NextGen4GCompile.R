@@ -7,6 +7,7 @@
 ##---------------------------------------------------------------------------##
 # load libaries ####
 
+suppressPackageStartupMessages({
 library(sftp)
 library(RCurl)
 library(tidyverse)
@@ -21,11 +22,11 @@ library(lubridate)
 library(vroom)
 library(readtext)
 library(quanteda)
-
+})
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
 
-sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
+sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/sftpServerCopy"
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
