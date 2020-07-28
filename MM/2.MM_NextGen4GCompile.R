@@ -8,14 +8,14 @@
 # load libaries ####
 
 suppressPackageStartupMessages({
-library(sftp)
+# library(sftp)
 library(RCurl)
 library(tidyverse)
 library(fs)
 library(keyring)
 library(tools)
 library(R.utils)
-library(RDCOMClient)
+# library(RDCOMClient)
 library(openxlsx)
 library(fuzzyjoin)
 library(lubridate)

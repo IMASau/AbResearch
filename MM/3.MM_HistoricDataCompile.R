@@ -1595,17 +1595,24 @@ saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 
 # import latest version of compiled next generation woodham measuring board data
 
-measure.board.df.woodham <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
+# measure.board.df.woodham <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
+measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 
 # match data to existing compiled dataframes
 # remove unecessary variables and rename variables to match compiledMM.df
 
-measure.board.df.woodham.match <- measure.board.df.woodham %>% 
-   select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
-   rename(msr.date = plaindate,
-          docket.number = docketnum,
-          shell.length = shelllength,
-          whole.weight = wholeweight)
+# measure.board.df.woodham.match <- measure.board.df.woodham %>% 
+#    select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+#    rename(msr.date = plaindate,
+#           docket.number = docketnum,
+#           shell.length = shelllength,
+#           whole.weight = wholeweight)
+
+measure.board.df.non.modem.match <- measure.board.df.non.modem %>% 
+ select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+ rename(msr.date = plaindate,
+        shell.length = shelllength,
+        whole.weight = wholeweight)
 
 # join to measureboard data to docketinfo
 measure.board.df.woodham.docketinfo <- left_join(measure.board.df.woodham.match, docketinfo, by = "docket.number")

@@ -5,6 +5,7 @@
 
 # Load libaries ####
 # load required libaries and custom functions for plotting
+suppressPackageStartupMessages({
 library(RODBC)
 library(R.utils)
 library(lubridate)
@@ -31,6 +32,7 @@ library(janitor)
 library(xtable)
 library(gsubfn)
 library(ggplot2)
+}) 
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 ##-------------------------------------------------------------------------------------------------------##
 # Load data ####

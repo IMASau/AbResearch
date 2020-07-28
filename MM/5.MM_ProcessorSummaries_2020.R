@@ -961,7 +961,10 @@ tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plo
                        detectDates = T)
 
 tas.seafoods.divers.2020 <- tas.seafoods.divers.2020 %>% 
-        distinct(docketnum, .keep_all = T)
+        distinct(docketnum, divedate, .keep_all = T) %>% 
+        group_by(docketnum, diver) %>% 
+        summarise(divedate = max(divedate)) %>% 
+        mutate(docketnum = trimws(docketnum))
 
 tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
@@ -980,7 +983,7 @@ tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('d
         select(-zone) %>% 
         as.data.frame()
 
-tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>% 
+tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, df.1, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
         rename('Dive\ndate' = divedate,
                'Diver\nname' = diver,
@@ -997,7 +1000,7 @@ ggsave(
         filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_JULY2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 350,
+        height = 400,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##
