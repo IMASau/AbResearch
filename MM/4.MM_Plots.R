@@ -68,6 +68,13 @@ df.2019.blocks <- compiledMM.df.final %>%
 
 df.2019.unique.blocks <- sort(unique(df.2019.blocks$blocklist))
 
+df.2019.subblocks <- compiledMM.df.final %>%
+  filter(fishyear == stock.assessment.year
+         # & newzone == stock.assessment.zone
+         & numsubblocks <= 1)
+
+df.2019.unique.subblocks <- sort(unique(df.2019.subblocks$subblocklist))
+
 df.2019.zones <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year
          & numblocks <= 1)
@@ -169,6 +176,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 
 # join size limit data and compiledMM.df to include size limit for each observation
 compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+# compiledMM.df.1 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
 ##-------------------------------------------------------------------------------------------------------##
 # Quick summaries ####
 
@@ -177,6 +185,18 @@ proc.block <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year & 
            numblocks <= 1 &
          between(shell.length, sizelimit - 5, 220)) %>% 
+  group_by(processorname) %>% 
+  summarise(catches.single.block = n_distinct(docket.number),
+            single.block.n = n()) %>% 
+  as.data.frame() %>%
+  arrange(desc(processorname)) %>% 
+  adorn_totals(fill = '')
+
+proc.block.wt <- compiledMM.df.final %>% 
+  filter(fishyear == stock.assessment.year & 
+           numblocks <= 1 &
+      whole.weight != 0 &
+      whole.weight <= 2000) %>% 
   group_by(processorname) %>% 
   summarise(catches.single.block = n_distinct(docket.number),
             single.block.n = n()) %>% 
@@ -701,20 +721,36 @@ tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_G
 # ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
 #                         , layer = 'Ab_Blocks_MGAZ55', verbose = F)
 
-new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
-                            , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
+# new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
+                            # , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
 
-# set projection
-projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+## Set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+## Read in Subblock map as an sf::sfc polygon object
+sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+
+sf.block.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/Blacklip_block_map.gpkg")
+
+
+## Transform to GDA2020
+sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
+
+# # set projection
+# projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+# projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 # convert maps to projection
-tas.sp <- spTransform(tas.sp, projstring.mga55)
+# tas.sp <- spTransform(tas.sp, projstring.mga55)
 # ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
 # new.ab.blocks.sp <- spTransform(new.ab.blocks.sp, projstring.mga55)
 # df <- st_as_sf(new.ab.blocks.sp)
 
 # generate maps
+
+i <- "TASMANIAN SEAFOODS PTY LTD"
 
 for(i in processors.2019) {
   # summarise dataframe to determine number of catches measured per block by processor
@@ -725,44 +761,47 @@ for(i in processors.2019) {
   
   df.1 <- df.1 %>%
     group_by(subblockno) %>%
-    summarise(n = n_distinct(docket.number))
+    summarise(n = n_distinct(docket.number)) %>% 
+    mutate(blockno = as.numeric(subblockno))
   
   # ab.blocks.sp.2 <- ab.blocks.sp
-  ab.blocks.sp.2 <- new.ab.blocks.sp
+  #ab.blocks.sp.2 <- sf.block.map
   
   # add data to attribute table of spatial dataframe (e.g. number of catches per block in fishyear xxxx)
-  ab.blocks.poly <-
-    merge(ab.blocks.sp.2, df.1, by.x = 'SubBlockNo', by.y = 'subblockno')
+  # ab.blocks.poly <-
+  #   merge(ab.blocks.sp.2, df.1, by.x = 'subblockno', by.y = 'subblockno')
+  # 
+  ab.blocks.poly <- left_join(sf.block.map, df.1, by = "blockno")
   
   # https://atlan.com/courses/introduction-to-gis-r/lesson3-static-maps/
   
   # convert spatial polygon to special feature dataframe
-  df.3 <- st_as_sf(ab.blocks.poly)
+  #df.3 <- ab.blocks.poly
   
   # # convert non-sampled blocks (i.e. NA) to zero
   # df.3$n[is.na(df.3$n)] <- 0
   
   # need to fix this code to maintain colour catergories across all processors
   
-  df.3 <- df.3 %>% 
-    mutate(subblock.sampled = if_else(n > 0, as.character(SubBlockNo), ''))
+  df.3 <- ab.blocks.poly %>% 
+    mutate(subblock.sampled = if_else(n > 0, as.character(subblockno), ''))
   
   catch.plot <- df.3 %>%
     # filter(n >= 0) %>%
     tm_shape() +
     tm_fill(col = 'n',
             title = 'Catches \nmeasured',
-            breaks = c(0, 2, 5, 10, 15),
+           # breaks = c(0, 2, 5, 10, 15),
             style = 'fixed',
             textNA = 'No data',
             colorNA = 'white',
             palette = '-Spectral') +
     tm_borders(lwd = 0.5) +
     tm_text('n', size = 0.75)+
-    tm_shape(df.3)+
+   # tm_shape(df.3) +
     tm_text('subblock.sampled', size = 0.25, just = 'bottom', ymod = -0.4)
   
-  # print(catch.plot)
+  print(catch.plot)
   
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   
@@ -787,21 +826,31 @@ for(i in processors.2019) {
 # create map indicating blocks sampled in stock assessment year (for processor)
 
 # load map of Tasmania and abalone blocks
-tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
-                  , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
+# tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
+#                   , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
 
 # ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
 #                         , layer = 'Ab_Blocks_MGAZ55', verbose = F)
 
-new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
-                            , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
+# new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
+#                             , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
 
-# set projection
-projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+# read in Subblock map as an sf::sfc polygon object
+sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+
+# set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+## transform map to GDA2020
+sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
+
+# projstring.mga55 <- CRS("+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+# projstring.wgs84 <-  CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 # convert maps to projection
-tas.sp <- spTransform(tas.sp, projstring.mga55)
+# tas.sp <- spTransform(tas.sp, projstring.mga55)
 # ab.blocks.sp <- spTransform(ab.blocks.sp, projstring.mga55)
 
 # summarise dataframe to determine number of catches measured per block by processor
@@ -811,22 +860,27 @@ df.1 <- compiledMM.df.final %>%
   group_by(subblockno) %>%
   summarise(n = n_distinct(docket.number))
 
-ab.blocks.sp.2 <- new.ab.blocks.sp
+# ab.blocks.sp.2 <- new.ab.blocks.sp
+ab.blocks.sp.2 <- sf.subblock.map
 
 # add data to attribute table of spatial dataframe (e.g. number of catches per block in fishyear xxxx)
 ab.blocks.poly <-
-  merge(ab.blocks.sp.2, df.1, by.x = 'SubBlockNo', by.y = 'subblockno')
+  merge(ab.blocks.sp.2, df.1, by.x = 'subblockno', by.y = 'subblockno')
+
+ab.blocks.poly <- left_join(sf.subblock.map, df.1, by = "subblockno")
 
 # https://atlan.com/courses/introduction-to-gis-r/lesson3-static-maps/
 
 # convert spatial polygon to special feature dataframe
-df.3 <- st_as_sf(ab.blocks.poly)
+# df.3 <- st_as_sf(ab.blocks.poly)
 
 # # convert non-sampled blocks (i.e. NA) to zero
 # df.3$n[is.na(df.3$n)] <- 0
 
+df.3 <- ab.blocks.poly
+
 df.3 <- df.3 %>% 
-  mutate(subblock.sampled = if_else(n > 0, as.character(SubBlockNo), ''))
+  mutate(subblock.sampled = if_else(n > 0, as.character(subblockno), ''))
 
 # need to fix this code to maintain colour catergories across all processors
 catch.plot <- df.3 %>%
@@ -835,8 +889,8 @@ catch.plot <- df.3 %>%
   tm_fill(
     col = 'n',
     title = 'Catches \nmeasured',
-    breaks = c(0, 2, 5, 10, 15, 20),
-    labels = c('0 to 2', '2 to 5', '5 to 10', '10 to 15', '>15'),
+    breaks = c(0, 2, 5, 10, 15, 20, 50),
+    labels = c('0 to 2', '2 to 5', '5 to 10', '10 to 15', '15 to 20', '>20'),
     style = 'fixed',
     textNA = 'No data',
     colorNA = 'white',
@@ -1177,4 +1231,429 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
     )+
     facet_wrap(.~decade, scales = 'free_x', nrow = 2)
   
-  print(mm.zone.boxplot)
+  # print(mm.zone.boxplot)
+  
+##-------------------------------------------------------------------------------------------------------##
+  # 2020 weight grading ####
+
+compiledMM.df.final.grade <- compiledMM.df.final %>% 
+    mutate(grade = dplyr::if_else(whole.weight == 0, NA_character_,
+                                  dplyr::if_else(between(whole.weight, 1, 600), 'small', #0-400g can also be labelled xsmall
+                                                 dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))),
+           whole.weight = replace(whole.weight, whole.weight == 0, NA))
+  
+  # vector of unique subblockno for summary and plot loops
+  subblockno.fishyear <- compiledMM.df.final.grade %>% 
+    filter(fishyear == stock.assessment.year &
+             numsubblocks == 1) %>% 
+    distinct(subblockno) %>% 
+    pull()
+  
+  subblockno.fishyear.bl <- compiledMM.df.final.grade %>% 
+    filter(fishyear == stock.assessment.year &
+             numsubblocks == 1 &
+             species == 1) %>% 
+    distinct(subblockno) %>% 
+    pull()
+  
+  subblockno.fishyear.gl <- compiledMM.df.final.grade %>% 
+    filter(fishyear == stock.assessment.year &
+             numsubblocks == 1 &
+             species == 2) %>% 
+    distinct(subblockno) %>% 
+    pull()
+  
+  # determine number of abalone measured per blockno
+  blockno.n.meas <- compiledMM.df.final.grade %>% 
+    filter(fishyear == stock.assessment.year &
+             between(shell.length, sizelimit - 5, 220)) %>% 
+    group_by(newzone, blocklist) %>% 
+    summarise(ab.meas = n()) 
+  
+  blockno.n.weighed <- compiledMM.df.final.grade %>% 
+    filter(!is.na(whole.weight) &
+             fishyear == stock.assessment.year) %>%
+    group_by(newzone, blocklist) %>% 
+    summarise(ab.weighed = n())
+  
+  
+  blockno.n <- left_join(docknum.n.meas, docknum.n.weighed)
+  
+  # determine number of abalone measured by grade per block
+  blockno.grade.meas <- compiledMM.df.final.grade %>% 
+    filter(!is.na(whole.weight) &
+             fishyear == stock.assessment.year) %>% 
+    group_by(newzone, blocklist, grade) %>% 
+    summarise(grade.meas = n())
+  
+  # create a dataframe of weight grading threshold for plotting reference lines
+  grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
+                       lab = c('Small', 'Medium', 'Large'))
+  
+  #---------------------------------------------------------------------------##
+  i = 'W'
+  j = 11
+  
+  ## PLOT 8: LT + WT combined ####
+  # combine weight and length summaryplot on the same page
+  
+  for (i in df.2019.unique.zones) {
+    for (j in df.2019.unique.blocks) {
+    # create length plot
+    plot.length.freq.dat <- compiledMM.df.final.grade %>%
+      filter(
+        newzone == i
+        & blocklist == j
+        & fishyear == stock.assessment.year
+        & between(shell.length, sizelimit - 5, 220))
+    
+    plot.n.measured <- compiledMM.df.final.grade %>% 
+      filter(!is.na(shell.length) &
+               newzone == i
+             & blocklist == j
+             & fishyear == stock.assessment.year
+             & between(shell.length, sizelimit - 5, 220)) %>%
+      # distinct(abalonenum, rawutc, .keep_all = T) %>%  
+      summarise(n = paste('n =', n()))
+    
+    plot.weight.freq.dat <- compiledMM.df.final.grade %>%
+      filter(
+        newzone == i &
+          blocklist == j &
+          fishyear == stock.assessment.year &
+          whole.weight != 0 &
+          whole.weight <= 2000)
+    
+    if (nrow(plot.weight.freq.dat) == 0) next
+    
+    plot.zone <- unique(plot.length.freq.dat$newzone)
+    plot.block <- unique(plot.length.freq.dat$blocklist)
+    
+    length.freq.plot <- ggplot(plot.length.freq.dat, aes(shell.length)) +
+      geom_histogram(
+        aes(y = ..density.. * 5),
+        fill = '#EFC000FF',
+        col = 'black',
+        binwidth = 5,
+        alpha = 0.6
+      ) +
+      coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.45)) +
+      theme_bw() +
+      xlab("Shell Length (mm)") +
+      ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+      # geom_vline(aes(xintercept = 138), colour = 'red',
+      #            linetype = 'dashed', size = 0.5)+
+      geom_vline(
+        aes(xintercept = ifelse(newzone == 'W', 145, 138)),
+        linetype = 'dashed',
+        colour = 'red',
+        size = 0.5
+      ) +
+      scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+      geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+    
+    # print(length.freq.plot)
+    
+    xbp.len <- ggplot(plot.length.freq.dat,
+                      aes(
+                        x = factor(blocklist),
+                        y = shell.length,
+                        group = blocklist
+                      )) +
+      geom_boxplot(
+        fill = 'lightgray',
+        outlier.colour = "black",
+        outlier.size = 1.5,
+        position = position_dodge(0.85),
+        width = 0.5
+      ) +
+      rotate() +
+      theme_transparent()
+    
+    # print(xbp.len)
+    
+    xbp_grob <- ggplotGrob(xbp.len)
+    xmin.len <- min(plot.length.freq.dat$shell.length)
+    xmax.len <- max(plot.length.freq.dat$shell.length)
+    
+    length.plot <- length.freq.plot +
+      annotation_custom(
+        grob = xbp_grob,
+        xmin = xmin.len,
+        xmax = xmax.len,
+        ymin = 0.3
+      )
+    
+    # create weight plot
+    weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(whole.weight)) +
+      geom_histogram(
+        aes(y = ..density.. * 50),
+        fill = '#0073C2FF',
+        col = 'black',
+        binwidth = 50,
+        alpha = 0.6
+      ) +
+      coord_cartesian(xlim = c(300, 1300),
+                      ylim = c(0, 0.35)) +
+      theme_bw() +
+      theme(panel.grid = element_blank()) +
+      xlab("Whole weight (g)") +
+      ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+      geom_vline(aes(xintercept = 400),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_vline(aes(xintercept = 600),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_vline(aes(xintercept = 800),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_text(
+        data = grades,
+        aes(
+          x = x,
+          y = y,
+          label = lab
+        ),
+        inherit.aes = FALSE,
+        vjust = 0.5,
+        hjust = 0.5,
+        size = 4,
+        angle = 0,
+        colour = c(
+          'small' = '#EFC000FF',
+          'medium' = '#0073C2FF',
+          'large' = '#CD534CFF'
+        )
+      ) +
+      scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
+    
+    # print(weight.freq.plot)
+    
+    xbp.wt <- ggplot(
+      plot.weight.freq.dat,
+      aes(
+        x = factor(blocklist),
+        y = whole.weight,
+        group = blocklist
+      )
+    ) +
+      geom_boxplot(
+        fill = 'lightgray',
+        outlier.colour = "black",
+        outlier.size = 1.5,
+        position = position_dodge(0.85),
+        width = 0.3
+      ) +
+      stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+      rotate() +
+      theme_transparent()
+    
+    # print(xbp.wt)
+    
+    xbp_grob <- ggplotGrob(xbp.wt)
+    xmin.wt <- min(plot.weight.freq.dat$whole.weight)
+    xmax.wt <- max(plot.weight.freq.dat$whole.weight)
+    
+    # weight.freq.plot +
+    #         annotation_custom(grob = xbp_grob, xmin = xmin.wt, xmax = xmax.wt,  ymin = 0.17)
+    
+    # add pie chart to weight frequency plot
+    
+    blockno.grade.summary <-
+      left_join(blockno.n.meas, blockno.grade.meas, by = c('blocklist', 'newzone')) %>%
+      mutate(grade.perc = round((grade.meas / ab.meas) * 100))
+    
+    pie.plot.dat <- blockno.grade.summary %>%
+      filter(newzone == i &
+               blocklist == j) %>%
+      mutate(
+        lab.position = cumsum(grade.perc),
+        lab.y.position = lab.position - grade.perc / 2,
+        lab = paste0(grade.perc, "%")
+      )
+    
+    docket.pie.plot <-
+      ggplot(data = pie.plot.dat, aes(
+        x = "",
+        y = grade.perc,
+        fill = grade
+      )) +
+      geom_bar(stat = "identity", colour = 'white') +
+      coord_polar(theta = "y") +
+      geom_text(
+        aes(label = lab),
+        position = position_stack(vjust = 0.5),
+        colour = 'white',
+        size = 5
+      ) +
+      theme_void() +
+      theme(legend.position = 'none') +
+      scale_fill_manual(
+        values = c(
+          'small' = '#EFC000FF',
+          'medium' = '#0073C2FF',
+          'large' = '#CD534CFF'
+        )
+      )
+    # labs(fill = (paste('Grade')))
+    
+    # print(docket.pie.plot)
+    
+    pp_grob <- ggplotGrob(docket.pie.plot)
+    
+    wt.plot <- weight.freq.plot +
+      annotation_custom(
+        grob = xbp_grob,
+        xmin = xmin.wt,
+        xmax = xmax.wt,
+        ymin = 0.25
+      ) +
+      annotation_custom(
+        grob = pp_grob,
+        xmin = 900,
+        xmax = 1200,
+        ymax = 0.4
+      )
+    
+    #combine length and weight plots
+    
+    plot.a <- grid.arrange(
+      arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
+                                     ncol = 1), ncol = 1))
+    
+    #save plots
+    setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+    file.zone <- unique(plot.length.freq.dat$zone)
+    file.block <- unique(plot.length.freq.dat$blocklist)
+    
+    ggsave(
+      filename = paste(i, "_", "BlockNo", j, '_LW_SUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
+      plot = plot.a,
+      width = 200,
+      height = 297,
+      units = 'mm')
+    
+    ggsave(
+      filename = paste(i, "_", "BlockNo", j, '_LW_SUMMARYPLOT_', stock.assessment.year, '.png', sep = ''),
+      plot = plot.a,
+      width = 200,
+      height = 297,
+      units = 'mm')
+    
+    }
+  }
+  
+  #---------------------------------------------------------------------------##
+  ## PLOT 9: Length ####
+  # overlay length frequency histogram with boxplot
+  
+  for (i in df.2019.unique.zones) {
+    for (j in df.2019.unique.blocks) {
+      
+    plot.length.freq.dat <- compiledMM.df.final.grade %>%
+      filter(
+        newzone == i
+        & blocklist == j
+        & fishyear == stock.assessment.year
+        & between(shell.length, sizelimit - 5, 220))
+    
+    plot.n.measured <- compiledMM.df.final.grade %>% 
+      filter(!is.na(shell.length) &
+               newzone == i
+             & blocklist == j
+             & fishyear == stock.assessment.year
+             & between(shell.length, sizelimit - 5, 220)) %>%
+      # distinct(abalonenum, rawutc, .keep_all = T) %>%  
+      summarise(n = paste('n =', n()))
+    
+    if (nrow(plot.length.freq.dat) == 0) next
+    
+    plot.zone <- unique(plot.length.freq.dat$newzone)
+    
+    length.freq.plot <- ggplot(plot.length.freq.dat, aes(shell.length)) +
+      geom_histogram(
+        aes(y = ..density.. * 5),
+        fill = '#EFC000FF',
+        col = 'black',
+        binwidth = 5,
+        alpha = 0.6
+      ) +
+      coord_cartesian(xlim = c(110, 200), ylim = c(0, 0.4))+
+      # coord_cartesian(xlim = ifelse(plot.zone == 'N', c(100, 200), c(130, 200)), ylim = c(0, 0.4))
+      theme_bw() +
+      xlab("Shell Length (mm)") +
+      ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+      # geom_vline(aes(xintercept = 138), colour = 'red',
+      #            linetype = 'dashed', size = 0.5)+
+      # geom_vline(
+      #   aes(xintercept = ifelse(newzone == 'W', 145, 138)),
+      #   linetype = 'dashed',
+      #   colour = 'red',
+      #   size = 0.5
+      # ) +
+      geom_vline(aes(xintercept = ifelse(newzone == 'W', 145,
+                                         ifelse(newzone == 'E', 138,
+                                                ifelse(species == 2 & subblockno %in% c('48B', '48C', '39B', '39A'), 145,
+                                                       ifelse(subblockno %in% c('31B', '39B', '39A'), 127,
+                                                              ifelse(subblockno == '49D', 132,
+                                                                     ifelse(subblockno == '04A', 150,
+                                                                            ifelse(subblockno == '02C', 150, 138)))))))),
+                 linetype = 'dashed', colour = 'red', size = 0.5)+
+      scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+      geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+    
+    # print(length.freq.plot)
+    
+    xbp.len <- ggplot(plot.length.freq.dat,
+                      aes(
+                        x = factor(blocklist),
+                        y = shell.length,
+                        group = blocklist
+                      )) +
+      geom_boxplot(
+        fill = 'lightgray',
+        outlier.colour = "black",
+        outlier.size = 1.5,
+        position = position_dodge(0.85),
+        width = 0.5
+      ) +
+      rotate() +
+      theme_transparent()
+    
+    # print(xbp.len)
+    
+    xbp_grob <- ggplotGrob(xbp.len)
+    xmin.len <- min(plot.length.freq.dat$shell.length)
+    xmax.len <- max(plot.length.freq.dat$shell.length)
+    
+    length.plot <- length.freq.plot +
+      annotation_custom(
+        grob = xbp_grob,
+        xmin = xmin.len,
+        xmax = xmax.len,
+        ymin = 0.3
+      )
+    
+    setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+    ggsave(
+      filename = paste(i, '_', 'BlockNo', j, '_LENGTHSUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
+      plot = length.plot,
+      width = 7.4,
+      height = 5.57,
+      units = 'in'
+    )
+    
+    ggsave(
+      filename = paste(i, '_', 'BlockNo', j, '_LENGTHSUMMARYPLOT_', stock.assessment.year, '.png', sep = ''),
+      plot = length.plot,
+      width = 7.4,
+      height = 5.57,
+      units = 'in'
+      )
+    
+    }
+  }
+  
+

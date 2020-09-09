@@ -25,6 +25,9 @@ library(gridExtra)
 # measure.board.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
 measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
+measure.board.next.gen.df <- measure.board.next.gen.df %>% 
+        filter(docketnum != 369852)
+
 # quick summary of catches measured by processor
 measure.board.next.gen.df %>% 
         group_by(processor) %>% 
@@ -64,7 +67,7 @@ docknum.n <- left_join(docknum.n.meas, docknum.n.weighed)
 # determine number of abalone measured by grade per docket
 docknum.grade.meas <- mb.next.gen.grade.df %>% 
         filter(!is.na(wholeweight)) %>% 
-        group_by(docketnum, grade, processor) %>% 
+        group_by(docketnum, grade, processor, plaindate) %>% 
         summarise(grade.meas = n())
 
 ##-------------------------------------------------------------------------------------------------------##
@@ -74,13 +77,16 @@ for(i in processors){
 
 # join number of abalone measured per docket and grade, and calculate percentage measured per grade to 
 # create grade summary table
-grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
+grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
         filter(processor == i) %>% 
-        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%    
         ungroup() %>% 
         select(-c(grade.meas, processor)) %>% 
-        spread(grade, grade.perc) %>% 
-        rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+        spread(grade, grade.perc) %>%  
+        # rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+        {if('large' %in% names(.)) rename(., "Large\n(%)" = large) else .} %>%
+        {if('medium' %in% names(.)) rename(., "Medium\n(%)" = medium) else .} %>%
+        {if('small' %in% names(.)) rename(., "Small\n(%)" = small) else .} %>%
         {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>%
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
@@ -204,7 +210,7 @@ grades <- data.frame(y = 0.35, x = c(500, 700, 900),
 for (i in new.dockets) {
         plot.length.freq.dat <- measure.board.next.gen.df %>%
                 filter(docketnum == i &
-                               between(shelllength, 120, 200))
+                               between(shelllength, 100, 200))
         
         plot.zone <- unique(plot.length.freq.dat$zone)
         
@@ -216,14 +222,15 @@ for (i in new.dockets) {
                         binwidth = 5,
                         alpha = 0.6
                 ) +
-                coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.4)) +
+                coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.4)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
                 ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
-                        aes(xintercept = ifelse(zone == 'AW', 145, 138)),
+                        aes(xintercept = ifelse(zone == 'AW', 145, 
+                                                ifelse(zone == 'AB', 114, 138))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
@@ -294,7 +301,7 @@ for (j in new.dockets) {
                                 binwidth = 50,
                                 alpha = 0.6
                         ) +
-                        coord_cartesian(xlim = c(300, 1200),
+                        coord_cartesian(xlim = c(100, 1200),
                                         ylim = c(0, 0.35)) +
                         theme_bw() +
                         theme(panel.grid = element_blank()) +
@@ -361,8 +368,8 @@ for (j in new.dockets) {
                 
                 # add pie chart to weight frequency plot
                 docketnum.grade.summary <-
-                        left_join(docknum.n.meas, docknum.grade.meas, by = 'docketnum') %>%
-                        mutate(grade.perc = round((grade.meas / ab.meas) * 100))
+                        left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>%
+                        mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
                 
                 pie.plot.dat <- docketnum.grade.summary %>%
                         filter(docketnum == j) %>%
@@ -437,7 +444,7 @@ for (i in new.dockets) {
         # create length plot
         plot.length.freq.dat <- measure.board.next.gen.df %>%
                 filter(docketnum == i &
-                               between(shelllength, 120, 200))
+                               between(shelllength, 100, 200))
         
         plot.zone <- unique(plot.length.freq.dat$zone)
         
@@ -449,14 +456,15 @@ for (i in new.dockets) {
                         binwidth = 5,
                         alpha = 0.6
                 ) +
-                coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.45)) +
+                coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
                 ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
-                        aes(xintercept = ifelse(zone == 'AW', 145, 138)),
+                        aes(xintercept = ifelse(zone == 'AW', 145, 
+                                                ifelse(zone == 'AB', 114, 138))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
@@ -509,7 +517,7 @@ for (i in new.dockets) {
                         binwidth = 50,
                         alpha = 0.6
                 ) +
-                coord_cartesian(xlim = c(300, 1300),
+                coord_cartesian(xlim = c(100, 1300),
                                 ylim = c(0, 0.35)) +
                 theme_bw() +
                 theme(panel.grid = element_blank()) +
@@ -577,8 +585,8 @@ for (i in new.dockets) {
         # add pie chart to weight frequency plot
         
         docketnum.grade.summary <-
-                left_join(docknum.n.meas, docknum.grade.meas, by = 'docketnum') %>%
-                mutate(grade.perc = round((grade.meas / ab.meas) * 100))
+                left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>%
+                mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
         
         pie.plot.dat <- docketnum.grade.summary %>%
                 filter(docketnum == i) %>%
@@ -983,7 +991,7 @@ tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('d
         select(-zone) %>% 
         as.data.frame()
 
-tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, df.1, by = c('Docket\nno.' = 'docketnum')) %>%  
+tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
         rename('Dive\ndate' = divedate,
                'Diver\nname' = diver,
@@ -997,10 +1005,10 @@ tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>%
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_JULY2020', '.pdf', sep = ''),
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_SEPTEMBER2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 400,
+        height = 550,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##

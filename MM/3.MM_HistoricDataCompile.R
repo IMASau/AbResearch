@@ -1586,74 +1586,57 @@ compiledMM.df <- bind_rows(compiled.docket.pre.2020, compiled.docket.next.gen)
 saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
-## compiled.docket.woodham ####
-## this data has been collected by Greg Woodham since January 2020 using a 
-## next generation measuring board paired to his gps logger which transfers the data via 4G.
-## These board differ in that they rely on the gps logger to transfer the data rather than an
-## inbuilt 4G modem. Data differ in that block details are sometimes manually provided for multi-day
-## trips where multiple catches/blocks may be added to the same docket number (e.g. western zone).
+## compiled.docket.non.modem ####
+
+# this data has been collected since 2020 using the Next Generation non-modem measuring boards which
+# are paired to 4G GPS logger issued to divers which then upload data to the stfp server. 
+# data are compiled in the seperate script 'MM_NextGenMeasureBoard_Woodham.R'.
+# as of August 2020 there are three active boards with divers: Greg Woodham, Ben Allen, and Sean Larby
 
 # import latest version of compiled next generation woodham measuring board data
 
-# measure.board.df.woodham <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham/measure.board.df.woodham.RDS')
 measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 
 # match data to existing compiled dataframes
-# remove unecessary variables and rename variables to match compiledMM.df
-
-# measure.board.df.woodham.match <- measure.board.df.woodham %>% 
-#    select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
-#    rename(msr.date = plaindate,
-#           docket.number = docketnum,
-#           shell.length = shelllength,
-#           whole.weight = wholeweight)
-
 measure.board.df.non.modem.match <- measure.board.df.non.modem %>% 
- select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+ select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, logname)) %>% 
  rename(msr.date = plaindate,
         shell.length = shelllength,
-        whole.weight = wholeweight)
-
-# join to measureboard data to docketinfo
-measure.board.df.woodham.docketinfo <- left_join(measure.board.df.woodham.match, docketinfo, by = "docket.number")
-
-# adjust blocklist and subblocklist for records where the block number has been recorded for the sample
-# these mainly refer to multi-day trips where multiple catches are recorded on the same docket number however
-# the measurer (i.e. diver) has noted specifically the sub-block they measured the catch from.
-# Note: the sub-block provided by the diver may differ slightly from the processor docketinfo.
-
-measure.board.df.woodham.docketinfo <- measure.board.df.woodham.docketinfo %>% 
-   mutate(processorname = 'GREG WOODHAM',
-          proc = NA,
-          numprocs = NA,
-          proclist = NA,
-          blocklist = ifelse(!is.na(blockno), parse_number(as.character(blockno)), blocklist),
-          subblocklist = ifelse(!is.na(blockno), as.character(blockno), subblocklist)) %>% 
+        whole.weight = wholeweight,
+        processorname = processor) %>% 
+   mutate(proc = NA,
+       numprocs = NA,
+       proclist = NA,
+       blocklist = blockno,
+       subblocklist = subblockno,
+       datasource = '2020NONMODEM',
+       msr.date = as.Date(msr.date),
+       daylist = as.character(msr.date),
+       daylist_max = msr.date,
+       msr.date.diff = as.numeric(msr.date - daylist_max),
+       newzone = zone,
+       numdays = 1,
+       numblocks = 1,
+       numsubblocks = 1,
+       catch = NA) %>% 
    select(-blockno)
 
-# add variable to distinguish datasource
-measure.board.df.woodham.docketinfo$datasource <- '2020WOODHAM'
-
 # summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
-n.per.docket <- measure.board.df.woodham.docketinfo %>% 
-   group_by(docket.number, msr.date) %>%
+n.per.docket <- measure.board.df.non.modem.match %>% 
+   group_by(sample.id, species, msr.date) %>%
    summarise(n = length(shell.length),
              meanSL = round(mean(shell.length, na.rm = T), 1),
              minSL = round(min(shell.length), 1))
 
 # match docketinfo.epro to the n.per.docket dataframe
-docket.join <- inner_join(n.per.docket, measure.board.df.woodham.docketinfo, by = c("docket.number", 'msr.date'))
-
-# add date difference column
-docket.join <- docket.join %>%
-   ungroup() %>%
-   mutate(msr.date = as.Date(msr.date)) %>%
-   mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
+docket.join <- inner_join(n.per.docket, measure.board.df.non.modem.match, 
+                          by = c("sample.id", 'species', 'msr.date')) %>% 
+   ungroup() %>% 
+   select(-(sample.id))
 
 # subset data and filter out uneeded or duplicated variables
-compiled.docket.woodham <- docket.join %>%
+compiled.docket.non.modem <- docket.join %>%
    select(
-      docket.number,
       msr.date,
       proc,
       processorname,
@@ -1672,6 +1655,7 @@ compiled.docket.woodham <- docket.join %>%
       n,
       meanSL,
       minSL,
+      species,
       shell.length,
       whole.weight,
       datasource
@@ -1679,7 +1663,7 @@ compiled.docket.woodham <- docket.join %>%
 
 # save RDS file
 
-saveRDS(compiled.docket.woodham, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.woodham.RDS')
+saveRDS(compiled.docket.non.modem, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.non.modem.RDS')
 
 # join dataframe to historical length frequency compiled data frame
 
@@ -1687,9 +1671,7 @@ saveRDS(compiled.docket.woodham, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.wood
 compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
 
 # merge most recent compile of historic data and next gen measureboard data with woodham data
-# will need to place a filter here or check for duplication as more data is compiled and
-# added (9-06-2020) 
-compiledMM.df <- bind_rows(compiledMM.df, compiled.docket.woodham)
+compiledMM.df <- bind_rows(compiledMM.df, compiled.docket.non.modem)
 
 ## save compiledMM.df ####
 
@@ -1719,6 +1701,7 @@ rm(list=ls()[! ls() %in% c('err.docket.match', 'abdb.distinct','abdb.docket.uniq
 
 compiledMM.df.copy <- compiledMM.df
 # compiledMM.df <- compiledMM.df.copy
+# compiledMM.df <- compiledMM.df.2
 
 # some sub-blocks have an 'N' making it read 'NA', remove N and replace with ''
 
