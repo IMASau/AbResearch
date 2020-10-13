@@ -32,7 +32,9 @@ measure.board.next.gen.df <- measure.board.next.gen.df %>%
 measure.board.next.gen.df %>% 
         group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
-                  n = n()) %>% 
+                  n = n(),
+                  last.sample = max(plaindate)) %>% 
+        janitor::adorn_totals() %>% 
         as.data.frame()
 
 # add weight grading categories used by processors
@@ -84,14 +86,14 @@ grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'p
         select(-c(grade.meas, processor)) %>% 
         spread(grade, grade.perc) %>%  
         # rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
-        {if('large' %in% names(.)) rename(., "Large\n(%)" = large) else .} %>%
-        {if('medium' %in% names(.)) rename(., "Medium\n(%)" = medium) else .} %>%
-        {if('small' %in% names(.)) rename(., "Small\n(%)" = small) else .} %>%
-        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>%
+        {if('large' %in% names(.)) dplyr::rename(., "Large\n(%)" = large) else .} %>%
+        {if('medium' %in% names(.)) dplyr::rename(., "Medium\n(%)" = medium) else .} %>%
+        {if('small' %in% names(.)) dplyr::rename(., "Small\n(%)" = small) else .} %>%
+        {if('xsmall' %in% names(.)) dplyr::rename(., "XSmall (%)" = xsmall) else .} %>%
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
-        rename('Sample\ndate' = plaindate,
+        dplyr::rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum,
                'Abalone\nmeasured' = ab.meas,
                'Abalone\nweighed' = ab.weighed) %>% 
@@ -113,7 +115,7 @@ length.weight.summary <- mb.next.gen.grade.df %>%
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
-        rename('Sample\ndate' = plaindate,
+        dplyr::rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum) %>% 
         ungroup() %>% 
         select(-c(processor, zone)) %>% 
@@ -145,7 +147,7 @@ ggsave(
         filename = paste(i, '_WEIGHTGRADESUMMARY_', '.pdf', sep = ''),
         plot = grade.summary.formated,
         width = 200,
-        height = 297,
+        height = 600,
         units = 'mm'
 )
 
@@ -153,7 +155,7 @@ ggsave(
         filename = paste(i, '_LENGTHWEIGHTSUMMARY_', '.pdf', sep = ''),
         plot = length.weight.summary.formated,
         width = 250,
-        height = 297,
+        height = 600,
         units = 'mm'
 )
 
@@ -230,7 +232,8 @@ for (i in new.dockets) {
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
                         aes(xintercept = ifelse(zone == 'AW', 145, 
-                                                ifelse(zone == 'AB', 114, 138))),
+                                                ifelse(zone == 'AB', 114, 
+                                                       ifelse(zone == 'AN', 127, 138)))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
@@ -464,7 +467,8 @@ for (i in new.dockets) {
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
                         aes(xintercept = ifelse(zone == 'AW', 145, 
-                                                ifelse(zone == 'AB', 114, 138))),
+                                                ifelse(zone == 'AB', 114, 
+                                                       ifelse(zone == 'AN', 127, 138)))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
@@ -974,18 +978,18 @@ tas.seafoods.divers.2020 <- tas.seafoods.divers.2020 %>%
         summarise(divedate = max(divedate)) %>% 
         mutate(docketnum = trimws(docketnum))
 
-tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor')) %>% 
+tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
         mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
         ungroup() %>% 
         select(-c(grade.meas, processor)) %>% 
         spread(grade, grade.perc) %>% 
-        rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
-        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>%
+        dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
-        rename('Sample\ndate' = plaindate,
+        dplyr::rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum,
                'Abalone\nmeasured' = ab.weighed) %>% 
         select(-zone) %>% 
@@ -993,7 +997,7 @@ tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('d
 
 tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
-        rename('Dive\ndate' = divedate,
+        dplyr::rename('Dive\ndate' = divedate,
                'Diver\nname' = diver,
                'Date\nsampled' = 'Sample\ndate',
                'Number\nsampled' = 'Abalone\nmeasured')
@@ -1008,7 +1012,7 @@ ggsave(
         filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_SEPTEMBER2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 550,
+        height = 600,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##

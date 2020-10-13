@@ -2,14 +2,12 @@
 # load libaries ####
 
 suppressPackageStartupMessages({
-# library(sftp)
 library(RCurl)
 library(tidyverse)
 library(fs)
 library(keyring)
 library(tools)
 library(R.utils)
-# library(RDCOMClient)
 library(openxlsx)
 library(fuzzyjoin)
 library(lubridate)
@@ -48,17 +46,22 @@ imp_dir <- measureboard.non.modem
 out_dir <- measureboard.non.modem
 
 ## UnPack compressed files (tar.gz) ####
+
 # Get a full list of all compressed files in the import directory
 dirlist_cmp <- list_files_with_exts(imp_dir,c("tar.gz"), full.names=FALSE)
+
 # Get a full list of all unpacked .txt files in the export directory
 dirlist_txt <- list_files_with_exts(out_dir,c("txt"), full.names=FALSE)
+
 ## Convert both lists to data frames and combine
 dirlistdf_cmp <- as.data.frame(dirlist_cmp)
 dirlistdf_cmp$dirlist_cmp <- as.character(dirlistdf_cmp$dirlist_cmp)
-dirlistdf_cmp <- dirlistdf_cmp %>% rename(FileName = dirlist_cmp)
+dirlistdf_cmp <- dirlistdf_cmp %>% 
+  dplyr::rename(FileName = dirlist_cmp)
 dirlistdf_txt <- as.data.frame(dirlist_txt)
 dirlistdf_txt$dirlist_txt <- as.character(dirlistdf_txt$dirlist_txt)
-dirlistdf_txt <- dirlistdf_txt %>% rename(FileName = dirlist_txt)
+dirlistdf_txt <- dirlistdf_txt %>% 
+  dplyr::rename(FileName = dirlist_txt)
 
 dirlistdf_unp <- rbind(dirlistdf_cmp,dirlistdf_txt)
 
@@ -110,15 +113,14 @@ colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack
 unique(logged.data$logname)
 
 # identify number of records for each identifier
-table(logged.data$identifier)
+# table(logged.data$identifier)
 
 logged.data$logger_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "GMT")
 logged.data$local_date <- as.POSIXct(logged.data$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
 logged.data <- logged.data %>%  
  mutate(plaindate = as.Date(local_date, tz="Australia/BRISBANE"))
 
-tail(logged.data)
-
+# tail(logged.data)
 
 ##---------------------------------------------------------------------------##
 ## Check LoggerName data ####
@@ -132,7 +134,7 @@ logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",",
 logname <- logname %>% 
   distinct(logname, seqindex, identifier, .keep_all = T)
 
-tail(logname)
+# tail(logname)
 
 ##---------------------------------------------------------------------------##
 ## Step 2: Extract Battery voltage  ####
@@ -143,7 +145,7 @@ loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
  arrange(logname,local_date) %>% 
  as.data.frame()
 
-tail(loggerbattery)
+# tail(loggerbattery)
 
 ##---------------------------------------------------------------------------##
 ## Step 3A: Extract GPS RMC Part A  ####
@@ -152,7 +154,10 @@ gps.RMC_A <- filter(logged.data, identifier == 220) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-tail(gps.RMC_A)
+gps.RMC_A <- gps.RMC_A %>% 
+  distinct(logname, rawutc, longitude, latitude, .keep_all = T)
+
+# tail(gps.RMC_A)
 
 ##---------------------------------------------------------------------------##
 ## Step 3B: Extract GPS RMC Part B ####
@@ -161,22 +166,26 @@ gps.RMC_B <- filter(logged.data, identifier == 221) %>%
           convert = FALSE) %>%
  as.data.frame()
 
-tail(gps.RMC_B)
+gps.RMC_B <- gps.RMC_B %>% 
+  distinct(logname, rawutc, .keep_all = T)
+
+# tail(gps.RMC_B)
 
 ##---------------------------------------------------------------------------##
 ## Step 3C: Join RMC Part A & B   ####
 
-gps.RMC <- left_join(gps.RMC_B,select(gps.RMC_A, local_date, longitude, latitude), by=c("local_date")) 
+gps.RMC <- left_join(gps.RMC_B, select(gps.RMC_A, logname, local_date, longitude, latitude), by = c('logname', "local_date")) 
+
 
 # remove duplicate records resulting from upload failures or loggers going out of range 
 # and filter out measuring board records
 gps.RMC <- gps.RMC %>%
   distinct(logname, seqindex, identifier, .keep_all = T) %>% 
   filter(grepl('^07', logname))
- 
-tail(gps.RMC)
 
-table(gps.RMC$plaindate)
+# tail(gps.RMC)
+
+# table(gps.RMC$plaindate)
 
 ##---------------------------------------------------------------------------##
 ## Step 4: Extract Docket details ####
@@ -189,7 +198,7 @@ docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep =
 docket <- docket %>% 
   distinct(logname, seqindex, identifier, .keep_all = T)
 
-tail(docket)
+# tail(docket)
 
 ##---------------------------------------------------------------------------##
 ## Step 5: Extract length ####
@@ -202,7 +211,7 @@ ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = "
 ablength <- ablength %>% 
   distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
-tail(ablength)
+# tail(ablength)
 
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
@@ -215,22 +224,27 @@ abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = "
 abweight <- abweight %>% 
   distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
-tail(abweight)
+# tail(abweight)
 
 ##---------------------------------------------------------------------------##
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, rawutc, abalonenum), by = "rawutc") %>% 
+                          select(logname, rawutc, abalonenum), by = "rawutc") %>%  
  left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
  left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
  left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
 
-tail(lengthweight)
+# tail(lengthweight)
 
 measure.board.df <- lengthweight
 
 measure.board.df.non.modem <- measure.board.df
+
+#remove duplicate data where duplicate rawutc times have occured 
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  distinct(logname, rawutc, .keep_all = T) 
+
 ##---------------------------------------------------------------------------##
 # manually add species and zone for known greenlip catches
 
@@ -282,12 +296,19 @@ allen.gl <- measure.board.df.non.modem %>%
                                   "2020-08-26"))) %>% 
   mutate(species = 2)
 
-# combine Woodham and Allen greenlip data
-woodham.allen.gl <- bind_rows(woodham.gl, allen.gl)
+# Sean Larby greenlip data from 2020-09-09
+
+larby.gl <- measure.board.df.non.modem %>% 
+  filter(logname == '07010053' &
+           plaindate %in% as.Date(c("2020-09-09", "2020-09-29"))) %>% 
+           mutate(species = 2)
+
+# combine Woodham, Allen and Larby greenlip data
+woodham.allen.larby.gl <- bind_rows(woodham.gl, allen.gl, larby.gl)
 
 # re-join Woodham and Allen data to main dataframe
 
-measure.board.df.non.modem <- left_join(measure.board.df.non.modem, woodham.allen.gl) %>% 
+measure.board.df.non.modem <- left_join(measure.board.df.non.modem, woodham.allen.larby.gl) %>% 
   mutate(species = ifelse(is.na(species), 1, species),
          zone = ifelse(species == 2, 'G', zone))
 
@@ -312,10 +333,6 @@ measure.board.df.non.modem <- mb.df.non.modem.seq.no.join %>%
  filter(sample.n >= 5) %>% 
  select(-c(sample.id, sample.n))
 
-## remove any other known testing data
-# measure.board.df.non.modem <- measure.board.df.non.modem %>% 
-#  filter(plaindate != '2020-06-30')
-
 measure.board.df.non.modem <- measure.board.df.non.modem %>% 
   filter(logname %in% c('07010050', '07010053') &
            plaindate %in% as.Date(c('2020-06-30',
@@ -337,8 +354,103 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
 measure.board.df.non.modem <- measure.board.df.non.modem %>% 
   mutate(latitude = na_if(as.numeric(latitude), 0),
          longitude = na_if(as.numeric(longitude), 0)) %>%  
-  fill(latitude, .direction = 'updown') %>% 
-  fill(longitude, .direction = 'updown')
+  fill(latitude, .direction = 'downup') %>% 
+  fill(longitude, .direction = 'downup')
+
+# fix GPS erroneous GPS coordinates
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>%
+  mutate(
+    long.adj = if_else(
+      abalonenum == 0 &
+        logname == lead(logname) &
+        plaindate == lead(plaindate) &
+        between(longitude - lead(longitude), -2, 2),
+      longitude,
+      if_else(
+        abalonenum == 0 &
+          logname == lead(logname) &
+          plaindate == lead(plaindate) &
+          (longitude - lead(longitude) < -2),
+        lead(longitude),
+        if_else(
+          abalonenum == 0 &
+            logname == lead(logname) &
+            plaindate == lead(plaindate) &
+            (longitude - lead(longitude) > 2),
+          lead(longitude),
+          if_else(
+            logname == lag(logname) &
+              logname == lead(logname) &
+              plaindate == lag(plaindate) &
+              abalonenum == (lag(abalonenum) + 1) &
+              (longitude - ((lag(
+                longitude
+              )) + (lead(
+                longitude
+              ))) / 2 < -2) |
+              (longitude - ((lag(
+                longitude
+              )) + (lead(
+                longitude
+              ))) / 2 > 2),
+            ((lag(longitude)) + (lead(longitude))) / 2,
+            longitude
+          )
+        )
+      )
+    ),
+    lat.adj = if_else(
+      abalonenum == 0 &
+        logname == lead(logname) &
+        plaindate == lead(plaindate) &
+        between(latitude - lead(latitude), -2, 2),
+      latitude,
+      if_else(
+        abalonenum == 0 &
+          logname == lead(logname) &
+          plaindate == lead(plaindate) &
+          (latitude - lead(latitude) < -2),
+        lead(latitude),
+        if_else(
+          abalonenum == 0 &
+            logname == lead(logname) &
+            plaindate == lead(plaindate) &
+            (latitude - lead(latitude) > 2),
+          lead(latitude),
+          if_else(
+            logname == lag(logname) &
+              logname == lead(logname) &
+              plaindate == lag(plaindate) &
+              abalonenum == (lag(abalonenum) + 1) &
+              (latitude - ((lag(
+                latitude
+              )) + (lead(
+                latitude
+              ))) / 2 < -2) |
+              (latitude - ((lag(
+                latitude
+              )) + (lead(
+                latitude
+              ))) / 2 > 2),
+            ((lag(latitude)) + (lead(latitude))) / 2,
+            latitude
+          )
+        )
+      )
+    )
+  )
+
+
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  mutate(long.adj = if_else(is.na(lead(longitude)), lag(long.adj), long.adj),
+         lat.adj = if_else(is.na(lead(latitude)), lag(lat.adj), lat.adj))
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  mutate(longitude = long.adj,
+         latitude = lat.adj) %>% 
+  select(-c(long.adj, lat.adj))
 
 # read in Subblock map as an sf::sfc polygon object
 sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
@@ -351,10 +463,6 @@ WGS84 <- st_crs(4326)
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 
-# measure.board.df.non.modem <- measure.board.df.non.modem %>% 
-#   mutate(latitude = as.numeric(latitude),
-#          longitude = as.numeric(longitude))
-
 # convert neasuring board data to sf object 
 mb.samp.loc <- measure.board.df.non.modem %>% 
   # filter(latitude < 0) %>% 
@@ -366,52 +474,14 @@ mb.samp.loc <- st_transform(mb.samp.loc, GDA2020)
 
 # create a join based on the nearest SAU polygon to each measuring board measurement
 mb.samp.loc.geo <- st_join(mb.samp.loc, sf.subblock.map, join = st_nearest_feature) %>% 
-  st_set_geometry(NULL) %>%
+  # st_set_geometry(NULL) %>%
   select(-c(version, area, zone.x)) %>% 
-  rename(zone = zone.y) %>% 
+  dplyr::rename(zone = zone.y) %>% 
   rename_all(tolower)
 
 # identify greenlip zones
 mb.samp.loc.geo <- mb.samp.loc.geo %>% 
   mutate(zone = ifelse(species == 2, 'G', zone))
-
-# ## calculate mean position for each sample
-# mb.samp.loc <- measure.board.df.non.modem %>% 
-#  filter(latitude < 0) %>% 
-#  group_by(logname, plaindate) %>% 
-#  summarise(mean.long = mean(as.numeric(longitude)),
-#            mean.lat = mean(as.numeric(latitude)))  
-# 
-# ## convert to spatial points data frame and set CRS to WGS84
-# coordinates(mb.samp.loc) <- ~ mean.long + mean.lat  
-# proj4string(mb.samp.loc) <- CRS("+proj=longlat")
-# 
-# ## set EPSG CRS
-# GDA2020 <- CRS(SRS_string='EPSG:7855')
-# 
-# ## convert lat/long to UTM and set CRS to GDA2020
-# mb.samp.loc.sp <- spTransform(mb.samp.loc, GDA2020)
-# 
-# ## load abalone spatial block layer
-# new.ab.blocks.sp <- readOGR(dsn = 'C:/GitCode/r-AbSpatialAnalyses/Tas_Ab_Polyg_SubBlocks.shp'
-#                             , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
-# 
-# # convert measuring board sample locations and spatial blocks to sf data frame
-# mb.samp.loc.sf <- st_as_sf(mb.samp.loc.sp)
-# new.ab.blocks.sf <- st_as_sf(new.ab.blocks.sp)
-# 
-# ## transform spatial block data from GDA94 to GDA2020
-# new.ab.blocks.sf <- st_set_crs(new.ab.blocks.sf, GDA2020)
-# 
-# ## join data frames to identify sampling block and zone
-# mb.samp.loc.df <- st_join(mb.samp.loc.sf, new.ab.blocks.sf, join = st_within) %>% 
-#  st_set_geometry(NULL) %>% 
-#  select(c(logname, plaindate, BlockNo, Zone, SubBlockNo)) %>% 
-#  rename_all(tolower)
-
-# measure.board.df.non.modem <- left_join(select(measure.board.df.non.modem, -c(zone, docketnum)),
-#                   mb.samp.loc.df, by = c('plaindate', 'logname')) %>% 
-#   mutate(zone = ifelse(species == 2, 'G', zone))
 
 ##---------------------------------------------------------------------------##
 ## Step 10: Add diver details ####
@@ -438,52 +508,62 @@ mb.df.non.modem.diver <- fuzzy_left_join(
  match_fun = list(`==`, `>=`, `<=`)
 ) %>% 
  select(-c(logname.y, startdate, enddate, platformscales, comments)) %>% 
- rename('logname' = logname.x)
+ dplyr::rename('logname' = logname.x)
 
 measure.board.df.non.modem <- mb.df.non.modem.diver
 
 ##---------------------------------------------------------------------------##
 ## Step 10: Subblockno and zone adjustments ####
 
-# manually adjust block and subblockno for GPS errors, where boat has clearly 
-# drifted during measuring or due to erroneous st_nearest_feature join
+# manually adjust block and subblockno where boat has drifted during measuring 
+# or where additional abalone have been measured at the end of the day. 
+
 
 measure.board.df.non.modem <- measure.board.df.non.modem %>%
   mutate(
     subblockno = if_else(
       processor == 'Greg Woodham' &
-        plaindate == as.Date('2020-08-26') &
-        subblockno %in% c('39B', '48C', '49C'),
-      '31B',
+        plaindate == as.Date('2020-05-19') &
+        subblockno %in% c('14A', '13C'),
+      '13E',
       if_else(
-        processor == 'Greg Woodham' &
-          plaindate == as.Date('2020-05-19') &
-          subblockno %in% c('14A', '13C'),
-        '13E',
+        processor == 'Ben Allen' &
+          plaindate == as.Date('2020-07-29') &
+          subblockno %in% c('02B'),
+        '02C',
         if_else(
-          processor == 'Ben Allen' &
-            plaindate == as.Date('2020-07-29') &
-            subblockno %in% c('02B'),
-          '02C',
-          subblockno
+          processor == 'Greg Woodham' &
+            plaindate == as.Date('2020-08-26') &
+            subblockno %in% c('39B'),
+          '31B',
+          if_else(
+            processor == 'Sean Larby' &
+              plaindate == as.Date('2020-09-16') &
+              subblockno %in% c('30A'),
+            '29D',
+            subblockno
+          )
         )
       )
     ),
     blockno = if_else(
-      subblockno == '31B',
-      '31',
-      if_else(
-        subblockno == '13E',
-        '13',
-        if_else(subblockno == '02C', '2', blockno)
-      )
-    ),
-    zone = if_else(
       processor == 'Greg Woodham' &
-        plaindate == as.Date('2020-08-26') &
-        subblockno == '31B',
-      'N',
-      zone
+        plaindate == as.Date('2020-05-19') &
+        subblockno %in% c('13E'),
+      '13',
+      if_else(
+        processor == 'Greg Woodham' &
+          plaindate == as.Date('2020-08-26') &
+          subblockno %in% c('31B'),
+        '31',
+        if_else(
+          processor == 'Sean Larby' &
+            plaindate == as.Date('2020-09-16') &
+            subblockno %in% c('29D'),
+          '29',
+          blockno
+        )
+      )
     )
   )
 
@@ -491,26 +571,75 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
 mb.df.non.modem.sample.id <- measure.board.df.non.modem %>% 
   group_by(processor, plaindate, subblockno, species) %>% 
   summarise(catches.measured = n_distinct(plaindate),
-            n = n()) %>% 
+            n = n_distinct(abalonenum)) %>% 
   as.data.frame %>% 
   arrange(plaindate) %>% 
   mutate(sample.id = row_number())
 
 measure.board.df.non.modem <- left_join(measure.board.df.non.modem, mb.df.non.modem.sample.id)
+
 ##---------------------------------------------------------------------------##
-## Step 11: save RDS of dataframe ####
+## Step 11: Save RDS of dataframe ####
 
 saveRDS(measure.board.df.non.modem, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 
 # measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 ##---------------------------------------------------------------------------##
-## Step 12: load data ####
+## Step 12: Plot data ####
 
 ## load most recent RDS data frame of non modem measuring board data
 measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 
+measure.board.df.non.modem %>% 
+  group_by(processor, plaindate) %>% 
+  summarise(catches.measured = n_distinct(sample.id),
+            n = n()) %>% 
+  janitor::adorn_totals() %>% 
+  as.data.frame()
 
+##---------------------------------------------------------------------------##
+## Step 13: Add size-limit data ####
 
+# load legal minimum length data
+size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+
+# clean lml data
+colnames(size.limits) <- tolower(colnames(size.limits))
+names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+
+# convert lml data to long format and create lml index variable
+size.limits.tab <- size.limits %>%
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2020`) %>% 
+  mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
+  mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
+  mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
+  mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
+  mutate(monthyear = gsub('may', 5, monthyear)) %>% 
+  mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
+  mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
+  mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
+  mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
+  mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
+  mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
+  mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
+  mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
+  select(sizelimit.index, sizelimit)
+
+# create size limit index
+measure.board.df.non.modem <- measure.board.df.non.modem %>%
+  mutate(sizelimit.index = paste(
+    zone,
+    subblockno,
+    lubridate::month(plaindate),
+    lubridate::year(plaindate),
+    sep = '-'
+  ))
+
+# join size limit data and compiledMM.df to include size limit for each observation
+measure.board.df.non.modem <- left_join(measure.board.df.non.modem, size.limits.tab, "sizelimit.index")
+
+##---------------------------------------------------------------------------##
+## Step 14: Summary table 1 ####
 ## create summary table for each sample date and diver
 
 # list of unique measureboards for summary and plot loops
@@ -521,7 +650,7 @@ for (i in lognames){
 mb.df.non.modem.summary <- measure.board.df.non.modem %>%
   filter(!is.na(shelllength) &
            grepl('^07', logname) &
-           between(shelllength, 120, 220) &
+           between(shelllength, 100, 220) &
           logname == i) %>%  
   # distinct(plaindate, abalonenum, .keep_all = T) %>%  
   group_by(plaindate, logname, zone, subblockno, processor, species) %>% 
@@ -534,12 +663,12 @@ mb.df.non.modem.summary <- measure.board.df.non.modem %>%
   mutate_if(is.factor,
             fct_explicit_na,
             na_level = '') %>% 
- rename('Dive date' = plaindate,
+ dplyr::rename('Dive date' = plaindate,
         'SubBlock' = subblockno) %>% 
  as.data.frame() %>%
  select(-c(zone)) %>% 
   mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
- rename('Diver' = processor,
+ dplyr::rename('Diver' = processor,
         'Species' = species) %>% 
  select(c("Diver", "Dive date",  "SubBlock", "Species", "Number\nmeasured", "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)"))
 
@@ -563,6 +692,7 @@ ggsave(
 }
 
 ##---------------------------------------------------------------------------##
+## Step 15: Summary table 2 ####
 ## summary table with % above reference points
 
 # list of unique measureboards for summary and plot loops
@@ -573,7 +703,7 @@ for (i in lognames){
 mb.df.non.modem.summary.ref <- measure.board.df.non.modem %>%
   filter(!is.na(shelllength) &
            grepl('^07', logname) &
-           between(shelllength, 120, 220) &
+           between(shelllength, 100, 220) &
           logname == i) %>%   
  distinct(abalonenum, rawutc, .keep_all = T) %>%
  group_by(plaindate, logname, zone, subblockno, processor, species) %>%  
@@ -594,12 +724,12 @@ mb.df.non.modem.summary.ref <- measure.board.df.non.modem %>%
             fct_explicit_na,
             na_level = '') %>%
   mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>%
- rename('Dive date' = plaindate,
+ dplyr::rename('Dive date' = plaindate,
         'SubBlock' = subblockno,
         'Species' = species) %>% 
  as.data.frame() %>%
  select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
- rename('Diver' = processor) %>% 
+ dplyr::rename('Diver' = processor) %>% 
  select(c("Dive date", Diver, SubBlock, Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
           ">150mm\n(%)", ">155mm\n(%)", ">160mm\n(%)"))
 
@@ -620,6 +750,7 @@ ggsave(
 }
 
 ##---------------------------------------------------------------------------##
+## Step 16: Plot Blacklip LF  ####
 ## size frequency plot blacklip
 
 measure.board.df.non.modem.bl <- measure.board.df.non.modem %>% 
@@ -633,7 +764,7 @@ for (i in mb.df.non.modem.bl.samples) {
              grepl('^07', logname) &
              sample.id == i &
              species == 1 &
-             between(shelllength, 120, 220)) %>%
+             between(shelllength, 100, 220)) %>%
     distinct(abalonenum, rawutc, .keep_all = T) %>%  
     summarise(n = paste('n =', n()))
   
@@ -641,7 +772,7 @@ for (i in mb.df.non.modem.bl.samples) {
   filter(grepl('^07', logname) &
           sample.id == i &
            species == 1 &
-          between(shelllength, 120, 220)) %>% 
+          between(shelllength, 100, 220)) %>% 
    distinct(abalonenum, rawutc, .keep_all = T)
  
  length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
@@ -652,19 +783,12 @@ for (i in mb.df.non.modem.bl.samples) {
    binwidth = 5,
    alpha = 0.6
   ) +
-  coord_cartesian(xlim = c(120, 215), ylim = c(0, 0.5)) +
+  coord_cartesian(xlim = c(100, 215), ylim = c(0, 0.5)) +
   theme_bw() +
   xlab("Shell Length (mm)")+
   ylab(paste('SubBlockNo', plot.length.freq.dat$subblockno, " Percentage (%)"))+
   scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+ 
-  geom_vline(aes(xintercept = ifelse(zone == 'W', 145,
-                                      ifelse(zone == 'E', 138,
-                                             ifelse(species == 2 & subblockno %in% c('48B', '48C'), 145,
-                                                    ifelse(subblockno %in% c('31B', '39B', '39A'), 127,
-                                                           ifelse(subblockno == '49D', 132,
-                                                                  ifelse(subblockno == '04A', 150,
-                                                           ifelse(subblockno == '02C', 150, 138)))))))),
-              linetype = 'dashed', colour = 'red', size = 0.5)+
+   geom_vline(aes(xintercept = as.numeric(sizelimit)), linetype = 'dashed', colour = 'red', size = 0.5)+
    geom_text(data = plot.n.measured, aes(x = 200, y = 0.4, label = n), color = 'black', size = 3)
   
  # print(length.freq.plot)
@@ -717,6 +841,8 @@ for (i in mb.df.non.modem.bl.samples) {
  )
 }
 
+##---------------------------------------------------------------------------##
+## Step 17: Plot Greenlip LF  ####
 ## size frequency plot greenlip
 
 measure.board.df.non.modem.gl <- measure.board.df.non.modem %>% 
@@ -730,7 +856,7 @@ for (i in mb.df.non.modem.gl.samples) {
              grepl('^07', logname) &
              sample.id == i &
              species == 2 &
-             between(shelllength, 120, 220)) %>%
+             between(shelllength, 100, 220)) %>%
     distinct(abalonenum, rawutc, .keep_all = T) %>%  
     summarise(n = paste('n =', n()))
   
@@ -738,7 +864,7 @@ for (i in mb.df.non.modem.gl.samples) {
     filter(grepl('^07', logname) &
              sample.id == i &
              species == 2 &
-             between(shelllength, 120, 220)) %>% 
+             between(shelllength, 100, 220)) %>% 
     distinct(abalonenum, rawutc, .keep_all = T)
   
   length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
@@ -754,14 +880,7 @@ for (i in mb.df.non.modem.gl.samples) {
     xlab("Shell Length (mm)")+
     ylab(paste('SubBlockNo', plot.length.freq.dat$subblockno, " Percentage (%)"))+
     scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+ 
-    geom_vline(aes(xintercept = ifelse(zone == 'W', 145,
-                                       ifelse(zone == 'E', 138,
-                                              ifelse(species == 2 & subblockno %in% c('48B', '48C', '39A'), 145,
-                                                     ifelse(subblockno %in% c('31B', '39B', '39A'), 127,
-                                                            ifelse(subblockno == '49D', 132,
-                                                                   ifelse(subblockno == '04A', 150,
-                                                                          ifelse(subblockno == '02C', 150, 138)))))))),
-               linetype = 'dashed', colour = 'red', size = 0.5)+
+    geom_vline(aes(xintercept = as.numeric(sizelimit)), linetype = 'dashed', colour = 'red', size = 0.5)+
     geom_text(data = plot.n.measured, aes(x = 200, y = 0.4, label = n), color = 'black', size = 3)
   
   # print(length.freq.plot)
@@ -815,3 +934,81 @@ for (i in mb.df.non.modem.gl.samples) {
 }
 
 ##---------------------------------------------------------------------------##
+## Step 18: Plot measure location ####
+
+# read in Subblock map as an sf::sfc polygon object
+sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
+sf.tas.coast.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasCoastLine.gpkg")
+
+# set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+sf.tas.coast.map <-sf.tas.coast.map %>% 
+  st_set_crs(GDA2020)
+
+# transform sf.tas.map to GDA2020
+sf.tas.map <- st_transform(sf.tas.map, GDA2020)
+sf.tas.coast.map <- st_transform(sf.tas.coast.map, GDA2020)
+
+# create bbox for area(s) of interest (Note: possibly look to add buffer)
+st.helens.island <- st_bbox(
+  c(
+    xmin = 611443.2131532715,
+    ymin = 5421139.764842981,
+    xmax = 613192.9442468286,
+    ymax = 5422172.58085798
+  ),
+  crs = GDA2020
+)
+
+
+# filter/crop measureboard data to area of interest
+df.1 <- measure.board.df.non.modem %>% 
+  # filter(between(shelllength, 138, 200)) %>% 
+  st_as_sf() %>% 
+  st_crop(., st.helens.island)
+
+# size.classes <- c(0, 138, 140, 150, 160, 170, 180, 200)
+# 
+# df.1 <- df.1 %>% 
+#   mutate(size.class = cut(shelllength, size.classes, include.lowest = T, right = F))
+
+# convert to sp
+df.2 <- as_Spatial(df.1)
+# str(df.2)
+
+# crop coastal map to area of interest
+sf.tas.coast.map.crop <- st_crop(sf.tas.map, st.helens.island)
+# class(sf.tas.coast.map.crop)
+
+sp.tas.coast.map.crop <- as_Spatial(sf.tas.coast.map.crop)
+# class(sf.tas.coast.map.crop.sp)
+
+# grid (1 ha side = 402.0673 m ?)
+idw_grid <- st_make_grid(df.1, cellsize = 402.0673, square = FALSE)
+# st_crs(idw_grid)
+
+# idw
+P_idw_hex <- gstat::idw(shelllength ~ 1, df.2, newdata = idw_grid, idp = 2)
+
+rslt_hex <- st_as_sf(P_idw_hex)
+  
+
+ggplot(data = st_geometry(sf.tas.coast.map.crop)) +
+  
+  geom_sf(data = rslt_hex, aes(fill = var1.pred), col = "grey60", size = 0.1)+
+  scale_fill_viridis_c()+
+  geom_sf(data = df.1) +
+  geom_sf() +
+    # geom_sf(data = df.1) +
+  # scale_colour_viridis_c(option = "viridis") +
+  theme_bw() +
+  theme(legend.key.height=unit(1,"cm")) +
+  annotation_scale(location = "bl", width_hint = 0.5) +
+  annotation_north_arrow(location = "br", which_north = "true", 
+                         pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                         style = north_arrow_fancy_orienteering) +
+  labs(fill = 'Shell length\n(mm)')
+

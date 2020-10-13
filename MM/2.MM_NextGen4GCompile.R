@@ -96,7 +96,7 @@ gps.RMC_A <- filter(logged.data, identifier == 220) %>%
 ##---------------------------------------------------------------------------##
 ## Step 3B: Extract GPS RMC Part B ####
 gps.RMC_B <- filter(logged.data, identifier == 221) %>%
- separate(datapack, c("valid","speed", "course","variation"), sep = ",", remove = FALSE,
+ separate(datapack, c("valid", "speed", "course", "variation"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
  as.data.frame()
 
@@ -111,7 +111,7 @@ gps.RMC <- left_join(gps.RMC_B, select(gps.RMC_A, logname, local_date, longitude
 # remove duplicate records resulting from upload failures or loggers going out of range 
 # and filter out measuring board records
 gps.RMC <- gps.RMC %>%
-        distinct(logname, seqindex, identifier, .keep_all = T) %>%  
+        distinct(logname, seqindex, identifier, rawutc, .keep_all = T) %>% 
         filter(grepl('^07', logname))
 
 # tail(gps.RMC)
@@ -130,7 +130,7 @@ docket <-  separate(docket, datapack, c("abalonenum", "zone", "docketnum"), sep 
 
 # remove duplicate records resulting from upload failures or loggers going out of range
 docket <- docket %>% 
-        distinct(logname, seqindex, identifier, .keep_all = T)
+        distinct(logname, seqindex, identifier, rawutc, .keep_all = T)
 
 # tail(docket)
 
@@ -164,9 +164,9 @@ abweight <- abweight %>%
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%    
- left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>%  
- left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>% 
+                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%      
+ left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>%   
+ left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>%  
  left_join(select(abweight, logname, rawutc, wholeweight), by = c('logname', "rawutc"))
 
 # tail(lengthweight)

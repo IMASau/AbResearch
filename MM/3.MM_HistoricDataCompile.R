@@ -1599,7 +1599,7 @@ measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measur
 
 # match data to existing compiled dataframes
 measure.board.df.non.modem.match <- measure.board.df.non.modem %>% 
- select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, logname)) %>% 
+ select(-c(rawutc, logger_date, local_date, abalonenum, logname)) %>% 
  rename(msr.date = plaindate,
         shell.length = shelllength,
         whole.weight = wholeweight,
@@ -1652,7 +1652,6 @@ compiled.docket.non.modem <- docket.join %>%
       numsubblocks,
       subblocklist,
       catch,
-      n,
       meanSL,
       minSL,
       species,
