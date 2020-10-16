@@ -1631,8 +1631,8 @@ n.per.docket <- measure.board.df.non.modem.match %>%
 # match docketinfo.epro to the n.per.docket dataframe
 docket.join <- inner_join(n.per.docket, measure.board.df.non.modem.match, 
                           by = c("sample.id", 'species', 'msr.date')) %>% 
-   ungroup() %>% 
-   select(-(sample.id))
+   ungroup()
+   # select(-(sample.id))
 
 # subset data and filter out uneeded or duplicated variables
 compiled.docket.non.modem <- docket.join %>%
@@ -1657,7 +1657,8 @@ compiled.docket.non.modem <- docket.join %>%
       species,
       shell.length,
       whole.weight,
-      datasource
+      datasource,
+      sample.id
    )
 
 # save RDS file
@@ -1978,6 +1979,11 @@ compiledMM.df.final <- bind_rows(gl.recent.diff.region, gl.recent.same.region,
 
 missing.region <- subset(compiledMM.df.final, is.na(region.1))
 missing.zone <- subset(compiledMM.df.final, is.na(newzone))
+
+
+# populate blank sample.id column with docket number
+compiledMM.df.final <- compiledMM.df.final %>% 
+   mutate(sample.id = ifelse(is.na(sample.id), docket.number, sample.id))
 
 # save a copy of r.file
 

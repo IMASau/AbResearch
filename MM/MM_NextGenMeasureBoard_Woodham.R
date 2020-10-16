@@ -283,7 +283,7 @@ woodham.bl <- measure.board.df.non.modem %>%
 woodham.gl <- left_join(woodham.gl.bl, woodham.bl) %>% 
   mutate(species = ifelse(is.na(species), 2, species))
 
-# Ben Allen greenlip data from block 02C (King Island)
+# Ben Allen greenlip data mostly from block 02C (King Island) and 48C
 
 allen.gl <- measure.board.df.non.modem %>% 
   filter(logname == '07010051' &
@@ -293,7 +293,8 @@ allen.gl <- measure.board.df.non.modem %>%
                                   "2020-08-17",
                                   "2020-08-18",
                                   "2020-08-24",
-                                  "2020-08-26"))) %>% 
+                                  "2020-08-26",
+                                  "2020-10-13"))) %>% 
   mutate(species = 2)
 
 # Sean Larby greenlip data from 2020-09-09
@@ -339,7 +340,10 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
                                     '2020-08-11', 
                                     '2020-08-12',
                                     '2020-08-13',
-                                    '2020-08-22'))) %>% 
+                                    '2020-08-22'))|
+           logname %in% c('07010053') &
+           plaindate %in% as.Date(c('2020-09-29')) &
+           abalonenum %in% c(165)) %>%
   mutate(mb.test.data = 1) %>% 
   left_join(measure.board.df.non.modem, .) %>%   
   filter(is.na(mb.test.data)) %>% 

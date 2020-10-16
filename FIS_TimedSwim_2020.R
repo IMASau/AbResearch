@@ -414,7 +414,7 @@ time.swim.cpue.n <- time.swim.cpue.site %>%
 # plot CPUE estimate for each blocnkno
 cpue.plot <- time.swim.cpue.site %>% 
         ggplot(aes(x = blockno, y = est.kg.hr)) +
-        geom_boxplot() +
+        geom_boxplot(fill = "#56B4E9") +
         stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 2, colour = 'red', fill = 'red')+
         theme_bw() +
         ylim(0, 200)+
@@ -443,16 +443,18 @@ count.plot <- time.swim.dat %>%
         # filter(midsize >= 150) %>% 
         group_by(blockno, site, diver) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
-        group_by(blockno, site) %>% 
-        summarise(mean.ab.n = mean(ab.n)) %>% 
-        ggplot(aes(x = blockno, y = mean.ab.n))+
+        group_by(blockno, site, diver) %>% 
+        summarise(mean.ab.n = mean(ab.n)) %>%  
+        ggplot(aes(x = blockno, y = mean.ab.n, colour = diver))+
         geom_point(size = 3)+
+        scale_colour_grey()+
         stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 4, colour = 'red', fill = 'red')+
         theme_bw()+
         ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
         xlab('Blockno')+
         ylim(0, 200)+
-        geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)
+        geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+        theme(legend.position = 'none')
 
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.pdf', sep = ''), 
@@ -523,7 +525,8 @@ time.swim.summary <- left_join(time.swim.count.blockno, time.swim.cpue.blockno) 
                'Sites' = sites,
                'Average\ncount\n<140mm' = '<140 mm',
                'Average\ncount\n>140mm' = '>140 mm',
-               'CPUE' = est.kg.hr)
+               'CPUE' = est.kg.hr) %>% 
+        adorn_totals(fill = '',,,, contains('Sites'))
 
 # create formated summary tables for report layout
 time.swim.summary.tab <- time.swim.summary %>% 
