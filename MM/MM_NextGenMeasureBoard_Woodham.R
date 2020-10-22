@@ -301,7 +301,7 @@ allen.gl <- measure.board.df.non.modem %>%
 
 larby.gl <- measure.board.df.non.modem %>% 
   filter(logname == '07010053' &
-           plaindate %in% as.Date(c("2020-09-09", "2020-09-29"))) %>% 
+           plaindate %in% as.Date(c("2020-09-09", "2020-09-29", "2020-10-19"))) %>% 
            mutate(species = 2)
 
 # combine Woodham, Allen and Larby greenlip data
@@ -545,10 +545,22 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
               plaindate == as.Date('2020-09-16') &
               subblockno %in% c('30A'),
             '29D',
-            subblockno
+            if_else(
+              processor == 'Sean Larby' &
+                plaindate == as.Date('2020-10-19') &
+                subblockno %in% c('40B'),
+              '40A',
+              if_else(
+                processor == 'Sean Larby' &
+                  plaindate == as.Date('2020-09-29') &
+                  subblockno %in% c('31B'),
+                '32B',
+                subblockno
           )
         )
       )
+    )
+    )
     ),
     blockno = if_else(
       processor == 'Greg Woodham' &

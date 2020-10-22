@@ -55,12 +55,12 @@ processors <- unique(mb.next.gen.grade.df$processor)
 
 # determine number of abalone measured per docket
 docknum.n.meas <- mb.next.gen.grade.df %>% 
-        group_by(zone, docketnum, processor, plaindate) %>% 
+        group_by(zone, docketnum, processor, plaindate, docket.index) %>% 
         summarise(ab.meas = n()) 
 
 docknum.n.weighed <- mb.next.gen.grade.df %>% 
         filter(!is.na(wholeweight)) %>%
-        group_by(zone, docketnum, processor, plaindate) %>% 
+        group_by(zone, docketnum, processor, plaindate, docket.index) %>% 
         summarise(ab.weighed = n())
         
 
@@ -69,7 +69,7 @@ docknum.n <- left_join(docknum.n.meas, docknum.n.weighed)
 # determine number of abalone measured by grade per docket
 docknum.grade.meas <- mb.next.gen.grade.df %>% 
         filter(!is.na(wholeweight)) %>% 
-        group_by(docketnum, grade, processor, plaindate) %>% 
+        group_by(docketnum, grade, processor, plaindate, docket.index) %>% 
         summarise(grade.meas = n())
 
 ##-------------------------------------------------------------------------------------------------------##
@@ -81,9 +81,9 @@ for(i in processors){
 # create grade summary table
 grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
         filter(processor == i) %>% 
-        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%    
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%     
         ungroup() %>% 
-        select(-c(grade.meas, processor)) %>% 
+        select(-c(grade.meas, processor, docket.index.x, docket.index.y)) %>% 
         spread(grade, grade.perc) %>%  
         # rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
         {if('large' %in% names(.)) dplyr::rename(., "Large\n(%)" = large) else .} %>%
@@ -92,7 +92,7 @@ grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'p
         {if('xsmall' %in% names(.)) dplyr::rename(., "XSmall (%)" = xsmall) else .} %>%
         arrange(desc(plaindate)) %>%
         ungroup() %>% 
-        mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
+        mutate(docketnum = paste(zone, docketnum, sep = '')) %>% 
         dplyr::rename('Sample\ndate' = plaindate,
                'Docket\nno.' = docketnum,
                'Abalone\nmeasured' = ab.meas,
@@ -147,7 +147,7 @@ ggsave(
         filename = paste(i, '_WEIGHTGRADESUMMARY_', '.pdf', sep = ''),
         plot = grade.summary.formated,
         width = 200,
-        height = 600,
+        height = 750,
         units = 'mm'
 )
 
@@ -155,7 +155,7 @@ ggsave(
         filename = paste(i, '_LENGTHWEIGHTSUMMARY_', '.pdf', sep = ''),
         plot = length.weight.summary.formated,
         width = 250,
-        height = 600,
+        height = 750,
         units = 'mm'
 )
 
@@ -167,7 +167,7 @@ ggsave(
 ## search for existing docket summaries on file and identify new dockets in the compiled
 ## measuring board data frame for which to create summaries
 
-# idetify local working folder containing existing docket summaries
+# identify local working folder containing existing docket summaries
 processor.summaries <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
 
 # list filenames of existing docket summaries in folder
@@ -178,21 +178,48 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
         separate(docket.summaries, c('docket.number',
                                      'docket.plot',
                                      'docket.date',
-                                     'docket.processor'), sep = '_') %>% 
-        select(docket.number) %>% 
+                                     'docket.processor'), sep = '_') %>%   
+        select(docket.number, docket.date, docket.processor) %>% 
         separate(docket.number, into = c('docket.zone', 'docket.number'), "(?<=[A-Z])(?=[0-9])") %>% 
-        mutate(docket.number = as.numeric(docket.number)) %>%  
-        pull(docket.number)
+        mutate(docket.number = as.numeric(docket.number),
+               docket.processor = gsub('.pdf', '', docket.processor)) %>% 
+        group_by_all() %>% 
+        summarise(n = n()) %>%  
+        mutate(summary.plot.exists = ifelse(!is.na(n), 1, 0),
+               docket.index = paste(docket.zone, docket.number, docket.date, docket.processor, sep = '-')) %>%  
+        pull(docket.index)
 
 # load vector of incomplete measureboard data for existing docket numbers determined in 
 # MM_NextGen4GCompile.RDS
 docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 
+docket.incomplete <- docket.incomplete %>% 
+        mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>% 
+        pull(docket.index)
+
 # identify complete existing dockets
 existing.dockets.complete <- setdiff(existing.dockets, docket.incomplete)
 
+# df.3 <- left_join(existing.dockets, docket.incomplete, by = 'docket.index')
+
 # identify all dockets in measuring board dataframe
-docket.unique <- unique(measure.board.next.gen.df$docketnum)
+# docket.unique <- unique(measure.board.next.gen.df$docketnum)
+
+docket.unique <- measure.board.next.gen.df %>% 
+        select(docketnum, plaindate, zone, processor, docket.index) %>% 
+        group_by(docketnum, plaindate, zone, processor, docket.index) %>% 
+        summarise(n = n()) %>%  
+        # mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>%  
+        pull(docket.index)
+
+# df.2 <- existing.dockets %>% 
+#         mutate(docket.date = as.Date(docket.date)) %>% 
+#         left_join(df.1, ., by = c(docketnum = 'docket.number',
+#                   zone = 'docket.zone', plaindate = 'docket.date')) %>% 
+#         filter(is.na(summary.plot.exists)) %>% 
+#         mutate(docket.index = paste(zone, docketnum, plaindate, sep = '-'))
+# 
+# new.dockets <- unique(df.2$docket.index)
 
 # identify dockets missing from summary folder
 # new.dockets <- setdiff(docket.unique, existing.dockets)
@@ -209,12 +236,16 @@ grades <- data.frame(y = 0.35, x = c(500, 700, 900),
 ## Plot 1: Length ####
 # overlay length frequency histogram with boxplot
 
+# measure.board.next.gen.df <- measure.board.next.gen.df %>% 
+#         mutate(docket.index = paste(zone, docketnum, plaindate, sep = '-'))
+
 for (i in new.dockets) {
         plot.length.freq.dat <- measure.board.next.gen.df %>%
-                filter(docketnum == i &
+                filter(docket.index == i &
                                between(shelllength, 100, 200))
         
         plot.zone <- unique(plot.length.freq.dat$zone)
+        docketnum <- unique(plot.length.freq.dat$docketnum)
         
         length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
                 geom_histogram(
@@ -227,7 +258,7 @@ for (i in new.dockets) {
                 coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.4)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
@@ -277,7 +308,7 @@ for (i in new.dockets) {
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- unique(plot.length.freq.dat$processor)
         ggsave(
-                filename = paste(paste(file.zone, i, sep = ''), '_LENGTHSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                filename = paste(paste(file.zone, docketnum, sep = ''), '_LENGTHSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                 plot = length.plot,
                 width = 7.4,
                 height = 5.57,
@@ -291,10 +322,11 @@ for (i in new.dockets) {
 
 for (j in new.dockets) {
                 plot.weight.freq.dat <- measure.board.next.gen.df %>%
-                        filter(docketnum == j &
+                        filter(docket.index == j &
                                        wholeweight != 0)
                 
-                plot.zone <- unique(plot.length.freq.dat$zone)
+                plot.zone <- unique(plot.weight.freq.dat$zone)
+                docketnum <- unique(plot.weight.freq.dat$docketnum)
                 
                 weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
                         geom_histogram(
@@ -309,7 +341,7 @@ for (j in new.dockets) {
                         theme_bw() +
                         theme(panel.grid = element_blank()) +
                         xlab("Whole weight (g)") +
-                        ylab(paste("Docket no.", plot.zone, j, " Percentage (%)")) +
+                        ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
                         geom_vline(aes(xintercept = 400),
                                    colour = 'red',
                                    linetype = 'dotted') +
@@ -371,11 +403,11 @@ for (j in new.dockets) {
                 
                 # add pie chart to weight frequency plot
                 docketnum.grade.summary <-
-                        left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>%
+                        left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate', 'docket.index')) %>%
                         mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
                 
                 pie.plot.dat <- docketnum.grade.summary %>%
-                        filter(docketnum == j) %>%
+                        filter(docket.index == j) %>%
                         mutate(
                                 lab.position = cumsum(grade.perc),
                                 lab.y.position = lab.position - grade.perc / 2,
@@ -431,7 +463,7 @@ for (j in new.dockets) {
                 file.date <- unique(plot.weight.freq.dat$plaindate)
                 file.processor <- unique(plot.weight.freq.dat$processor)
                 ggsave(
-                        filename = paste(paste(file.zone, j, sep = ''), '_WEIGHTSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                        filename = paste(paste(file.zone, docketnum, sep = ''), '_WEIGHTSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                         plot = wt.plot,
                         width = 7.4,
                         height = 5.57,
@@ -446,10 +478,11 @@ for (j in new.dockets) {
 for (i in new.dockets) {
         # create length plot
         plot.length.freq.dat <- measure.board.next.gen.df %>%
-                filter(docketnum == i &
+                filter(docket.index == i &
                                between(shelllength, 100, 200))
         
         plot.zone <- unique(plot.length.freq.dat$zone)
+        docketnum <- unique(plot.length.freq.dat$docketnum)
         
         length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
                 geom_histogram(
@@ -462,7 +495,7 @@ for (i in new.dockets) {
                 coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
                 theme_bw() +
                 xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
                 # geom_vline(aes(xintercept = 138), colour = 'red',
                 #            linetype = 'dashed', size = 0.5)+
                 geom_vline(
@@ -510,7 +543,7 @@ for (i in new.dockets) {
         # create weight plot
         
         plot.weight.freq.dat <- measure.board.next.gen.df %>%
-                filter(docketnum == i &
+                filter(docket.index == i &
                                wholeweight != 0)
         
         weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
@@ -526,7 +559,7 @@ for (i in new.dockets) {
                 theme_bw() +
                 theme(panel.grid = element_blank()) +
                 xlab("Whole weight (g)") +
-                ylab(paste("Docket no.", plot.zone, i, " Percentage (%)")) +
+                ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
                 geom_vline(aes(xintercept = 400),
                            colour = 'red',
                            linetype = 'dotted') +
@@ -589,11 +622,11 @@ for (i in new.dockets) {
         # add pie chart to weight frequency plot
         
         docketnum.grade.summary <-
-                left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>%
+                left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate', 'docket.index')) %>%
                 mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
         
         pie.plot.dat <- docketnum.grade.summary %>%
-                filter(docketnum == i) %>%
+                filter(docket.index == i) %>%
                 mutate(
                         lab.position = cumsum(grade.perc),
                         lab.y.position = lab.position - grade.perc / 2,
@@ -656,7 +689,7 @@ for (i in new.dockets) {
         file.processor <- unique(plot.length.freq.dat$processor)
         
         ggsave(
-                filename = paste(paste(file.zone, i, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                filename = paste(paste(file.zone, docketnum, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                 plot = plot.a,
                 width = 200,
                 height = 297,
@@ -1009,10 +1042,10 @@ tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>%
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_SEPTEMBER2020', '.pdf', sep = ''),
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_OCTOBER2020', '.pdf', sep = ''),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 600,
+        height = 680,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##

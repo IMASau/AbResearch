@@ -181,14 +181,16 @@ measure.board.df <- measure.board.df %>%
         filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
                        !docketnum %in% c(45575, 111111, 123456, 222222, 323232, 
                                          333333, 454545, 474747, 555555, 565656,
-                                         616161, 654321, 666666, 811881))
+                                         616161, 654321, 666666, 811881, 369852))
 
 # fix any known errors with measureboard data
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
 # Simon Leonard (RTS) informed me that zone for docket number 812576 should be AW not AN
+# Mick (Tas Seafoods) informed me that zone for docket number 525708 should be AE not AW
 measure.board.df <- measure.board.df %>% 
         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227),
-               zone = if_else(docketnum == 812576, 'AW', zone))
+               zone = if_else(docketnum == 812576, 'AW', 
+                              if_else(docketnum == 525708, 'AE', zone)))
 
 ##---------------------------------------------------------------------------##
 ## Step 9: assign measuring board to processor ####
@@ -221,6 +223,10 @@ measure.board.next.gen.df <- fuzzy_left_join(
         select(-(logname.x)) %>%
         filter(!is.na(docketnum))
 
+# add docket.index
+measure.board.next.gen.df <- measure.board.next.gen.df %>% 
+        mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-'))
+
 ##---------------------------------------------------------------------------##
 ## Step 10: incomplete uploads ####
 ## search previous compiled dataframe for incomplete uploads for a docket number to pass onto
@@ -230,14 +236,14 @@ measure.board.next.gen.df <- fuzzy_left_join(
 measure.board.next.gen.df.old <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
 docket.incomplete <- measure.board.next.gen.df.old %>% 
-        group_by(zone, docketnum) %>%  
+        group_by(zone, docketnum, plaindate, processor) %>%  
         summarise(abalonenum.start = min(abalonenum),
                   abalonenum.end = max(abalonenum),
                   n = n()) %>%  
         filter(n < 100 & #search for samples with <100 abalone
                        abalonenum.start == 0 & #include samples where start number is zero
-                       !docketnum %in% c(523229, 523632, 812108, 813512)) %>%  #remove samples where manual check of raw data found no refresh/or additional data
-        pull(docketnum)
+                       !docketnum %in% c(523229, 523632, 812108, 813512))  #remove samples where manual check of raw data found no refresh/or additional data
+        # pull(docketnum)
 
 saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 
