@@ -181,7 +181,7 @@ measure.board.df <- measure.board.df %>%
         filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
                        !docketnum %in% c(45575, 111111, 123456, 222222, 323232, 
                                          333333, 454545, 474747, 555555, 565656,
-                                         616161, 654321, 666666, 811881, 369852))
+                                         616161, 654321, 666666, 811881, 369852, 0))
 
 # fix any known errors with measureboard data
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
@@ -191,6 +191,24 @@ measure.board.df <- measure.board.df %>%
         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227),
                zone = if_else(docketnum == 812576, 'AW', 
                               if_else(docketnum == 525708, 'AE', zone)))
+
+# adjust GPS dropout for 07-02-0056 on 2020-10-26 (Scielex suspect 4G antenna proximity to GPS) 
+measure.board.df <- measure.board.df %>% 
+        mutate(logger_date = if_else(docketnum == 521218 &
+                                           zone == 'AE' &
+                                           plaindate == as.Date('2027-07-05') &
+                                           logname == '07020056',
+                                   ymd_hms(gsub('2027-07-05', '2020-10-26', logger_date)), ymd_hms(logger_date)),
+               local_date = if_else(docketnum == 521218 &
+                                             zone == 'AE' &
+                                             plaindate == as.Date('2027-07-05') &
+                                             logname == '07020056',
+                                     ymd_hms(gsub('2027-07-05', '2020-10-26', local_date)), ymd_hms(local_date)),
+               plaindate = if_else(docketnum == 521218 &
+                                             zone == 'AE' &
+                                             plaindate == as.Date('2027-07-05') &
+                                             logname == '07020056',
+                                     ymd('2020-10-26'), plaindate))
 
 ##---------------------------------------------------------------------------##
 ## Step 9: assign measuring board to processor ####
@@ -239,10 +257,10 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
         group_by(zone, docketnum, plaindate, processor) %>%  
         summarise(abalonenum.start = min(abalonenum),
                   abalonenum.end = max(abalonenum),
-                  n = n()) %>%  
+                  n = n()) %>%   
         filter(n < 100 & #search for samples with <100 abalone
-                       abalonenum.start == 0 & #include samples where start number is zero
-                       !docketnum %in% c(523229, 523632, 812108, 813512))  #remove samples where manual check of raw data found no refresh/or additional data
+                       abalonenum.start == 0 , #include samples where start number is zero
+                       !docketnum %in% c(523229, 523632, 812108, 813512, 524261, 812204, 812716))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')

@@ -32,6 +32,7 @@ library(janitor)
 library(xtable)
 library(gsubfn)
 library(ggplot2)
+library(ggpubr)  
 }) 
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 ##-------------------------------------------------------------------------------------------------------##
@@ -281,6 +282,122 @@ write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2020.xlsx', sheetName = "Sh
 print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2020.tex')
 
 ##-------------------------------------------------------------------------------------------------------##
+## Western zone five-year summary
+# create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
+five.year.summary.df <- compiledMM.df.final %>%
+  dplyr::filter(newzone == 'W'
+                & fishyear %in% c(2005, 2010, 2015, 2020)
+                & numblocks <= 1
+                & between(shell.length, sizelimit - 5, 220)) %>% 
+  mutate(blocklist = as.numeric(blocklist),
+         fishyear = as.character(fishyear)) %>% 
+  group_by(blocklist, fishyear) %>%
+  summarise(catches = n_distinct(sample.id),
+            n = n(),
+            med.sl = round(median(shell.length), 1),
+            max.sl = round(max(shell.length), 1),
+            ref.a = sum(between(shell.length, sizelimit, 144)),
+            ref.b = sum(between(shell.length, 145, 149)),
+            ref.c = sum(between(shell.length, 150, 154)),
+            ref.d = sum(shell.length >= 155),
+            'LML-144\nmm\n(%)' = round((ref.a/n)*100),
+            '145-149\nmm\n(%)' = round((ref.b/n)*100),
+            '150-154\nmm\n(%)' = round((ref.c/n)*100),
+            '>155mm\n(%)' = round((ref.d/n)*100)) %>%
+  dplyr::rename(BlockNo = blocklist) %>% 
+  mutate(med.sl = as.character(med.sl),
+         max.sl = as.character(max.sl)) %>%
+  select(-c(ref.a, ref.b, ref.c, ref.d)) %>%
+  as.data.frame() %>% 
+  mutate(BlockNo = as.character(BlockNo))
+
+# rename column headings
+colnames(five.year.summary.df) <- c('Block\nNo', 'Year', 'Catches\nmeasured', 'Abalone\nmeasured', 
+                                   'Median\nSL', 'Max\nSL', 'LML-144\nmm\n(%)', '145-149\nmm\n(%)', '150-154\nmm\n(%)', '>155mm\n(%)')
+
+# add totals for numeric columns (Note: median and max have been converted to characters)
+five.year.summary.df <- adorn_totals(five.year.summary.df, fill = '',,,, -contains('mm'))
+
+# create formated summary tables for report layout
+five.year.summary.df.formated <- five.year.summary.df %>% 
+  ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+# save Excel and Latex tables
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_2005-2020.pdf', sep = ''),
+  plot = five.year.summary.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_2005-2020.png', sep = ''),
+  plot = five.year.summary.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+write.xlsx(five.year.summary.df, 'MM_Sampling_Summary_2005-2020.xlsx', sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+print(xtable(five.year.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2005-2020.tex')
+
+df.1 <- compiledMM.df.final %>%
+  dplyr::filter(newzone == 'W'
+                & fishyear %in% c(2005, 2010, 2015, 2020)
+                & numblocks <= 1
+                & between(shell.length, sizelimit - 5, 220)) %>% 
+  mutate(blocklist = as.numeric(blocklist),
+         fishyear = as.character(fishyear)) %>% 
+  group_by(blocklist, fishyear) %>%
+  summarise(catches = n_distinct(sample.id),
+            n = n(),
+            med.sl = round(median(shell.length), 1),
+            max.sl = round(max(shell.length), 1),
+            ref.a = sum(between(shell.length, sizelimit, 144)),
+            ref.b = sum(between(shell.length, 145, 149)),
+            ref.c = sum(between(shell.length, 150, 154)),
+            ref.d = sum(shell.length >= 155), 
+            ref.a = round((ref.a/n)*100),
+            ref.b = round((ref.b/n)*100),
+            ref.c = round((ref.c/n)*100),
+            ref.d = round((ref.d/n)*100)) %>%
+  select(c(blocklist, fishyear, n, catches, ref.a, ref.b, ref.c, ref.d))
+
+df.2 <- df.1 %>% 
+  gather(size.ref, size.freq, ref.a:ref.d)
+
+five.year.summary.plot<- df.2 %>% 
+  ggplot(aes(x = fishyear, y = size.freq, group = size.ref, colour = size.ref)) +
+  geom_line(stat = 'identity') +
+  scale_colour_manual(values = c('#CD534CFF','#868686FF', '#EFC000FF', '#0073C2FF'),
+                    name = 'Length (mm)',
+                    breaks = c("ref.a", "ref.b", "ref.c", "ref.d"),
+                    labels = c('140-144', '145-149', '150-154', '>155'))+
+  # scale_y_continuous(labels = scales::percent_format())+
+  facet_wrap(blocklist ~.)+
+  theme_bw()+
+  ylab('Percentage')+
+  xlab('Year')
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+ggsave(
+  filename = paste('MM_WZ_2005-2020_SizeClasses.pdf', sep = ''),
+  plot = five.year.summary.plot,
+  height = 10,
+  width = 8)
+
+ggsave(
+  filename = paste('MM_WZ_2005-2020_SizeClasses.png', sep = ''),
+  plot = five.year.summary.plot,
+  height = 10,
+  width = 8)
+
+##-------------------------------------------------------------------------------------------------------##
 ## Western zone % 140-145 mm pre LML increase
 
 df.1 <- compiledMM.df.final %>% 
@@ -402,7 +519,8 @@ for(i in processors.2019) {
 # quick summary of processor details
 processor.summary <- compiledMM.df.final %>%
   dplyr::filter(fishyear == stock.assessment.year
-                & numblocks <= 1) %>%
+                & numblocks <= 1
+                & between(shell.length, sizelimit - 5, 220)) %>%
   group_by(processorname) %>%
   summarise(catches = n_distinct(sample.id),
             n = n()) %>%
@@ -935,7 +1053,7 @@ WGS84 <- st_crs(4326)
 ## Read in Subblock map as an sf::sfc polygon object
 sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
 
-sf.block.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/Blacklip_block_map.gpkg")
+# sf.block.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/Blacklip_block_map.gpkg")
 
 
 ## Transform to GDA2020
@@ -960,12 +1078,13 @@ for(i in processors.2019) {
   df.1 <- compiledMM.df.final %>%
     filter(fishyear == stock.assessment.year
            & processorname == i
-           & numsubblocks <= 1)
+           & numsubblocks <= 1) 
   
   df.1 <- df.1 %>%
     group_by(subblockno) %>%
     summarise(n = n_distinct(docket.number)) %>% 
-    mutate(blockno = as.numeric(subblockno))
+    mutate(n.bin = cut(n, breaks = c(-Inf, 2, 5, 10, 15, 20, Inf), 
+                       labels = c("1-2","2-5","5-10", "10-15", "15-20", ">20")))
   
   # ab.blocks.sp.2 <- ab.blocks.sp
   #ab.blocks.sp.2 <- sf.block.map
@@ -974,7 +1093,7 @@ for(i in processors.2019) {
   # ab.blocks.poly <-
   #   merge(ab.blocks.sp.2, df.1, by.x = 'subblockno', by.y = 'subblockno')
   # 
-  ab.blocks.poly <- left_join(sf.block.map, df.1, by = "blockno")
+  ab.blocks.poly <- left_join(sf.subblock.map, df.1, by = "subblockno")
   
   # https://atlan.com/courses/introduction-to-gis-r/lesson3-static-maps/
   
@@ -989,37 +1108,69 @@ for(i in processors.2019) {
   df.3 <- ab.blocks.poly %>% 
     mutate(subblock.sampled = if_else(n > 0, as.character(subblockno), ''))
   
-  catch.plot <- df.3 %>%
-    # filter(n >= 0) %>%
-    tm_shape() +
-    tm_fill(col = 'n',
-            title = 'Catches \nmeasured',
-           # breaks = c(0, 2, 5, 10, 15),
-            style = 'fixed',
-            textNA = 'No data',
-            colorNA = 'white',
-            palette = '-Spectral') +
-    tm_borders(lwd = 0.5) +
-    tm_text('n', size = 0.75)+
-   # tm_shape(df.3) +
-    tm_text('subblock.sampled', size = 0.25, just = 'bottom', ymod = -0.4)
+  # catch.plot <- df.3 %>%
+  #   # filter(n >= 0) %>%
+  #   tm_shape() +
+  #   tm_fill(col = 'n',
+  #           title = 'Catches \nmeasured',
+  #          # breaks = c(0, 2, 5, 10, 15),
+  #           style = 'fixed',
+  #           textNA = 'No data',
+  #           colorNA = 'white',
+  #           palette = '-Spectral') +
+  #   tm_borders(lwd = 0.5) +
+  #   tm_text('n', size = 0.75)+
+  #  # tm_shape(df.3) +
+  #   tm_text('subblock.sampled', size = 0.25, just = 'bottom', ymod = -0.4)
   
-  print(catch.plot)
+  plot.cols<- c('>20' = "#D53E4F", 
+                '15-20' = "#FC8D59",
+                '10-15' = "#FEE08B",
+                '5-10' = "#E6F598",
+                '2-5' = "#99D594",
+                '1-2' ="#3288BD")
+  
+  catch.plot <- df.3 %>% 
+    filter(!is.na(n) &
+             !is.na(n.bin)) %>% 
+    ggplot() + 
+    geom_sf(fill = NA)+
+    geom_sf(data = df.3, aes(fill = n.bin))+
+    # scale_fill_brewer(palette = 'Spectral', direction = -1, na.translate = F)+
+    scale_fill_manual(values = plot.cols, drop = F, na.translate = F) +
+    geom_sf_text(data = df.3, aes(label = ifelse(is.na(n.bin), '', subblockno)), size = 2.5)+
+    # geom_sf_text(data = ab.subblockno.sf, aes(label = ifelse(is.na(n.bin), '', subblockno)), size = 2.5, nudge_y = -5000)+
+    # geom_sf_text(data = ab.subblockno.sf, aes(label = ifelse(is.na(n), '', n)), size = 4, nudge_y = 5000)+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(fill = 'Catches\nmeasured')+
+    xlab('Longitude')+
+    ylab('Latitude')
+  
+  # print(catch.plot)
   
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   
-  tmap_save(
-    tm = catch.plot,
-    filename = paste(i, '_', stock.assessment.year, '_BlockSampled.pdf'),
-    height = 5.57,
-    units = 'in'
-  )
-  tmap_save(
-    tm = catch.plot,
-    filename = paste(i, '_', stock.assessment.year, '_BlockSampled.png'),
-    height = 5.57,
-    units = 'in'
-  )
+  ggsave(filename = paste(i, '_MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.pdf', sep = ''),
+         plot = catch.plot, units = 'mm', width = 190, height = 300)
+  ggsave(filename = paste(i, '_MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.png', sep = ''),
+         plot = catch.plot, units = 'mm', width = 190, height = 300)
+  
+  # tmap_save(
+  #   tm = catch.plot,
+  #   filename = paste(i, '_', stock.assessment.year, '_BlockSampled.pdf'),
+  #   height = 5.57,
+  #   units = 'in'
+  # )
+  # tmap_save(
+  #   tm = catch.plot,
+  #   filename = paste(i, '_', stock.assessment.year, '_BlockSampled.png'),
+  #   height = 5.57,
+  #   units = 'in'
+  # )
   
 }
 
@@ -1505,7 +1656,7 @@ df.7.dat.2019 <- df.7 %>%
 df.7.dat.histo <- df.7 %>%
   filter(
     newzone == 'E'
-    & blocklist == 13
+    & blocklist == 16
     & between(fishyear, 1980, stock.assessment.year - 1)
     & between(shell.length, 100, 220)
   )

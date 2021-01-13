@@ -301,7 +301,7 @@ allen.gl <- measure.board.df.non.modem %>%
 
 larby.gl <- measure.board.df.non.modem %>% 
   filter(logname == '07010053' &
-           plaindate %in% as.Date(c("2020-09-09", "2020-09-29", "2020-10-19"))) %>% 
+           plaindate %in% as.Date(c("2020-09-09", "2020-09-29", "2020-10-19", "2020-11-17"))) %>% 
            mutate(species = 2)
 
 # combine Woodham, Allen and Larby greenlip data
@@ -343,7 +343,10 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
                                     '2020-08-22'))|
            logname %in% c('07010053') &
            plaindate %in% as.Date(c('2020-09-29')) &
-           abalonenum %in% c(165)) %>%
+           abalonenum %in% c(165)|
+           logname %in% c('07010053') &
+           plaindate %in% as.Date(c('2020-10-28')) &
+           abalonenum %in% c(116, 117, 118, 119, 120, 121, 122, 123, 124)) %>%
   mutate(mb.test.data = 1) %>% 
   left_join(measure.board.df.non.modem, .) %>%   
   filter(is.na(mb.test.data)) %>% 

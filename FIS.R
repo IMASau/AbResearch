@@ -76,21 +76,22 @@ legs.df <- dplyr::rename(legs.df, sllength = length)
 legs.df$string <- as.factor(legs.df$string)
 
 legs.df.2 <- legs.df %>%
-  select(-comments.3) %>%
+  # select(-comments.3) %>%
   unite('all_comments', 'comments.1','comments.2', 'comments.4', 
         'comments.5', sep = ',') %>%
   mutate(all_comments = gsub('NA', '', all_comments),
          all_comments = gsub(',', '', all_comments),
          all_comments = gsub('^$', NA, all_comments)) %>%
   mutate(estimate.2 = estimate) %>%
-  mutate(estimate = if_else(is.na(all_comments) & estimate.2 == 'E', estimate.2, 
-                              if_else(all_comments == 'E', 
+  mutate(estimate = if_else(is.na(all_comments) & estimate.2 %in% c('E', 'e'), estimate.2, 
+                              if_else(all_comments %in% c('E', 'e'), 
                                       all_comments, NA_character_))) %>%
-  mutate(comments = if_else(is.na(estimate), all_comments, NA_character_)) %>%
+  mutate(comments = if_else(is.na(estimate), all_comments, NA_character_),
+         estimate = gsub('e', 'E', estimate)) %>%
   select(-c(estimate.2, all_comments)) %>%
   as.data.frame()
 
-## remove any characters or obvious erroes from shell length (e.g. where 'estimate (E)' 
+## remove any characters or obvious errors from shell length (e.g. where 'estimate (E)' 
 ## or 0 has been entered in the raw data)
 str(legs.df.2$sllength) #check
 legs.df.2 <- legs.df.2 %>% 
@@ -185,7 +186,7 @@ leg.counts$yr.season <-
                                            "2017.Summer", "2017.Winter", "2017.Spring", 
                                            "2018.Summer", "2018.Winter", "2018.Spring", 
                                            "2019.Summer", '2019.Winter', '2019.Spring',
-                                          '2020.Summer'))
+                                          '2020.Summer', "2020.Spring"))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(leg.counts$site == "GAR")
@@ -291,7 +292,7 @@ legs.counts.join$yr.season <-
                     "2017.Summer", "2017.Winter", "2017.Spring", 
                     "2018.Summer", "2018.Winter", "2018.Spring", 
                     "2019.Summer", '2019.Winter', '2019.Spring',
-                    '2020.Summer'))
+                    '2020.Summer', "2020.Spring"))
 
 ## adjust misclassified seasons
 pick <- which(legs.counts.join$site == "GAR")
@@ -345,7 +346,7 @@ legs.sl$yr.season <-
                                          "2017.Summer", "2017.Winter", "2017.Spring", 
                                          "2018.Summer", "2018.Winter", "2018.Spring", 
                                          "2019.Summer", '2019.Winter', '2019.Spring',
-                                       '2020.Summer'))
+                                       '2020.Summer', '2020.Spring'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(legs.sl$site == "GAR")
@@ -488,11 +489,11 @@ ordered(arms.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring
                                      "2017.Summer", "2017.Winter", "2017.Spring", 
                                      "2018.Summer", "2018.Winter", "2018.Spring",
                                      "2019.Summer", "2019.Winter", "2019.Spring",
-                                     '2020.Summer'))
+                                     '2020.Summer', '2020.Spring'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arms.sl$site == "GAR")
-arms.sl$yr.season[pick] <- gsub( "2015.Summer", "2015.Spring", arms.sl$yr.season[pick])
+arms.sl$yr.season[pick] <- gsub("2015.Summer", "2015.Spring", arms.sl$yr.season[pick])
 arms.sl$yr.season <- droplevels(arms.sl$yr.season)
 
 ## save a copy of the R files
@@ -563,7 +564,7 @@ arm.counts$yr.season <-
                                         "2017.Summer", "2017.Winter", "2017.Spring", 
                                         "2018.Summer", "2018.Winter", "2018.Spring",
                                         "2019.Summer", "2019.Winter", "2019.Spring",
-                                        '2020.Summer'))
+                                        '2020.Summer', '2020.Spring'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arm.counts$site == "GAR")
@@ -631,7 +632,18 @@ leg.counts$sampyear <- as.factor(leg.counts$sampyear)
 arm.counts$string <- as.factor(arm.counts$string)
 
 ## join FIS and ARM data
-arm.leg.counts <- bind_rows(leg.counts, arm.counts)
+
+leg.counts <- leg.counts %>% 
+  select(-yr.season)
+
+arm.counts <- arm.counts %>% 
+  select(-yr.season)
+
+arm.leg.counts <- dplyr::bind_rows(leg.counts, arm.counts)
+
+arm.leg.counts <- arm.leg.counts %>% 
+  mutate(yr.season = paste(sampyear, season, sep = '.'))
+
 
 ## save a copy of the R files
 saveRDS(arm.leg.counts, 'C:/CloudStor/R_Stuff/FIS/arm.leg.counts.RDS')
@@ -661,7 +673,16 @@ legs.sl <- dplyr::rename(legs.sl, sllength.leg = sllength)
 # legs.sl$survdate <- as.Date(strptime(legs.sl$survdate, "%Y-%m-%d"))
 
 # join ARM and LEG data
+legs.sl <- legs.sl %>% 
+  select(-yr.season)
+
+arms.sl <- arms.sl %>% 
+  select(-yr.season)
+
 arm.leg.sl <- bind_rows(legs.sl, arms.sl)
+
+arm.leg.sl <- arm.leg.sl %>% 
+  mutate(yr.season = paste(sampyear, season, sep = '.'))
 
 ## save a copy of the R files
 saveRDS(arm.leg.sl, 'C:/CloudStor/R_Stuff/FIS/arm.leg.sl.RDS')
@@ -690,7 +711,9 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2019.Summer" = '2019.Su',
                    "2019.Winter" = '2019.Wi',
                    "2019.Spring" = '2019.Sp',
-                   "2020.Summer" = '2020.Su')
+                   "2020.Summer" = '2020.Su',
+                   "2020.Winter" = '2020.Wi',
+                   "2020.Spring" = '2020.Sp')
 
 ##--------------------------------------------------------------------------------------##
 ## Size freq plot ####
@@ -700,24 +723,33 @@ arm.leg.sl <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.leg.sl.RDS')
   
 ## exract unique sites and yr.seasons
 arm.leg.sites <- unique(arm.leg.sl$site)
-arm.leg.seasons <- data.frame(yr.season = unique(arm.leg.sl$yr.season)) 
+arm.leg.seasons <- data.frame(yr.season = unique(arm.leg.sl$yr.season)) %>% 
+  add_row(yr.season = '2020.Winter')
+
+plot.seasons <- c("2017.Spring", "2019.Winter", 
+                  "2018.Summer", "2019.Spring",
+                  "2018.Winter", "2020.Summer", 
+                  "2018.Spring", "2020.Winter",
+                  "2019.Summer", "2020.Spring")
+
+plot.sites <- c("BRS", "BRB", "GEO", "BET")
+
 
 ## loop through sites to generate arm and leg plots autonomously
-for (i in arm.leg.sites){
+for (i in plot.sites){
 
 ## subset site data
-arm.leg.site <- subset(arm.leg.sl, site == i)
+arm.leg.site <- subset(arm.leg.sl, site == i &
+                         yr.season %in% plot.seasons &
+                         site %in% plot.sites)
 
 ## re-order data so that facet plots in vertical order of two columns
 arm.leg.site$yr.season <- factor(arm.leg.site$yr.season, 
-                                 levels = c("2015.Summer", "2017.Spring",
-                                            "2015.Winter", "2018.Summer", 
-                                            "2015.Spring", "2018.Winter", 
-                                            "2016.Summer", "2018.Spring", 
-                                            "2016.Winter", "2019.Summer",  
-                                            "2016.Spring", "2019.Winter", 
-                                            "2017.Summer", "2019.Spring",
-                                            "2017.Winter", '2020.Summer'))
+                                 levels = c("2017.Spring", "2019.Winter", 
+                                            "2018.Summer", "2019.Spring",
+                                            "2018.Winter", "2020.Summer", 
+                                            "2018.Spring", "2020.Winter",
+                                            "2019.Summer", "2020.Spring"))
 
 
 ## generate a summary table for chosen site to add counts to plots (i.e. n = xxx)
@@ -737,28 +769,26 @@ arm.leg.summary <- arm.leg.site %>%
  summarise(n.sl = n()) %>%
  as.data.frame()
 
-ann_text <- left_join(arm.leg.seasons, arm.leg.summary, by = 'yr.season') %>%
+ann_text <- left_join(arm.leg.seasons, arm.leg.summary, by = 'yr.season') %>% 
+  filter(yr.season %in% plot.seasons) %>% 
  mutate(lab = if_else(is.na(n.sl), 'NO DATA', NA_character_),
         x = 90,
-        y = 40) %>%
+        y = 40) %>% 
  filter(!is.na(lab)) %>% 
         mutate(yr.season = factor(yr.season)) %>% 
  select(c(yr.season, lab, x, y)) 
 
 ## re-order and convert yr.season to factor
 ann_text$yr.season <- factor(ann_text$yr.season, 
-                                 levels = c("2015.Summer", "2017.Spring",
-                                            "2015.Winter", "2018.Summer", 
-                                            "2015.Spring", "2018.Winter", 
-                                            "2016.Summer", "2018.Spring", 
-                                            "2016.Winter", "2019.Summer",  
-                                            "2016.Spring", "2019.Winter", 
-                                            "2017.Summer", "2019.Spring",
-                                            "2017.Winter", '2020.Summer'))
+                                 levels = c("2017.Spring", "2019.Winter", 
+                                            "2018.Summer", "2019.Spring",
+                                            "2018.Winter", "2020.Summer", 
+                                            "2018.Spring", "2020.Winter",
+                                            "2019.Summer", "2020.Spring"))
 
 ## generate plot using 'if...else' statement to determine plot type depending on 
 ## whether a site has ARMs installed
-arm.leg.plot <- if(is.na(plot.n.ARM$yr.season)){
+arm.leg.plot <- if((nrow(plot.n.ARM) == 0 & length(names(plot.n.ARM)) == 0)){
 ggplot(data = arm.leg.site)+
  geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 10, fill = 'blue')+
  geom_histogram(aes(x = sllength.arm, y = -..count..), binwidth = 10, fill = 'red')+
@@ -766,10 +796,10 @@ ggplot(data = arm.leg.site)+
  theme_bw()+
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- coord_cartesian(ylim = c(-40, 115), xlim = c(0, 180))+
+ coord_cartesian(ylim = c(-50, 115), xlim = c(0, 180))+
  geom_hline(yintercept = 0, size = 0.1)+
  geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
- geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n), 
+ geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n),
            colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
  geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
  theme(legend.position = 'none')
@@ -781,10 +811,10 @@ ggplot(data = arm.leg.site)+
         theme_bw()+
         ylab("Frequency") +
         xlab("Shell Length (mm)")+
-        coord_cartesian(ylim = c(-40, 115), xlim = c(0, 180))+
+        coord_cartesian(ylim = c(-50, 115), xlim = c(0, 180))+
         geom_hline(yintercept = 0, size = 0.1)+
         geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
-        geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n), 
+        geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n),
                   colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
         geom_text(data = plot.n.ARM, aes(x = 10, y = -30, label = if_else(n == 'n = 0', '', n)),
                   colour = 'black', inherit.aes = F, parse = F, size = 3.5, na.rm = F)+
@@ -797,7 +827,7 @@ ggplot(data = arm.leg.site)+
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 ggsave(filename = paste('ARM_LEG_LF_', i, '.pdf', sep = ''),
        plot = arm.leg.plot, units = 'mm', width = 190, height = 250)
-ggsave(filename = paste('ARM_LEG_LF_', i, '.wmf', sep = ''),
+ggsave(filename = paste('ARM_LEG_LF_', i, '.png', sep = ''),
        plot = arm.leg.plot, units = 'mm', width = 190, height = 250)
 }
 
@@ -875,7 +905,7 @@ arm.leg.sites <- unique(arm.leg.counts$site)
 arm.leg.seasons <- data.frame(yr.season = unique(arm.leg.counts$yr.season))
 
 ## loop through sites to generate arm and leg plots autonomously
-for (i in arm.leg.sites){
+for (i in plot.sites){
 
 ## subset site data
 arm.leg.site.den <- subset(arm.leg.counts, site == i)
@@ -896,7 +926,8 @@ arm.leg.site.den$yr.season <-
                                                 "2017.Spring", "2018.Summer", 
                                                 "2018.Winter", "2018.Spring",
                                                 "2019.Summer", "2019.Winter",
-                                                '2019.Spring', '2020.Summer'))
+                                                '2019.Spring', '2020.Summer',
+                                                '2020.Winter', '2020.Spring'))
 
 ## summarise data for arm and leg density
 leg.summ <- arm.leg.site.den %>%
@@ -924,7 +955,8 @@ arm_den <- ggplot()+
                                     ymin = arm_mean - arm_se, ymax = arm_mean + arm_se, 
                                     group = factor(string), colour = string), 
                position = position_dodge(0.5), width = 0.1, colour = 'red')+
- ylab(bquote('ARM Density ('*~m^2*')'))+
+ # ylab(bquote('ARM Density ('*~m^2*')'))+
+  ylab(bquote('ARM Density (no. '*~m^-2*')')) +
  scale_x_discrete(labels = season_labels, drop = F)+
  scale_color_manual(values = c('red'))+
  theme_bw()+
@@ -933,7 +965,7 @@ arm_den <- ggplot()+
  labs(col = 'String')+
  #xlab("Season")+
  xlab(NULL)+
- coord_cartesian(ylim = c(0, 60))
+ coord_cartesian(ylim = c(0, 85))
 
 ## leg density plot
 leg_den <- ggplot()+
@@ -944,7 +976,8 @@ leg_den <- ggplot()+
             colour = 'blue')+
  geom_errorbar(data = leg.summ, aes(x = yr.season, 
                                     ymin = leg_mean - leg_se, ymax = leg_mean + leg_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'blue')+
- ylab(bquote('LEG Density ('*~m^2*')'))+
+ # ylab(bquote('LEG Density ('*~m^2*')'))+
+  ylab(bquote('LEG Density (no. '*~m^-2*')')) +
   scale_x_discrete(labels = season_labels, drop = F)+
  scale_color_manual(values = c('blue'))+
  theme_bw()+

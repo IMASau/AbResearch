@@ -122,7 +122,7 @@ length.weight.summary <- mb.next.gen.grade.df %>%
         as.data.frame()
 
 # # save excel summary tables to Cloudstor folder
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
 # write.xlsx(grade.summary, 
 #            file = paste(i, '_GradeSummary_', Sys.Date(), '.xlsx'),
 #            sheetName = "Sheet1", 
@@ -171,7 +171,7 @@ ggsave(
 processor.summaries <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
 
 # list filenames of existing docket summaries in folder
-docket.summaries <- list.files(processor.summaries,  pattern = "^AW.*pdf|^AE.*pdf", full.names = F)
+docket.summaries <- list.files(processor.summaries,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 
 # create a vector of existing docket numbers 
 existing.dockets <- as.data.frame(docket.summaries) %>% 
@@ -244,6 +244,12 @@ for (i in new.dockets) {
                 filter(docket.index == i &
                                between(shelllength, 100, 200))
         
+        plot.n.measured <- measure.board.next.gen.df %>% 
+                filter(!is.na(shelllength) &
+                               docket.index == i
+                       & between(shelllength, 100, 200)) %>%  
+                summarise(n = paste('n =', n()))
+        
         plot.zone <- unique(plot.length.freq.dat$zone)
         docketnum <- unique(plot.length.freq.dat$docketnum)
         
@@ -269,7 +275,8 @@ for (i in new.dockets) {
                         colour = 'red',
                         size = 0.5
                 ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
+                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+                geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
         
         # print(length.freq.plot)
         
@@ -303,7 +310,7 @@ for (i in new.dockets) {
                         ymin = 0.3
                 )
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- unique(plot.length.freq.dat$processor)
@@ -324,6 +331,11 @@ for (j in new.dockets) {
                 plot.weight.freq.dat <- measure.board.next.gen.df %>%
                         filter(docket.index == j &
                                        wholeweight != 0)
+                
+                plot.n.weighed <- measure.board.next.gen.df %>% 
+                        filter(docket.index == j &
+                               wholeweight != 0) %>% 
+                        summarise(n = paste('n =', n()))
                 
                 plot.zone <- unique(plot.weight.freq.dat$zone)
                 docketnum <- unique(plot.weight.freq.dat$docketnum)
@@ -369,7 +381,8 @@ for (j in new.dockets) {
                                         'large' = '#CD534CFF'
                                 )
                         ) +
-                        scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
+                        scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+                        geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
                 
                 # print(weight.freq.plot)
                 
@@ -458,7 +471,7 @@ for (j in new.dockets) {
                                 ymax = 0.4
                         )
                 
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
                 file.zone <- unique(plot.weight.freq.dat$zone)
                 file.date <- unique(plot.weight.freq.dat$plaindate)
                 file.processor <- unique(plot.weight.freq.dat$processor)
@@ -480,6 +493,12 @@ for (i in new.dockets) {
         plot.length.freq.dat <- measure.board.next.gen.df %>%
                 filter(docket.index == i &
                                between(shelllength, 100, 200))
+        
+        plot.n.measured <- measure.board.next.gen.df %>% 
+                filter(!is.na(shelllength) &
+                               docket.index == i
+                       & between(shelllength, 100, 200)) %>%  
+                summarise(n = paste('n =', n()))
         
         plot.zone <- unique(plot.length.freq.dat$zone)
         docketnum <- unique(plot.length.freq.dat$docketnum)
@@ -506,7 +525,8 @@ for (i in new.dockets) {
                         colour = 'red',
                         size = 0.5
                 ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
+                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+                geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
         
         # print(length.freq.plot)
         
@@ -545,6 +565,11 @@ for (i in new.dockets) {
         plot.weight.freq.dat <- measure.board.next.gen.df %>%
                 filter(docket.index == i &
                                wholeweight != 0)
+        
+        plot.n.weighed <- measure.board.next.gen.df %>% 
+                filter(docket.index == i &
+                               wholeweight != 0) %>% 
+                summarise(n = paste('n =', n()))
         
         weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
                 geom_histogram(
@@ -587,7 +612,8 @@ for (i in new.dockets) {
                                 'large' = '#CD534CFF'
                         )
                 ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
+                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+                geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
         
         # print(weight.freq.plot)
         
@@ -683,7 +709,7 @@ for (i in new.dockets) {
                                                ncol = 1), ncol = 1))
         
         #save plots
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- unique(plot.length.freq.dat$processor)
@@ -740,7 +766,7 @@ for(i in docket.nums){
         
         print(docket.pie.plot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         ggsave(
                 filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.pdf', sep = ''),
                 plot = docket.pie.plot,
@@ -846,7 +872,7 @@ for (i in processors) {
         
         print(weight.boxplot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         ggsave(
                 filename = paste(i, '_weight_pre-docket_boxplot_2020', '.pdf', sep = ''),
                 plot = weight.boxplot,
@@ -896,7 +922,7 @@ for (i in docket.nums){
         
         print(length.freq.plot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         
         ggsave(
                 filename = paste('Docket no. ', i, '_lengthfrequency_pre-docket_2020', '.pdf', sep = ''),
@@ -974,7 +1000,7 @@ for (i in processors) {
         
         print(length.boxplot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
         ggsave(
                 filename = paste(i, '_length_pre-docket_boxplot_2020', '.pdf', sep = ''),
                 plot = length.boxplot,
@@ -1002,14 +1028,22 @@ for (i in processors) {
 ## Tas Seafoods ####
 ## Tasmanian Seafoods Diver Summary - Mark Fleming
 
-tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_June2020_DiverDetails.xlsx",
-                       detectDates = T)
+# tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2020.xlsx",
+#                        detectDates = T)
 
-tas.seafoods.divers.2020 <- tas.seafoods.divers.2020 %>% 
+tas.seafoods.divers.2021 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2021.xlsx",
+                                      detectDates = T)
+
+
+summary.month <- month(Sys.time(), label = T, abbr = FALSE)
+summary.year <- year(Sys.time())
+
+tas.seafoods.divers <- tas.seafoods.divers.2021 %>% 
         distinct(docketnum, divedate, .keep_all = T) %>% 
         group_by(docketnum, diver) %>% 
         summarise(divedate = max(divedate)) %>% 
         mutate(docketnum = trimws(docketnum))
+
 
 tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
@@ -1028,12 +1062,14 @@ tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('d
         select(-zone) %>% 
         as.data.frame()
 
-tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>%  
+tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
+        filter(divedate >= as.Date("2021-01-01")) %>% 
         dplyr::rename('Dive\ndate' = divedate,
                'Diver\nname' = diver,
                'Date\nsampled' = 'Sample\ndate',
-               'Number\nsampled' = 'Abalone\nmeasured')
+               'Number\nsampled' = 'Abalone\nmeasured') 
+        
 
 tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>% 
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
@@ -1042,12 +1078,61 @@ tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>%
 
 setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
 ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', '_DIVERSUMMARY_OCTOBER2020', '.pdf', sep = ''),
+        filename = paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 680,
+        height = 300,
         units = 'mm'
 )
+##---------------------------------------------------------------------------##
+## Seafood Traders ####
+## Seafood Traders Diver Summary - Mark Fleming
+
+seafood.traders.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/SeafoodTraders_2020_DiverDetails.xlsx",
+                                      detectDates = T)
+
+seafood.traders.divers.2020 <- seafood.traders.divers.2020 %>% 
+        distinct(docketnum, divedate, .keep_all = T) %>% 
+        group_by(docketnum, diver) %>% 
+        summarise(divedate = max(divedate)) %>% 
+        mutate(docketnum = trimws(docketnum))
+
+seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
+        filter(processor == "SEAFOOD TRADERS PTY LTD") %>% 
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
+        ungroup() %>% 
+        select(-c(grade.meas, processor)) %>% 
+        spread(grade, grade.perc) %>% 
+        dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
+        arrange(desc(plaindate)) %>%
+        ungroup() %>% 
+        mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
+        dplyr::rename('Sample\ndate' = plaindate,
+                      'Docket\nno.' = docketnum,
+                      'Abalone\nmeasured' = ab.weighed) %>% 
+        select(-zone) %>% 
+        as.data.frame()
+
+seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2020, by = c('Docket\nno.' = 'docketnum')) %>%  
+        select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
+        dplyr::rename('Dive\ndate' = divedate,
+                      'Diver\nname' = diver,
+                      'Date\nsampled' = 'Sample\ndate',
+                      'Number\nsampled' = 'Abalone\nmeasured')
+
+seafood.traders.grade.summary.formated <- seafood.traders.grade.summary %>% 
+        ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
+ggsave(
+        filename = paste('SEAFOOD TRADERS PTY LTD', '_DIVERSUMMARY_DECEMBER2020', '.pdf', sep = ''),
+        plot = seafood.traders.grade.summary.formated,
+        width = 200,
+        height = 300,
+        units = 'mm'
+)
+
 ##---------------------------------------------------------------------------##
 ## Excel Export ####
 ## raw data Excel export for processors
