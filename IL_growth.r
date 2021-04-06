@@ -1,6 +1,6 @@
 library(grDevices)
 library(data.table)
-library(dplyr)
+library(tidyverse)
 rm(list=ls())   # Cleanup the R console if required
 
 setwd("c:/CloudStor/R_Stuff/Logistic")
@@ -21,10 +21,10 @@ dim(GwthRaw)
 head(GwthRaw,20)
 summary(GwthRaw)
 
-SiteDrop<-c(802)
+SiteDrop <- c(802)
 pick <- which(GwthRaw$SiteId %in% SiteDrop)
-Gwth<-GwthRaw[-pick,]
-GwthRaw<-subset(GwthRaw)
+Gwth <- GwthRaw[-pick,]
+GwthRaw <- subset(GwthRaw)
 
 sitenames <-  read.csv("sitenames.csv", header=TRUE)
 sitenos <- sitenames$SiteId
@@ -114,4 +114,4 @@ ILResults<-as.data.frame(ILResults)
 
 ILResults<-left_join(ILResults, sitechar, by = "SiteId")
 
-save(ILResults, file='c:/CloudStor/R_Stuff/SAM/Logistic/ILResults.RData')
+save(ILResults, file='c:/CloudStor/R_Stuff/Logistic/ILResults_2020.RData')

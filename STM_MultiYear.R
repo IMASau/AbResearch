@@ -58,26 +58,26 @@ for(i in Sites){
   choice$eLML50.3y<-(findmedL(Nt3))
   #%pp 1yr
   Nt1df<-as.data.frame(Nt1)
-  Nt1df$Length<-midpts
+  Nt1df$length <- midpts
   pick<-which(Nt1df$V1 > 0)
   Nt1df <- Nt1df[pick,]
-  pick<-which(Nt1df$Length <= LML)
+  pick<-which(Nt1df$length <= LML)
   L.LML1 <- Nt1df[pick,]
   choice$PPLM50.1yr<-sum(L.LML1$V1/10)/2  ## ? why the /2???
   #% pp 2yr
   Nt2df<-as.data.frame(Nt2)
-  Nt2df$Length<-midpts
+  Nt2df$length <- midpts
   pick<-which(Nt2df$V1 > 0)
   Nt2df <- Nt2df[pick,]
-  pick<-which(Nt2df$Length <= LML)
+  pick<-which(Nt2df$length <= LML)
   L.LML2 <- Nt2df[pick,]
   choice$PPLM50.2yr<-sum(L.LML2$V1/10)/2
   #% pp 3yr
   Nt3df<-as.data.frame(Nt3)
-  Nt3df$Length<-midpts
+  Nt3df$length <- midpts
   pick<-which(Nt3df$V1 > 0)
   Nt3df <- Nt3df[pick,]
-  pick<-which(Nt3df$Length <= LML)
+  pick<-which(Nt3df$length <= LML)
   L.LML3 <- Nt3df[pick,]
   choice$PPLM50.3yr<-sum(L.LML3$V1/10)/2
   
@@ -108,35 +108,38 @@ for(i in Sites){
   Nt <- numeric(105)
   Nt[trunc(Lm50/2)] <- 1000
   Nt1 <- G %*% Nt  #1 year growth post LM50
-  Nt2 <-G %*% (G %*% Nt) #2 year Grwoth post LM50
-  Nt3 <-G %*% (G %*% (G %*% Nt))  #3 year Grwoth post LM50
-  choice$eLML90.1y<-(findmedL(Nt1))
-  choice$eLML90.2y<-(findmedL(Nt2))
-  choice$eLML90.3y<-(findmedL(Nt3))
+  Nt2 <- G %*% (G %*% Nt) #2 year Grwoth post LM50
+  Nt3 <- G %*% (G %*% (G %*% Nt))  #3 year Growth post LM50
+  choice$eLML90.1y <- (findmedL(Nt1))
+  choice$eLML90.2y <- (findmedL(Nt2))
+  choice$eLML90.3y <- (findmedL(Nt3))
+  
   #%pp 1yr
-  Nt1df<-as.data.frame(Nt1)
-  Nt1df$Length<-midpts
-  pick<-which(Nt1df$V1 > 0)
+  Nt1df <- as.data.frame(Nt1)
+  Nt1df$length <- midpts
+  pick <- which(Nt1df$V1 > 0)
   Nt1df <- Nt1df[pick,]
-  pick<-which(Nt1df$Length <= LML)
+  pick <- which(Nt1df$length <= LML)
   L.LML1 <- Nt1df[pick,]
-  choice$PPLM90.1yr<-sum(L.LML1$V1/10)/2
+  choice$PPLM90.1yr <- sum(L.LML1$V1/10)/2
+  
   #% pp 2yr
   Nt2df<-as.data.frame(Nt2)
-  Nt2df$Length<-midpts
+  Nt2df$length <- midpts
   pick<-which(Nt2df$V1 > 0)
   Nt2df <- Nt2df[pick,]
-  pick<-which(Nt2df$Length <= LML)
+  pick<-which(Nt2df$length <= LML)
   L.LML2 <- Nt2df[pick,]
-  choice$PPLM90.2yr<-sum(L.LML2$V1/10)/2
+  choice$PPLM90.2yr <- sum(L.LML2$V1/10)/2
+  
   #% pp 3yr
   Nt3df<-as.data.frame(Nt3)
-  Nt3df$Length<-midpts
+  Nt3df$length <- midpts
   pick<-which(Nt3df$V1 > 0)
   Nt3df <- Nt3df[pick,]
-  pick<-which(Nt3df$Length <= LML)
+  pick<-which(Nt3df$length <= LML)
   L.LML3 <- Nt3df[pick,]
-  choice$PPLM90.3yr<-sum(L.LML3$V1/10)/2
+  choice$PPLM90.3yr <- sum(L.LML3$V1/10)/2
   
   pick<-choice[,c(1,25:30)]
   if (exists("eLMLResults"))
@@ -176,39 +179,38 @@ Nt10 <-G %*% (G %*% (G %*% (G %*% (G %*% (G %*% (G %*% (G %*% (G %*% (G %*% Nt))
 (findmedL(Nt10))
 
 Nt1df<-as.data.frame(Nt1)
-Nt1df$Length<-midpts
+Nt1df$length <- midpts
 
 Nt2df<-as.data.frame(Nt2)
-Nt2df$Length<-midpts
+Nt2df$length <- midpts
 
 Nt3df<-as.data.frame(Nt3)
-Nt3df$Length<-midpts
+Nt3df$length <- midpts
 
 Nt4df<-as.data.frame(Nt4)
-Nt4df$Length<-midpts
+Nt4df$length <- midpts
 
 Nt5df<-as.data.frame(Nt5)
-Nt5df$Length<-midpts
+Nt5df$length <- midpts
 
 Nt6df<-as.data.frame(Nt6)
-Nt6df$Length<-midpts
+Nt6df$length <- midpts
 
 Nt7df<-as.data.frame(Nt7)
-Nt7df$Length<-midpts
+Nt7df$length <- midpts
 
 Nt8df<-as.data.frame(Nt8)
-Nt8df$Length<-midpts
+Nt8df$length <- midpts
 
 Nt9df<-as.data.frame(Nt9)
-Nt9df$Length<-midpts
+Nt9df$length <- midpts
 
-Nt10df<-as.data.frame(Nt10)
-Nt10df$Length<-midpts
-
-
+Nt10df <- as.data.frame(Nt10)
+Nt10df$length <- midpts
 
 
-ggplot(Nt2df) + geom_line(aes(x = Length, y = V1), size = 1) +   geom_vline(
+
+ggplot(Nt5df) + geom_line(aes(x = length, y = V1), size = 1) +   geom_vline(
  xintercept = Lm50,
  colour = 'red',
  size = 1,

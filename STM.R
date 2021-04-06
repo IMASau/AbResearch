@@ -21,11 +21,12 @@ if (exists("eLMLResults"))
   rm(eLMLResults)
 
 for(i in Sites){
-  choice<-subset(SAMILResults, SiteCode == i)
+  choice <- subset(SAMILResults, SiteCode == i)
   param <- c(choice$MaxDL,choice$L50,choice$L95,choice$SigMax) # MaxDL, L50, L95, SigMax
   Lm50 <- choice$LD50 # estimated size at 50% maturity
-  LML <- choice$LML
-  #eLML from L50
+  #Lm50 <- 127
+   LML <- choice$LML
+   #eLML from L50
   midpts <- seq(2,210,2)
   G <- STM(param,midpts)
   Nt <- numeric(105)
@@ -40,7 +41,7 @@ for(i in Sites){
   L.LML <- Nt1df[pick,]
   choice$Pctless.LML<-sum(L.LML$V1/10)/2
   
-  pick<-choice[,c(1,41:42)]  
+  pick <- choice[,c(1,41:42)]  
   if (exists("eLMLResults"))
     eLMLResults <- rbind(eLMLResults, pick)
   else
@@ -49,3 +50,11 @@ for(i in Sites){
 #pass back to GwthResults
 GwthResults<-join(SAMILResults, eLMLResults, by='SiteCode')
 
+
+plot(x=Nt1df$Length, y=Nt1df$V1)
+
+Nt1df %>% ggplot() +
+  geom_point(aes(x=Length, y=V1)) +
+  scale_x_continuous(breaks= seq(140,210,5))
+
+Nt1df %>% filter(Length <= 150) %>% tally(V1)
