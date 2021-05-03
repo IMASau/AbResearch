@@ -17,6 +17,7 @@ setwd('C:/CloudStor/R_Stuff/FIS')
 ##--------------------------------------------------------------------------------------##
 ## Load libraries ####
 ## load library packages
+suppressPackageStartupMessages({
 library(dplyr)
 library(ggplot2)
 library(scales)
@@ -30,6 +31,8 @@ library(ggpubr)
 library(readxl)
 library(tibble)
 library(data.table)
+library(ggpmisc)
+})
 
 ##--------------------------------------------------------------------------------------##
 ## Load functions ####
@@ -88,7 +91,7 @@ legs.df.2 <- legs.df %>%
                                       all_comments, NA_character_))) %>%
   mutate(comments = if_else(is.na(estimate), all_comments, NA_character_),
          estimate = gsub('e', 'E', estimate)) %>%
-  select(-c(estimate.2, all_comments)) %>%
+  dplyr::select(-c(estimate.2, all_comments)) %>%
   as.data.frame()
 
 ## remove any characters or obvious errors from shell length (e.g. where 'estimate (E)' 
@@ -186,7 +189,7 @@ leg.counts$yr.season <-
                                            "2017.Summer", "2017.Winter", "2017.Spring", 
                                            "2018.Summer", "2018.Winter", "2018.Spring", 
                                            "2019.Summer", '2019.Winter', '2019.Spring',
-                                          '2020.Summer', "2020.Spring"))
+                                          '2020.Summer', "2020.Spring", "2021.Summer"))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(leg.counts$site == "GAR")
@@ -292,7 +295,7 @@ legs.counts.join$yr.season <-
                     "2017.Summer", "2017.Winter", "2017.Spring", 
                     "2018.Summer", "2018.Winter", "2018.Spring", 
                     "2019.Summer", '2019.Winter', '2019.Spring',
-                    '2020.Summer', "2020.Spring"))
+                    '2020.Summer', "2020.Spring", "2021.Summer"))
 
 ## adjust misclassified seasons
 pick <- which(legs.counts.join$site == "GAR")
@@ -346,7 +349,7 @@ legs.sl$yr.season <-
                                          "2017.Summer", "2017.Winter", "2017.Spring", 
                                          "2018.Summer", "2018.Winter", "2018.Spring", 
                                          "2019.Summer", '2019.Winter', '2019.Spring',
-                                       '2020.Summer', '2020.Spring'))
+                                       '2020.Summer', '2020.Spring', '2021.Summer'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(legs.sl$site == "GAR")
@@ -489,7 +492,7 @@ ordered(arms.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring
                                      "2017.Summer", "2017.Winter", "2017.Spring", 
                                      "2018.Summer", "2018.Winter", "2018.Spring",
                                      "2019.Summer", "2019.Winter", "2019.Spring",
-                                     '2020.Summer', '2020.Spring'))
+                                     '2020.Summer', '2020.Spring', '2021.Summer'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arms.sl$site == "GAR")
@@ -564,7 +567,7 @@ arm.counts$yr.season <-
                                         "2017.Summer", "2017.Winter", "2017.Spring", 
                                         "2018.Summer", "2018.Winter", "2018.Spring",
                                         "2019.Summer", "2019.Winter", "2019.Spring",
-                                        '2020.Summer', '2020.Spring'))
+                                        '2020.Summer', '2020.Spring', '2021.Summer'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arm.counts$site == "GAR")
@@ -634,10 +637,10 @@ arm.counts$string <- as.factor(arm.counts$string)
 ## join FIS and ARM data
 
 leg.counts <- leg.counts %>% 
-  select(-yr.season)
+  dplyr::select(-yr.season)
 
 arm.counts <- arm.counts %>% 
-  select(-yr.season)
+  dplyr::select(-yr.season)
 
 arm.leg.counts <- dplyr::bind_rows(leg.counts, arm.counts)
 
@@ -674,10 +677,10 @@ legs.sl <- dplyr::rename(legs.sl, sllength.leg = sllength)
 
 # join ARM and LEG data
 legs.sl <- legs.sl %>% 
-  select(-yr.season)
+  dplyr::select(-yr.season)
 
 arms.sl <- arms.sl %>% 
-  select(-yr.season)
+  dplyr::select(-yr.season)
 
 arm.leg.sl <- bind_rows(legs.sl, arms.sl)
 
@@ -713,7 +716,8 @@ season_labels <- c("2015.Summer" = '2015.Su',
                    "2019.Spring" = '2019.Sp',
                    "2020.Summer" = '2020.Su',
                    "2020.Winter" = '2020.Wi',
-                   "2020.Spring" = '2020.Sp')
+                   "2020.Spring" = '2020.Sp',
+                   "2021.Summer" = '2021.Su')
 
 ##--------------------------------------------------------------------------------------##
 ## Size freq plot ####
@@ -776,7 +780,7 @@ ann_text <- left_join(arm.leg.seasons, arm.leg.summary, by = 'yr.season') %>%
         y = 40) %>% 
  filter(!is.na(lab)) %>% 
         mutate(yr.season = factor(yr.season)) %>% 
- select(c(yr.season, lab, x, y)) 
+ dplyr::select(c(yr.season, lab, x, y)) 
 
 ## re-order and convert yr.season to factor
 ann_text$yr.season <- factor(ann_text$yr.season, 
@@ -927,7 +931,8 @@ arm.leg.site.den$yr.season <-
                                                 "2018.Winter", "2018.Spring",
                                                 "2019.Summer", "2019.Winter",
                                                 '2019.Spring', '2020.Summer',
-                                                '2020.Winter', '2020.Spring'))
+                                                '2020.Winter', '2020.Spring',
+                                                '2021.Summer'))
 
 ## summarise data for arm and leg density
 leg.summ <- arm.leg.site.den %>%
@@ -1243,3 +1248,46 @@ ggsave(filename = paste('LEG_DENSITY_', selected.site, '.pdf', sep = ''), plot =
 ggsave(filename = paste('LEG_DENSITY_', selected.site, '.wmf', sep = ''), plot = leg.density)
 
 ##--------------------------------------------------------------------------------------##
+plot.leg.den <- legs.counts.join %>% 
+  filter(site == 'GEO' &
+           sampyear != 2021) %>% 
+  group_by(string, yr.season) %>%
+  summarise(leg_mean = mean(absm_leg),
+            leg_n = n(),
+            leg_se = sd(absm_leg)/sqrt(leg_n)) %>% 
+  ggplot(aes(x = yr.season, y = leg_mean, group = string, colour = string))+
+  geom_line(aes(x = yr.season, y = leg_mean, group = factor(string), 
+                                 linetype = string), position = position_dodge(0.5), colour = 'blue')+
+  geom_point(aes(x = yr.season, y = leg_mean, group = factor(string), 
+                                  colour = string), size = 3, position = position_dodge(0.5), 
+             colour = 'blue')+
+  geom_errorbar(aes(x = yr.season, ymin = leg_mean - leg_se, ymax = leg_mean + leg_se, group = factor(string), colour = string), position = position_dodge(0.5), width = 0.1, colour = 'blue')+
+  geom_smooth(aes(x = yr.season, y = leg_mean, group = string), method = 'lm', formula = y~x, se = T, size = 1)+
+  ggpmisc::stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
+               parse = TRUE, label.x = 'left', label.y = 'top')+
+  ylab(bquote('Legal >138 mm LEG Density (no. '*~m^-2*')')) +
+  # scale_x_discrete(labels = season_labels, drop = F)+
+  scale_color_manual(values = c('blue', 'red'))+
+  theme_bw()+
+  theme(legend.position = 'none')+
+  labs(col = 'String')+
+  xlab("Season")+
+  coord_cartesian(ylim = c(0, 0.35))+
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+ggsave(
+  filename = paste('GEO_LegalDensity_Summer2021', '.pdf', sep = ''),
+  plot = plot.leg.den,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+
+ggsave(
+  filename = paste('GEO_LegalDensity_Summer2021', '.png', sep = ''),
+  plot = plot.leg.den,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+

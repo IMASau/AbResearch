@@ -34,54 +34,60 @@ library(tictoc)
 ## Local working folder ####
 
 # sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
-measureboard.non.modem <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
+# measureboard.non.modem <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
+
+measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
+
+# extract data files for GPS loggers allocated to divers (05010107 - Greg Woodham, 05010036 - Ben Allen, 05010040 or 05010037 or 05010112 - Sean Larby) 
+
+localfiles <- list.files(measureboard.non.modem,  pattern = "^05010107|05010036|05010045|05010040|05010037|05010112.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
-## Uncompress NextGen files from sfptServer ####
-
-## Choose directory where compressed files for import are located
-imp_dir <- measureboard.non.modem
-
-## Choose directory where unpacked .txt files are to be saved
-out_dir <- measureboard.non.modem
-
-## UnPack compressed files (tar.gz) ####
-
-# Get a full list of all compressed files in the import directory
-dirlist_cmp <- list_files_with_exts(imp_dir,c("tar.gz"), full.names=FALSE)
-
-# Get a full list of all unpacked .txt files in the export directory
-dirlist_txt <- list_files_with_exts(out_dir,c("txt"), full.names=FALSE)
-
-## Convert both lists to data frames and combine
-dirlistdf_cmp <- as.data.frame(dirlist_cmp)
-dirlistdf_cmp$dirlist_cmp <- as.character(dirlistdf_cmp$dirlist_cmp)
-dirlistdf_cmp <- dirlistdf_cmp %>% 
-  dplyr::rename(FileName = dirlist_cmp)
-dirlistdf_txt <- as.data.frame(dirlist_txt)
-dirlistdf_txt$dirlist_txt <- as.character(dirlistdf_txt$dirlist_txt)
-dirlistdf_txt <- dirlistdf_txt %>% 
-  dplyr::rename(FileName = dirlist_txt)
-
-dirlistdf_unp <- rbind(dirlistdf_cmp,dirlistdf_txt)
-
-# Find file names and extensions
-dirlistdf_unp <- dirlistdf_unp %>% separate(FileName,c("F_name","F_ext"),sep="[.]",remove=F)
-
-#Remove unpacked files from list (ie. find duplicates)
-unpacked_files <- dirlistdf_unp[duplicated(dirlistdf_unp[,c("F_name")]),]
-files_to_unpack <- dirlistdf_unp %>% 
- filter(!F_name %in% c(unpacked_files$F_name)) %>% 
- filter(F_ext == c("tar"))
-
-# Unpack files
-tic()
-numfiles <- nrow(files_to_unpack)
-if (numfiles > 0){
- for (f in 1:numfiles){
-  untar(paste(imp_dir,"\\",files_to_unpack$FileName[f],sep=""),exdir = out_dir)
- }}
-toc()
+# ## Uncompress NextGen files from sfptServer ####
+# 
+# ## Choose directory where compressed files for import are located
+# imp_dir <- measureboard.non.modem
+# 
+# ## Choose directory where unpacked .txt files are to be saved
+# out_dir <- measureboard.non.modem
+# 
+# ## UnPack compressed files (tar.gz) ####
+# 
+# # Get a full list of all compressed files in the import directory
+# dirlist_cmp <- list_files_with_exts(imp_dir,c("tar.gz"), full.names=FALSE)
+# 
+# # Get a full list of all unpacked .txt files in the export directory
+# dirlist_txt <- list_files_with_exts(out_dir,c("txt"), full.names=FALSE)
+# 
+# ## Convert both lists to data frames and combine
+# dirlistdf_cmp <- as.data.frame(dirlist_cmp)
+# dirlistdf_cmp$dirlist_cmp <- as.character(dirlistdf_cmp$dirlist_cmp)
+# dirlistdf_cmp <- dirlistdf_cmp %>% 
+#   dplyr::rename(FileName = dirlist_cmp)
+# dirlistdf_txt <- as.data.frame(dirlist_txt)
+# dirlistdf_txt$dirlist_txt <- as.character(dirlistdf_txt$dirlist_txt)
+# dirlistdf_txt <- dirlistdf_txt %>% 
+#   dplyr::rename(FileName = dirlist_txt)
+# 
+# dirlistdf_unp <- rbind(dirlistdf_cmp,dirlistdf_txt)
+# 
+# # Find file names and extensions
+# dirlistdf_unp <- dirlistdf_unp %>% separate(FileName,c("F_name","F_ext"),sep="[.]",remove=F)
+# 
+# #Remove unpacked files from list (ie. find duplicates)
+# unpacked_files <- dirlistdf_unp[duplicated(dirlistdf_unp[,c("F_name")]),]
+# files_to_unpack <- dirlistdf_unp %>% 
+#  filter(!F_name %in% c(unpacked_files$F_name)) %>% 
+#  filter(F_ext == c("tar"))
+# 
+# # Unpack files
+# tic()
+# numfiles <- nrow(files_to_unpack)
+# if (numfiles > 0){
+#  for (f in 1:numfiles){
+#   untar(paste(imp_dir,"\\",files_to_unpack$FileName[f],sep=""),exdir = out_dir)
+#  }}
+# toc()
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
@@ -93,7 +99,7 @@ toc()
 ## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
 ## no weight integration.
 
-localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
+# localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
 
 localfiles.dat <- lapply (localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
@@ -353,6 +359,19 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
   ungroup() %>% 
   select(-c(mb.test.data, sample.id))
 
+## Remove practice samples for Ben Allens board before sending to him on 2020-07-02
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  filter(!(logname == '07010051' & 
+             plaindate == as.Date('2020-07-02')))
+
+## Sean Larby indicated that his deckhand incorrectly measured fish on 2020-12-19 by sliding gate open
+## and closing back onto shell
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  filter(!(logname == '07010053' &
+           plaindate == as.Date('2020-12-19')))
+
+
 ##---------------------------------------------------------------------------##
 ## Step 9: Determine sample location ####
 
@@ -580,10 +599,16 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
             plaindate == as.Date('2020-09-16') &
             subblockno %in% c('29D'),
           '29',
+          if_else(
+            processor == 'Sean Larby' &
+              plaindate == as.Date('2020-09-29') &
+              subblockno %in% c('32B'),
+            '32',
           blockno
         )
       )
     )
+  )
   )
 
 # add sample ID
@@ -628,7 +653,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2020`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2021`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 

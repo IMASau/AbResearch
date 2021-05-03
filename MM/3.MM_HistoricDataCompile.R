@@ -42,12 +42,12 @@ source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
 # load most recent newBlackCE dataframe from the catcheffort data output
 
-setwd('c:/CloudStor/R_Stuff/AutoAssess')
+# setwd('c:/CloudStor/R_Stuff/AutoAssess')
 
 # manually select the most recent .rdata file (or file that covers the market measure timeframe)
 
-myFile <- file.choose()
-load(myFile)
+# myFile <- file.choose()
+# load(myFile)
 
 ##-------------------------------------------------------------------------------------------------------##
 
@@ -93,7 +93,7 @@ docketinfo <- docketinfo %>%
 
 # names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
 docketinfo <- docketinfo %>% 
-   rename(docket.number = docket_number,
+   dplyr::rename(docket.number = docket_number,
           processorname = certificate_holder)
 
 # # NOTE: certifcate_holder removed from latest docketinfo so added temporarily
@@ -1495,7 +1495,7 @@ measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.ne
 
 measure.board.next.gen.df.match <- measure.board.next.gen.df %>% 
    select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
-   rename(msr.date = plaindate,
+   dplyr::rename(msr.date = plaindate,
           docket.number = docketnum,
           shell.length = shelllength,
           whole.weight = wholeweight,
@@ -1511,7 +1511,7 @@ colnames(eproname) <- c("e.processor")
 e.processors <- eproname$e.processor
 
 docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors)) %>% 
-   rename(e.processor = processorname)
+   dplyr::rename(e.processor = processorname)
 
 # summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
 n.per.docket <- measure.board.next.gen.df.match %>% 
@@ -1567,7 +1567,7 @@ compiled.docket.next.gen <- measure.board.next.gen.df.unique %>%
       whole.weight,
       datasource
    ) %>% 
-   rename('processorname' = e.processor)
+   dplyr::rename('processorname' = e.processor)
 
 # save RDS file
 

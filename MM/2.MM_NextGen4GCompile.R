@@ -5,8 +5,10 @@
 # Created by: Craig Mundy and Jaime McAllister
 
 ##---------------------------------------------------------------------------##
-# load libaries ####
+# clear console ####
+rm(list = ls())
 
+# load libaries ####
 suppressPackageStartupMessages({
 # library(sftp)
 library(RCurl)
@@ -22,6 +24,7 @@ library(lubridate)
 library(vroom)
 library(readtext)
 library(quanteda)
+library(splitstackshape)
 })
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
@@ -176,6 +179,10 @@ measure.board.df <- lengthweight
 ##---------------------------------------------------------------------------##
 ## Step 8: clean and save dataframe ####
 
+# remove records with missing docketnum
+measure.board.df <- measure.board.df %>% 
+        filter(!is.na(docketnum))
+
 # remove measuring board testing data (pre-deployment logger names and random test docket numbers) 
 measure.board.df <- measure.board.df %>% 
         filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
@@ -187,10 +194,58 @@ measure.board.df <- measure.board.df %>%
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
 # Simon Leonard (RTS) informed me that zone for docket number 812576 should be AW not AN
 # Mick (Tas Seafoods) informed me that zone for docket number 525708 should be AE not AW
+# Mark Fleming (Tas Seafoods) notified me that he had entered an incorrect docket number (811698 to 811691)
+# Mark Fleming (Tas Seafoods) notified me that he had entered an incorrect docket number (801875 to 810875)
 measure.board.df <- measure.board.df %>% 
         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227),
+               docketnum = replace(docketnum, docketnum == 811698, 811691),
+               docketnum = replace(docketnum, docketnum == 801875, 810875),
                zone = if_else(docketnum == 812576, 'AW', 
                               if_else(docketnum == 525708, 'AE', zone)))
+
+# Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
+measure.board.df <- measure.board.df %>% 
+        mutate(remove.record = if_else(docketnum == 809078 & 
+                                               abalonenum %in% c(64:67, 95), 1, 0)) %>% 
+        filter(remove.record == 0) %>% 
+        select(-remove.record)
+
+# Incorrect sample for docket number 812803 at Seafood Traders 2021-03-15
+measure.board.df <- measure.board.df %>% 
+        mutate(remove.record = if_else(docketnum == 812803 &
+                       plaindate == as.Date('2021-03-15'), 1, 0)) %>%   
+        filter(remove.record == 0) %>% 
+        select(-remove.record)
+
+# combine data from multiple boards measuring the same docketnum at Steve Crocker (Tassie Live Lobster) on 2020-01-22
+# also combine multiple samples from Seafood Traders on 2021-02-22 where the measuring board may have restarted for
+# docket AW812802
+# adjust abalone number where not in sequence from 0:n()
+multi.board.abnum <- measure.board.df %>% 
+        filter(docketnum %in% c('812108', '812302', '523229', '812204', 
+                                '523630', '519218', '812628', '809078',
+                                '811918', '522956', '812456', '523108',
+                                '512188', '523185', '812802')) %>% 
+        arrange(local_date, docketnum) %>% 
+        dplyr::group_by(docketnum) %>% 
+        mutate(abalonenum = row_number() - 1)
+
+measure.board.df.single.board <- measure.board.df %>% 
+        filter(!docketnum %in% c('812108', '812302', '523229', '812204', 
+                                 '523630', '519218', '812628', '809078',
+                                 '811918', '522956', '812456', '523108',
+                                 '512188', '523185', '812802'))
+
+measure.board.df <- bind_rows(multi.board.abnum, measure.board.df.single.board)
+
+## remove unknown but likely factory test samples
+measure.board.df <- measure.board.df %>% 
+        filter(logname != 07020057 &
+                       !rawutc %in% c(1589771875, 1589771877))
+
+## remove duplicate samples (i.e. AW809078)
+measure.board.df <- measure.board.df %>% 
+        distinct()
 
 # adjust GPS dropout for 07-02-0056 on 2020-10-26 (Scielex suspect 4G antenna proximity to GPS) 
 measure.board.df <- measure.board.df %>% 
@@ -210,6 +265,42 @@ measure.board.df <- measure.board.df %>%
                                              logname == '07020056',
                                      ymd('2020-10-26'), plaindate))
 
+# remove weights from Tas Seafoods measurements between 2020-07-03 and 2020-10-19 where the inferior scales were
+# used resulting in unreliable and erroneous weights being recorded.
+
+measure.board.df <- measure.board.df %>% 
+        mutate(wholeweight = if_else(between(plaindate, as.Date('2020-07-03'), as.Date('2020-10-19')) &
+                                             logname == '07020058', 0, wholeweight))
+
+##---------------------------------------------------------------------------##
+# identify dockets sampled > 1 per day (e.g. catch measured from separate holding tanks)
+docketnum.samp.day <- measure.board.df %>%
+        filter(!is.na(docketnum)) %>%
+        group_by(docketnum, abalonenum, plaindate) %>% 
+        summarise(n.day = n()) %>% 
+        filter(abalonenum == 0) %>% 
+        ungroup() %>% 
+        select(docketnum, n.day) 
+
+multi.samp.day <- left_join(measure.board.df, docketnum.samp.day) %>% 
+        filter(!is.na(docketnum),
+               n.day > 1,
+               abalonenum == 0) %>% 
+        group_by(docketnum) %>% 
+        arrange(local_date) %>% 
+        mutate(samp.no.day = row_number())
+
+multi.samp.day.df <- left_join(measure.board.df, docketnum.samp.day) %>% 
+        filter(!is.na(docketnum),
+               n.day > 1) %>% 
+        left_join(., multi.samp.day) %>% 
+        fill(samp.no.day)
+
+measure.board.df <- left_join(measure.board.df, multi.samp.day.df) %>% 
+        mutate(docketnum.day = if_else(!is.na(samp.no.day), 
+                                       paste(docketnum, samp.no.day, sep = '_'), 
+                                       as.character(docketnum))) %>% 
+        select(-c(n.day, samp.no.day))
 ##---------------------------------------------------------------------------##
 ## Step 9: assign measuring board to processor ####
 
@@ -241,9 +332,21 @@ measure.board.next.gen.df <- fuzzy_left_join(
         select(-(logname.x)) %>%
         filter(!is.na(docketnum))
 
+# measure.board.next.gen.df <- measure.board.next.gen.df %>% 
+#         arrange(logname, local_date, processor) %>% 
+#         mutate(sample.id = cumsum(c(-1, diff(abalonenum)) < 0)) 
+
+
+# ## determine number of abalone in each sample and join
+# samp.id.no <- measure.board.next.gen.df %>% 
+#         group_by(docketnum.day, processor, plaindate) %>% 
+#         summarise(sample.n = n())
+# 
+# measure.board.next.gen.df <- left_join(measure.board.next.gen.df, samp.id.no)
+
 # add docket.index
 measure.board.next.gen.df <- measure.board.next.gen.df %>% 
-        mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-'))
+        mutate(docket.index = paste(zone, docketnum.day, plaindate, processor, sep = '-'))
 
 ##---------------------------------------------------------------------------##
 ## Step 10: incomplete uploads ####
@@ -269,4 +372,9 @@ saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 ## Step 11: save RDS of dataframe ####
 
 saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+
+##---------------------------------------------------------------------------##
+measure.board.next.gen.df %>% 
+        arrange(local_date) %>% 
+        tail()
 

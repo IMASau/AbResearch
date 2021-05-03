@@ -3,6 +3,9 @@
 
 # Created by: Jaime McAllister
 
+# clear console ####
+rm(list = ls())
+
 # Load libaries ####
 # load required libaries and custom functions for plotting
 suppressPackageStartupMessages({
@@ -16,7 +19,6 @@ library(tools)
 library(openxlsx)
 library(lubridate)
 library(gdata)
-library(dplyr)
 library(doBy)
 library(tidyr)
 library(tidyverse)
@@ -32,7 +34,9 @@ library(janitor)
 library(xtable)
 library(gsubfn)
 library(ggplot2)
-library(ggpubr)  
+library(ggpubr)
+  library(dplyr)
+  library(ggpmisc)
 }) 
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 ##-------------------------------------------------------------------------------------------------------##
@@ -53,7 +57,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2020
+stock.assessment.year <- 2021
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify zone/blocks/processors ####
@@ -178,6 +182,12 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # join size limit data and compiledMM.df to include size limit for each observation
 compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
 # compiledMM.df.1 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+
+# convert zero weights and weights >2000 g to NAs
+compiledMM.df.final <- compiledMM.df.final %>% 
+  mutate(whole.weight = if_else(whole.weight > 2000, 0, whole.weight),
+         whole.weight = na_if(whole.weight, 0))
+
 ##-------------------------------------------------------------------------------------------------------##
 # Quick summaries ####
 
@@ -226,33 +236,36 @@ df.1 <- left_join(proc.block, proc.multiblock, by = c('processorname'))
 fishyear.summary.df <- compiledMM.df.final %>%
   dplyr::filter(fishyear == stock.assessment.year
          & numblocks <= 1
-         & between(shell.length, sizelimit - 5, 220)) %>%
+         & between(shell.length, sizelimit - 5, 220)) %>% #include measurements <5mm below LML
+         # & species == 2) 
+  mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
   group_by(newzone, blocklist) %>%
   summarise(catches = n_distinct(sample.id),
             n = n(),
+            n.weigh = sum(!is.na(whole.weight)),
             med.sl = round(median(shell.length), 1),
             max.sl = round(max(shell.length), 1),
-            ref.a = sum(between(shell.length, sizelimit, 144)),
-            ref.b = sum(between(shell.length, 145, 149)),
-            ref.c = sum(between(shell.length, 150, 154)),
+            ref.a = sum(between(shell.length, sizelimit, 144.91)),
+            ref.b = sum(between(shell.length, 145, 149.91)),
+            ref.c = sum(between(shell.length, 150, 154.91)),
             ref.d = sum(shell.length >= 155),
             'LML-144\nmm\n(%)' = round((ref.a/n)*100),
             '145-149\nmm\n(%)' = round((ref.b/n)*100),
             '150-154\nmm\n(%)' = round((ref.c/n)*100),
-            '>155mm\n(%)' = round((ref.d/n)*100)) %>%
+            '>155mm\n(%)' = round((ref.d/n)*100)) %>% 
   dplyr::rename(Zone = newzone,
-         BlockNo = blocklist) %>% 
+         BlockNo = blocklist) %>%
   mutate(med.sl = as.character(med.sl),
          max.sl = as.character(max.sl)) %>%
   select(-c(ref.a, ref.b, ref.c, ref.d)) %>%
   as.data.frame()
 
 # rename column headings
-colnames(fishyear.summary.df) <- c('Zone', 'Block\nNo', 'Catches\nmeasured', 'Abalone\nmeasured', 
+colnames(fishyear.summary.df) <- c('Zone', 'Block\nNo', 'Catches\nmeasured', 'Abalone\nmeasured', 'Abalone\nweighed', 
                                    'Median\nSL', 'Max\nSL', 'LML-144\nmm\n(%)', '145-149\nmm\n(%)', '150-154\nmm\n(%)', '>155mm\n(%)')
 
 # add totals for numeric columns (Note: median and max have been converted to characters)
-fishyear.summary.df <- adorn_totals(fishyear.summary.df, fill = '',,,, -contains('mm'))
+fishyear.summary.df <- adorn_totals(fishyear.summary.df, fill = '',,,,, -contains('mm'))
 
 # create formated summary tables for report layout
 fishyear.summary.df.formated <- fishyear.summary.df %>% 
@@ -282,7 +295,75 @@ write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2020.xlsx', sheetName = "Sh
 print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2020.tex')
 
 ##-------------------------------------------------------------------------------------------------------##
-## Western zone five-year summary
+# Fish year summary LML ####
+
+# create summary table of most recent year catch sampling data and percentage catch above LML categories
+fishyear.summary.LML.df <- compiledMM.df.final %>%
+  dplyr::filter(fishyear == stock.assessment.year
+                & numblocks <= 1
+                & between(shell.length, sizelimit - 5, 220)) %>%
+  group_by(newzone, blocklist, sizelimit) %>%
+  summarise(catches = n_distinct(sample.id),
+            n = n(),
+            med.sl = round(median(shell.length), 1),
+            max.sl = round(max(shell.length), 1),
+            ref.a = sum(between(shell.length, sizelimit, sizelimit + 5)),
+            ref.b = sum(between(shell.length, sizelimit, sizelimit + 10)),
+            ref.c = sum(between(shell.length, sizelimit, sizelimit + 15)),
+            ref.d = sum(shell.length > sizelimit + 15),
+            'LML5\n(%)' = round((ref.a/n)*100),
+            'LML10\n(%)' = round((ref.b/n)*100),
+            'LML15\n(%)' = round((ref.c/n)*100),
+            'LML15+\n(%)' = round((ref.d/n)*100))%>%
+  mutate(med.sl = as.character(med.sl),
+         max.sl = as.character(max.sl)) %>%
+  dplyr::rename(Zone = newzone,
+                'Block\nNo' = blocklist,
+                'Catches\nmeasured' = catches,
+                'Abalone\nmeasured' = n,
+                'Median\nSL\nmm' = med.sl,
+                'Max\nSL\nmm' = max.sl,
+                'LML\nmm' = sizelimit) %>% 
+  select(c(Zone, 'Block\nNo', 'Catches\nmeasured', 'Abalone\nmeasured', 'Median\nSL\nmm', 'Max\nSL\nmm', 'LML\nmm', everything())) %>% 
+  select(-c(ref.a, ref.b, ref.c, ref.d)) %>%
+  as.data.frame()
+
+# # rename column headings
+# colnames(fishyear.summary.LML.df) <- c('Zone', 'Block\nNo', 'Catches\nmeasured', 'Abalone\nmeasured', 
+#                                    'Median\nSL', 'Max\nSL', 'LML\nmm', 'LML5\nmm\n(%)', 'LML10\nmm\n(%)', 'LML15\nmm\n(%)', 'LML15+\nmm\n(%)')
+
+# add totals for numeric columns (Note: median and max have been converted to characters)
+fishyear.summary.LML.df <- adorn_totals(fishyear.summary.LML.df, fill = '',,,, -contains('mm'))
+
+# create formated summary tables for report layout
+fishyear.summary.LML.df.formated <- fishyear.summary.LML.df %>% 
+  ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+# save Excel and Latex tables
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_LML_2020.pdf', sep = ''),
+  plot = fishyear.summary.LML.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+ggsave(
+  filename = paste('MM_Sampling_Summary_LML_2020.png', sep = ''),
+  plot = fishyear.summary.LML.df.formated,
+  width = 200,
+  height = 297,
+  units = 'mm'
+)
+
+write.xlsx(fishyear.summary.LML.df, 'MM_Sampling_Summary_LML_2020.xlsx', sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+print(xtable(fishyear.summary.LML.df, type = 'latex'), file = 'MM_Sampling_Summary_LML_2020.tex')
+
+##-------------------------------------------------------------------------------------------------------##
+## Western zone five-year summary ####
 # create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
 five.year.summary.df <- compiledMM.df.final %>%
   dplyr::filter(newzone == 'W'
@@ -398,7 +479,7 @@ ggsave(
   width = 8)
 
 ##-------------------------------------------------------------------------------------------------------##
-## Western zone % 140-145 mm pre LML increase
+## Western zone % 140-145 mm pre LML increase ####
 
 df.1 <- compiledMM.df.final %>% 
   filter(newzone == 'W' &
@@ -457,9 +538,6 @@ ggsave(
   width = 8)
 
 ##-------------------------------------------------------------------------------------------------------##
-
-
-
 # Processor x fish year summary ####
 
 # create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
@@ -477,7 +555,7 @@ for(i in processors.2019) {
       med.sl = as.character(median(shell.length)),
       max.sl = as.character(max(shell.length))
     ) %>%
-    rename(Zone = newzone,
+    dplyr::rename(Zone = newzone,
            BlockNo = blocklist) %>%
     as.data.frame()
   
@@ -1387,7 +1465,7 @@ ggsave(
 # create boxplots for each block and quarter fished in the stock assessment year (for processor)
 
 # select data for stock assessment year
-stock.assessment.zone <- 'BS'
+stock.assessment.zone <- 'N'
 
 df.1 <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year &
@@ -1407,7 +1485,7 @@ sl <- df.1 %>%
 # create plot
 quarter.boxplot <-
   ggplot(df.1, aes(
-    x = blockno,
+    x = reorder(blockno, as.numeric(as.character(blockno))),
     y = shell.length,
     fill = factor(fishquarter)
   )) +
@@ -1421,7 +1499,7 @@ quarter.boxplot <-
     data = plotdat.n,
     aes(y = 220, label = n),
     size = 3,
-    angle = 0,
+    angle = 90,
     position = position_dodge(width = 0.85)
   ) +
   geom_point(
@@ -1712,7 +1790,7 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   # print(mm.zone.boxplot)
   
 ##-------------------------------------------------------------------------------------------------------##
-  # 2020 weight grading ####
+# 2020 weight grading ####
 
 compiledMM.df.final.grade <- compiledMM.df.final %>% 
     mutate(grade = dplyr::if_else(whole.weight == 0, NA_character_,
@@ -1720,7 +1798,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                                                  dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))),
            whole.weight = replace(whole.weight, whole.weight == 0, NA))
   
-  # vector of unique subblockno for summary and plot loops
+# vector of unique subblockno for summary and plot loops
   subblockno.fishyear <- compiledMM.df.final.grade %>% 
     filter(fishyear == stock.assessment.year &
              numsubblocks == 1) %>% 
@@ -1754,26 +1832,173 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     group_by(newzone, blocklist) %>% 
     summarise(ab.weighed = n())
   
+  blockno.n.meas.proc <- compiledMM.df.final.grade %>% 
+    filter(fishyear == stock.assessment.year &
+             between(shell.length, sizelimit - 5, 220)) %>% 
+    group_by(newzone, blocklist, processorname) %>% 
+    summarise(ab.meas = n()) 
   
-  blockno.n <- left_join(docknum.n.meas, docknum.n.weighed)
+  blockno.n.weighed.proc <- compiledMM.df.final.grade %>% 
+    filter(!is.na(whole.weight) &
+             fishyear == stock.assessment.year) %>%
+    group_by(newzone, blocklist, processorname) %>% 
+    summarise(ab.weighed = n())
   
+  
+  blockno.n <- left_join(blockno.n.meas, blockno.n.weighed)
+  
+  blockno.n.proc <- left_join(blockno.n.meas.proc, blockno.n.weighed.proc)
+  
+  
+  ##-------------------------------------------------------------------------------------------------------##
+## PLOT 8: Stacked grade ####
+  ## stacked barplot of grades measured for eah block in stock assessment year
+    
   # determine number of abalone measured by grade per block
   blockno.grade.meas <- compiledMM.df.final.grade %>% 
     filter(!is.na(whole.weight) &
-             fishyear == stock.assessment.year) %>% 
-    group_by(newzone, blocklist, grade) %>% 
-    summarise(grade.meas = n())
+             fishyear == stock.assessment.year &
+             numblocks == 1) %>% 
+    group_by(newzone, blockno, grade) %>% 
+    summarise(grade.meas = n()) %>% 
+    mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
+    # mutate(blockno = as.factor(blockno))
+  
+  # determine number of abalone measured by grade per block
+  blockno.grade.meas.proc <- compiledMM.df.final.grade %>% 
+    filter(!is.na(whole.weight) &
+             fishyear == stock.assessment.year &
+             numblocks == 1) %>% 
+    group_by(processorname, newzone, blockno, grade) %>% 
+    summarise(grade.meas = n()) %>% 
+    mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
+  # mutate(blockno = as.factor(blockno))
+  
+  # create plot label for total number of abalone measured per block
+  blockno.n.plot.lab <- compiledMM.df.final.grade %>% 
+    filter(!is.na(whole.weight) &
+             fishyear == stock.assessment.year &
+             numblocks == 1) %>%
+    group_by(newzone, blockno) %>% 
+    summarise(n = n()) %>% 
+    mutate(zone.blockno = paste(newzone, blockno, sep = '-'),
+           y.pos = 1.02)
+  
+  #create 100% stacked barplot of grades by block
+  grade.stack.plot <- ggplot(blockno.grade.meas, 
+                             aes(x = zone.blockno, 
+                                 y = grade.meas,
+                             fill = forcats::fct_rev(grade))) + 
+    geom_bar(position = "fill", stat = "identity") + 
+    scale_y_continuous(labels = scales::percent_format())+
+    xlab('Zone-BlockNo')+
+    ylab('Percentage')+
+    geom_text(data = blockno.n.plot.lab , aes(x = zone.blockno, y = y.pos, label = n, fill = NULL), size = 3)+
+    scale_fill_manual(name = 'Grade', 
+                      labels = c('Small', 'Medium', 'Large'),
+                      values = c('#EFC000FF', '#0073C2FF','#CD534CFF'))+
+    theme_bw()
+    
+  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  ggsave(
+    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.pdf', sep = ''),
+    plot = grade.stack.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.wmf', sep = ''),
+    plot = grade.stack.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.png', sep = ''),
+    plot = grade.stack.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  #---------------------------------------------------------------------------##
+  ## PLOT 8: Stacked processor grade ####
+  
+  for(i in processors.2019) {
+    # determine number of abalone measured by grade per block
+    blockno.grade.meas <- compiledMM.df.final.grade %>% 
+      filter(!is.na(whole.weight) &
+               fishyear == stock.assessment.year &
+               numblocks == 1 &
+               processorname == i &
+               whole.weight != 0 &
+               whole.weight <= 2000 &
+               between(shell.length, sizelimit - 5, 220)) %>% 
+      group_by(newzone, blockno, grade) %>% 
+      summarise(grade.meas = n()) %>% 
+      mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
+    
+    # create plot label for total number of abalone measured per block
+    blockno.n.plot.lab <- compiledMM.df.final.grade %>% 
+      filter(!is.na(whole.weight) &
+               fishyear == stock.assessment.year &
+               numblocks == 1 &
+               processorname == i &
+               whole.weight != 0 &
+               whole.weight <= 2000 &
+               between(shell.length, sizelimit - 5, 220)) %>%
+      group_by(newzone, blockno) %>% 
+      summarise(n = n()) %>% 
+      mutate(zone.blockno = paste(newzone, blockno, sep = '-'),
+             y.pos = 1.02)
+    
+    #create 100% stacked barplot of grades by block
+    grade.stack.plot <- ggplot(blockno.grade.meas, 
+                               aes(x = zone.blockno, 
+                                   y = grade.meas,
+                                   fill = forcats::fct_rev(grade))) + 
+      geom_bar(position = "fill", stat = "identity") + 
+      scale_y_continuous(labels = scales::percent_format())+
+      xlab('Zone-BlockNo')+
+      ylab('Percentage')+
+      geom_text(data = blockno.n.plot.lab , aes(x = zone.blockno, y = y.pos, label = n, fill = NULL), size = 3)+
+      scale_fill_manual(name = 'Grade', 
+                        labels = c('Small', 'Medium', 'Large'),
+                        values = c('#EFC000FF', '#0073C2FF','#CD534CFF'))+
+      theme_bw()
+    
+    setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+    ggsave(
+      filename = paste(i, '_BlockNoGradeSummary_', stock.assessment.year, '.pdf', sep = ''),
+      plot = grade.stack.plot,
+      width = 7.4,
+      height = 5.57,
+      units = 'in'
+    )
+    ggsave(
+      filename = paste(i, '_BlockNoGradeSummary_', stock.assessment.year, '.wmf', sep = ''),
+      plot = grade.stack.plot,
+      width = 7.4,
+      height = 5.57,
+      units = 'in'
+    )
+    ggsave(
+      filename = paste(i, '_BlockNoGradeSummary_', stock.assessment.year, '.png', sep = ''),
+      plot = grade.stack.plot,
+      width = 7.4,
+      height = 5.57,
+      units = 'in'
+    )
+  }
+  
+  #---------------------------------------------------------------------------##  
+  
+  ## PLOT 8: LT + WT combined ####
+  # combine weight and length summaryplot on the same page
   
   # create a dataframe of weight grading threshold for plotting reference lines
   grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
                        lab = c('Small', 'Medium', 'Large'))
-  
-  #---------------------------------------------------------------------------##
-  i = 'W'
-  j = 11
-  
-  ## PLOT 8: LT + WT combined ####
-  # combine weight and length summaryplot on the same page
   
   for (i in df.2019.unique.zones) {
     for (j in df.2019.unique.blocks) {
@@ -1954,7 +2179,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     # add pie chart to weight frequency plot
     
     blockno.grade.summary <-
-      left_join(blockno.n.weighed, blockno.grade.meas, by = c('blocklist', 'newzone')) %>%
+      left_join(blockno.n.weighed, blockno.grade.meas, by = c('blocklist' = 'blockno', 'newzone')) %>%
       mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
     
     pie.plot.dat <- blockno.grade.summary %>%
@@ -2038,6 +2263,287 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   }
   
   #---------------------------------------------------------------------------##
+  ## PLOT 8: LT + WT processor####
+  # combine weight and length summaryplot on the same page
+  
+  # create a dataframe of weight grading threshold for plotting reference lines
+  grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
+                       lab = c('Small', 'Medium', 'Large'))
+  
+  for (h in processors.2019){
+  for (i in df.2019.unique.zones) {
+    for (j in df.2019.unique.blocks) {
+      # create length plot
+      plot.length.freq.dat <- compiledMM.df.final.grade %>%
+        filter(
+          newzone == i
+          & blocklist == j
+          & fishyear == stock.assessment.year
+          & processorname == h
+          & between(shell.length, sizelimit - 5, 220))
+      
+      plot.n.measured <- compiledMM.df.final.grade %>% 
+        filter(!is.na(shell.length) &
+                 newzone == i
+               & blocklist == j
+               & fishyear == stock.assessment.year
+               & processorname == h
+               & between(shell.length, sizelimit - 5, 220)) %>%
+        # distinct(abalonenum, rawutc, .keep_all = T) %>%  
+        summarise(n = paste('n =', n()))
+      
+      plot.weight.freq.dat <- compiledMM.df.final.grade %>%
+        filter(
+          newzone == i &
+            blocklist == j &
+            fishyear == stock.assessment.year &
+            processorname == h &
+            whole.weight != 0 &
+            whole.weight <= 2000 &
+            between(shell.length, sizelimit - 5, 220))
+      
+      plot.n.weighed <- compiledMM.df.final.grade %>% 
+        filter(newzone == i
+               & blocklist == j
+               & fishyear == stock.assessment.year
+               & processorname == h
+               & whole.weight != 0 
+               & whole.weight <= 2000 &
+                 between(shell.length, sizelimit - 5, 220)) %>%
+        # distinct(abalonenum, rawutc, .keep_all = T) %>%  
+        summarise(n = paste('n =', n()))
+      
+      if (nrow(plot.weight.freq.dat) == 0) next
+      
+      plot.zone <- unique(plot.length.freq.dat$newzone)
+      plot.block <- unique(plot.length.freq.dat$blocklist)
+      plot.processor <- unique(plot.length.freq.dat$processorname)
+      
+      length.freq.plot <- ggplot(plot.length.freq.dat, aes(shell.length)) +
+        geom_histogram(
+          aes(y = ..density.. * 5),
+          fill = '#EFC000FF',
+          col = 'black',
+          binwidth = 5,
+          alpha = 0.6
+        ) +
+        coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+        theme_bw() +
+        xlab("Shell Length (mm)") +
+        ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+        # geom_vline(aes(xintercept = 138), colour = 'red',
+        #            linetype = 'dashed', size = 0.5)+
+        geom_vline(
+          aes(xintercept = ifelse(newzone == 'W', 145, 
+                                  ifelse(newzone == 'BS', 114, 
+                                         ifelse(newzone == 'N', 127, 138)))),
+          # aes(xintercept = ifelse(newzone == 'W', 145, 138)),
+          linetype = 'dashed',
+          colour = 'red',
+          size = 0.5
+        ) +
+        scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+        geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+      
+      # print(length.freq.plot)
+      
+      xbp.len <- ggplot(plot.length.freq.dat,
+                        aes(
+                          x = factor(blocklist),
+                          y = shell.length,
+                          group = blocklist
+                        )) +
+        geom_boxplot(
+          fill = 'lightgray',
+          outlier.colour = "black",
+          outlier.size = 1.5,
+          position = position_dodge(0.85),
+          width = 0.5
+        ) +
+        rotate() +
+        theme_transparent()
+      
+      # print(xbp.len)
+      
+      xbp_grob <- ggplotGrob(xbp.len)
+      xmin.len <- min(plot.length.freq.dat$shell.length)
+      xmax.len <- max(plot.length.freq.dat$shell.length)
+      
+      length.plot <- length.freq.plot +
+        annotation_custom(
+          grob = xbp_grob,
+          xmin = xmin.len,
+          xmax = xmax.len,
+          ymin = 0.3
+        )
+      
+      # create weight plot
+      weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(whole.weight)) +
+        geom_histogram(
+          aes(y = ..density.. * 50),
+          fill = '#0073C2FF',
+          col = 'black',
+          binwidth = 50,
+          alpha = 0.6
+        ) +
+        coord_cartesian(xlim = c(100, 1300),
+                        ylim = c(0, 0.35)) +
+        theme_bw() +
+        theme(panel.grid = element_blank()) +
+        xlab("Whole weight (g)") +
+        ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+        geom_vline(aes(xintercept = 400),
+                   colour = 'red',
+                   linetype = 'dotted') +
+        geom_vline(aes(xintercept = 600),
+                   colour = 'red',
+                   linetype = 'dotted') +
+        geom_vline(aes(xintercept = 800),
+                   colour = 'red',
+                   linetype = 'dotted') +
+        geom_text(
+          data = grades,
+          aes(
+            x = x,
+            y = y,
+            label = lab
+          ),
+          inherit.aes = FALSE,
+          vjust = 0.5,
+          hjust = 0.5,
+          size = 4,
+          angle = 0,
+          colour = c(
+            'small' = '#EFC000FF',
+            'medium' = '#0073C2FF',
+            'large' = '#CD534CFF'
+          )
+        ) +
+        scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+        geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+      
+      # print(weight.freq.plot)
+      
+      xbp.wt <- ggplot(
+        plot.weight.freq.dat,
+        aes(
+          x = factor(blocklist),
+          y = whole.weight,
+          group = blocklist
+        )
+      ) +
+        geom_boxplot(
+          fill = 'lightgray',
+          outlier.colour = "black",
+          outlier.size = 1.5,
+          position = position_dodge(0.85),
+          width = 0.3
+        ) +
+        stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+        rotate() +
+        theme_transparent()
+      
+      # print(xbp.wt)
+      
+      xbp_grob <- ggplotGrob(xbp.wt)
+      xmin.wt <- min(plot.weight.freq.dat$whole.weight)
+      xmax.wt <- max(plot.weight.freq.dat$whole.weight)
+      
+      # weight.freq.plot +
+      #         annotation_custom(grob = xbp_grob, xmin = xmin.wt, xmax = xmax.wt,  ymin = 0.17)
+      
+      # add pie chart to weight frequency plot
+      
+      blockno.grade.summary <-
+        left_join(blockno.n.weighed.proc, blockno.grade.meas.proc, by = c('blocklist' = 'blockno', 'newzone', 'processorname')) %>%
+        mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+      
+      pie.plot.dat <- blockno.grade.summary %>%
+        filter(newzone == i &
+                 blocklist == j &
+                 processorname == h) %>%
+        mutate(
+          lab.position = cumsum(grade.perc),
+          lab.y.position = lab.position - grade.perc / 2,
+          lab = paste0(grade.perc, "%")
+        )
+      
+      docket.pie.plot <-
+        ggplot(data = pie.plot.dat, aes(
+          x = "",
+          y = grade.perc,
+          fill = grade
+        )) +
+        geom_bar(stat = "identity", colour = 'white') +
+        coord_polar(theta = "y") +
+        geom_text(
+          aes(label = lab),
+          position = position_stack(vjust = 0.5),
+          colour = 'white',
+          size = 5
+        ) +
+        theme_void() +
+        theme(legend.position = 'none') +
+        scale_fill_manual(
+          values = c(
+            'small' = '#EFC000FF',
+            'medium' = '#0073C2FF',
+            'large' = '#CD534CFF'
+          )
+        )
+      # labs(fill = (paste('Grade')))
+      
+      # print(docket.pie.plot)
+      
+      pp_grob <- ggplotGrob(docket.pie.plot)
+      
+      wt.plot <- weight.freq.plot +
+        annotation_custom(
+          grob = xbp_grob,
+          xmin = xmin.wt,
+          xmax = xmax.wt,
+          ymin = 0.25
+        ) +
+        annotation_custom(
+          grob = pp_grob,
+          xmin = 900,
+          xmax = 1200,
+          ymax = 0.4
+        )
+      
+      #combine length and weight plots
+      
+      plot.a <- grid.arrange(
+        arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
+                                       ncol = 1), ncol = 1))
+      
+      #save plots
+      setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+      file.zone <- unique(plot.length.freq.dat$zone)
+      file.block <- unique(plot.length.freq.dat$blocklist)
+      file.processor <- unique((plot.length.freq.dat$processorname))
+      
+      ggsave(
+        filename = paste(h, '_', i, "_", "BlockNo", j, '_LW_SUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
+        plot = plot.a,
+        width = 200,
+        height = 297,
+        units = 'mm')
+      
+      ggsave(
+        filename = paste(h, '_', i, "_", "BlockNo", j, '_LW_SUMMARYPLOT_', stock.assessment.year, '.png', sep = ''),
+        plot = plot.a,
+        width = 200,
+        height = 297,
+        units = 'mm')
+      
+    }
+  }
+  }
+  #---------------------------------------------------------------------------##
+  
+  
+  
   ## PLOT 9: Length ####
   # overlay length frequency histogram with boxplot
   
@@ -2148,5 +2654,194 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     
     }
   }
-  
 
+  ##-------------------------------------------------------------------------------------------------------##
+  # Percent LML ####
+  
+  # identify block and zone for summary year
+  block <- 13
+  zone <- 'E'
+  
+  # select data for summary year, block and zone and generate percentage of observations within x of lml
+  lml.ind.dat <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear) %>% 
+    summarise(catches = n_distinct(sample.id),
+              n = n(),
+              med.sl = round(median(shell.length), 1),
+              max.sl = round(max(shell.length), 1),
+              lml5 = sum(between(shell.length, sizelimit, sizelimit + 5)),
+              lml30 = sum(shell.length > sizelimit + 30),
+              lml5.per = (lml5/n)*100,
+              lml30.per = (lml30/n)*100)
+  
+  # convert data to long-format for plotting
+  lml.ind.dat.long <- lml.ind.dat %>% 
+    select(fishyear, lml5.per, lml30.per) %>% 
+    melt(., id = 'fishyear')
+  
+  # identify size limit changes and select data to add reference lines to plot
+  lml.plot.limits <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear, sizelimit) %>% 
+    summarise(n = n()) %>%
+    ungroup() %>% 
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>% 
+    group_by(lml.increase) %>%
+    slice(which.max(lml.increase))
+  
+  # generate plot  
+  lml.plot <- lml.ind.dat.long %>% 
+    ggplot(aes(x = fishyear, y = value, colour = variable, group = variable))+
+    geom_point(aes(colour = variable), size = 3)+
+    geom_line(aes(colour = variable, group = variable), size = 1)+
+    scale_colour_manual(values = c('lml5.per' = 'black', 'lml30.per' = 'red'), labels = c('LML+5 mm', 'LML>30 mm'))+
+    geom_smooth(aes(group = variable), method = 'lm', formula = y~x, se = T, size = 1)+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    xlab('Year')+
+    scale_x_continuous(expand = c(0.01, 0.01),
+                       breaks = seq(1967, 2020, 2))+
+    stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
+                 parse = TRUE, label.x = 'left', label.y = 'top')+
+    coord_cartesian(ylim = c(0, 50))+
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      axis.line = element_line(colour = "black"),
+      axis.text.x = element_text(angle = 45, vjust = 0.5),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 10),
+      legend.position = c(0.9, 0.9),
+      legend.background = element_blank()
+    )+
+    guides(color = guide_legend(override.aes = list(fill = NA)))+
+    geom_vline(data = lml.plot.limits,
+               aes(xintercept = fishyear),
+               linetype = 'dashed',
+               colour = 'red',
+               size = 0.5)+
+    geom_text(data = lml.plot.limits,
+              aes(x = fishyear,
+                  y = 50,
+                  label = paste(sizelimit, 'mm', sep = ' ')),
+              inherit.aes = FALSE,
+              vjust = 0,
+              hjust = -0.25,
+              size = 3,
+              angle = 0,
+              colour = 'red')
+  
+  # print(lml.plot)
+  
+  # save plot
+  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  
+  ggsave(
+    filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    plot = lml.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.png', sep = ''),
+    plot = lml.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ##-------------------------------------------------------------------------------------------------------##
+  # Deviation from LML #### 
+  block <- 12
+  zone <- 'W'
+  
+  df.1 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>% 
+    mutate(lml.diff = shell.length - sizelimit)
+  
+  df.3 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>% 
+    group_by(fishyear, sizelimit) %>% 
+    summarise(n = n()) %>%
+    ungroup() %>% 
+    mutate(LML.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>% 
+    group_by(LML.increase) %>%
+    slice(which.max(LML.increase))
+
+  lml.diff.plot <- df.1 %>% 
+    ggplot(aes(x = fishyear, y = lml.diff))+
+    # geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+    # geom_point(colour = 'red')+
+    geom_pointrange(mapping = aes(x = fishyear, y = lml.diff),
+                    stat = "summary",
+                    fun.min = function(z) {quantile(z,0.25)},
+                    fun.max = function(z) {quantile(z,0.75)},
+                    fun = median)+
+    geom_smooth(method = lm, se = T)+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' LML Difference (mm)', sep = ''))+
+    xlab('Year')+
+    scale_x_continuous(breaks = seq(1967, 2020, 2))+
+    # scale_y_reverse()+
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      axis.line = element_line(colour = "black"),
+      axis.text.x = element_text(angle = 45, vjust = 0.5),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 10),
+      legend.position = c(0.9, 0.9),
+      legend.background = element_blank()
+    )+
+    geom_vline(data = df.3,
+               aes(xintercept = fishyear),
+               linetype = 'dashed',
+               colour = 'red',
+               size = 0.5)+
+    geom_text(data = df.3,
+              aes(x = fishyear,
+                  y = 40,
+                  label = paste(sizelimit, 'mm', sep = ' ')),
+              inherit.aes = FALSE,
+              vjust = 0,
+              hjust = -0.25,
+              size = 3,
+              angle = 0,
+              colour = 'red')
+    
+  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  
+  ggsave(
+    filename = paste('BlockNo', block, '_LML_DIFF_', stock.assessment.year, '.pdf', sep = ''),
+    plot = lml.diff.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste('BlockNo', block, '_LML_DIFF_', stock.assessment.year, '.png', sep = ''),
+    plot = lml.diff.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  

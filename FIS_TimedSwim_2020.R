@@ -25,17 +25,20 @@ suppressPackageStartupMessages({
         library(sf)
         library(sp)
         library(rgdal)
+        library(RColorBrewer)
+        library(viridis)
+        library(ggpmisc)
 })
 
 ##---------------------------------------------------------------------------##
 ## 2. Load data ####
 
 # load timed swim length frequency raw data
-time.swim.dat <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TimedSwim_RawData_2020.xlsx",
+time.swim.dat <- read.xlsx("R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2020/FIS_TimedSwim_RawData_2020.xlsx",
                        detectDates = T)
 
 # load timed swim meta data
-time.swim.meta.dat <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TimedSwim_MetaData_2020.xlsx",
+time.swim.meta.dat <- read.xlsx("R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2020/FIS_TimedSwim_MetaData_2020.xlsx",
                            detectDates = T)
 ##---------------------------------------------------------------------------##
 ## 3. Data conversions ####
@@ -155,11 +158,14 @@ fis.sites.new.sf <- fis.sites.new.df %>%
 ##---------------------------------------------------------------------------##
 ## 4.1 Site OID ####
 ## join original (unordered) cpue site data file used in 2020 survey to site data generated from GPS logger data
-## to extract 'oid'
+## to extract 'oid' and scoring metric rating/category (i.e. cell.ntile 3-5)
 
 # load original site details generated from GPS logger data
 fis.site.cpue.oid <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_CPUE_original_metadata.xlsx",
                                detectDates = T)
+
+fis.site.cpue.oid.kg.hr <- fis.site.cpue.oid %>% 
+        mutate(cpue.kg.hr = blkgtotal / (minstotal/60))
 
 # convert original cpue site data to sf
 fis.site.cpue.oid.sf <- fis.site.cpue.oid %>% 
@@ -173,6 +179,22 @@ fis.site.cpue.sf <- fis.site.cpue %>%
 # join original and 2020 survey site data 
 fis.site.cpue.join <- st_join(fis.site.cpue.oid.sf, fis.site.cpue.sf, join = st_nearest_feature) %>% 
         dplyr::rename('site' = name)
+
+##---------------------------------------------------------------------------##
+## 4.2 Site SAM ####
+## join original (unordered) sam site data file to sam sites used in 2020 survey to extract historical  average counts
+
+# load original sam site details and count data
+fis.site.sam.data <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_SAM_original.xlsx",
+                               detectDates = T)
+
+# join original and 2020 sam survey site data 
+fis.site.sam.join <- left_join(fis.site.sam.data, fis.site.sam)%>% 
+        filter(!(is.na(Longitude) & is.na(Latitude))) %>% 
+        st_as_sf(coords = c("Longitude", "Latitude"), crs = WGS84) %>% 
+        st_transform(GDA2020)%>% 
+        dplyr::rename('site' = name,
+                      'sam.count' = Avg_count_per.10min)
 
 ##---------------------------------------------------------------------------##
 ## 5. Sites completed - proposed ####
@@ -205,7 +227,15 @@ st_write(time.swim.dat.site.sampled,
 ## match timed swim data to GPS positions from vessel plotter downloads
 
 # read GPX file from plotter
-morana.gps <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+morana.gps.2020 <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+morana.gps.ref <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2021-04-06.gpx', layer = 'waypoints')
+
+# join GPX files
+morana.gps <- bind_rows(morana.gps.2020, morana.gps.ref)
+
+# filter GPX file for latest data
+morana.gps <- morana.gps %>% 
+        filter(time >= as.Date('2020-08-12'))
 
 # separate start positions
 time.swim.site.start <- time.swim.meta.dat %>%
@@ -223,7 +253,9 @@ time.swim.site.finish <- time.swim.meta.dat %>%
 
 # re-join start and finish positions  and remove non-sampled sites        
 time.swim.site.start.finish <- bind_rows(time.swim.site.start, time.swim.site.finish) %>%
-        mutate(waypoint = if_else(waypoint < 100, as.character(paste(0, waypoint, sep = '')), as.character(waypoint))) %>%  
+        mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
+                                  if_else(between(waypoint, 10, 100), as.character(paste(0, waypoint, sep = '')),
+                                          as.character(waypoint)))) %>%  
         select(c(sampdate, samptime, sampperiod, site, waypoint)) %>% 
         filter(site != 'Betsey')
 
@@ -251,9 +283,9 @@ time.swim.site.start.finish.loc <- bind_rows(time.swim.site.start.finish.mark, t
 time.swim.site.start.finish.loc <- st_transform(time.swim.site.start.finish.loc, GDA2020)
 
 # save spatial layer for QGIS
-st_write(time.swim.site.start.finish.loc,
-         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_STARTFINISH_2020-09-23.gpkg",
-         layer = "time.swim.site.start.finish.loc", driver = "GPKG", overwrite = T, delete_dsn = T)
+# st_write(time.swim.site.start.finish.loc,
+#          dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_STARTFINISH_2020-09-23.gpkg",
+#          layer = "time.swim.site.start.finish.loc", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
 ## 7. MAP 1: Sites sampled - proposed ####
@@ -433,11 +465,15 @@ time.swim.dat.df.final <- left_join(time.swim.dat.df, site.samp.subblock.loc.28,
         select(c(site, sampdate, site.new, blockno, subblockno, diver, starttime, firstabtime, finishtime, time.elapsed,
                 sizeclass, sizeclass_freq, minsize, maxsize, shelllength, legal.size, waypoint, actual.geom, proposed.geom))
 
-## join time swim data to original site data to include 'oid'
-time.swim.dat.final <- left_join(time.swim.dat.final, select(fis.site.cpue.join, site, oid), by = ('site')) %>% 
+## join time swim data to original site data to include 'oid', 'cell.ntile' and 'sam.count'
+time.swim.dat.final <- left_join(time.swim.dat.final, select(fis.site.cpue.join, site, oid, cell.ntile), by = ('site')) %>% 
+        select(-c(geometry)) %>% 
+        left_join(., select(fis.site.sam.join, site, sam.count), by = ('site')) %>% 
         select(-c(geometry))
 
-time.swim.dat.df.final <- left_join(time.swim.dat.df.final, select(fis.site.cpue.join, site, oid), by = ('site')) %>% 
+time.swim.dat.df.final <- left_join(time.swim.dat.df.final, select(fis.site.cpue.join, site, oid, cell.ntile), by = ('site')) %>% 
+        select(-c(geometry)) %>% 
+        left_join(., select(fis.site.sam.join, site, sam.count), by = ('site')) %>% 
         select(-c(geometry))
 
 saveRDS(time.swim.dat.final, 'C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData_2020-10-05.RDS')
@@ -767,6 +803,98 @@ ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.png', sep =
        plot = count.plot, units = 'mm', width = 190, height = 120)
 
 ##---------------------------------------------------------------------------##
+## PLOT: TIMED VS HISTROIC ####
+## compare average timed swim counts with available historical count data at SAM research sites and the rating score used
+## to select timed swim sites from GPS logger data
+
+## average count vs cpue rating score
+time.swim.dat.vs.cpue.plot <- time.swim.dat.final %>% 
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
+        summarise(ab.n = sum(sizeclass_freq)) %>% 
+        group_by(site, legal.size, cell.ntile, sam.count) %>% 
+        summarise(mean.ab.n = mean(ab.n))%>% 
+        filter(!is.na(cell.ntile)) %>%  
+        ggplot(aes(x = cell.ntile, y = mean.ab.n, colour = legal.size))+
+        geom_point(size = 3)+
+        scale_colour_manual(values = c("#999999", "#56B4E9"))+
+        theme_bw()+
+        ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+        xlab('HexCell Rank')+
+        ylim(0, 150)+
+        # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+        theme(legend.position = c(0.9, 0.9),
+              legend.title = element_blank())
+
+
+
+## average count vs historical SAM counts
+time.swim.dat.vs.sam.plot <- time.swim.dat.final %>%
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
+        summarise(ab.n = sum(sizeclass_freq)) %>% 
+        group_by(site, legal.size, cell.ntile, sam.count) %>% 
+        summarise(mean.ab.n = mean(ab.n)) %>% 
+        filter(!is.na(sam.count) &
+                        sam.count <= 60) %>% #remove outlier from SAM data
+        ggplot(aes(x = sam.count, y = mean.ab.n, colour = legal.size))+
+        geom_point(size = 3)+
+        scale_colour_manual(values = c("#999999", "#56B4E9"))+
+        geom_smooth(method = 'lm', formula = y~x, se = F)+
+        stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+                     parse = TRUE) +
+        theme_bw()+
+        ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+        xlab(bquote('SAM average count (abalone.10'*~min^-1*')'))+
+        ylim(0, 125)+
+        # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+        theme(legend.position = c(0.9, 0.9),
+              legend.title = element_blank())
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE', '.pdf', sep = ''), 
+       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE', '.png', sep = ''), 
+       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsSAM', '.pdf', sep = ''), 
+       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsSAM', '.png', sep = ''), 
+       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
+
+size.class <- '>140 mm'
+
+time.swim.dat.vs.cpue.kg.hr.plot <- left_join(time.swim.dat.final, fis.site.cpue.oid.kg.hr) %>% 
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        group_by(site, diver, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
+        summarise(ab.n = sum(sizeclass_freq)) %>% 
+        group_by(site, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
+        summarise(mean.ab.n = mean(ab.n))%>% 
+        filter(!is.na(cell.ntile) &
+                       legal.size == size.class) %>%  
+        ggplot(aes(x = cpue.kg.hr, y = mean.ab.n))+
+        geom_point(aes(colour = cell.ntile), size = 3)+
+        # scale_colour_manual(values = c("#999999", "#56B4E9"))+
+        geom_smooth(method = 'lm', formula = y~x, se = T)+
+        stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+                     parse = TRUE, label.y = 0.9) +
+        theme_bw()+
+        ggtitle(size.class)+
+        xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+        ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+        labs(colour = 'Rank')+
+        ylim(0, 60)+
+        # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+        theme(legend.position = c(0.95, 0.85),
+              plot.title = element_text(hjust = 0.05, vjust = -10))
+
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE.kg.hr_legal', '.pdf', sep = ''), 
+       plot = time.swim.dat.vs.cpue.kg.hr.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE.kg.hr_legal', '.png', sep = ''), 
+       plot = time.swim.dat.vs.cpue.kg.hr.plot, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+
+
 ## PLOT 4: COUNT PER TEN MIN SIZECLASS ####
 ## average count of all legal and sub-legal abalone per 10 min by sizeclass for each site within each blockno 
 ## (i.e. the average between paired divers for each site)
@@ -863,6 +991,9 @@ setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
 #        plot = time.swim.summary.tab)
 # ggsave(filename = paste('TimedSwimSurvey_2020_SummaryTable', '.png', sep = ''), 
 #        plot = time.swim.summary.tab)
+
+write.xlsx(time.swim.count.blockno, 'TimedSwimSurvey_2020_SummaryTable.xlsx', sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
 
 ggsave(filename = paste('TimedSwimSurvey_2020_SummaryTable', '.pdf', sep = ''), 
        plot = time.swim.summary.tab, units = 'mm', width = 190, height = 120)
@@ -1199,6 +1330,72 @@ st_write(fis.site.ref.df,
          layer = "fis.site.ref.df", driver = "kml", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
+##PLOT 5: Historic SAM vs Timed count ####
+
+# load original sam site details and count data
+fis.sam.data <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
+                               detectDates = T)
+
+colnames(fis.sam.data) <- tolower(colnames(fis.sam.data))
+
+# join original and 2020 sam survey site data 
+
+df.1 <- fis.sam.data %>% 
+        filter(stat.block %in% c(16, 22, 23, 24, 27, 28)) %>% 
+        left_join(., fis.site.sam.data %>% select(c(SAM_Id, name)), by = c('sam_id' = 'SAM_Id')) %>%
+        dplyr::rename(site.sam = site,
+                      site = name) %>% 
+        mutate(sampyear = year(date)) %>% 
+        filter(sampyear >= 2001) %>% 
+        dplyr::rename(sampdate = date,
+                      blockno = stat.block,
+                      ab.n = avg_count_per.10min,
+                      diver = collector) %>% 
+        select(c(blockno, site, site.sam, diver, ab.n, sampyear)) %>% 
+        filter(!is.na(ab.n))
+
+df.1 %>% 
+        ggplot(aes(x = as.factor(blockno), y = ab.n))+
+        geom_jitter(aes(colour = sampyear), width = 0.2, size = 3)+
+        scale_color_gradientn(colours = rainbow(11))
+
+
+df.2 <- time.swim.dat.final %>% 
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        group_by(blockno, site, diver) %>% 
+        summarise(ab.n = sum(sizeclass_freq)) %>% 
+        mutate(sampyear = 2020,
+               blockno = as.numeric(blockno))
+
+df.3 <- bind_rows(df.1, df.2) %>% 
+        mutate(site = if_else(!is.na(site), site, site.sam))
+
+hist.count.plot <- df.3 %>%
+        group_by(blockno, sampyear, site) %>% 
+        # summarise(mean.ab.n = mean(ab.n)) %>% 
+        ggplot(aes(x = as.factor(blockno), y = ab.n, fill = as.factor(sampyear)))+
+        geom_boxplot(position = position_dodge2(preserve = "single"))+
+        theme_bw()+
+        ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+        xlab('Blockno')+
+        geom_text(data = df.3 %>% 
+                          group_by(blockno, sampyear) %>% 
+                          summarise(n = n_distinct(site), lab.pos = max(ab.n) + 1),
+                  aes(y = lab.pos, label = paste0(n, '\n')),
+                  position = position_dodge2(width = 0.75, preserve = 'single'),
+                  size = 2)+
+        labs(fill = 'Year')+
+        scale_fill_viridis(discrete = TRUE)
+
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.pdf', sep = ''), 
+       plot = hist.count.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.png', sep = ''), 
+       plot = hist.count.plot, units = 'mm', width = 190, height = 120)
+
+
+##---------------------------------------------------------------------------##
 
 ## RANDOM STUFF ####
 
@@ -1228,6 +1425,26 @@ time.swim.dat %>%
         summarise(ab.min = mean(ab.cpue))
 
 ##---------------------------------------------------------------------------##
+## Summary statistics for survey times etc
+time.swim.dat.df.final %>% 
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        summarise(samp.days = n_distinct(sampdate),
+                  sites = n_distinct(site),
+                  sites.day = sites / samp.days)
+
+time.swim.dat.df.final %>% 
+        filter(!subblockno %in% c('28B', '28C')) %>%
+        group_by(sampdate) %>% 
+        summarise(divers = n_distinct(diver),
+                  start.time = min(starttime),
+                  end.time = max(finishtime),
+                  day.time = end.time - start.time) %>% 
+        mutate(divers.day = mean(divers),
+               av.day.time = mean(day.time)) %>% 
+        ungroup()
+        
+##---------------------------------------------------------------------------##        
+
 ## PLOT 2: Diver bias 
 ## Diver A vs Diver B comparison of sizeclass counts per site
 
@@ -1299,4 +1516,74 @@ LT_BD <- df.3 %>%
         theme_bw()
 
 grid.arrange(LT_BD, NW_SI, SL_GP, ncol = 1)
+
+catch <- 1905+11557+38908+119190+490208
+topthree<- 38908+119190+490208
+toptwo <- 119190+490208
+
+##---------------------------------------------------------------------------##
+#Excel file of raw site data with gps positions
+
+# read GPX file from plotter
+morana.gps <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+
+# separate start positions
+df.start <- time.swim.meta.dat %>%
+        select(-c(waypoint.finish, finishtime)) %>% 
+        dplyr::rename('waypoint' = waypoint.start,
+                      'samptime' = starttime) %>% 
+        mutate(sampperiod = 'start')
+
+# separate finish positions
+df.finish <- time.swim.meta.dat %>%
+        select(-c(waypoint.start, starttime)) %>% 
+        dplyr::rename('waypoint' = waypoint.finish,
+                      'samptime' = finishtime) %>% 
+        mutate(sampperiod = 'finish')
+
+# re-join start and finish positions  and remove non-sampled sites        
+df.start.finish <- bind_rows(time.swim.site.start, time.swim.site.finish) %>%
+        mutate(waypoint = if_else(waypoint < 100, as.character(paste(0, waypoint, sep = '')), as.character(waypoint))) %>%  
+        # select(c(sampdate, samptime, sampperiod, site, waypoint)) %>% 
+        filter(site != 'Betsey')
+
+# join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
+df.site.start.finish.mark <- df.start.finish %>% 
+        filter(is.na(waypoint) & sampperiod == 'start') %>% 
+        left_join(., morana.gps, by = c('site' = 'name')) %>% 
+        dplyr::rename('gpstime' = time,
+                      'site' = site)
+        # select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
+
+# join geometry where waypoints were recorded 
+df.site.start.finish.wp <- df.start.finish %>% 
+        filter(!is.na(waypoint)) %>% 
+        left_join(., morana.gps, by = c('waypoint' = 'name')) %>% 
+        dplyr::rename('gpstime' = time,
+                      'site' = site) 
+        # select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
+
+# re-join all waypoint data
+df.site.start.finish.loc <- bind_rows(df.site.start.finish.mark, df.site.start.finish.wp) %>% 
+        st_as_sf() %>%
+        mutate(lat = unlist(map(geometry,1)),
+                       long = unlist(map(geometry,2))) %>% 
+        select(c("sampdate", "site", "divers", "samptime", "waypoint",
+                 "habitat.type", "percent.algae.cover", "percent.urchins",
+                 "comments", "sampperiod", "sym", 'lat', 'long')) %>% 
+        as.data.frame() %>% 
+        select(-c('geometry'))
+
+# transform to GDA2020
+# df.site.start.finish.loc <- st_transform(df.site.start.finish.loc, GDA2020) %>% 
+#         as.data.frame()
+
+setwd('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS')
+write.xlsx(df.site.start.finish.loc,
+           file = paste('TimedSwimSurveyMetaData_2020_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
         
