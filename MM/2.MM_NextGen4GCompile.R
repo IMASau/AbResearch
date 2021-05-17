@@ -194,14 +194,18 @@ measure.board.df <- measure.board.df %>%
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
 # Simon Leonard (RTS) informed me that zone for docket number 812576 should be AW not AN
 # Mick (Tas Seafoods) informed me that zone for docket number 525708 should be AE not AW
+# Mick (Tas Seafoods) informed me that zone for docket number 812883 should be AW not AE
 # Mark Fleming (Tas Seafoods) notified me that he had entered an incorrect docket number (811698 to 811691)
 # Mark Fleming (Tas Seafoods) notified me that he had entered an incorrect docket number (801875 to 810875)
+# Mark Fleming (Tas Seafoods) notified me that he had entered an incorrect docket number (524522 to 524552)
 measure.board.df <- measure.board.df %>% 
         mutate(docketnum = replace(docketnum, docketnum == 812222, 812227),
                docketnum = replace(docketnum, docketnum == 811698, 811691),
                docketnum = replace(docketnum, docketnum == 801875, 810875),
+               docketnum = replace(docketnum, docketnum == 524522, 524552),
                zone = if_else(docketnum == 812576, 'AW', 
-                              if_else(docketnum == 525708, 'AE', zone)))
+                              if_else(docketnum == 525708, 'AE', 
+                                      if_else(docketnum == 812883, 'AW', zone))))
 
 # Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
 measure.board.df <- measure.board.df %>% 

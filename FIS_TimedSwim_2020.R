@@ -1444,55 +1444,90 @@ time.swim.dat.df.final %>%
         ungroup()
         
 ##---------------------------------------------------------------------------##        
-
 ## PLOT 2: Diver bias 
 ## Diver A vs Diver B comparison of sizeclass counts per site
 
+# create datafame of diver details and pairs
 diver.df <- data.frame('diver' = c('LT', 'SI', 'SL', 'BD', 'NW', 'GP'),
                        'diver.id' = c(1, 2, 3, 4, 5, 6),
                        'dive.pair.id' = c(1, 2, 3, 1, 2, 3),
                        'dive.buddy.id' = c(1, 1, 1, 2, 2, 2))
 
+# create plot labels for size classes
 sizeclasses <- c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", 
                  "120-140", "140-160", "160-180", "180-200", "200-220")
 
-df.4 <- time.swim.dat.final %>% 
-        left_join(diver.df) %>%
-        spread(sizeclass, sizeclass_freq)
+# create dataframe to draw reference regresssion line
+ref.df <- data.frame('diver.a' = c(0, 10, 20, 30, 40),
+                     'diver.b' = c(0, 10, 20, 30, 40))
 
-df.1 <- time.swim.dat.final %>% 
+# df.4 <- time.swim.dat.final %>% 
+#         left_join(diver.df) %>%
+#         spread(sizeclass, sizeclass_freq)
+
+# select data for diver pair of interest and diver A
+diver.a.df <- time.swim.dat.final %>% 
         left_join(diver.df) %>% 
-        filter(dive.pair.id == 1 & dive.buddy.id == 1) %>% 
+        filter(dive.pair.id == 3 & dive.buddy.id == 1) %>%
         select(c(site, sizeclass, sizeclass_freq)) %>% 
         dplyr::rename('diver.a' = sizeclass_freq)
 
-df.2 <- time.swim.dat.final %>% 
+# select data for diver pair of interest and diver B
+diver.b.df <- time.swim.dat.final %>% 
         left_join(diver.df) %>% 
-        filter(dive.pair.id == 1 & dive.buddy.id == 2) %>% 
+        filter(dive.pair.id == 3 & dive.buddy.id == 2) %>% 
         select(c(site, sizeclass, sizeclass_freq)) %>% 
         dplyr::rename('diver.b' = sizeclass_freq)
 
-df.3 <- left_join(df.2, df.1)
+# join diver pair data
+diver.pair <- left_join(diver.b.df, diver.a.df)
 
-
-df.3 %>% 
+# create plot and label with diver pair
+SL_GP <- diver.pair %>% 
         mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
         ggplot(aes(diver.a, diver.b))+
-        geom_point(aes(colour = factor(sizeclass)))+
+        geom_point(aes(colour = factor(sizeclass)), alpha = 1)+
+        scale_colour_viridis_d()+
         geom_smooth(method='lm')+
+        stat_poly_eq(formula = y~x, 
+                     aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+                     parse = TRUE) +
+        geom_line(data = ref.df, aes(diver.a, diver.b), 
+                  linetype = 'dashed', colour = 'blue', size = 1)+
         coord_cartesian(xlim = c(0, 40), ylim = c(0, 40))+
-        xlab(paste('diver.a', 'abalone_count'))+
-        ylab(paste('diver.b', 'abalone_count'))+
+        xlab(paste('Diver A', 'count'))+
+        ylab(paste('Diver B', 'count'))+
         labs(colour = 'Size class (mm)')+
-        theme_bw()
+        theme_bw()+
+        guides(colour = guide_legend(ncol=2))
 
-grid.arrange(LT_BD, NW_SI, SL_GP, ncol = 1)
+# extract common legend from one of the diver pair plots
+leg <- get_legend(SL_GP)
+
+# reformat plots by removing the legend
+LT_BD_leg <- LT_BD +
+        theme(legend.position = "none")
+NW_SI_leg <- NW_SI +
+        theme(legend.position = "none")
+SL_GP_leg <- SL_GP +
+        theme(legend.position = "none")
+
+#arrange plots on the same page and add common legend in blank facet
+diver.bias.plot <- ggarrange(LT_BD_leg, NW_SI_leg, SL_GP_leg, leg, labels = c('A', 'B', 'C'))
+
+# note: A = LT + BD, B = NW + SI, c = GP + SL
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
+ggsave(filename = paste('TimedSwimSurvey_2020_DiverBiasPlot', '.pdf', sep = ''), 
+       plot = diver.bias.plot, units = 'mm', width = 190, height = 190)
+ggsave(filename = paste('TimedSwimSurvey_2020_DiverBiasPlot', '.png', sep = ''), 
+       plot = diver.bias.plot, units = 'mm', width = 190, height = 190)
 
 ##---------------------------------------------------------------------------##
 df.1 <- time.swim.dat.final %>%
         left_join(diver.df, by = 'diver') %>%
         # mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
-        filter(diver.id %>% 
+        filter(diver.id) %>% 
         select(c(site, sizeclass, sizeclass_freq)) %>%
         dplyr::rename('DIVER A' = sizeclass_freq)
 
@@ -1585,5 +1620,37 @@ write.xlsx(df.site.start.finish.loc,
            col.names = TRUE,
            row.names = TRUE,
            append = FALSE)
+##---------------------------------------------------------------------------##
+## 2021 site selection ####
+
+# determine hexcell IDs sampled for each block in 2020
+sites.2020.keep <- time.swim.dat.final %>%
+        filter(!subblockno %in% c('28B', '28C')) %>% 
+        group_by(blockno) %>% 
+        distinct(site.new, .keep_all = T) %>% 
+        sample_n(15) %>% 
+        select(-proposed.geom) %>% 
+        st_as_sf()
+
+st_write(sites.2020.keep,
+         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg",
+         layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+# create vector of oid to be sampled in 2021 from 2020 sites sampled
+sites.2020.keep.oid <- sites.2020.keep %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
+
+# create vector of oid sampled in 2020 to filter from 2021 random site selection
+sites.2020.oid <- time.swim.dat.final %>%
+        filter(!subblockno %in% c('28B', '28C')) %>% 
+        group_by(blockno) %>% 
+        distinct(site.new, .keep_all = T) %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
+
+
 
         

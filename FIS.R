@@ -794,13 +794,13 @@ ann_text$yr.season <- factor(ann_text$yr.season,
 ## whether a site has ARMs installed
 arm.leg.plot <- if((nrow(plot.n.ARM) == 0 & length(names(plot.n.ARM)) == 0)){
 ggplot(data = arm.leg.site)+
- geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 10, fill = 'blue')+
- geom_histogram(aes(x = sllength.arm, y = -..count..), binwidth = 10, fill = 'red')+
+ geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 2, fill = 'blue')+
+ geom_histogram(aes(x = sllength.arm, y = -..count..), binwidth = 2, fill = 'red')+
  facet_wrap(. ~ yr.season, ncol = 2, drop = F)+
  theme_bw()+
  ylab("Frequency") +
  xlab("Shell Length (mm)")+
- coord_cartesian(ylim = c(-50, 115), xlim = c(0, 180))+
+ coord_cartesian(ylim = c(-25, 50), xlim = c(0, 180))+
  geom_hline(yintercept = 0, size = 0.1)+
  geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
  geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n),
@@ -809,18 +809,18 @@ ggplot(data = arm.leg.site)+
  theme(legend.position = 'none')
         } else {
 ggplot(data = arm.leg.site)+
-        geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 10, fill = 'blue')+
-        geom_histogram(aes(x = sllength.arm, y = -..count..), binwidth = 10, fill = 'red')+
+        geom_histogram(aes(x = sllength.leg, y = ..count..), binwidth = 2, fill = 'blue')+
+        geom_histogram(aes(x = sllength.arm, y = -..count..), binwidth = 2, fill = 'red')+
         facet_wrap(. ~ yr.season, ncol = 2, drop = F)+
         theme_bw()+
         ylab("Frequency") +
         xlab("Shell Length (mm)")+
-        coord_cartesian(ylim = c(-50, 115), xlim = c(0, 180))+
+        coord_cartesian(ylim = c(-25, 50), xlim = c(0, 180))+
         geom_hline(yintercept = 0, size = 0.1)+
         geom_text(data = ann_text, aes(x = x, y = y, label = lab))+
         geom_text(data = plot.n.LEG, aes(x = 160, y = 50, label = n),
                   colour = 'black', inherit.aes = F, parse = F, size = 3.5)+
-        geom_text(data = plot.n.ARM, aes(x = 10, y = -30, label = if_else(n == 'n = 0', '', n)),
+        geom_text(data = plot.n.ARM, aes(x = 10, y = -25, label = if_else(n == 'n = 0', '', n)),
                   colour = 'black', inherit.aes = F, parse = F, size = 3.5, na.rm = F)+
         geom_vline(aes(xintercept = 138),colour = 'red', linetype = 'dashed', size = 0.5)+
         theme(legend.position = 'none')
@@ -829,9 +829,9 @@ ggplot(data = arm.leg.site)+
  # print(arm.leg.plot)
 
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-ggsave(filename = paste('ARM_LEG_LF_', i, '.pdf', sep = ''),
+ggsave(filename = paste('ARM_LEG_LF_', i, '_2mm', '.pdf', sep = ''),
        plot = arm.leg.plot, units = 'mm', width = 190, height = 250)
-ggsave(filename = paste('ARM_LEG_LF_', i, '.png', sep = ''),
+ggsave(filename = paste('ARM_LEG_LF_', i, '_2mm', '.png', sep = ''),
        plot = arm.leg.plot, units = 'mm', width = 190, height = 250)
 }
 

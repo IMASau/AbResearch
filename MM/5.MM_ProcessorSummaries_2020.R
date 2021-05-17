@@ -1132,7 +1132,7 @@ ggsave(
         filename = paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 300,
+        height = 350,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##
