@@ -2665,7 +2665,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # select data for summary year, block and zone and generate percentage of observations within x of lml
   lml.ind.dat <- compiledMM.df.final %>% 
     dplyr::filter(fishyear <= stock.assessment.year & 
-                    blockno == block &
+                    # blockno == block &
                     newzone == zone &
                     numblocks == 1 &
                     between(shell.length, sizelimit - 5, 220)) %>% 
@@ -2698,7 +2698,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     ungroup() %>% 
     mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>% 
     group_by(lml.increase) %>%
-    slice(which.max(lml.increase))
+    slice(which.max(lml.increase)) %>% 
+    filter(fishyear < 2020)
   
   # generate plot  
   lml.plot <- lml.ind.dat.long %>% 
@@ -2708,20 +2709,21 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     scale_colour_manual(values = c('lml5.per' = 'black', 'lml30.per' = 'red'), labels = c('LML+5 mm', 'LML>30 mm'))+
     geom_smooth(aes(group = variable), method = 'lm', formula = y~x, se = T, size = 1)+
     theme_bw()+
-    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    # ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    ylab(paste(zone, ' Zone', ' Percentage', sep = ''))+
     xlab('Year')+
     scale_x_continuous(expand = c(0.01, 0.01),
                        breaks = seq(1967, 2020, 2))+
     stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
                  parse = TRUE, label.x = 'left', label.y = 'top')+
-    coord_cartesian(ylim = c(0, 50))+
+    coord_cartesian(ylim = c(0, 60))+
     theme(
       plot.title = element_text(hjust = 0.5),
       axis.line = element_line(colour = "black"),
       axis.text.x = element_text(angle = 45, vjust = 0.5),
       legend.title = element_blank(),
       legend.text = element_text(size = 10),
-      legend.position = c(0.9, 0.9),
+      legend.position = c(0.85, 0.9),
       legend.background = element_blank()
     )+
     guides(color = guide_legend(override.aes = list(fill = NA)))+
@@ -2735,19 +2737,20 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                   y = 50,
                   label = paste(sizelimit, 'mm', sep = ' ')),
               inherit.aes = FALSE,
-              vjust = 0,
+              vjust = 1.2,
               hjust = -0.25,
               size = 3,
-              angle = 0,
+              angle = 90,
               colour = 'red')
   
-  # print(lml.plot)
+  print(lml.plot)
   
   # save plot
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   
   ggsave(
-    filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
     plot = lml.plot,
     width = 7.4,
     height = 5.57,
@@ -2763,12 +2766,12 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   )
   ##-------------------------------------------------------------------------------------------------------##
   # Deviation from LML #### 
-  block <- 12
-  zone <- 'W'
+  block <- 13
+  zone <- 'E'
   
   df.1 <- compiledMM.df.final %>% 
     dplyr::filter(fishyear <= stock.assessment.year & 
-                    blockno == block &
+                    # blockno == block &
                     newzone == zone &
                     numblocks == 1 &
                     between(shell.length, sizelimit - 5, 220)) %>% 
@@ -2797,8 +2800,11 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                     fun.max = function(z) {quantile(z,0.75)},
                     fun = median)+
     geom_smooth(method = lm, se = T)+
+    stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
+                 parse = TRUE, label.x = 'left', label.y = 'bottom')+
     theme_bw()+
-    ylab(paste('BlockNo', block, ' LML Difference (mm)', sep = ''))+
+    # ylab(paste('BlockNo', block, ' LML Difference (mm)', sep = ''))+
+    ylab(paste(zone, ' Zone', ' LML Difference (mm)', sep = ''))+
     xlab('Year')+
     scale_x_continuous(breaks = seq(1967, 2020, 2))+
     # scale_y_reverse()+
@@ -2830,7 +2836,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
   
   ggsave(
-    filename = paste('BlockNo', block, '_LML_DIFF_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste('BlockNo', block, '_LML_DIFF_', stock.assessment.year, '.pdf', sep = ''),
+    filename = paste(zone, '_Zone', '_LML_DIFF_', stock.assessment.year, '.pdf', sep = ''),
     plot = lml.diff.plot,
     width = 7.4,
     height = 5.57,

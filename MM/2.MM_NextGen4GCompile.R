@@ -367,7 +367,10 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
                   n = n()) %>%   
         filter(n < 100 & #search for samples with <100 abalone
                        abalonenum.start == 0 , #include samples where start number is zero
-                       !docketnum %in% c(523229, 523632, 812108, 813512, 524261, 812204, 812716))  #remove samples where manual check of raw data found no refresh/or additional data
+                       !docketnum %in% c(523229, 523632, 812108, 813512, 524261, 812204, 812716,
+                                         '814356', '812647', 812456, 811918, 809078, 525739, 523951, 
+                                         523274, 523185, 523108, 522956, 519218, 515571, 512188,
+                                         523630))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')

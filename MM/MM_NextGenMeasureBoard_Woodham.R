@@ -40,7 +40,7 @@ measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/Nex
 
 # extract data files for GPS loggers allocated to divers (05010107 - Greg Woodham, 05010036 - Ben Allen, 05010040 or 05010037 or 05010112 - Sean Larby) 
 
-localfiles <- list.files(measureboard.non.modem,  pattern = "^05010107|05010036|05010045|05010040|05010037|05010112.*txt", full.names = T)
+localfiles <- list.files(measureboard.non.modem,  pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
 # ## Uncompress NextGen files from sfptServer ####
@@ -303,11 +303,14 @@ allen.gl <- measure.board.df.non.modem %>%
                                   "2020-10-13"))) %>% 
   mutate(species = 2)
 
-# Sean Larby greenlip data from 2020-09-09
+# Sean Larby greenlip data from 2020-09-09 and 2021-07-05
 
 larby.gl <- measure.board.df.non.modem %>% 
   filter(logname == '07010053' &
-           plaindate %in% as.Date(c("2020-09-09", "2020-09-29", "2020-10-19", "2020-11-17"))) %>% 
+           plaindate %in% as.Date(c("2020-09-09", "2020-09-29", "2020-10-19", "2020-11-17"))|
+           logname == '07010053' & 
+           plaindate == as.Date("2021-07-05") & 
+           between(rawutc, 1625439114, 1625448758)) %>% 
            mutate(species = 2)
 
 # combine Woodham, Allen and Larby greenlip data

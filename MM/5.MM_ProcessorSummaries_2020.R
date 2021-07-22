@@ -85,6 +85,15 @@ docknum.grade.meas <- mb.next.gen.grade.df %>%
         summarise(grade.meas = n())
 
 ##-------------------------------------------------------------------------------------------------------##
+# quick summary
+dock.sum <- measure.board.next.gen.df %>% 
+        filter(sampyear == 2021) %>% 
+        group_by(processor) %>% 
+        summarise(n = n(),
+                  catches = n_distinct(docketnum)) %>% 
+        janitor::adorn_totals()
+
+##-------------------------------------------------------------------------------------------------------##
 ## Summ Tab: length/weight and grade summary tables  ####
 
 for(i in processors){
@@ -563,7 +572,8 @@ for (i in new.dockets) {
                 geom_vline(
                         aes(xintercept = ifelse(zone == 'AW', 145, 
                                                 ifelse(zone == 'AB', 114, 
-                                                       ifelse(zone == 'AN', 127, 138)))),
+                                                       ifelse(zone == 'AN', 127, 
+                                                              ifelse(zone == 'AG', 145, 138))))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
@@ -1132,7 +1142,7 @@ ggsave(
         filename = paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
         plot = tas.seafoods.grade.summary.formated,
         width = 200,
-        height = 350,
+        height = 400,
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##

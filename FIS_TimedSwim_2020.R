@@ -71,7 +71,9 @@ time.swim.meta.dat$time.out <- as.POSIXct(paste(time.swim.meta.dat$date, time.sw
 time.swim.meta.dat <- time.swim.meta.dat %>% 
         dplyr::rename('sampdate' = date,
                       'starttime' = time.in,
-                      'finishtime' = time.out)
+                      'finishtime' = time.out) %>% 
+        mutate(site = gsub('AB-22-Random1', 'WP-72-73', site),
+               site = gsub('AB-22-Random2', 'WP-74-75', site))
 
 # calculate elapsed dive time
 time.swim.dat <- time.swim.dat %>% 
@@ -82,7 +84,8 @@ time.swim.dat <- time.swim.dat %>%
         mutate(site2 = site) %>% 
         separate(col = site2, into = c('ab', 'blockno'), sep = '-') %>% 
                 select(-ab) %>% 
-        mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, blockno))
+        mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
+                                ifelse(blockno %in% c('BRS'), 13, blockno)))
 
 # determine legal and sub-legal abalone
 time.swim.dat <- time.swim.dat %>% 
@@ -110,17 +113,21 @@ time.swim.dat.df <- time.swim.dat %>%
 # load final site file with corrected site names
 # this file includes CPUE and historical SAM sites labelled with site numbers running in sequence
 # from south to north
-fis.sites.final <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_final.xlsx",
+fis.sites.final <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/timed swim sites_final.xlsx",
                              detectDates = T)
 
 # load site file generated from spatial fishing data used on vessel plotter to conduct the timed swim surveys
 # these sites are incorrectly ordered and were used for the 2020 surveys  
-fis.site.cpue <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_CPUE_original.xlsx",
+fis.site.cpue <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/timed swim sites_CPUE_original.xlsx",
                            detectDates = T)
 
 # load site file generated from historical SAM research data used on vessel plotter to conduct the timed swim surveys
 # these sites are incorrectly ordered and were used for the 2020 surveys 
-fis.site.sam <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_SAM_original.xlsx",
+fis.site.sam <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/timed swim sites_SAM_original.xlsx",
+                          detectDates = T)
+
+# load existing FIS sites
+fis.site.fis <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/Abalone_FIS_Sites_Feb2021_JM.xlsx",
                           detectDates = T)
 
 # set CRS
@@ -161,7 +168,7 @@ fis.sites.new.sf <- fis.sites.new.df %>%
 ## to extract 'oid' and scoring metric rating/category (i.e. cell.ntile 3-5)
 
 # load original site details generated from GPS logger data
-fis.site.cpue.oid <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_CPUE_original_metadata.xlsx",
+fis.site.cpue.oid <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/timed swim sites_CPUE_original_metadata.xlsx",
                                detectDates = T)
 
 fis.site.cpue.oid.kg.hr <- fis.site.cpue.oid %>% 
@@ -185,7 +192,7 @@ fis.site.cpue.join <- st_join(fis.site.cpue.oid.sf, fis.site.cpue.sf, join = st_
 ## join original (unordered) sam site data file to sam sites used in 2020 survey to extract historical  average counts
 
 # load original sam site details and count data
-fis.site.sam.data <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/timed swim sites_SAM_original.xlsx",
+fis.site.sam.data <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/timed swim sites_SAM_original.xlsx",
                                detectDates = T)
 
 # join original and 2020 sam survey site data 
@@ -206,20 +213,17 @@ time.swim.dat.unique <- time.swim.dat %>%
 
 time.swim.dat.site.join <- left_join(fis.sites.new.sf, time.swim.dat.unique, by = c('site' = 'site'))
 
-# identity sites sampled and colour code (green = sampled, red = not sampled)
-# NOTE: these are colour coded for export to GPX and loading onto Lowrance plotter
+# identity sites sampled 
 time.swim.dat.site.sampled <- time.swim.dat.site.join %>% 
-        mutate(color = ifelse(is.na(sampdate), 'red', 'green'),
-               symbol = 'circle',
-               sym.col = paste(symbol, color, sep = ',')) %>% 
-        select(c(site.new, site, sym.col, geometry))
+        mutate(sampled = ifelse(is.na(sampdate), 0, 1)) %>%  
+        select(c(site.new, site, sampled, geometry))
 
 # transform to GDA2020
 time.swim.dat.site.sampled <- st_transform(time.swim.dat.site.sampled, GDA2020)
 
 # save spatial layer for QGIS
 st_write(time.swim.dat.site.sampled, 
-         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_COMPLETED_2020-09-23.gpkg", 
+         dsn = "C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_COMPLETED_2020-09-23.gpkg", 
          layer = "time.swim.dat.site.sampled", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
@@ -227,42 +231,51 @@ st_write(time.swim.dat.site.sampled,
 ## match timed swim data to GPS positions from vessel plotter downloads
 
 # read GPX file from plotter
-morana.gps.2020 <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
-morana.gps.ref <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/MORANAII-2021-04-06.gpx', layer = 'waypoints')
+morana.gps.2020 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+morana.gps.ref <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/MORANAII-2021-04-06.gpx', layer = 'waypoints')
+
+# add file year
+morana.gps.2020 <- morana.gps.2020 %>% 
+        mutate(sampyear = 2020)
+
+morana.gps.ref <- morana.gps.ref %>% 
+        mutate(sampyear = 2021)
 
 # join GPX files
 morana.gps <- bind_rows(morana.gps.2020, morana.gps.ref)
 
 # filter GPX file for latest data
-morana.gps <- morana.gps %>% 
-        filter(time >= as.Date('2020-08-12'))
+# morana.gps <- morana.gps %>% 
+#         filter(time >= as.Date('2020-08-12'))
 
 # separate start positions
 time.swim.site.start <- time.swim.meta.dat %>%
         select(-c(waypoint.finish, finishtime)) %>% 
         dplyr::rename('waypoint' = waypoint.start,
                       'samptime' = starttime) %>% 
-        mutate(sampperiod = 'start')
+        mutate(sampperiod = 'start',
+               sampyear = year(sampdate))
 
 # separate finish positions
 time.swim.site.finish <- time.swim.meta.dat %>%
         select(-c(waypoint.start, starttime)) %>% 
         dplyr::rename('waypoint' = waypoint.finish,
                       'samptime' = finishtime) %>% 
-        mutate(sampperiod = 'finish')
+        mutate(sampperiod = 'finish',
+               sampyear = year(sampdate))
 
 # re-join start and finish positions  and remove non-sampled sites        
 time.swim.site.start.finish <- bind_rows(time.swim.site.start, time.swim.site.finish) %>%
         mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
-                                  if_else(between(waypoint, 10, 100), as.character(paste(0, waypoint, sep = '')),
+                                  if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
                                           as.character(waypoint)))) %>%  
-        select(c(sampdate, samptime, sampperiod, site, waypoint)) %>% 
+        select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear)) %>% 
         filter(site != 'Betsey')
 
 # join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
 time.swim.site.start.finish.mark <- time.swim.site.start.finish %>% 
         filter(is.na(waypoint) & sampperiod == 'start') %>% 
-        left_join(., morana.gps, by = c('site' = 'name')) %>% 
+        left_join(., morana.gps, by = c('site' = 'name', 'sampyear')) %>% 
         dplyr::rename('gpstime' = time,
                       'site' = site) %>%
         select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
@@ -270,7 +283,7 @@ time.swim.site.start.finish.mark <- time.swim.site.start.finish %>%
 # join geometry where waypoints were recorded 
 time.swim.site.start.finish.wp <- time.swim.site.start.finish %>% 
         filter(!is.na(waypoint)) %>% 
-        left_join(., morana.gps, by = c('waypoint' = 'name')) %>% 
+        left_join(., morana.gps, by = c('waypoint' = 'name', 'sampyear')) %>% 
         dplyr::rename('gpstime' = time,
                       'site' = site) %>% 
         select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
@@ -283,9 +296,9 @@ time.swim.site.start.finish.loc <- bind_rows(time.swim.site.start.finish.mark, t
 time.swim.site.start.finish.loc <- st_transform(time.swim.site.start.finish.loc, GDA2020)
 
 # save spatial layer for QGIS
-# st_write(time.swim.site.start.finish.loc,
-#          dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_STARTFINISH_2020-09-23.gpkg",
-#          layer = "time.swim.site.start.finish.loc", driver = "GPKG", overwrite = T, delete_dsn = T)
+st_write(time.swim.site.start.finish.loc,
+         dsn = "C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_STARTFINISH_2020-09-23.gpkg",
+         layer = "time.swim.site.start.finish.loc", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
 ## 7. MAP 1: Sites sampled - proposed ####
@@ -302,7 +315,8 @@ site.samp.loc <- time.swim.dat.site.sampled %>%
         mutate(site2 = site) %>% 
         separate(col = site2, into = c('ab', 'blockno'), sep = '-') %>%  
         select(-ab) %>% 
-        mutate(blockno = ifelse(blockno %in% c('THU'), 22, blockno))
+        mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
+                                ifelse(blockno %in% c('BRS'), 13, blockno)))
 
 # join data to subblock map to identify subblockno and remove fished sites in blockno 28
 site.samp.subblock.loc <- st_join(site.samp.loc, sf.subblock.map, join = st_nearest_feature) %>% 
@@ -328,7 +342,7 @@ for (i in blocks.sampled){
 
 site.samp.loc.blockno <- site.samp.subblock.loc %>% 
         filter(blockno == i) %>%  
-        mutate(sym.col = factor(sym.col, levels = c('circle,red', 'circle,green')))
+        mutate(sampled = factor(sampled, levels = c('0', '1')))
 
 sf.subblock.map.crop <- sf.subblock.map %>% 
         filter(blockno == i &
@@ -337,7 +351,7 @@ sf.subblock.map.crop <- sf.subblock.map %>%
 site.samp.map.blockno <- ggplot(data = st_geometry(sf.subblock.map.crop)) +
         geom_sf(fill = NA) +
         geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
-        geom_sf(data = site.samp.loc.blockno, aes(colour = sym.col)) +
+        geom_sf(data = site.samp.loc.blockno, aes(colour = sampled)) +
         scale_colour_manual(values = c('red', 'blue'))+
         theme_bw() +
         annotation_scale(location = "bl", width_hint = 0.5) +
@@ -356,9 +370,6 @@ ggsave(filename = paste('TimedSwimSurvey_2020_SitesSampled_Proposed_BlockNo_', i
 
 }
 
-not.surveyed.df <- site.samp.subblock.loc %>% 
-        filter(sym.col == 'circle,red')
-
 ##---------------------------------------------------------------------------##
 ## 8. MAP 2: Sites sampled - actual ####
 ## create map of sites sampled within each Block with recorded GPS positions and identify subblockno
@@ -374,7 +385,8 @@ site.samp.start.loc <- time.swim.site.start.finish.loc %>%
         mutate(site2 = site) %>% 
         separate(col = site2, into = c('ab', 'blockno'), sep = '-') %>%  
         select(-ab) %>% 
-        mutate(blockno = ifelse(blockno %in% c('THU'), 22, blockno))
+        mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
+                                ifelse(blockno %in% c('BRS'), 13, blockno)))
 
 # join data to subblock map to identify subblockno and remove sites sampled in blockno 28B and 28C 
 # (i.e. these subblocks were open to fishing)
@@ -432,12 +444,12 @@ for (i in blocks.sampled){
 ## 9. Final dataframe ####
 ## Join spatial site data (proposed and actual GPS sites) to count data and save final dataframe
 
-time.swim.dat.final <- left_join(time.swim.dat, site.samp.subblock.loc.28, by = 'site') %>%   
-        left_join(site.samp.start.subblock.loc.28, by = 'site') %>%
+time.swim.dat.final <- left_join(time.swim.dat, site.samp.subblock.loc.28, by = 'site') %>%        
+        left_join(., site.samp.start.subblock.loc.28, by = 'site') %>% 
         select(-blockno) %>% 
         mutate(subblockno.x = ifelse(is.na(subblockno.x), subblockno.y, subblockno.x),
                zone.x = ifelse(is.na(zone.x), 'E', zone.x),
-               sym.col = ifelse(is.na(sym.col), 'circle,green', sym.col)) %>% 
+               sampled = ifelse(is.na(sampled), '1', sampled)) %>% 
         dplyr::rename(proposed.geom = 'geometry.x',
                        actual.geom = 'geometry.y',
                       zone = 'zone.x',
@@ -450,11 +462,11 @@ time.swim.dat.final <- left_join(time.swim.dat, site.samp.subblock.loc.28, by = 
 
 
 time.swim.dat.df.final <- left_join(time.swim.dat.df, site.samp.subblock.loc.28, by = 'site') %>% 
-        left_join(site.samp.start.subblock.loc.28, by = 'site') %>% 
+        left_join(., site.samp.start.subblock.loc.28, by = 'site') %>% 
         select(-blockno) %>% 
         mutate(subblockno.x = ifelse(is.na(subblockno.x), subblockno.y, subblockno.x),
                zone.x = ifelse(is.na(zone.x), 'E', zone.x),
-               sym.col = ifelse(is.na(sym.col), 'circle,green', sym.col)) %>% 
+               sampled = ifelse(is.na(sampled), '1', sampled)) %>% 
         dplyr::rename(proposed.geom = 'geometry.x',
                       actual.geom = 'geometry.y',
                       zone = 'zone.x',
@@ -476,14 +488,14 @@ time.swim.dat.df.final <- left_join(time.swim.dat.df.final, select(fis.site.cpue
         left_join(., select(fis.site.sam.join, site, sam.count), by = ('site')) %>% 
         select(-c(geometry))
 
-saveRDS(time.swim.dat.final, 'C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData_2020-10-05.RDS')
-saveRDS(time.swim.dat.df.final, 'C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData.df_2020-10-05.RDS')
+saveRDS(time.swim.dat.final, 'C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/TimedSwimData_2020-10-05.RDS')
+saveRDS(time.swim.dat.df.final, 'C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/TimedSwimData.df_2020-10-05.RDS')
 
 time.swim.dat.final <-
-        readRDS('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData_2020-10-05.RDS')
+        readRDS('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/TimedSwimData_2020-10-05.RDS')
 
 time.swim.dat.df.final <-
-        readRDS('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData.df_2020-10-05.RDS')
+        readRDS('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/TimedSwimData.df_2020-10-05.RDS')
 
 ##---------------------------------------------------------------------------##
 ## Join to historic length frequency data ####
@@ -625,12 +637,14 @@ for (i in unique.zones) {
 
 # determine number of abalone recorded and number of sites sampled per block
 block.ab.n <- time.swim.dat.df.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>% 
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(blockno) %>% 
         summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>%
         group_by(blockno) %>% 
         summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
 
@@ -638,7 +652,10 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
         mutate(n = paste(ab.n, site.n, sep = ' '))
 
 # create length frequency plot
-lf.plot <- time.swim.dat.df %>% ggplot(aes(shelllength, group = blockno)) +
+lf.plot <- time.swim.dat.df.final %>% 
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
+        ggplot(aes(shelllength, group = blockno)) +
         geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
         # scale_x_binned()+
         geom_vline(aes(xintercept = ifelse(blockno %in% c('27', '28'), 145, 138)), linetype = 'dashed', colour = 'red', size = 0.5) +
@@ -773,13 +790,15 @@ ggsave(filename = paste('TimedSwimSurvey_2020_CPUEPlot', '.png', sep = ''),
 
 # determine number of sites sampled for each blockno
 time.swim.dat.n <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(blockno) %>% 
         summarise(n = n_distinct(site))
 
 ## average count per 10 min for each blockno
 count.plot <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         # filter(midsize >= 150) %>% 
         group_by(blockno, site, diver) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -809,7 +828,8 @@ ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.png', sep =
 
 ## average count vs cpue rating score
 time.swim.dat.vs.cpue.plot <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
         group_by(site, legal.size, cell.ntile, sam.count) %>% 
@@ -830,7 +850,8 @@ time.swim.dat.vs.cpue.plot <- time.swim.dat.final %>%
 
 ## average count vs historical SAM counts
 time.swim.dat.vs.sam.plot <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
         group_by(site, legal.size, cell.ntile, sam.count) %>% 
@@ -864,7 +885,8 @@ ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsSAM', '.png', sep 
 size.class <- '>140 mm'
 
 time.swim.dat.vs.cpue.kg.hr.plot <- left_join(time.swim.dat.final, fis.site.cpue.oid.kg.hr) %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(site, diver, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
         group_by(site, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
@@ -901,7 +923,8 @@ ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE.kg.hr_legal',
 
 # determine mean count per 10 min by size class for each blockno
 ten.min.mean <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         # filter(midsize < 150) %>% 
         group_by(blockno, site, diver, legal.size) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -910,7 +933,8 @@ ten.min.mean <- time.swim.dat.final %>%
         mutate(legal.size = factor(legal.size))
 
 ten.min.mean.site <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         # filter(midsize < 150) %>% 
         group_by(site, blockno, subblockno, diver, legal.size) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -920,7 +944,8 @@ ten.min.mean.site <- time.swim.dat.final %>%
         as.data.frame()
 
 count.plot.sizeclass <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         # filter(midsize < 150) %>% 
         group_by(blockno, site, diver, legal.size) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -954,7 +979,8 @@ ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountSizeClassPlot', '.pn
 sizeclasses <- c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", "120-140", "140-160", "160-180", "180-200", "200-220")
 
 time.swim.count.blockno <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>% 
         group_by(blockno, site, diver, legal.size) %>% 
         summarise(ab.measured = sum(sizeclass_freq),
                   swim.time = max(time.elapsed)) %>% 
@@ -1041,6 +1067,10 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
 
 # identify blocks sampled
 blocks.sampled <- unique(time.swim.count.site.loc$blockno)
+
+# identify sites not surveyed but proposed
+not.surveyed.df <- site.samp.subblock.loc %>% 
+        filter(sampled == '0')
 
 # create maps
 
@@ -1333,7 +1363,7 @@ st_write(fis.site.ref.df,
 ##PLOT 5: Historic SAM vs Timed count ####
 
 # load original sam site details and count data
-fis.sam.data <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
+fis.sam.data <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
                                detectDates = T)
 
 colnames(fis.sam.data) <- tolower(colnames(fis.sam.data))
@@ -1361,7 +1391,8 @@ df.1 %>%
 
 
 df.2 <- time.swim.dat.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
+        filter(!subblockno %in% c('28B', '28C'),
+               sampdate < as.Date('2021-01-01')) %>%
         group_by(blockno, site, diver) %>% 
         summarise(ab.n = sum(sizeclass_freq)) %>% 
         mutate(sampyear = 2020,
@@ -1467,15 +1498,17 @@ ref.df <- data.frame('diver.a' = c(0, 10, 20, 30, 40),
 
 # select data for diver pair of interest and diver A
 diver.a.df <- time.swim.dat.final %>% 
+        filter(sampdate < as.Date('2021-01-01')) %>%
         left_join(diver.df) %>% 
-        filter(dive.pair.id == 3 & dive.buddy.id == 1) %>%
-        select(c(site, sizeclass, sizeclass_freq)) %>% 
+        filter(dive.pair.id == 1 & dive.buddy.id == 1) %>%
+        select(c(site, sizeclass, sizeclass_freq, diver)) %>% 
         dplyr::rename('diver.a' = sizeclass_freq)
 
 # select data for diver pair of interest and diver B
-diver.b.df <- time.swim.dat.final %>% 
+diver.b.df <- time.swim.dat.final %>%
+        filter(sampdate < as.Date('2021-01-01')) %>%
         left_join(diver.df) %>% 
-        filter(dive.pair.id == 3 & dive.buddy.id == 2) %>% 
+        filter(dive.pair.id == 1 & dive.buddy.id == 2) %>% 
         select(c(site, sizeclass, sizeclass_freq)) %>% 
         dplyr::rename('diver.b' = sizeclass_freq)
 
@@ -1483,7 +1516,7 @@ diver.b.df <- time.swim.dat.final %>%
 diver.pair <- left_join(diver.b.df, diver.a.df)
 
 # create plot and label with diver pair
-SL_GP <- diver.pair %>% 
+LT_BD <- diver.pair %>% 
         mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
         ggplot(aes(diver.a, diver.b))+
         geom_point(aes(colour = factor(sizeclass)), alpha = 1)+
@@ -1507,7 +1540,7 @@ leg <- get_legend(SL_GP)
 # reformat plots by removing the legend
 LT_BD_leg <- LT_BD +
         theme(legend.position = "none")
-NW_SI_leg <- NW_SI +
+NW_SI_leg <- SI_NW +
         theme(legend.position = "none")
 SL_GP_leg <- SL_GP +
         theme(legend.position = "none")
