@@ -624,6 +624,8 @@ for (i in new.dockets) {
                                wholeweight != 0) %>% 
                 summarise(n = paste('n =', n()))
         
+        if (nrow(plot.weight.freq.dat) != 0) {
+        
         weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
                 geom_histogram(
                         aes(y = ..density.. * 50),
@@ -770,13 +772,36 @@ for (i in new.dockets) {
         file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
                                  'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
         
+       
+        
         ggsave(
                 filename = paste(paste(file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                 plot = plot.a,
                 width = 200,
                 height = 297,
                 units = 'mm')
-        
+        }
+        else{
+                plot.a <- length.plot
+                # plot.a <- grid.arrange(
+                #         arrangeGrob(cowplot::plot_grid(length.plot, align = 'v', 
+                #                                        ncol = 1), ncol = 1))
+                #save plots
+                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+                file.zone <- unique(plot.length.freq.dat$zone)
+                file.date <- unique(plot.length.freq.dat$plaindate)
+                file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
+                                         'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
+                
+                
+                
+                ggsave(
+                        filename = paste(paste(file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                        plot = plot.a,
+                        width = 7.4,
+                        height = 5.57,
+                        units = 'in')
+        }
 }
 
 #---------------------------------------------------------------------------##

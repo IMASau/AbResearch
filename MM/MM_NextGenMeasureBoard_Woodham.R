@@ -374,6 +374,12 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
   filter(!(logname == '07010053' &
            plaindate == as.Date('2020-12-19')))
 
+## Remove practice samples for Bryan Denny
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+  filter(!(logname == '07010052' &
+           plaindate %in% as.Date(c('2021-07-29', 
+                                    '2021-07-11'))))
+
 
 ##---------------------------------------------------------------------------##
 ## Step 9: Determine sample location ####
