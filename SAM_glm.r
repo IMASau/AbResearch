@@ -2,7 +2,7 @@
 
 rm(list=ls(all=TRUE))
 ## SET THE WORKING AND RESULTS DIRECTORIES
-wkdir <- "D:/Fisheries Research/Abalone"
+wkdir <- "C:/cloudstor/Fisheries/Research/Abalone/SeasonalSAM"
 setwd(wkdir)
 
 ## Load raw csv file
