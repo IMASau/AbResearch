@@ -205,7 +205,8 @@ measure.board.df <- measure.board.df %>%
                docketnum = replace(docketnum, docketnum == 524522, 524552),
                zone = if_else(docketnum == 812576, 'AW', 
                               if_else(docketnum == 525708, 'AE', 
-                                      if_else(docketnum == 812883, 'AW', zone))))
+                                      if_else(docketnum == 812883, 'AW', 
+                                              if_else(docketnum == 524401, 'AE', zone)))))
 
 # Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
 measure.board.df <- measure.board.df %>% 
@@ -368,9 +369,12 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
         filter(n < 100 & #search for samples with <100 abalone
                        abalonenum.start == 0 , #include samples where start number is zero
                        !docketnum %in% c(523229, 523632, 812108, 813512, 524261, 812204, 812716,
-                                         '814356', '812647', 812456, 811918, 809078, 525739, 523951, 
+                                         814356, 812647, 812456, 811918, 809078, 525739, 523951, 
                                          523274, 523185, 523108, 522956, 519218, 515571, 512188,
-                                         523630))  #remove samples where manual check of raw data found no refresh/or additional data
+                                         523630, 519891, 520017, 523338, 523645, 523857, 523860,
+                                         524555, 524903, 607952, 812334, 812647, 813158, 519891,
+                                         520017, 522969, 523605, 523646, 523858, 523954, 524679, 
+                                         524904, 809423, 812647, 812932, 524621))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')

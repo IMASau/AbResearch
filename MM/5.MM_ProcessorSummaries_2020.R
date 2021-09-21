@@ -226,19 +226,25 @@ docket.summaries <- c(docket.summaries.2020, docket.summaries.2021)
 
 
 # create a vector of existing docket numbers 
-existing.dockets <- as.data.frame(docket.summaries) %>%  
+existing.dockets <- as.data.frame(docket.summaries) %>%
+        mutate(docket.summaries = mgsub::mgsub(docket.summaries, c('_1_', '_2_', '_3_'), c('-1_', '-2_', '-3_'))) %>% 
         separate(docket.summaries, c('docket.number',
                                      'docket.plot',
                                      'docket.date',
-                                     'docket.processor'), sep = '_') %>%   
+                                     'docket.processor'), sep = '_') %>% 
         select(docket.number, docket.date, docket.processor) %>% 
-        separate(docket.number, into = c('docket.zone', 'docket.number'), "(?<=[A-Z])(?=[0-9])") %>% 
-        mutate(docket.number = as.numeric(docket.number),
-               docket.processor = gsub('.pdf', '', docket.processor)) %>% 
+        separate(docket.number, into = c('docket.zone', 'docket.number'), "(?<=[A-Z])(?=[0-9])") %>%
+        mutate(docketnum.day = docket.number,
+               docketnum.day = gsub('-', '_', docket.number)) %>% 
+        # separate(docket.number, into = c('docket.number', 'dock.samp.no'), sep = '-') %>% 
+        # mutate(dock.samp.no = ifelse(is.na(dock.samp.no), 1, dock.samp.no)) %>% 
+        # mutate(docket.number = as.numeric(docket.number),
+        #        docket.processor = gsub('.pdf', '', docket.processor)) %>% 
+        mutate(docket.processor = gsub('.pdf', '', docket.processor)) %>% 
         group_by_all() %>% 
         summarise(n = n()) %>%  
         mutate(summary.plot.exists = ifelse(!is.na(n), 1, 0),
-               docket.index = paste(docket.zone, docket.number, docket.date, docket.processor, sep = '-')) %>%  
+               docket.index = paste(docket.zone, docketnum.day, docket.date, docket.processor, sep = '-')) %>%        
         pull(docket.index)
 
 # load vector of incomplete measureboard data for existing docket numbers determined in 
@@ -246,7 +252,7 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
 docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 
 docket.incomplete <- docket.incomplete %>% 
-        mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>% 
+        mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>%  
         pull(docket.index)
 
 # identify complete existing dockets
@@ -258,10 +264,13 @@ existing.dockets.complete <- setdiff(existing.dockets, docket.incomplete)
 # docket.unique <- unique(measure.board.next.gen.df$docketnum)
 
 docket.unique <- measure.board.next.gen.df %>% 
-        select(docketnum.day, plaindate, zone, processor, docket.index) %>% 
+        mutate(docket.index = ifelse(processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD' &
+                                             sampyear == 2021, gsub('RALPHS TASMANIAN SEAFOODS PTY LTD',
+                                   'TRUE SOUTH SEAFOOD', docket.index), docket.index)) %>%
+        select(docketnum.day, plaindate, zone, processor, docket.index) %>%
         group_by(docketnum.day, plaindate, zone, processor, docket.index) %>% 
-        summarise(n = n()) %>%   
-        # mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>%  
+        summarise(n = n()) %>%    
+        # mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-'))  
         pull(docket.index)
 
 # df.2 <- existing.dockets %>% 

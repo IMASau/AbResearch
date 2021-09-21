@@ -131,7 +131,7 @@ juv_long_split <- juv_long_split %>%
 ## RI abalone data ####
 
 juv.df <- juv_long_split %>% 
-        select(site, survdate, diver, string, plate, ab_sl)
+        dplyr::select(site, survdate, diver, string, plate, ab_sl)
 
 ## save a copy of the R files
 saveRDS(juv.df, 'R:/TAFI/TAFI_MRL_Sections/Marine Environment/Section Shared/2018 RVA method validation/Abalone plate resurvey/juv.df.RDS')
@@ -169,7 +169,8 @@ platearea <- 0.126
 juv.den <- juv.df
 
 ## create unique ID/index for each ARM and survdate combination
-juv.den$survindex <- as.factor(paste(juv$site, juv$survdate, juv$string, juv$plate, sep="_"))
+juv.den$survindex <- as.factor(paste(juv.den$site, juv.den$survdate, juv.den$string, 
+                                     juv.den$plate, sep="_"))
 
 ## subset and count number of animals per ARM by survdate (subset by size class if required)
 juv.dat <- filter(juv.den, !is.na(ab_sl))  %>%
@@ -203,7 +204,7 @@ juv.abcounts$yr.season <-
                                             "2019.Autumn", "2019.Winter", "2019.Spring"))
 
 juv.abcounts <- juv.abcounts %>% 
-        select(-c(juv.dat.ab_n, juv.dat.absm)) %>% 
+        dplyr::select(-c(juv.dat.ab_n, juv.dat.absm)) %>% 
         rename(survindex = juv.dat.survindex)
 
 ## save a copy of the R files
@@ -219,12 +220,12 @@ arm.counts <- readRDS('C:/CloudStor/R_Stuff/FIS/arm.counts.RDS')
 
 # re-classify abalone data seasons to match Reef Interactions seasons
 arms.sl <- arms.sl %>%
-        select(-season, yr.season) %>% 
+        dplyr::select(-season, yr.season) %>% 
         mutate(season = getSeason.reef(survdate),
                yr.season = interaction(sampyear, season))
 
 arm.counts <- arm.counts %>%
-        select(-season, yr.season) %>% 
+        dplyr::select(-season, yr.season) %>% 
         mutate(season = getSeason.reef(survdate),
                yr.season = interaction(sampyear, season))
 
@@ -250,9 +251,9 @@ arm.abcounts <- arm.counts %>%
 
 # remove repeated variables and rename variables to match reef interactions data
 arm.abcounts <- arm.abcounts %>% 
-        select(-c(dat.ab_n, dat.absm)) %>% 
-        rename(survindex = dat.survindex) %>% 
-        mutate(string = as.factor(string))
+        dplyr::select(-c(dat.ab_n, dat.absm)) %>% 
+        rename(survindex = dat.survindex) 
+        # mutate(string = as.factor(string))
 
 ## combine reef interactions and abalone dataframes noting that there are 12 records where the abalone counts 
 ## vary between the two datasets by <3 abalone for GEO and BRS. 
@@ -277,7 +278,8 @@ arm.abcounts <- arm.abcounts %>%
 
 # filter for unique reef interactions data and join to abalone data
 arm.abcounts.df <- juv.abcounts %>% 
-        filter(!site %in% c('GEO', 'BRS')) %>% 
+        dplyr::filter(!site %in% c('GEO', 'BRS')) %>% 
+        mutate(yr.season = factor(yr.season, ordered = F)) %>%  
         # mutate(survdate = as.POSIXct(survdate)) %>% 
         bind_rows(arm.abcounts)
 
@@ -323,13 +325,14 @@ arms.absl <- arms.sl %>%
 
 # select variables to match reef interactions data
 arms.absl.match <- arms.absl %>% 
-        select(c(site, survdate, string, plate, sllength, sampyear, season, yr.season)) %>% 
+        dplyr::select(c(site, survdate, string, plate, sllength, sampyear, season, yr.season)) %>% 
         rename(ab_sl = sllength)
 
 # filter for unique reef interactions data and join to abalone data
 arm.sl.df <- juv.sl %>% 
         filter(!site %in% c('GEO', 'BRS')) %>% 
-        mutate(survdate = as.POSIXct(survdate)) %>% 
+        mutate(survdate = as.POSIXct(survdate),
+               yr.season = factor(yr.season, ordered = F)) %>% 
         bind_rows(arms.absl.match)
 
 # convert summer to autumn for all data and place in order
