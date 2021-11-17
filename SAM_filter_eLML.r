@@ -10,14 +10,14 @@ library(car)
 library(MASS)
 library(boot)
 library(dplyr)
-library(plyr)
+#library(plyr)
 library(gdata)
 library(ggplot2)
 library(multcompView)
 library(devtools)
 #sources
 
-load ('c:/CloudStor/R_Stuff/SAM/SAM2016_April.RData') #SAM2016_April
+load("C:/cloudstor/R_Stuff/Logistic/SAM2016_April.RData") #SAM2016_April
 # keep(SamResults, sure =T)
 
 #rename columns

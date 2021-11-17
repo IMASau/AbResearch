@@ -8,12 +8,12 @@ setwd(wkdir)
 resdir <- "D:\\Students\\Carly Giosio/Results/"
 
 ## Load raw csv file
-infile <- "D:\\Students\\Carly Giosio\\DataForExport.csv"
+infile <- "C:/OneDrives/OneDrive - University of Tasmania/Students/ArchivedStudents/Carly Giosio/DataForExport.csv"
 
 library(MASS)
 library(boot)
 library(car)
-source("D:\\Students\\Carly Giosio/carly_utils.R")
+source("C:/OneDrives/OneDrive - University of Tasmania/Students/ArchivedStudents/Carly Giosio/carly_utils.R")
 
 samdata <- read.csv(infile,header=T)
 dim(samdata)
@@ -108,8 +108,7 @@ samdata$SizeC[pick] <- "Medium"
 pick <- which(samdata$Length > 130)
 samdata$SizeC[pick] <- "Large"
 
-
-source("D:\\Students\\Carly Giosio/carly_utils.R")
+source("C:/OneDrives/OneDrive - University of Tasmania/Students/ArchivedStudents/Carly Giosio/carly_utils.R")
 
 ## Calculate Base cases for each site.
 starttime <- unclass(Sys.time())
