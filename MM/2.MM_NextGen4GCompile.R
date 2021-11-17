@@ -203,10 +203,20 @@ measure.board.df <- measure.board.df %>%
                docketnum = replace(docketnum, docketnum == 811698, 811691),
                docketnum = replace(docketnum, docketnum == 801875, 810875),
                docketnum = replace(docketnum, docketnum == 524522, 524552),
+               docketnum = replace(docketnum, docketnum == 520478, 520473),
+               docketnum = replace(docketnum, docketnum == 813886, 813880),
+               docketnum = replace(docketnum, docketnum == 813790, 813190),
+               docketnum = replace(docketnum, docketnum == 524402, 524402.1),
+               docketnum = replace(docketnum, docketnum == 813879, 524402),
+               docketnum = replace(docketnum, docketnum == 524402.1, 813879),
+               docketnum = replace(docketnum, docketnum == 813854, 520018),
                zone = if_else(docketnum == 812576, 'AW', 
                               if_else(docketnum == 525708, 'AE', 
                                       if_else(docketnum == 812883, 'AW', 
-                                              if_else(docketnum == 524401, 'AE', zone)))))
+                                              if_else(docketnum == 524401, 'AE',
+                                                      if_else(docketnum == 813879, 'AW',
+                                                              if_else(docketnum == 524402, 'AE',
+                                                                      if_else(docketnum == 520018, 'AE', zone))))))))
 
 # Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
 measure.board.df <- measure.board.df %>% 

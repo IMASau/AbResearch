@@ -1194,7 +1194,7 @@ seafood.traders.divers.2021 <- seafood.traders.divers.2021 %>%
         summarise(divedate = max(divedate)) %>% 
         mutate(docketnum = trimws(docketnum))
 
-seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
+seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum.day', 'processor', 'plaindate')) %>% 
         filter(processor == "SEAFOOD TRADERS PTY LTD") %>% 
         mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
         ungroup() %>% 
@@ -1203,8 +1203,8 @@ seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c
         dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
         {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
         arrange(desc(plaindate)) %>%
-        ungroup() %>% 
-        mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
+        ungroup() %>%  
+        mutate(docketnum = paste(zone, docketnum.x, sep = '')) %>%
         dplyr::rename('Docket\nno.' = docketnum,
                       'Abalone\nmeasured' = ab.weighed) %>% 
         select(-zone) %>% 

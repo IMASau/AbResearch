@@ -105,7 +105,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2020`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2021`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
@@ -188,6 +188,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
   mutate(whole.weight = if_else(whole.weight > 2000, 0, whole.weight),
          whole.weight = na_if(whole.weight, 0))
 
+saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 ##-------------------------------------------------------------------------------------------------------##
 # Quick summaries ####
 
@@ -2699,7 +2700,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>% 
     group_by(lml.increase) %>%
     slice(which.max(lml.increase)) %>% 
-    filter(fishyear < 2020)
+    filter(fishyear < 2021)
   
   # generate plot  
   lml.plot <- lml.ind.dat.long %>% 
@@ -2713,7 +2714,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     ylab(paste(zone, ' Zone', ' Percentage', sep = ''))+
     xlab('Year')+
     scale_x_continuous(expand = c(0.01, 0.01),
-                       breaks = seq(1967, 2020, 2))+
+                       breaks = seq(1967, 2021, 2))+
     stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
                  parse = TRUE, label.x = 'left', label.y = 'top')+
     coord_cartesian(ylim = c(0, 60))+
@@ -2806,7 +2807,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     # ylab(paste('BlockNo', block, ' LML Difference (mm)', sep = ''))+
     ylab(paste(zone, ' Zone', ' LML Difference (mm)', sep = ''))+
     xlab('Year')+
-    scale_x_continuous(breaks = seq(1967, 2020, 2))+
+    scale_x_continuous(breaks = seq(1967, 2021, 2))+
     # scale_y_reverse()+
     theme(
       plot.title = element_text(hjust = 0.5),
@@ -2852,3 +2853,122 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     units = 'in'
   )
   
+  
+#### LW relationship ####
+  
+# load most recent commercial catch sampling compiled MM dataframe
+compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+# select length-weight data, removing obvious erroneous data or data collected 
+# from multiple blocks in a trip
+  lw.dat <- compiledMM.df.final %>%
+    filter(
+      between(whole.weight, 200, 1500) &
+        between(shell.length, sizelimit - 5, 220) &
+        !(shell.length > 175 & whole.weight < 600),!(shell.length > 180 &
+                                                       whole.weight < 1000),
+      numblocks == 1
+    )
+# quick plot checking for outliers for nominated zone
+lw.dat %>%
+  filter(newzone == 'E') %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+  xlim(130, 200)
+
+# determine average weight by zone
+lw.dat %>%
+  group_by(newzone) %>%
+  summarise(Av.weight = mean(whole.weight))
+
+# estimated combined east coast (areas 1-3) blacklip abalone recreational 
+# harvest no. for 2020-21 was 22882 (12774-34777) (Lyle et al. 2021).
+
+lw.dat %>%
+  filter(newzone == 'E') %>%
+  summarise(Av.weight = mean(whole.weight)) %>% 
+  mutate(Harvest = (22882 * Av.weight) / 1000)
+
+
+# calculate log of length and weight
+lw.dat.log <- lw.dat %>% 
+  mutate(log.sl = log(shell.length),
+         log.wt = log(whole.weight))
+
+# calculate regression coefficient summary table for each blockno
+lw.dat.coeff <- lw.dat.log %>%
+  nest(data = -blockno) %>% 
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>% 
+  select(c(blockno, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(-intercept)
+
+# calculate regression coefficient summary table for each zone
+lw.dat.coeff.zone <- lw.dat.log %>%
+  nest(data = -newzone) %>% 
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>% 
+  select(c(newzone, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(-intercept)
+
+# determine sample size for each blockno and join to regression summaries
+lw.dat.n <- lw.dat.log %>% 
+  group_by(blockno) %>% 
+  summarise(n = n())
+
+lw.dat.n.zone <- lw.dat.log %>% 
+  group_by(newzone) %>% 
+  summarise(n = n())
+
+lw.dat.coeff.blockno <- left_join(lw.dat.coeff, lw.dat.n)
+
+lw.dat.coeff.zone <- left_join(lw.dat.coeff.zone, lw.dat.n.zone)
+
+# select regression parameters to use for estimating weight
+lw.coeff <- lw.dat.coeff.blockno %>% 
+  filter(blockno == 13) %>% 
+  select(a, b) %>% 
+  mutate(join.id = 1)
+
+lw.coeff.zone <- lw.dat.coeff.zone %>% 
+  filter(newzone == 'E') %>% 
+  select(a, b) %>% 
+  mutate(join.id = 1)
+
+est.weight <- lw.coeff.zone$a * (155 ^ lw.coeff.zone$b)
+
+lml.df <- data.frame('LML' = c(138, 140, 145, 150, 155, 160))
+
+lml.wt.df <- lml.df %>% 
+  mutate(join.id = 1) %>% 
+  left_join(., lw.coeff.zone)
+
+lml.wt.est.df <- lml.wt.df %>%
+  mutate(est.weight = ((a * (LML ^ b))))
+
+lml.wt <- lml.wt.est.df[1, 'est.weight']
+
+lml.wt.est.df.final <- lml.wt.est.df %>% 
+  mutate(rel.change = est.weight / lml.wt) %>% 
+  select(-join.id) %>% 
+  as_tibble()
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+write.xlsx(lml.wt.est.df.final, paste('EAST_LENGTHWEIGHT_LML_RelativeChange', '.xlsx', sep = '_'), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+

@@ -1,0 +1,199 @@
+---
+title: "Abalone Catch Sampling Length-Weight Relationship"
+author: "Jaime McAllister & Craig Mundy"
+date: "17/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+
+# Load libaries ####
+# load required libaries and custom functions for plotting
+suppressPackageStartupMessages({
+library(RODBC)
+library(R.utils)
+library(lubridate)
+library(rgdal)
+library(sp)
+library(maptools)
+library(tools)
+library(openxlsx)
+library(lubridate)
+library(gdata)
+library(doBy)
+library(tidyr)
+library(tidyverse)
+library(splitstackshape)
+library(readxl)
+library(data.table)
+library(scales)
+library(gridExtra)
+library(ggspatial)
+library(tmap)
+library(sf)
+library(janitor)
+library(xtable)
+library(gsubfn)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(ggpmisc)
+}) 
+
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+
+```
+# Load most recent compilation of Commercial Abalone Catch Sampling data.
+
+```{r catch sampling data}
+## Read in most recent commercial catch sampling compiled MM dataframe
+compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+```
+
+# Clean catch sampling data
+```{r clean catch sampling data}
+## Quick plot checking for outliers
+compiledMM.df.final %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ ggtitle('Length-Weight All Data')+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+
+## remove erroneous data
+  lw.dat <- compiledMM.df.final %>%
+    filter(
+      between(whole.weight, 200, 1500) & # abalone above or below these weights 
+        # unlikely
+        between(shell.length, sizelimit - 5, 220) & # removes calibration measures 
+        # around 100 mm and accounts for minor measuring error for abalone near the LML
+        !(shell.length > 175 & whole.weight < 600), # these appear to be erroneous weights
+        !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
+
+## Quick plot re-checking for outliers for eastern zone
+lw.dat %>%
+  filter(newzone == 'E') %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ ggtitle('Length-Weight Cleaned Eatsern Zone Data')+
+  xlim(130, 200)+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+
+```
+# Summarise mean weight by Zone
+```{r average weight by zone}
+## Determine average weight by zone
+lw.dat %>%
+  group_by(newzone) %>%
+  summarise(Av.weight = mean(whole.weight),
+            n = n(),
+            catches = n_distinct(docket.number)) %>% 
+ as_tibble()
+```
+# Estimate Recreational harvest for eastern zone by mean weight
+The estimated combined east coast (areas 1-3) blacklip abalone recreational harvest noumber for 2020-21 was 22882 (12774-34777) (Lyle et al. 2021).
+```{r harvest mean weight by zone}
+## Estimate recreational harvest weight for east coast based on mean weight of
+## individual abalone from commerical catch sampling for the eastern zone
+
+rec.harvest.no <- 22882
+
+lw.dat %>%
+  filter(newzone == 'E') %>%
+  summarise(Av.weight = mean(whole.weight)) %>% 
+  mutate(Harvest = (rec.harvest.no * Av.weight) / 1000) %>% 
+ rename("Av.weight (g)" = Av.weight,
+        "Harvest (kg)" = Harvest) %>% 
+ as_tibble()
+```
+# Estimate Recreational harvest for eastern zone based on length-weight relationship 
+```{r length-weight zone relationship}
+## Calculate log of length and weight
+lw.dat.log <- lw.dat %>% 
+  mutate(log.sl = log(shell.length),
+         log.wt = log(whole.weight))
+
+## Calculate length-weight regression coefficient for each zone
+lw.dat.coeff.zone <- lw.dat.log %>%
+  nest(data = -newzone) %>% 
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>% 
+  select(c(newzone, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(-intercept)
+
+lw.dat.coeff.zone
+
+## Select length-weight regression parameters for eastern zone to use for estimating weight
+lw.coeff.zone <- lw.dat.coeff.zone %>% 
+  filter(newzone == 'E') %>% 
+  select(a, b) %>% 
+  mutate(join.id = 1)
+
+## Create dataframe of proposed legal minimum lengths (LMLs) for eastern zone 
+lml.df <- data.frame('LML' = c(138, 140, 145, 150, 155, 160))
+
+## Join chosen regression parameters to proposed LMLs
+lml.wt.df <- lml.df %>% 
+  mutate(join.id = 1) %>% 
+  left_join(., lw.coeff.zone)
+
+## Determine weight for proposed LMLs
+
+rec.harvest.no <- 22882
+
+lml.wt.est.df <- lml.wt.df %>%
+  mutate(est.weight = ((a * (LML ^ b))),
+         harvest = (est.weight * rec.harvest.no) / 1000)
+lml.wt.est.df 
+
+```
+
+# Determine relative change in Recreational harvest from initial LML
+```{r harvest relative change}
+## Select harvest for initial eastern zone LML  
+harvest.wt <- lml.wt.est.df[1, 'harvest']
+
+## Calculate relative change in harvest from initial LML
+lml.wt.est.df.rel <- lml.wt.est.df %>% 
+  mutate(rel.change = harvest / harvest.wt) %>% 
+  select(-join.id) 
+
+## Quick plot demostrating change in harvest with LML increase    
+lml.wt.est.df.rel %>% 
+ ggplot()+
+ geom_line(aes(x = LML, y = harvest))+
+ geom_point(aes(x = LML, y = harvest))+
+ xlab('Legal Minimum Length (mm)')+
+ ylab('Harvest (kg)')+
+ theme_bw()
+  
+## Rename columns of final dataframe
+  lml.wt.est.df.final <- lml.wt.est.df.rel %>%
+ rename('Est. weight (g)' = est.weight,
+        'Harvest (kg)' = harvest,
+        'Harvest Change' = rel.change) %>% 
+ select(-c(a, b)) %>% 
+  as_tibble()
+
+  lml.wt.est.df.final
+
+ 
+```

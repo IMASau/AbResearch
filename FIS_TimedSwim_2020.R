@@ -1,5 +1,5 @@
 ##---------------------------------------------------------------------------##
-# clear console ####
+# clear console
 rm(list = ls())
 
 ## 1. Load libraries ####
@@ -32,6 +32,7 @@ suppressPackageStartupMessages({
         library(viridis)
         library(ggpmisc)
         library(arsenal)
+  library(fuzzyjoin)
 })
 
 ##---------------------------------------------------------------------------##
@@ -131,6 +132,10 @@ time.swim.dat.df <- time.swim.dat %>%
         dplyr::rename('shelllength' = midsize,
                       'shelllength.2021' = midsize.2021)
 
+# manually add vessel name to metadata
+time.swim.meta.dat <- time.swim.meta.dat %>% 
+  mutate(vesselname = ifelse(sampdate == as.Date('2021-10-08'), 'Taroona', 'MoranaII'))
+
 # save files
 saveRDS(time.swim.dat, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.RDS')
 saveRDS(time.swim.dat.df, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.df.RDS')
@@ -174,7 +179,13 @@ morana.gps.2021.b <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSur
 
 morana.gps.2021.c <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-09-08_download.gpx', layer = 'waypoints')
 
-morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.2021.c) %>% 
+morana.gps.2021.d <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-10-07_download.gpx', layer = 'waypoints')
+
+taroona.gps.2021.a <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/TAROONA-2021-10-15_download.gpx', layer = 'waypoints')
+
+
+morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.2021.c, 
+                             morana.gps.2021.d) %>% 
     distinct(., name, .keep_all = T)
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
@@ -183,19 +194,31 @@ morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.20
 # correspond to an upload time unless they have been manually entered)
 
 morana.gps.2020 <- morana.gps.2020 %>%
-        mutate(sampyear = 2020)
+        mutate(sampyear = 2020,
+               vesselname = 'MoranaII')
 
 morana.gps.ref <- morana.gps.ref %>%
-        mutate(sampyear = 2021)
+        mutate(sampyear = 2021,
+               vesselname = 'MoranaII')
 
 morana.gps.2021 <- morana.gps.2021 %>%
-        mutate(sampyear = 2021)
+        mutate(sampyear = 2021,
+               vesselname = 'MoranaII')
+
+taroona.gps.2021 <- taroona.gps.2021.a %>%
+  distinct(., name, .keep_all = T) %>% 
+  mutate(sampyear = 2021,
+         vesselname = 'Taroona',
+         name = as.numeric(name),
+         name = if_else(name < 10, as.character(paste('00', name, sep = '')),
+                                   if_else(between(name, 10, 99), as.character(paste(0, name, sep = '')),
+                                           as.character(name))))
 
 # join GPX files
-vessel.gps <- bind_rows(morana.gps.2020, morana.gps.ref, morana.gps.2021) %>%  
+vessel.gps <- bind_rows(morana.gps.2020, morana.gps.ref, morana.gps.2021, taroona.gps.2021) %>%  
         mutate(gpsdate = as.Date(time),
                gpstime = time) %>% 
-        select(c(name, sampyear, gpstime, gpsdate, geometry))
+        select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
 
 # separate start positions
 ts.site.start <- time.swim.meta.dat %>%
@@ -218,23 +241,23 @@ ts.site.start.finish <- bind_rows(ts.site.start, ts.site.finish) %>%
         mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
                                   if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
                                           as.character(waypoint)))) %>%  
-        select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear)) %>%
+        select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname)) %>%
         filter(site != 'Betsey')
 
 # join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
 ts.site.start.finish.mark <- ts.site.start.finish %>% 
         filter(is.na(waypoint) & sampperiod == 'start') %>%  
-        left_join(., vessel.gps, by = c('site' = 'name', 'sampyear')) %>% 
-        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry))
+        left_join(., vessel.gps, by = c('site' = 'name', 'sampyear', 'vesselname')) %>% 
+        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
 
 # join geometry where start and finish waypoints were recorded 
 ts.site.start.finish.wp <- ts.site.start.finish %>% 
         filter(!is.na(waypoint)) %>% 
-        left_join(., vessel.gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate')) %>% 
+        left_join(., vessel.gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate', 'vesselname')) %>% 
         dplyr::rename('sampyear' = sampyear.x) %>% 
         # dplyr::rename('gpstime' = time,
         #               'site' = site) %>% 
-        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry))
+        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
 
 # re-join all waypoint data and transform to GDA2020
 
@@ -296,6 +319,22 @@ site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map
         dplyr::rename(blockno = blockno.x) %>% 
         rename_all(tolower) %>% 
         filter(sampperiod == 'start')
+
+
+# extract reference sites
+df.1 <- site.samp.start.loc %>% 
+    filter(blockno %in% c(13, 14) &
+               sampperiod == 'start')
+
+WGS84 <- st_crs(4326)
+df.2 <- st_transform(df.1, WGS84) %>% 
+    st_coordinates()
+
+st_write(df.1,
+         dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/block13-14_refsites.gpkg",
+         layer = "df.1", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+
 
 # load proposed site file
 ts.sites.final.sf <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
@@ -536,6 +575,10 @@ ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurv
 time.swim.dat <- time.swim.dat %>% 
         mutate(join_id = row_number())
 
+# add sampdate to actual.geom file
+ts.actual.geom <- ts.actual.geom %>% 
+  mutate(sampdate = date(samptime))
+
 # join proposed site data to size frequency data
         ts.dat.prop.2020 <- time.swim.dat %>% 
                 filter(sampyear == 2020) %>% 
@@ -557,14 +600,16 @@ time.swim.dat <- time.swim.dat %>%
         ts.dat.act.2020 <- time.swim.dat %>% 
                 filter(sampyear == 2020) %>%  
                 left_join(., ts.actual.geom, by = c('site' = 'site.old',
-                                                      'sampyear' = 'sampyear')) %>%    
+                                                      'sampyear' = 'sampyear',
+                                                    'sampdate')) %>%    
                 mutate(site = ifelse(is.na(site.y), site, site.y)) %>% 
                 select(-site.y)
         
         ts.dat.act.2021 <- time.swim.dat %>% 
                 filter(sampyear == 2021) %>% 
                 left_join(., ts.actual.geom, by = c('site' = 'site',
-                                                      'sampyear' = 'sampyear'))
+                                                      'sampyear' = 'sampyear',
+                                                    'sampdate'))
         
         ts.dat.act <- bind_rows(ts.dat.act.2020, ts.dat.act.2021) %>%    
                 select(-c(blockno.y, site.old)) %>% 
@@ -603,14 +648,16 @@ ts.dat.prop.df <- bind_rows(ts.dat.prop.df.2020, ts.dat.prop.df.2021) %>%
 ts.dat.act.df.2020 <- time.swim.dat.df %>%
         filter(sampyear == 2020) %>%
         left_join(., ts.actual.geom, by = c('site' = 'site.old',
-                                            'sampyear' = 'sampyear')) %>%
+                                            'sampyear' = 'sampyear',
+                                            'sampdate')) %>%
         mutate(site = ifelse(is.na(site.y), site, site.y)) %>%
         select(-site.y)
 
 ts.dat.act.df.2021 <- time.swim.dat.df %>%
         filter(sampyear == 2021) %>%
         left_join(., ts.actual.geom, by = c('site' = 'site',
-                                            'sampyear' = 'sampyear'))
+                                            'sampyear' = 'sampyear',
+                                            'sampdate'))
 
 ts.dat.act.df <- bind_rows(ts.dat.act.df.2020, ts.dat.act.df.2021) %>%
         select(-c(blockno.y, site.old)) %>%
@@ -653,6 +700,33 @@ time.swim.dat.df.final <- left_join(time.swim.dat.df.act.prop, select(ts.site.cp
 saveRDS(time.swim.dat.final, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.final.RDS')
 saveRDS(time.swim.dat.df.final, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.df.final.RDS')
 
+##---------------------------------------------------------------------------##
+## 9. Data frame description ####
+# sampdate = date of sample collection
+# site = sample location name (Note: 2020 sites renamed for south-north order)
+# diver = diver name initials
+# starttime = start time of timed swim
+# firstabtime = time first abalone found on timed swim
+# finishtime = finish time of timed swim
+# sizeclass = size class bins used for 2020 survey (i.e. 20 mm size bins)
+# minsize = minimum size of 2020 size class
+# maxsize = maximum size of 2020 size class
+# sizeclass_freq = number of abalone counted in 2020 size class
+# time.elapsed = time elapsed between firstabtime and finish time in seconds
+# sampyear = year of sample
+# blockno = block number of sample
+# legal.size = arbitrary reference size of legal minimum length for Eastern Zone
+# midsize = mid-point of 2020 size class        
+# sizeclass.2021 = size class bins used for 2021 survey and applied to 2020 data
+# (i.e. 0-100 mm then 20 mm size bins)
+# midsize.2021 = mid-point of 2021 size class 
+##---------------------------------------------------------------------------##
+# 10. Data Analysis ####
+
+# clear list
+rm(list = ls())
+
+# Import final dataframes 
 time.swim.dat.final <-
         readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.final.RDS')
 
@@ -660,137 +734,363 @@ time.swim.dat.df.final <-
         readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.df.final.RDS')
 
 ##---------------------------------------------------------------------------##
-## Join to historic length frequency data ####
-# load most recent compiled MM dataframe
-compiledMM.df.final <-
-        readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+## 10.1 Summarise counts #### 
 
-df.1 <- time.swim.dat.df.final %>% 
-        dplyr::rename(msr.date = 'sampdate',
-                      blocklist = 'blockno',
-                      subblocklist = 'subblockno',
-                      shell.length = 'shelllength') %>% 
-        mutate(newzone = 'E',
-               fishyear = 2020,
-               daylist = as.character(msr.date),
-               daylist_max = msr.date,
-               numblocks = 1,
-               numsubblocks = 1,
-               species = 1,
-               blocklist_1 = as.integer(blocklist),
-               sizelimit = ifelse(blocklist %in% c(27, 28), 145, 138),
-               datasource = 'ts2020') %>% 
-        select(c(msr.date, fishyear, newzone, daylist, daylist_max, numblocks, blocklist, numsubblocks, 
-                 subblocklist, shell.length, species, blocklist_1, sizelimit, datasource))
+# Standardise counts for 10 minute swim
+df.1 <- time.swim.dat.final %>% 
+    mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
 
-df.2 <- compiledMM.df.final %>% 
-        mutate(datasource = 'mm')
+# Summarise total count for blockno x site x sampyear x legal.size
+df.2 <- df.1 %>% 
+    filter(!subblockno %in% c('28B', '28C')) %>%
+    group_by(blockno, site, sampyear, legal.size) %>% 
+    summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+    group_by(blockno, site, sampyear, legal.size) %>% 
+    group_by(site)
+##---------------------------------------------------------------------------##
+# PLOT: Diver deviation ####
 
-df.3 <- bind_rows(df.2, df.1)
+# Load timed swim diver pair data
+time.swim.divers <- read.xlsx("C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/timed_swim_diver_details_2021.xlsx",
+                                detectDates = T)
 
-## create box plots for each block sampled in the stock assessment year and compare with historical records
-unique.zones <- 'E'
-unique.blocks <- c(16, 22, 23, 24, 27, 28)
+# Add end date for divers still participating
+time.swim.divers <- time.swim.divers %>% 
+  mutate(end.date = if_else(is.na(end.date), Sys.Date(), end.date))
 
-for (i in unique.zones) {
-        for (j in unique.blocks) {
-                # select data for block
-                plotdat.block <- df.3 %>%
-                        filter(
-                                newzone == i
-                                & blocklist == j
-                                & datasource == 'ts2020'
-                                & between(shell.length, 0, 220))
-                
-                plotdat.block.historic <- df.3 %>%
-                        filter(
-                                newzone == i
-                                & blocklist == j
-                                & between(fishyear, 1980, stock.assessment.year - 1)
-                                & between(shell.length, sizelimit - 5, 220)
-                        )
-                
-                plotdat.block <- bind_rows(plotdat.block, plotdat.block.historic)
-                
-                # determine last sampling year
-                last.fishyear <- max(plotdat.block.historic$fishyear)
-                
-                # determine number of sampling years
-                n.fishyear <- length(unique(plotdat.block$fishyear))
-                
-                # generate plot for zone and block combination only if data is present
-                
-                if (nrow(plotdat.block) != 0) {
-                        # convert required grouping variable to factor for boxplot
-                        
-                        plotdat.block$fishyear <- as.factor(plotdat.block$fishyear)
-                        
-                        # generate a count of records for each year to add to boxplot
-                        
-                        plotdat.n <- plotdat.block %>%
-                                group_by(fishyear, blockno) %>%
-                                summarize(n = n())
-                        
-                        # generate table of size limits for each year to add to boxplot
-                        
-                        size.limit <- plotdat.block %>% 
-                                group_by(fishyear, blockno) %>% 
-                                summarise(legal.min.length = max(sizelimit))
-                        
-                        # generate boxplot of shell lengths for chosen grouping variable
-                        
-                        mm.zone.boxplot <-
-                                ggplot(plotdat.block, aes(x = fishyear, y = shell.length)) +
-                                geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-                                geom_text(
-                                        data = plotdat.n,
-                                        aes(y = 220, label = n),
-                                        size = 3,
-                                        angle = 90
-                                ) +
-                                # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-                                geom_point(data = size.limit, aes(x = fishyear, y = legal.min.length), 
-                                           shape = 95, size = 7, colour = "red")+
-                                geom_vline(
-                                        aes(xintercept = ifelse(stock.assessment.year - last.fishyear >= 2,
-                                                                n.fishyear - 0.5, '')),
-                                        linetype = 'dashed',
-                                        colour = 'red',
-                                        size = 0.5)+
-                                xlab('Year') +
-                                ylab(paste('BlockNo', j, 'Shell Length (mm)')) +
-                                coord_cartesian(ylim = c(0, 225)) +
-                                theme_bw() +
-                                theme(
-                                        plot.title = element_text(hjust = 0.5),
-                                        panel.grid.major = element_blank(),
-                                        panel.grid.minor = element_blank(),
-                                        axis.line = element_line(colour = "black"),
-                                        axis.text.x = element_text(angle = 45, vjust = 0.5)
-                                )
-                        
-                        # print(mm.zone.boxplot)
-                        setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-                        ggsave(
-                                filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.pdf', sep = ''),
-                                plot = mm.zone.boxplot,
-                                width = 7.4,
-                                height = 5.57,
-                                units = 'in'
-                        )
-                        ggsave(
-                                filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.png', sep = ''),
-                                plot = mm.zone.boxplot,
-                                width = 7.4,
-                                height = 5.57,
-                                units = 'in'
-                        )
-                }
-                else{
-                }
-                
-        }
-}
+# Summarise total count for site x blockno x sampyear x sampdate x diver x legal.size
+df.5 <- df.1 %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>%
+  group_by(site, blockno, sampyear, sampdate, diver, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq_10)) %>%
+  as.data.frame()
+
+# Add diver pairing details to summary data
+df.7 <-  fuzzy_left_join(df.5, time.swim.divers, 
+                          by = c("diver" = "diver", 
+                                 "sampdate" = "start.date",
+                                 "sampdate" = "end.date"),
+                          match_fun = list(`==`, `>=`, `<=`))
+
+# Identify diver pair IDs
+df.7 %>% 
+  group_by(sampyear, diver.x, dive.pair.id) %>%  
+  distinct(dive.pair.id)
+
+# Select pair and sample year
+diver.pair <- 5
+samp.year <- 2021
+
+# Select data for dive pair and sample year
+df.8 <- df.7 %>% 
+  filter(dive.pair.id == diver.pair, sampyear == samp.year) %>% 
+  select(c(site, blockno, legal.size, sampyear, sampdate, diver.x, ab.n)) %>% 
+  spread(key = diver.x, value = ab.n) %>%  
+  mutate(dive.diff = abs(.[[6]] - .[[7]]))
+
+# Identify diver names for plot title
+dive.dev.divers <- df.8 %>% 
+  select(c(6,7))
+
+# determine number of sites surveyed by diver pair for plot
+divers.site.n <- df.8 %>%
+  filter(legal.size == '<140 mm') %>% 
+  group_by(blockno) %>% 
+  summarise(site.n = paste(n_distinct(site), sep = ''))
+
+# create plot
+dive.dev.plot <- ggplot(data = df.8, aes(x = blockno, y = dive.diff))+
+  geom_boxplot(aes(fill = factor(legal.size)))+
+  xlab('BlockNo')+
+  ylab('Diver Total Count Deviation')+
+  ylim(0, 90)+
+  theme_bw()+
+  ggtitle(paste(samp.year, names(dive.dev.divers[1]), 'vs',
+                          names(dive.dev.divers[2])))+
+  geom_text(data = divers.site.n, aes(y = 90, label = site.n), size = 3)+
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  theme(legend.title = element_blank(),
+        legend.position = c(0.1, 0.8))
+
+# save plot
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_', 
+                        names(dive.dev.divers[1]), 'vs',
+                        names(dive.dev.divers[2]), '.pdf', sep = ''),
+       plot = dive.dev.plot, units = 'mm', width = 190, height = 120)
+
+ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_', 
+                        names(dive.dev.divers[1]), 'vs',
+                        names(dive.dev.divers[2]), '.png', sep = ''),
+       plot = dive.dev.plot, units = 'mm', width = 190, height = 120)
+
+
+##---------------------------------------------------------------------------##
+# PLOT: Counts x year x repeat sites ####
+# Compare total counts of size class between years for repeat site
+
+# Select repeat sites between years
+df.3 <- df.2 %>% 
+    filter(n() > 2)
+    
+# Set blockno and size class     
+size.class <- '<140 mm'
+block.no <- 16
+
+# Create plot for 2020
+plot.2020 <- df.3 %>% 
+    filter(blockno == block.no, sampyear == 2020, legal.size == size.class) %>% 
+ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+    geom_bar(stat = 'identity')+
+    ylim(0, 350)+
+    xlab('Site')+
+    ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+    ggtitle(paste('2020 '))+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+    annotate('text', x = 2, y = 350, label = size.class, 
+            color = 'black', size = 4)
+
+# Create plot for 2021
+plot.2021 <- df.3 %>% 
+    filter(blockno == block.no, sampyear == 2021, legal.size == size.class) %>% 
+    ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+    geom_bar(stat = 'identity')+
+    ylim(0, 350)+
+    xlab('Site')+
+  ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+  ggtitle(paste('2021 '))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  annotate('text', x = 2, y = 350, label = size.class, 
+           color = 'black', size = 4)
+
+# Join plots
+grid.arrange(plot.2020, plot.2021, nrow = 1)
+
+##---------------------------------------------------------------------------##
+## PLOT: Counts x year x top ten sites ####
+# Determine and compare top ten sites in each block and year based on total 
+# counts of size class
+
+# Set blockno and size class
+size.class <- '>140 mm'
+block.no <- 24
+
+# Create plot for 2020
+plot.2020 <- df.2 %>% 
+  filter(blockno == block.no, sampyear == 2020, legal.size == size.class) %>%
+  ungroup() %>% 
+  slice_max(order_by = ab.n, n = 10, with_ties = F) %>%  
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+  geom_bar(stat = 'identity')+
+  ylim(0, 350)+
+  xlab('Site')+
+  ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+  ggtitle(paste('2020 '))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  annotate('text', x = 1.5, y = 350, label = size.class, 
+           color = 'black', size = 4)
+
+# Create plot for 2021
+plot.2021 <- df.2 %>% 
+  filter(blockno == block.no, sampyear == 2021, legal.size == size.class) %>%
+  ungroup() %>% 
+  slice_max(order_by = ab.n, n = 10, with_ties = F) %>% 
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+  geom_bar(stat = 'identity')+
+  ylim(0, 350)+
+  xlab('Site')+
+  ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+  ggtitle(paste('2021 '))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  annotate('text', x = 1.5, y = 350, label = size.class, 
+           color = 'black', size = 4)
+
+# Join plots
+grid.arrange(plot.2020, plot.2021, nrow = 1)
+##---------------------------------------------------------------------------##
+## PLOT: Counts x year x block 13 ####
+# Compare total counts of size class at block 13 sites pre and post fishing in 2021
+
+# Set size class
+plot.size.class <- '>140 mm'
+
+df.3 <- df.1 %>% 
+    filter(blockno == 13) %>%
+    group_by(blockno, site, sampyear, sampdate, legal.size) %>% 
+    summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+    group_by(blockno, site, sampyear, sampdate, legal.size) %>% 
+    group_by(site) %>%   
+    filter(n() > 2) %>% 
+    mutate(status = ifelse(sampdate <= as.Date('2021-03-31'), 'closed', 'open'))
+
+plot.closed <- df.3 %>% 
+    filter(status == 'closed', legal.size == plot.size.class) %>%  
+    ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+    geom_bar(stat = 'identity')+
+    ylim(0, 150)+
+    xlab('Site')+
+    ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+    ggtitle(paste('Closed ', plot.size.class))+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+plot.open <- df.3 %>% 
+    filter(status == 'open', legal.size == plot.size.class) %>% 
+    ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
+    geom_bar(stat = 'identity')+
+    ylim(0, 150)+
+    xlab('Site')+
+    ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+    ggtitle(paste('Open ', plot.size.class))+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+block.13.plot <- grid.arrange(plot.closed, plot.open, nrow = 1)
+
+# save plot
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.pdf', sep = ''),
+       plot = block.13.plot, units = 'mm', width = 190, height = 120)
+
+ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.png', sep = ''),
+       plot = block.13.plot, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+# ## Join to historic length frequency data ##
+# # load most recent compiled MM dataframe
+# compiledMM.df.final <-
+#         readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# 
+# df.1 <- time.swim.dat.df.final %>% 
+#         dplyr::rename(msr.date = 'sampdate',
+#                       blocklist = 'blockno',
+#                       subblocklist = 'subblockno',
+#                       shell.length = 'shelllength') %>% 
+#         mutate(newzone = 'E',
+#                fishyear = 2020,
+#                daylist = as.character(msr.date),
+#                daylist_max = msr.date,
+#                numblocks = 1,
+#                numsubblocks = 1,
+#                species = 1,
+#                blocklist_1 = as.integer(blocklist),
+#                sizelimit = ifelse(blocklist %in% c(27, 28), 145, 138),
+#                datasource = 'ts2020') %>% 
+#         select(c(msr.date, fishyear, newzone, daylist, daylist_max, numblocks, blocklist, numsubblocks, 
+#                  subblocklist, shell.length, species, blocklist_1, sizelimit, datasource))
+# 
+# df.2 <- compiledMM.df.final %>% 
+#         mutate(datasource = 'mm')
+# 
+# df.3 <- bind_rows(df.2, df.1)
+# 
+# ## create box plots for each block sampled in the stock assessment year and compare with historical records
+# unique.zones <- 'E'
+# unique.blocks <- c(16, 22, 23, 24, 27, 28)
+# 
+# for (i in unique.zones) {
+#         for (j in unique.blocks) {
+#                 # select data for block
+#                 plotdat.block <- df.3 %>%
+#                         filter(
+#                                 newzone == i
+#                                 & blocklist == j
+#                                 & datasource == 'ts2020'
+#                                 & between(shell.length, 0, 220))
+#                 
+#                 plotdat.block.historic <- df.3 %>%
+#                         filter(
+#                                 newzone == i
+#                                 & blocklist == j
+#                                 & between(fishyear, 1980, stock.assessment.year - 1)
+#                                 & between(shell.length, sizelimit - 5, 220)
+#                         )
+#                 
+#                 plotdat.block <- bind_rows(plotdat.block, plotdat.block.historic)
+#                 
+#                 # determine last sampling year
+#                 last.fishyear <- max(plotdat.block.historic$fishyear)
+#                 
+#                 # determine number of sampling years
+#                 n.fishyear <- length(unique(plotdat.block$fishyear))
+#                 
+#                 # generate plot for zone and block combination only if data is present
+#                 
+#                 if (nrow(plotdat.block) != 0) {
+#                         # convert required grouping variable to factor for boxplot
+#                         
+#                         plotdat.block$fishyear <- as.factor(plotdat.block$fishyear)
+#                         
+#                         # generate a count of records for each year to add to boxplot
+#                         
+#                         plotdat.n <- plotdat.block %>%
+#                                 group_by(fishyear, blockno) %>%
+#                                 summarize(n = n())
+#                         
+#                         # generate table of size limits for each year to add to boxplot
+#                         
+#                         size.limit <- plotdat.block %>% 
+#                                 group_by(fishyear, blockno) %>% 
+#                                 summarise(legal.min.length = max(sizelimit))
+#                         
+#                         # generate boxplot of shell lengths for chosen grouping variable
+#                         
+#                         mm.zone.boxplot <-
+#                                 ggplot(plotdat.block, aes(x = fishyear, y = shell.length)) +
+#                                 geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+#                                 geom_text(
+#                                         data = plotdat.n,
+#                                         aes(y = 220, label = n),
+#                                         size = 3,
+#                                         angle = 90
+#                                 ) +
+#                                 # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
+#                                 geom_point(data = size.limit, aes(x = fishyear, y = legal.min.length), 
+#                                            shape = 95, size = 7, colour = "red")+
+#                                 geom_vline(
+#                                         aes(xintercept = ifelse(stock.assessment.year - last.fishyear >= 2,
+#                                                                 n.fishyear - 0.5, '')),
+#                                         linetype = 'dashed',
+#                                         colour = 'red',
+#                                         size = 0.5)+
+#                                 xlab('Year') +
+#                                 ylab(paste('BlockNo', j, 'Shell Length (mm)')) +
+#                                 coord_cartesian(ylim = c(0, 225)) +
+#                                 theme_bw() +
+#                                 theme(
+#                                         plot.title = element_text(hjust = 0.5),
+#                                         panel.grid.major = element_blank(),
+#                                         panel.grid.minor = element_blank(),
+#                                         axis.line = element_line(colour = "black"),
+#                                         axis.text.x = element_text(angle = 45, vjust = 0.5)
+#                                 )
+#                         
+#                         # print(mm.zone.boxplot)
+#                         setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
+#                         ggsave(
+#                                 filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.pdf', sep = ''),
+#                                 plot = mm.zone.boxplot,
+#                                 width = 7.4,
+#                                 height = 5.57,
+#                                 units = 'in'
+#                         )
+#                         ggsave(
+#                                 filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.png', sep = ''),
+#                                 plot = mm.zone.boxplot,
+#                                 width = 7.4,
+#                                 height = 5.57,
+#                                 units = 'in'
+#                         )
+#                 }
+#                 else{
+#                 }
+#                 
+#         }
+# }
 
 ##---------------------------------------------------------------------------##
 ## PLOT 1: LF ####
@@ -1007,7 +1307,7 @@ ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCount',
 ## PLOT 4: REPEAT COUNT PER TEN MIN YEARS ####
 # compare counts at repeat sites between 2020 and 2021
 
-plot.size.class <- '>140 mm'
+plot.size.class <- '<140 mm'
 
 count.plot.rep.dat <- time.swim.dat.final %>% 
     filter(!subblockno %in% c('28B', '28C'),
@@ -1171,9 +1471,15 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
 blocks.sampled <- unique(time.swim.count.site.loc$blockno)
 
 # identify sites not surveyed but proposed
-not.surveyed.df <- site.samp.subblock.loc %>% 
-        filter(sampyear == 2021,
-               sampled == '0')
+ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+
+# not.surveyed.df <- site.samp.subblock.loc %>% 
+#         filter(sampyear == 2021,
+#                sampled == '0')
+
+not.surveyed.df <- ts.proposed.geom %>% 
+  filter(sampyear == 2021,
+         sampled == '0')
 
 # create maps
 
@@ -1252,7 +1558,7 @@ for (i in blocks.sampled){
                 geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
                 geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
                 geom_sf(fill = 'grey') +
-                geom_sf(data = sites.not.surveyed, shape = 18, size = 1.5, colour = 'black')+
+                geom_sf(data = sites.not.surveyed, shape = 5, size = 0.8, colour = 'red')+
                 geom_sf(data = count.site.dat.non.legal, aes(fill = mean.ab.n), shape = 21, size = 2)+
                 scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
                 theme_bw() +
@@ -1269,7 +1575,7 @@ for (i in blocks.sampled){
                 geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
                 geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
                 geom_sf(fill = 'grey') +
-                geom_sf(data = sites.not.surveyed, shape = 18, size = 1.5, colour = 'black')+
+                geom_sf(data = sites.not.surveyed, shape = 5, size = 0.8, colour = 'red')+
                 geom_sf(data = count.site.dat.legal, aes(fill = mean.ab.n), shape = 21, size = 2)+
                 scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
                 theme_bw() +
