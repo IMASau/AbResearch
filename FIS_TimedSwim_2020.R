@@ -737,11 +737,11 @@ time.swim.dat.df.final <-
 ## 10.1 Summarise counts #### 
 
 # Standardise counts for 10 minute swim
-df.1 <- time.swim.dat.final %>% 
+std.ts.dat <- time.swim.dat.final %>% 
     mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
 
 # Summarise total count for blockno x site x sampyear x legal.size
-df.2 <- df.1 %>% 
+ts.count.sum <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C')) %>%
     group_by(blockno, site, sampyear, legal.size) %>% 
     summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -759,47 +759,54 @@ time.swim.divers <- time.swim.divers %>%
   mutate(end.date = if_else(is.na(end.date), Sys.Date(), end.date))
 
 # Summarise total count for site x blockno x sampyear x sampdate x diver x legal.size
-df.5 <- df.1 %>% 
+ts.count.sum.2 <- std.ts.dat %>% 
   filter(!subblockno %in% c('28B', '28C')) %>%
   group_by(site, blockno, sampyear, sampdate, diver, legal.size) %>% 
   summarise(ab.n = sum(sizeclass_freq_10)) %>%
   as.data.frame()
 
 # Add diver pairing details to summary data
-df.7 <-  fuzzy_left_join(df.5, time.swim.divers, 
+ts.count.divers <-  fuzzy_left_join(ts.count.sum.2, time.swim.divers, 
                           by = c("diver" = "diver", 
                                  "sampdate" = "start.date",
                                  "sampdate" = "end.date"),
                           match_fun = list(`==`, `>=`, `<=`))
 
-# Identify diver pair IDs
-df.7 %>% 
-  group_by(sampyear, diver.x, dive.pair.id) %>%  
-  distinct(dive.pair.id)
+# Identify diver pairs x year
+ts.count.divers %>% 
+  group_by(sampyear, diver.x, dive.pair.id) %>%
+  distinct(dive.pair.id) 
 
-# Select pair and sample year
-diver.pair <- 5
+# Select sample year
 samp.year <- 2021
 
+# Identify diver pair IDs x chosen year
+diver.ids <- ts.count.divers %>% 
+  filter(sampyear == samp.year) %>% 
+  distinct(dive.pair.id) %>% 
+  pull()
+
+for (i in diver.ids){
+
 # Select data for dive pair and sample year
-df.8 <- df.7 %>% 
-  filter(dive.pair.id == diver.pair, sampyear == samp.year) %>% 
+ts.diver.dev.dat <- ts.count.divers %>% 
+  filter(dive.pair.id == i, sampyear == samp.year) %>% 
   select(c(site, blockno, legal.size, sampyear, sampdate, diver.x, ab.n)) %>% 
   spread(key = diver.x, value = ab.n) %>%  
   mutate(dive.diff = abs(.[[6]] - .[[7]]))
 
 # Identify diver names for plot title
-dive.dev.divers <- df.8 %>% 
+dive.dev.divers <- ts.diver.dev.dat %>% 
   select(c(6,7))
 
 # determine number of sites surveyed by diver pair for plot
-divers.site.n <- df.8 %>%
+divers.site.n <- ts.diver.dev.dat %>%
   filter(legal.size == '<140 mm') %>% 
   group_by(blockno) %>% 
   summarise(site.n = paste(n_distinct(site), sep = ''))
 
 # create plot
-dive.dev.plot <- ggplot(data = df.8, aes(x = blockno, y = dive.diff))+
+dive.dev.plot <- ggplot(data = ts.diver.dev.dat, aes(x = blockno, y = dive.diff))+
   geom_boxplot(aes(fill = factor(legal.size)))+
   xlab('BlockNo')+
   ylab('Diver Total Count Deviation')+
@@ -823,50 +830,65 @@ ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_',
                         names(dive.dev.divers[1]), 'vs',
                         names(dive.dev.divers[2]), '.png', sep = ''),
        plot = dive.dev.plot, units = 'mm', width = 190, height = 120)
-
+}
 
 ##---------------------------------------------------------------------------##
 # PLOT: Counts x year x repeat sites ####
 # Compare total counts of size class between years for repeat site
 
 # Select repeat sites between years
-df.3 <- df.2 %>% 
+ts.rep.dat <- ts.count.sum %>% 
     filter(n() > 2)
     
-# Set blockno and size class     
-size.class <- '<140 mm'
-block.no <- 16
+# identify repeat blocks
+ts.rep.blocks <- ts.rep.dat %>% 
+  group_by(blockno) %>% 
+  distinct(blockno) %>% 
+  pull()
 
-# Create plot for 2020
-plot.2020 <- df.3 %>% 
-    filter(blockno == block.no, sampyear == 2020, legal.size == size.class) %>% 
-ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
-    geom_bar(stat = 'identity')+
-    ylim(0, 350)+
-    xlab('Site')+
-    ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
-    ggtitle(paste('2020 '))+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
-    annotate('text', x = 2, y = 350, label = size.class, 
-            color = 'black', size = 4)
+for (i in ts.rep.blocks){
 
-# Create plot for 2021
-plot.2021 <- df.3 %>% 
-    filter(blockno == block.no, sampyear == 2021, legal.size == size.class) %>% 
-    ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
-    geom_bar(stat = 'identity')+
-    ylim(0, 350)+
-    xlab('Site')+
+plot.2020 <- ts.rep.dat %>% 
+  filter(blockno == i, sampyear == 2020) %>% 
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n, fill = legal.size))+
+  geom_bar(stat = 'identity', position = 'stack')+
+  ylim(0, 350)+
+  xlab('Site')+
+  ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
+  ggtitle(paste('2020 '))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  theme(legend.position = 'none')
+
+plot.2021 <- ts.rep.dat %>% 
+  filter(blockno == i, sampyear == 2021) %>% 
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n, fill = legal.size))+
+  geom_bar(stat = 'identity', position = 'stack')+
+  ylim(0, 350)+
+  xlab('Site')+
   ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
   ggtitle(paste('2021 '))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
-  annotate('text', x = 2, y = 350, label = size.class, 
-           color = 'black', size = 4)
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  theme(legend.title = element_blank(),
+      legend.position = c(0.8, 0.8))
 
 # Join plots
-grid.arrange(plot.2020, plot.2021, nrow = 1)
+rep.plot <- grid.arrange(plot.2020, plot.2021, nrow = 1)
+
+# save plot
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i, 
+                        '_TotalCount_2020vs2021', '.pdf', sep = ''),
+       plot = rep.plot, units = 'mm', width = 190, height = 120)
+
+ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i, 
+                        '_TotalCount_2020vs2021', '.png', sep = ''),
+       plot = rep.plot, units = 'mm', width = 190, height = 120)
+
+}
 
 ##---------------------------------------------------------------------------##
 ## PLOT: Counts x year x top ten sites ####

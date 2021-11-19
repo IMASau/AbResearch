@@ -197,3 +197,94 @@ lml.wt.est.df.rel %>%
 
  
 ```
+# Estimate Recreational harvest for eastern zone based on commercial catch sampling proportions
+```{r catch sampling proportions}
+## Add size class bin to catch sampling data
+lw.dat.size <- lw.dat %>% 
+  mutate(size.class = cut(shell.length, breaks = seq(0, 220, 1))) %>% 
+  separate(size.class, into = c('minsize', 'maxsize'), sep = ',', convert = TRUE, remove = F) %>% 
+  mutate(minsize = as.numeric(gsub("[^0-9.-]", "", minsize)),
+         maxsize = as.numeric(gsub("[^0-9.-]", "", maxsize)),
+         midsize = (minsize + maxsize) / 2)
+
+## Create vector of proposed legal minimum lengths (LMLs) for eastern zone 
+lml <- c(138, 140, 145, 150, 155, 160)
+
+## Create blank dataframe to populate LML harvest 
+lml.harvest <- data.frame(LML  = lml,
+                        est.harvest = NA)
+
+## Determine number of iterations for loop
+n.lml <- length(lml)
+
+## Estimate harvest for each change in LML
+for (i in 1:n.lml) {
+  ##get value in row i of the "i" column
+  i.current <- lml.harvest[i, "LML"]
+  
+  ## Summarise size frequency composition of catch for eastern zone
+  lw.dat.freq <- lw.dat.size %>%
+    filter(newzone == 'E',
+           shell.length >= i.current) %>%
+    group_by(size.class, midsize) %>%
+    summarise(n.size = n()) %>%
+    ungroup() %>%
+    mutate(percent.size = (n.size / sum(n.size)))
+  
+  ## Select length-weight regression parameters for eastern zone to use for estimating weight
+  lw.coeff.zone <- lw.dat.coeff.zone %>%
+    filter(newzone == 'E') %>%
+    select(a, b) %>%
+    mutate(join.id = 1)
+  
+  ## Join chosen regression parameters to proposed LMLs
+  lw.dat.freq.wt <- lw.dat.freq %>%
+    mutate(join.id = 1) %>%
+    left_join(., lw.coeff.zone)
+  
+  ## Determine weight for proposed LMLs
+  rec.harvest.no <- 22882
+  
+  lw.dat.freq.wt.har <- lw.dat.freq.wt %>%
+    mutate(
+      est.weight = ((a * (midsize ^ b))),
+      harvest = (est.weight * rec.harvest.no * percent.size) / 1000
+    )
+  
+  tot.harvest <- sum(lw.dat.freq.wt.har$harvest)
+  
+  #save it to dataframe
+  lml.harvest[i, "est.harvest"] <- tot.harvest
+}
+
+lml.harvest
+
+## Select harvest for initial eastern zone LML  
+harvest.wt <- lml.harvest[1, 'est.harvest']
+
+## Calculate relative change in harvest from initial LML
+lml.wt.est.df.rel <- lml.harvest %>% 
+  mutate(rel.change = est.harvest / harvest.wt)
+
+## Quick plot demostrating change in harvest with LML increase    
+lml.wt.est.df.rel %>% 
+ ggplot()+
+ geom_line(aes(x = LML, y = est.harvest))+
+ geom_point(aes(x = LML, y = est.harvest))+
+ xlab('Legal Minimum Length (mm)')+
+ ylab('Harvest (kg)')+
+ theme_bw()
+  
+## Rename columns of final dataframe
+lml.harvest.final <- lml.wt.est.df.rel %>%
+ rename('Harvest (kg)' = est.harvest,
+        'Harvest Change' = rel.change) %>% 
+  as_tibble()
+
+lml.harvest.final
+
+```
+
+
+
+
