@@ -1,8 +1,20 @@
 ---
-title: "Abalone Catch Sampling Length-Weight Relationship"
-author: "Jaime McAllister & Craig Mundy"
-date: "17/11/2021"
-output: pdf_document
+title: " "
+output:
+  pdf_document:
+    number_sections: TRUE
+geometry: "left = 2.5cm, right = 2cm, top = 2cm, bottom = 2cm"
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \usepackage{sectsty}
+  - \usepackage{paralist}
+  - \usepackage{setspace}\spacing{1.0}
+  - \usepackage{fancyhdr}
+  - \usepackage{lastpage}
+  - \usepackage{dcolumn}
+  - \usepackage{natbib}\bibliographystyle{agsm}
+  - \usepackage[nottoc, numbib]{tocbibind}
 ---
 
 ```{r setup, include=FALSE}
@@ -14,6 +26,7 @@ knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
                       out.height = "0.8\\textwidth",
                       out.width = "0.8\\textwidth")
 options(knitr.kable.NA = '')
+options(tinytex.verbose = TRUE)
 
 # Load libaries ####
 # load required libaries and custom functions for plotting
@@ -51,6 +64,55 @@ library(ggpmisc)
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
 ```
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+
+\pagenumbering{gobble}
+
+\begin{centering}
+
+\vspace{3cm}
+
+```{r uni_logo, echo=F, out.width="80%"}
+knitr::include_graphics("C:/Users/jaimem/Documents/Abalone_r-scripts/UniTas_IMAS_Tertiary_Pos_RGB.jpg")
+```
+
+\vspace{4cm}
+
+\LARGE
+
+\doublespacing
+{\bf Estimating Recreational Abalone Harvest Using Length-Weight Data from Commercial Catch Sampling}
+
+\vspace{4 cm}
+
+\Large
+{\bf Institute for Marine and Antarctic Studies}
+
+\Large
+{\bf Univeristy of Tasmania}
+
+\vspace{1cm}
+
+\normalsize
+\singlespacing
+By
+
+\vspace{0.5 cm}
+
+\large
+
+{\bf Jaime McAllister and Craig Mundy}
+
+\vspace{1.5 cm}
+
+\normalsize
+November 2021
+
+\end{centering}
+
+\newpage
+
 # Load most recent compilation of Commercial Abalone Catch Sampling data.
 
 ```{r catch sampling data}
@@ -59,7 +121,8 @@ compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RD
 ```
 
 # Clean catch sampling data
-```{r clean catch sampling data}
+
+```{r lwplot check, fig.cap = "Length-weight relationship of commercial abalone catch sampling data for all zones collected between 2019-2021."}
 ## Quick plot checking for outliers
 compiledMM.df.final %>%
   ggplot() +
@@ -68,7 +131,8 @@ compiledMM.df.final %>%
  xlab('Shell Length (mm)')+
  ylab('Whole Weight (g)')+
  theme_bw()
-
+```
+```{r clean catch sampling data}
 ## remove erroneous data
   lw.dat <- compiledMM.df.final %>%
     filter(
@@ -78,7 +142,9 @@ compiledMM.df.final %>%
         # around 100 mm and accounts for minor measuring error for abalone near the LML
         !(shell.length > 175 & whole.weight < 600), # these appear to be erroneous weights
         !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
+```
 
+```{r east clean plot, fig.cap = "Length-weight relationship of cleaned commercial abalone catch sampling data for the eastern zone collected between 2019-2021."}
 ## Quick plot re-checking for outliers for eastern zone
 lw.dat %>%
   filter(newzone == 'E') %>%
@@ -91,33 +157,46 @@ lw.dat %>%
  theme_bw()
 
 ```
-# Summarise mean weight by Zone
+
+# Estimate Recreational harvest for by mean weight
+The estimated combined east coast (areas 1-3) blacklip abalone recreational harvest number for 2020-21 was n = 22882 (95% CI 12774-34777) (area 1 = 11756, area 2 = 9919, area 3 = 1207) (Lyle et al. 2021). Estimated harvest weight (kg) is then traditionally estimated by multiplying the harvest number by the average weight of an individual abalone for each area based on commercial catch sampling data collected prior to 2018 (area 1 = 522 g, area 2 = 517 g, area 3 = 520 g). In 2020-21 this equates to 11916 kg (11.9 t) (see Table 6 in Lyle et al. 2021).
+
+The following code have been developed to utilise the most recent data collected from the commercial abalone catch sampling program between 2019-2021.
+
+## Summarise mean weight by Zone
 ```{r average weight by zone}
 ## Determine average weight by zone
-lw.dat %>%
+zone.wt <- lw.dat %>%
   group_by(newzone) %>%
   summarise(Av.weight = mean(whole.weight),
             n = n(),
             catches = n_distinct(docket.number)) %>% 
  as_tibble()
-```
-# Estimate Recreational harvest for eastern zone by mean weight
-The estimated combined east coast (areas 1-3) blacklip abalone recreational harvest noumber for 2020-21 was 22882 (12774-34777) (Lyle et al. 2021).
-```{r harvest mean weight by zone}
-## Estimate recreational harvest weight for east coast based on mean weight of
-## individual abalone from commerical catch sampling for the eastern zone
 
+library(knitr)
+kable(zone.wt, caption = "Average weight of individual abalone from commerical abalone catch sampling data for all zones collected between 2019-2021.", col.names = c('Zone', 'Av.weight (g)', 'n', 'Catches'))
+```
+
+
+## Estimate recreational harvest weight for east coast based on mean weight of individual abalone from commerical catch sampling for the eastern zone
+
+```{r harvest mean weight by zone}
+# The estimated recreational harvest number for the eastern zone in 2020-21 was:
 rec.harvest.no <- 22882
 
-lw.dat %>%
+east.wt <- lw.dat %>%
   filter(newzone == 'E') %>%
   summarise(Av.weight = mean(whole.weight)) %>% 
   mutate(Harvest = (rec.harvest.no * Av.weight) / 1000) %>% 
  rename("Av.weight (g)" = Av.weight,
         "Harvest (kg)" = Harvest) %>% 
  as_tibble()
+
+library(knitr)
+kable(east.wt, caption = "Estimated Recreational harvest based on average weight of individual abalone from commerical catch sampling for the eastern zone collected between 2019-2021.")
+
 ```
-# Estimate Recreational harvest for eastern zone based on length-weight relationship 
+# Estimate Recreational harvest based on length-weight relationship 
 ```{r length-weight zone relationship}
 ## Calculate log of length and weight
 lw.dat.log <- lw.dat %>% 
@@ -137,9 +216,10 @@ lw.dat.coeff.zone <- lw.dat.log %>%
   dplyr::rename(b = 'log.sl',
                 intercept = "(Intercept)") %>%  
   mutate(a = exp(intercept)) %>% 
-  select(-intercept)
+  select(c(newzone, a, b))
 
-lw.dat.coeff.zone
+library(knitr)
+kable(lw.dat.coeff.zone, caption = "Estimated length-weight model parameters from commerical abalone catch sampling data for all zones collected between 2019-2021.", col.names = c('Zone', 'a', 'b'))
 
 ## Select length-weight regression parameters for eastern zone to use for estimating weight
 lw.coeff.zone <- lw.dat.coeff.zone %>% 
@@ -161,12 +241,19 @@ rec.harvest.no <- 22882
 
 lml.wt.est.df <- lml.wt.df %>%
   mutate(est.weight = ((a * (LML ^ b))),
-         harvest = (est.weight * rec.harvest.no) / 1000)
-lml.wt.est.df 
+         harvest = (est.weight * rec.harvest.no) / 1000,
+         harvest5 = harvest * 0.95,
+         harvest10 = harvest * 0.90)
+
+lml.wt.est.tab <- lml.wt.est.df %>% 
+  select(c(LML, est.weight, harvest, harvest5, harvest10))
+
+library(knitr)
+kable(lml.wt.est.tab, caption = "Estimated Recreational harvest for each LML based on abalone length-weight relationship from commerical catch sampling for the eastern zone collected between 2019-2021.", col.names = c('LML', 'Est. weight (g)', 'Harvest (kg)', 'Harvest 95% (kg)', 'Harvest 90% (kg)')) 
 
 ```
 
-# Determine relative change in Recreational harvest from initial LML
+## Determine relative change in Recreational harvest from initial LML
 ```{r harvest relative change}
 ## Select harvest for initial eastern zone LML  
 harvest.wt <- lml.wt.est.df[1, 'harvest']
@@ -175,7 +262,9 @@ harvest.wt <- lml.wt.est.df[1, 'harvest']
 lml.wt.est.df.rel <- lml.wt.est.df %>% 
   mutate(rel.change = harvest / harvest.wt) %>% 
   select(-join.id) 
+```
 
+```{r harvest relative change plot, fig.cap = "Estimated Recreational harvest for each LML based on abalone length-weight relationship from commerical catch sampling for the eastern zone collected between 2019-2021."}
 ## Quick plot demostrating change in harvest with LML increase    
 lml.wt.est.df.rel %>% 
  ggplot()+
@@ -184,20 +273,21 @@ lml.wt.est.df.rel %>%
  xlab('Legal Minimum Length (mm)')+
  ylab('Harvest (kg)')+
  theme_bw()
-  
+
 ## Rename columns of final dataframe
   lml.wt.est.df.final <- lml.wt.est.df.rel %>%
  rename('Est. weight (g)' = est.weight,
         'Harvest (kg)' = harvest,
         'Harvest Change' = rel.change) %>% 
- select(-c(a, b)) %>% 
+ select(-c(a, b, harvest5, harvest10)) %>% 
   as_tibble()
 
-  lml.wt.est.df.final
+library(knitr)
+kable(lml.wt.est.df.final, caption = "Relative change in estimated Recreational harvest for an increase in LML based on abalone length-weight relationship from commerical catch sampling for the eastern zone collected between 2019-2021.") 
 
  
 ```
-# Estimate Recreational harvest for eastern zone based on commercial catch sampling proportions
+# Estimate Recreational harvest based on commercial catch sampling size frequencies
 ```{r catch sampling proportions}
 ## Add size class bin to catch sampling data
 lw.dat.size <- lw.dat %>% 
@@ -257,7 +347,12 @@ for (i in 1:n.lml) {
   lml.harvest[i, "est.harvest"] <- tot.harvest
 }
 
-lml.harvest
+lml.harvest.final <- lml.harvest %>% 
+  mutate(harvest5 = est.harvest * 0.95,
+         harvest10 = est.harvest * 0.90)
+
+library(knitr)
+kable(lml.harvest.final, caption = "Estimated Recreational harvest for each LML based on abalone length-weight relationship and size frequencies from commerical catch sampling for the eastern zone collected between 2019-2021.", col.names = c('LML', 'Est. Harvest (kg)', 'Harvest 95% (kg)', 'Harvest 90% (kg)')) 
 
 ## Select harvest for initial eastern zone LML  
 harvest.wt <- lml.harvest[1, 'est.harvest']
@@ -265,8 +360,11 @@ harvest.wt <- lml.harvest[1, 'est.harvest']
 ## Calculate relative change in harvest from initial LML
 lml.wt.est.df.rel <- lml.harvest %>% 
   mutate(rel.change = est.harvest / harvest.wt)
+```
 
-## Quick plot demostrating change in harvest with LML increase    
+```{r lw harvest relative change plot, fig.cap = "Estimated Recreational harvest for each LML abalone length-weight relationship and size frequencies from commerical catch sampling for the eastern zone collected between 2019-2021."}
+
+## Quick plot demonstrating change in harvest with LML increase    
 lml.wt.est.df.rel %>% 
  ggplot()+
  geom_line(aes(x = LML, y = est.harvest))+
@@ -281,7 +379,8 @@ lml.harvest.final <- lml.wt.est.df.rel %>%
         'Harvest Change' = rel.change) %>% 
   as_tibble()
 
-lml.harvest.final
+library(knitr)
+kable(lml.harvest.final, caption = "Relative change in estimated Recreational harvest for an increase in LML based on abalone length-weight relationship and size frequencies from commerical catch sampling for the eastern zone collected between 2019-2021.")
 
 ```
 
