@@ -158,6 +158,14 @@ lw.dat %>%
 
 ```
 
+# Background
+Effort in the recreational abalone fishery is managed by daily limits, and until the 2019/2020 recreational fishing season the daily bag limit was set at a maximum of 10 abalone/licence/day, with a possession limit of 20 at any point in time. From 2010 to 2019 persistent declines in the commercial abalone fishery catch and catch rate were observed despite multiple decreases in the commercial TACC. Commercial CPUE is used as the sole proxy for biomass of the abalone resource, on the basis that the recreational catch is both small and difficult to accurately quantify. In 2019, a recommendation for closure of five key areas of the Tasmanian East Coast commercial blacklip abalone fishery was accepted. Similarly a reduction (but not closure) of the recreational bag limit was recommended and accepted to assist with recovery, and minimizing further risk of depletion of the abalone in key recreational fishing regions along the East Coast. 
+
+In November 2021, the Tasmnaian Legislative Council rescinded the five-bag limit regulation, with an immediate return to the 2018/2019 recreational abalone fishery regulations and limits. As part of the motivation for the reversal of the bag limit reduction, it was argued that size limits were the most important management lever available, and that no efforts had been made to consider and/or implement increases in the size limit governming the recrationa labalone fishery.
+
+Here we explore the consequences of increases in the recreational abalone size limit on Tasmania's East Coast on the magnitude of the recreational abalone fishery harvest.
+
+
 # Estimate Recreational harvest for by mean weight
 The estimated combined east coast (areas 1-3) blacklip abalone recreational harvest number for 2020-21 was n = 22882 (95% CI 12774-34777) (area 1 = 11756, area 2 = 9919, area 3 = 1207) (Lyle et al. 2021). Estimated harvest weight (kg) is then traditionally estimated by multiplying the harvest number by the average weight of an individual abalone for each area based on commercial catch sampling data collected prior to 2018 (area 1 = 522 g, area 2 = 517 g, area 3 = 520 g). In 2020-21 this equates to 11916 kg (11.9 t) (see Table 6 in Lyle et al. 2021).
 
