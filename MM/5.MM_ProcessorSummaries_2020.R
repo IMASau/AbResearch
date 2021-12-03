@@ -88,7 +88,7 @@ docknum.grade.meas <- mb.next.gen.grade.df %>%
 # quick summary
 dock.sum <- measure.board.next.gen.df %>% 
         filter(sampyear == 2021) %>% 
-        group_by(processor) %>% 
+        group_by(processor, zone) %>% 
         summarise(n = n(),
                   catches = n_distinct(docketnum)) %>% 
         janitor::adorn_totals()

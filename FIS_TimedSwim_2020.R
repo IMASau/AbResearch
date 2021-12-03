@@ -35,6 +35,8 @@ suppressPackageStartupMessages({
   library(fuzzyjoin)
 })
 
+source("C:/GitCode/AbResearch/getLegend.r")
+
 ##---------------------------------------------------------------------------##
 ## 2. Load raw data ####
 
@@ -748,7 +750,7 @@ ts.count.sum <- std.ts.dat %>%
     group_by(blockno, site, sampyear, legal.size) %>% 
     group_by(site)
 ##---------------------------------------------------------------------------##
-# PLOT: Diver deviation ####
+# PLOT 1: Diver deviation ####
 
 # Load timed swim diver pair data
 time.swim.divers <- read.xlsx("C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/timed_swim_diver_details_2021.xlsx",
@@ -833,19 +835,20 @@ ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_',
 }
 
 ##---------------------------------------------------------------------------##
-# PLOT: Counts x year x repeat sites ####
+# PLOT 2: Counts x year x repeat sites ####
 # Compare total counts of size class between years for repeat site
 
 # Select repeat sites between years
 ts.rep.dat <- ts.count.sum %>% 
     filter(n() > 2)
     
-# identify repeat blocks
+# Identify repeat blocks
 ts.rep.blocks <- ts.rep.dat %>% 
   group_by(blockno) %>% 
   distinct(blockno) %>% 
   pull()
 
+# Generate plot
 for (i in ts.rep.blocks){
 
 plot.2020 <- ts.rep.dat %>% 
@@ -891,56 +894,89 @@ ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i,
 }
 
 ##---------------------------------------------------------------------------##
-## PLOT: Counts x year x top ten sites ####
+## PLOT 3: Counts x year x top ten sites ####
 # Determine and compare top ten sites in each block and year based on total 
 # counts of size class
 
-# Set blockno and size class
-size.class <- '>140 mm'
-block.no <- 24
+# # Set blockno and size class
+# size.class <- '>140 mm'
+# block.no <- 24
+
+# Identify blocks sampled in both 2020 and 2021
+ts.blocks <- std.ts.dat %>% 
+  filter(sampyear == 2020) %>% 
+  group_by(blockno) %>% 
+  distinct(blockno) %>% 
+  pull()
+
+# Generate plot
+for (i in ts.blocks){
 
 # Create plot for 2020
-plot.2020 <- df.2 %>% 
-  filter(blockno == block.no, sampyear == 2020, legal.size == size.class) %>%
-  ungroup() %>% 
-  slice_max(order_by = ab.n, n = 10, with_ties = F) %>%  
-  ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
-  geom_bar(stat = 'identity')+
-  ylim(0, 350)+
+plot.2020 <- ts.count.sum %>% 
+  filter(blockno == i, sampyear == 2020) %>%
+  # ungroup() %>%
+  group_by(site) %>%
+  summarise(ab.n.sum = sum(ab.n)) %>%
+  slice_max(order_by = ab.n.sum, n = 10, with_ties = F) %>% 
+  mutate(top.ten = 1) %>% 
+  semi_join(ts.count.sum, .) %>% 
+  filter(blockno == i, sampyear == 2020) %>% 
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n, fill = legal.size))+
+  geom_bar(stat = 'identity', position = 'stack')+
+  ylim(0, 400)+
   xlab('Site')+
   ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
   ggtitle(paste('2020 '))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
-  annotate('text', x = 1.5, y = 350, label = size.class, 
-           color = 'black', size = 4)
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  theme(legend.position = 'none')
 
 # Create plot for 2021
-plot.2021 <- df.2 %>% 
-  filter(blockno == block.no, sampyear == 2021, legal.size == size.class) %>%
-  ungroup() %>% 
-  slice_max(order_by = ab.n, n = 10, with_ties = F) %>% 
-  ggplot(aes(x = reorder(site, -ab.n), y = ab.n))+
-  geom_bar(stat = 'identity')+
-  ylim(0, 350)+
+plot.2021 <- ts.count.sum %>% 
+  filter(blockno == i, sampyear == 2021) %>%
+  group_by(site) %>%
+  summarise(ab.n.sum = sum(ab.n)) %>%
+  slice_max(order_by = ab.n.sum, n = 10, with_ties = F) %>% 
+  mutate(top.ten = 1) %>% 
+  semi_join(ts.count.sum, .) %>% 
+  filter(blockno == i, sampyear == 2021) %>% 
+  ggplot(aes(x = reorder(site, -ab.n), y = ab.n, fill = legal.size))+
+  geom_bar(stat = 'identity', position = 'stack')+
+  ylim(0, 400)+
   xlab('Site')+
   ylab(bquote('Total count (abalone.10'*~min^-1*')'))+
   ggtitle(paste('2021 '))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
-  annotate('text', x = 1.5, y = 350, label = size.class, 
-           color = 'black', size = 4)
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  theme(legend.title = element_blank(),
+        legend.position = c(0.8, 0.8))
 
 # Join plots
-grid.arrange(plot.2020, plot.2021, nrow = 1)
+top.ten.plot <- grid.arrange(plot.2020, plot.2021, nrow = 1)
+
+# save plot
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_TopTenSites_', 'BlockNo', i, 
+                        '_TotalCount_2020vs2021', '.pdf', sep = ''),
+       plot = top.ten.plot, units = 'mm', width = 190, height = 120)
+
+ggsave(filename = paste('TimedSwimSurvey_TopTenSites_', 'BlockNo', i, 
+                        '_TotalCount_2020vs2021', '.png', sep = ''),
+       plot = top.ten.plot, units = 'mm', width = 190, height = 120)
+}
+
+
 ##---------------------------------------------------------------------------##
-## PLOT: Counts x year x block 13 ####
+## PLOT 4: Counts x year x block 13 ####
 # Compare total counts of size class at block 13 sites pre and post fishing in 2021
 
 # Set size class
 plot.size.class <- '>140 mm'
 
-df.3 <- df.1 %>% 
+df.3 <- std.ts.dat %>% 
     filter(blockno == 13) %>%
     group_by(blockno, site, sampyear, sampdate, legal.size) %>% 
     summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -1115,8 +1151,8 @@ ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.png', sep 
 # }
 
 ##---------------------------------------------------------------------------##
-## PLOT 1: LF ####
-## Length frequency plot by block (mid-points)
+## PLOT 5: LF ####
+## Length frequency plot by block (mid-points) for sampling year
 
 # determine number of abalone recorded and number of sites sampled per block
 block.ab.n <- time.swim.dat.df.final %>% 
@@ -1158,35 +1194,35 @@ ggsave(filename = paste('TimedSwimSurvey_2021_SizeFrequencyPlot', '.png', sep = 
 ##---------------------------------------------------------------------------##
 
 ##---------------------------------------------------------------------------##
-## PLOT 2: LF x YEAR ####
+## PLOT 6: LF x YEAR ####
 ## Length frequency plot by block and year (mid-points)
 
 # determine number of abalone recorded and number of sites sampled per block
 block.ab.n <- time.swim.dat.df.final %>% 
     filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01'),
+           # sampdate > as.Date('2021-01-01'),
            !blockno %in% c(13, 14, 29, 30)) %>% 
-    group_by(blockno) %>% 
+    group_by(sampyear, blockno) %>% 
     summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
     filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01'),
+           # sampdate > as.Date('2021-01-01'),
            !blockno %in% c(13, 14, 29, 30)) %>%
-    group_by(blockno) %>% 
+    group_by(sampyear, blockno) %>% 
     summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
 
 block.ab.site.n <- left_join(block.ab.n, block.site.n) %>% 
     mutate(n = paste(ab.n, site.n, sep = ' '))
 
-df.1 <- time.swim.dat.final %>%
+lf.2020 <- time.swim.dat.final %>%
     filter(sampyear == 2020,
            (!subblockno %in% c('28B', '28C'))) %>% 
     group_by(sampyear, blockno, sizeclass.2021) %>% 
     summarise(n = sum(sizeclass_freq)) %>% 
     mutate(freq = n / sum(n))
 
-df.2 <- time.swim.dat.final %>%
+lf.2021 <- time.swim.dat.final %>%
     filter(sampyear == 2021,
            (!subblockno %in% c('28B', '28C')),
            !blockno %in% c(13, 14, 29, 30)) %>% 
@@ -1194,15 +1230,15 @@ df.2 <- time.swim.dat.final %>%
     summarise(n = sum(sizeclass_freq)) %>% 
     mutate(freq = n / sum(n))
 
-df.3 <- bind_rows(df.1, df.2)
+lf.dat <- bind_rows(lf.2020, lf.2021)
 
 # create length frequency plot
 lf.plot <- ggplot()+
-    geom_bar(data = df.1, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
+    geom_bar(data = lf.2020, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
              stat = 'identity', position = 'identity', alpha = 1) +
-    geom_bar(data = df.2, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
+    geom_bar(data = lf.2021, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
              stat = 'identity', position = 'identity', alpha = 0.5)+
-    geom_vline(data = df.1, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
+    geom_vline(data = lf.2020, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
     theme_bw() +
     scale_fill_manual(values = c("#77AADD", "#BBCC33"))+
     # scale_fill_manual(values = c("#7AA6DC99", "#8F770099"))+
@@ -1211,12 +1247,17 @@ lf.plot <- ggplot()+
     scale_y_continuous(breaks = seq(0, 40, 10), labels = seq(0, 40, 10))+
     xlab("Shell Length (mm)")+
     ylab(paste("Percentage (%)"))+
-    geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n), color = 'black', size = 3)
+    geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, 
+            position = position_stack(vjust = 0.8))+
+  scale_colour_manual(values = c("#77AADD", "#BBCC33"))+
+  guides(size = 'legend', colour = 'none',
+         fill = guide_legend(title = 'Year'))
 
-df.3.plot <- ggplot()+
-    geom_bar(data = df.3, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
+
+lf.plot.2 <- ggplot()+
+    geom_bar(data = lf.dat, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)), 
              stat = 'identity', position = 'dodge', alpha = 1) +
-    geom_vline(data = df.3, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
+    geom_vline(data = lf.dat, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
     theme_bw() +
     scale_fill_manual(values = c("#77AADD", "#BBCC33"))+
     # scale_fill_manual(values = c("#7AA6DC99", "#8F770099"))+
@@ -1225,13 +1266,17 @@ df.3.plot <- ggplot()+
     scale_y_continuous(breaks = seq(0, 40, 10), labels = seq(0, 40, 10))+
     xlab("Shell Length (mm)")+
     ylab(paste("Percentage (%)"))+
-    geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n), color = 'black', size = 3)
+  geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, 
+            position = position_stack(vjust = 0.8))+
+  scale_colour_manual(values = c("#77AADD", "#BBCC33"))+
+  guides(size = 'legend', colour = 'none',
+         fill = guide_legend(title = 'Year'))
 
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_2021_SizeFrequencyPlot_BLOCKS16-28', '.pdf', sep = ''),
-       plot = df.3.plot, units = 'mm', width = 190, height = 250)
+       plot = lf.plot, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('TimedSwimSurvey_2021_SizeFrequencyPlot_BLOCKS16-28', '.png', sep = ''),
-       plot = df.3.plot, units = 'mm', width = 190, height = 250)
+       plot = lf.plot, units = 'mm', width = 190, height = 250)
 ##---------------------------------------------------------------------------##
 ## PLOT 3: BP x YEAR ####
 ## Box plot by block and year (mid-points)
@@ -1271,30 +1316,42 @@ ggsave(filename = paste('TimedSwimSurvey_2021_SizeBoxPlot_BLOCKS13-30', '.png', 
 ## average count of all legal and sub-legal abalone per 10 min by year for each site within each blockno 
 ## (i.e. the average between paired divers for each site)
 
-plot.size.class <- '<140 mm'
 
 # determine mean count per 10 min for legal abalone for each blockno
-ten.min.mean.year <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           legal.size == plot.size.class) %>% 
-    group_by(blockno, site, diver, sampyear, time.elapsed) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(blockno, sampyear) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>% 
-    mutate(sampyear = factor(sampyear))
+# ten.min.mean.year <- std.ts.dat %>% 
+#     filter(!subblockno %in% c('28B', '28C'),
+#            legal.size == plot.size.class) %>% 
+#     group_by(blockno, site, diver, sampyear, time.elapsed) %>% 
+#     summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+#     group_by(blockno, sampyear) %>% 
+#     summarise(mean.ab.n = mean(ab.n)) %>% 
+#     mutate(sampyear = factor(sampyear))
 
-time.swim.dat.n <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           legal.size == plot.size.class) %>% 
-    group_by(sampyear, blockno) %>% 
-    summarise(n = n_distinct(site))
+ten.min.mean.year <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>% 
+  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+  group_by(blockno, sampyear, legal.size) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  mutate(sampyear = factor(sampyear))
 
-count.plot.sizeclass <- time.swim.dat.final %>% 
+# time.swim.dat.n <- std.ts.dat %>% 
+#     filter(!subblockno %in% c('28B', '28C'),
+#            legal.size == plot.size.class) %>% 
+#     group_by(sampyear, blockno) %>% 
+#     summarise(n = n_distinct(site))
+
+time.swim.dat.n <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>% 
+  group_by(sampyear, blockno, legal.size) %>% 
+  summarise(n = n_distinct(site))
+
+sub.legal.plot <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C'),
-           legal.size == plot.size.class) %>%
+           legal.size == '<140 mm') %>%
     # filter(midsize < 150) %>% 
     group_by(blockno, site, diver, sampyear) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
+    summarise(ab.n = sum(sizeclass_freq_10)) %>% 
     group_by(blockno, site, sampyear) %>% 
     summarise(mean.ab.n = mean(ab.n)) %>% 
     mutate(sampyear = factor(sampyear, levels = c('2020', '2021'))) %>%  
@@ -1302,27 +1359,63 @@ count.plot.sizeclass <- time.swim.dat.final %>%
     geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
                  outlier.colour = '#EE8866') +
     scale_fill_manual(values = c("#77AADD", "#BBCC33"))+
-    geom_point(data = ten.min.mean.year, aes(group = factor(sampyear, levels = c('2020', '2021'))), shape = 19,
+    geom_point(data = ten.min.mean.year %>% filter(legal.size == '<140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021'))), shape = 19,
                size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
     theme_bw()+
     ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
     xlab('Blockno')+
     ylim(0, 150)+
-    geom_text(data = time.swim.dat.n, aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, 
+    geom_text(data = time.swim.dat.n %>% filter(legal.size == '<140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, 
               position = position_dodge2(0.8))+
     scale_colour_manual(values = c("#77AADD", "#BBCC33"))+
     guides(size = 'legend', colour = 'none',
            fill = guide_legend(title = 'Year'))+
-    ggtitle(paste(ifelse(plot.size.class == '<140 mm', 'Sublegal', 'Legal'), plot.size.class))+
-    theme(plot.title = element_text(vjust = -15, hjust = 0.05))
-    # theme(legend.position = "none")
+    ggtitle(paste(ifelse('<140 mm' == '<140 mm', 'Sublegal', 'Legal'), '<140 mm'))+
+    theme(plot.title = element_text(vjust = 0, hjust = 0))
+
+plot.legend <- get_legend(sub.legal.plot)
+
+sub.legal.plot.no.legend <- sub.legal.plot+
+  theme(legend.position = 'none')
+
+legal.plot <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         legal.size == '>140 mm') %>%
+  # filter(midsize < 150) %>% 
+  group_by(blockno, site, diver, sampyear) %>% 
+  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+  group_by(blockno, site, sampyear) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  mutate(sampyear = factor(sampyear, levels = c('2020', '2021'))) %>%  
+  ggplot(aes(x = blockno, y = mean.ab.n))+
+  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
+               outlier.colour = '#EE8866') +
+  scale_fill_manual(values = c("#77AADD", "#BBCC33"))+
+  geom_point(data = ten.min.mean.year %>% filter(legal.size == '>140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021'))), shape = 19,
+             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+  theme_bw()+
+  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+  xlab('Blockno')+
+  ylim(0, 150)+
+  geom_text(data = time.swim.dat.n %>% filter(legal.size == '>140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, 
+            position = position_dodge2(0.8))+
+  scale_colour_manual(values = c("#77AADD", "#BBCC33"))+
+  guides(size = 'legend', colour = 'none',
+         fill = guide_legend(title = 'Year'))+
+  ggtitle(paste(ifelse('>140 mm' == '>140 mm', 'Legal', 'Legal'), '>140 mm'))+
+  theme(plot.title = element_text(vjust = 0, hjust = 0))+
+  theme(legend.title = element_blank(),
+        legend.position = c(0.9, 0.7))
+  # theme(legend.position = "none")
+
+count.plot.sizeclass <- grid.arrange(sub.legal.plot.no.legend, legal.plot, plot.legend, ncol = 3, widths = c(3,3,0.5))
+count.plot.sizeclass <- grid.arrange(sub.legal.plot.no.legend, legal.plot, nrow = 2)
+count.plot.sizeclass <- grid.arrange(sub.legal.plot.no.legend, legal.plot, ncol = 2)
 
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCount', 
-ifelse(plot.size.class == '<140 mm', 'Sublegal', 'Legal'),'Year', '.pdf', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCount_LegalSubLegal', '.pdf', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCount', 
-                        ifelse(plot.size.class == '<140 mm', 'Sublegal', 'Legal'),'Year', '.png', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
 
 ##---------------------------------------------------------------------------##
