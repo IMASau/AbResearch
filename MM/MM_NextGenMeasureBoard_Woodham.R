@@ -38,60 +38,18 @@ library(tictoc)
 
 measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
 
-# extract data files for GPS loggers allocated to divers (05010107 - Greg Woodham, 05010036 - Ben Allen, 05010040 or 05010037 or 05010112 - Sean Larby) 
 
-localfiles <- list.files(measureboard.non.modem,  pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156.*txt", full.names = T)
+# Extract logger data files for GPS loggers allocated to divers 
+# 05010107 - Greg Woodham
+# 05010036 - Ben Allen
+# 05010040 or 05010037 or 05010112 - Sean Larby
+# 05010156 - Bryan Denny
 
-##---------------------------------------------------------------------------##
-# ## Uncompress NextGen files from sfptServer ####
-# 
-# ## Choose directory where compressed files for import are located
-# imp_dir <- measureboard.non.modem
-# 
-# ## Choose directory where unpacked .txt files are to be saved
-# out_dir <- measureboard.non.modem
-# 
-# ## UnPack compressed files (tar.gz) ####
-# 
-# # Get a full list of all compressed files in the import directory
-# dirlist_cmp <- list_files_with_exts(imp_dir,c("tar.gz"), full.names=FALSE)
-# 
-# # Get a full list of all unpacked .txt files in the export directory
-# dirlist_txt <- list_files_with_exts(out_dir,c("txt"), full.names=FALSE)
-# 
-# ## Convert both lists to data frames and combine
-# dirlistdf_cmp <- as.data.frame(dirlist_cmp)
-# dirlistdf_cmp$dirlist_cmp <- as.character(dirlistdf_cmp$dirlist_cmp)
-# dirlistdf_cmp <- dirlistdf_cmp %>% 
-#   dplyr::rename(FileName = dirlist_cmp)
-# dirlistdf_txt <- as.data.frame(dirlist_txt)
-# dirlistdf_txt$dirlist_txt <- as.character(dirlistdf_txt$dirlist_txt)
-# dirlistdf_txt <- dirlistdf_txt %>% 
-#   dplyr::rename(FileName = dirlist_txt)
-# 
-# dirlistdf_unp <- rbind(dirlistdf_cmp,dirlistdf_txt)
-# 
-# # Find file names and extensions
-# dirlistdf_unp <- dirlistdf_unp %>% separate(FileName,c("F_name","F_ext"),sep="[.]",remove=F)
-# 
-# #Remove unpacked files from list (ie. find duplicates)
-# unpacked_files <- dirlistdf_unp[duplicated(dirlistdf_unp[,c("F_name")]),]
-# files_to_unpack <- dirlistdf_unp %>% 
-#  filter(!F_name %in% c(unpacked_files$F_name)) %>% 
-#  filter(F_ext == c("tar"))
-# 
-# # Unpack files
-# tic()
-# numfiles <- nrow(files_to_unpack)
-# if (numfiles > 0){
-#  for (f in 1:numfiles){
-#   untar(paste(imp_dir,"\\",files_to_unpack$FileName[f],sep=""),exdir = out_dir)
-#  }}
-# toc()
+
+localfiles <- list.files(measureboard.non.modem,  
+                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156|05010086.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
-## Extract .txt files ####
-
 ## Extract .txt files ####
 
 ## Extract data from sftp download folder and compile into dataframe
@@ -101,8 +59,16 @@ localfiles <- list.files(measureboard.non.modem,  pattern = "^05010107|05010036|
 
 # localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
 
-localfiles.dat <- lapply (localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
-                          colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+# localfiles.dat <- lapply(localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
+#                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+
+localfiles.dat <- lapply(localfiles, function(x) {
+  tryCatch(read.table(x, header = FALSE, sep = ',', as.is = T,
+                      colClasses = c("character", "numeric", "numeric", "numeric", "character", "character")), 
+           error=function(e) NULL)
+})
+
+
 localfiles.df <- do.call(rbind, localfiles.dat)
 
 logged.data <- localfiles.df
