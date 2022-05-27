@@ -29,6 +29,7 @@ library(tictoc)
  library(sf)
  library(sp)
  library(rgdal)
+  library(gridExtra)
 })
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
@@ -47,7 +48,7 @@ measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/Nex
 
 
 localfiles <- list.files(measureboard.non.modem,  
-                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156|05010086.*txt", full.names = T)
+                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156|05010086|05010134|05010016.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
@@ -188,7 +189,7 @@ ablength <- ablength %>%
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
 abweight <- filter(logged.data, identifier == 32965) 
-abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = ",", remove = FALSE,
+abweight <-  separate(abweight, datapack, c("abalonenum","est.weight"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()
 
@@ -205,7 +206,7 @@ lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_da
                           select(logname, rawutc, abalonenum), by = "rawutc") %>%  
  left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
  left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
- left_join(select(abweight, rawutc, wholeweight), by = "rawutc")
+ left_join(select(abweight, rawutc, est.weight), by = "rawutc")
 
 # tail(lengthweight)
 
@@ -513,6 +514,7 @@ mb.df.non.modem.diver <- fuzzy_left_join(
 
 measure.board.df.non.modem <- mb.df.non.modem.diver
 
+
 ##---------------------------------------------------------------------------##
 ## Step 10: Subblockno and zone adjustments ####
 
@@ -628,7 +630,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2021`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2022`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
@@ -663,14 +665,15 @@ measure.board.df.non.modem <- left_join(measure.board.df.non.modem, size.limits.
 
 # list of unique measureboards for summary and plot loops
 lognames <- unique(measure.board.df.non.modem$logname)
+processors <- unique(measure.board.df.non.modem$processor)
 
-for (i in lognames){
+for (i in processors){
 
 mb.df.non.modem.summary <- measure.board.df.non.modem %>%
   filter(!is.na(shelllength) &
            grepl('^07', logname) &
            between(shelllength, 100, 220) &
-          logname == i) %>%  
+          processor == i) %>%  
   # distinct(plaindate, abalonenum, .keep_all = T) %>%  
   group_by(plaindate, logname, zone, subblockno, processor, species) %>% 
   summarise('Number\nmeasured' = n(),
@@ -704,7 +707,7 @@ ggsave(
   filename = paste(diver, '_Measureboard_NonModem_SizeSummary_Formatted_', Sys.Date(), '.pdf', sep = ''),
   plot = mb.df.non.modem.summary.formated,
   width = 11.69,
-  height = 8,
+  height = 10,
   units = 'in'
 )
 
@@ -716,14 +719,16 @@ ggsave(
 
 # list of unique measureboards for summary and plot loops
 lognames <- unique(measure.board.df.non.modem$logname)
+processors <- unique(measure.board.df.non.modem$processor)
 
-for (i in lognames){
+
+for (i in processors){
 
 mb.df.non.modem.summary.ref <- measure.board.df.non.modem %>%
   filter(!is.na(shelllength) &
            grepl('^07', logname) &
            between(shelllength, 100, 220) &
-          logname == i) %>%   
+          processor == i) %>%   
  distinct(abalonenum, rawutc, .keep_all = T) %>%
  group_by(plaindate, logname, zone, subblockno, processor, species) %>%  
   summarise('Number\nmeasured' = n(),
@@ -763,7 +768,7 @@ ggsave(
   filename = paste(diver, '_Measureboard_NonModem_SizeSummaryReferenceLimits_Formatted_', Sys.Date(), '.pdf', sep = ''),
   plot = mb.df.non.modem.summary.reference.limits,
   width = 11.69,
-  height = 8,
+  height = 12,
   units = 'in'
 )
 }
@@ -1031,3 +1036,333 @@ ggplot(data = st_geometry(sf.tas.coast.map.crop)) +
                          style = north_arrow_fancy_orienteering) +
   labs(fill = 'Shell length\n(mm)')
 
+##---------------------------------------------------------------------------##
+## Step 19: Weight Grade Estimate ####
+## Estimate weight and grading of individual abalone from catch sample
+## Create combined length and weight grading plot
+
+# Load most recent compilation of Commercial Abalone Catch Sampling data.
+
+## Read in most recent commercial catch sampling compiled MM dataframe
+compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+## remove erroneous data
+lw.dat <- compiledMM.df.final %>%
+  filter(between(whole.weight, 200, 1500) | # abalone above or below these weights unlikely
+      between(shell.length, sizelimit - 5, 220) & # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
+      !(shell.length > 175 & whole.weight < 600) & # & # these appear to be erroneous weights
+    !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
+
+## Calculate log of length and weight
+lw.dat.log <- lw.dat %>% 
+  mutate(log.sl = log(shell.length),
+         log.wt = log(whole.weight))
+
+## Calculate length-weight regression coefficients for each zone
+lw.dat.coeff.zone <- lw.dat.log %>%
+  nest(data = -newzone) %>% 
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>% 
+  select(c(newzone, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(c(newzone, a, b))
+
+## Join length-weight regression parameters by zone to diver measuring board lengths
+## and estimate weight
+
+measure.board.df.non.modem.est.wt <- measure.board.df.non.modem %>% 
+  left_join(., lw.dat.coeff.zone, by = c('zone' = 'newzone')) %>% 
+  mutate(est.weight = ((a * (shelllength ^ b))))
+
+## Add weight grading to estimated weights
+mb.df.non.modem.graded <- measure.board.df.non.modem.est.wt %>% 
+  mutate(grade = dplyr::if_else(est.weight == 0, NA_character_,
+                                dplyr::if_else(between(est.weight, 1, 400), 'xsmall',
+                                               dplyr::if_else(between(est.weight, 1, 600), 'small', 
+                                                              dplyr::if_else(between(est.weight, 601, 800), 'medium', 'large')))),
+         est.weight = replace(est.weight, est.weight == 0, NA))
+
+## Determine number of abalone measured per sample
+sample.id.n.meas <- mb.df.non.modem.graded %>% 
+  group_by(zone, sample.id, processor, plaindate) %>% 
+  # group_by(zone, sample.id, processor, plaindate, docket.index) %>% 
+  summarise(ab.meas = n()) 
+
+## Determine number of estimated weights per sample
+sample.id.n.weighed <- mb.df.non.modem.graded %>% 
+  filter(!is.na(est.weight)) %>%
+  group_by(zone, sample.id, processor, plaindate) %>% 
+  summarise(ab.weighed = n())
+
+## Create summary table of abalone measured and estimated weights
+sample.id.n <- left_join(sample.id.n.meas, sample.id.n.weighed)
+
+## Determine number of abalone measured by grade per sample
+sample.id.grade.meas <- mb.df.non.modem.graded %>% 
+  filter(!is.na(est.weight)) %>% 
+  group_by(sample.id, grade, processor, plaindate) %>% 
+  summarise(grade.meas = n())
+
+## Select blacklip abalone (#NOTE: minimal data to generate accurate greenlip length-weight relationship)
+measure.board.df.non.modem.bl <- measure.board.df.non.modem %>% 
+  filter(species == 1)
+
+## Identify unique sample ID numbers for generating plot in loop
+mb.df.non.modem.bl.samples <- unique(measure.board.df.non.modem.bl$sample.id)
+
+
+## Create a dataframe of weight grading threshold for plotting reference lines
+grades <- data.frame(y = 0.35, x = c(300, 500, 700, 900), 
+                     lab = c('XSmall', 'Small', 'Medium', 'Large'))
+
+## Create plot
+for (i in mb.df.non.modem.bl.samples) {
+  # create length plot
+  plot.length.freq.dat <- mb.df.non.modem.graded %>%
+    filter(sample.id == i &
+             between(shelllength, 100, 200))
+  
+  plot.n.measured <- mb.df.non.modem.graded %>% 
+    filter(!is.na(shelllength) &
+             sample.id == i
+           & between(shelllength, 100, 200)) %>%  
+    summarise(n = paste('n =', n()))
+  
+  plot.zone <- unique(plot.length.freq.dat$zone)
+  sample.id.day <- unique(plot.length.freq.dat$sample.id)
+  
+  length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
+    geom_histogram(
+      aes(y = ..density.. * 5),
+      fill = '#EFC000FF',
+      col = 'black',
+      binwidth = 5,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+    theme_bw() +
+    xlab("Shell Length (mm)") +
+    ylab(paste('SubBlockNo', plot.length.freq.dat$subblockno, " Percentage (%)"))+
+    geom_vline(aes(xintercept = as.numeric(sizelimit)), linetype = 'dashed', colour = 'red', size = 0.5)+
+    # geom_vline(
+    #   aes(xintercept = ifelse(zone == 'AW', 145, 
+    #                           ifelse(zone == 'AB', 114, 
+    #                                  ifelse(zone == 'AN', 127, 
+    #                                         ifelse(zone == 'AG', 145, 138))))),
+    #   linetype = 'dashed',
+    #   colour = 'red',
+    #   size = 0.5
+    # ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+  
+  xbp.len <- ggplot(plot.length.freq.dat,
+                    aes(
+                      x = factor(sample.id.day),
+                      y = shelllength,
+                      group = sample.id.day
+                    )) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.5
+    ) +
+    rotate() +
+    theme_transparent()
+  
+  xbp_grob <- ggplotGrob(xbp.len)
+  xmin.len <- min(plot.length.freq.dat$shelllength)
+  xmax.len <- max(plot.length.freq.dat$shelllength)
+  
+  length.plot <- length.freq.plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin.len,
+      xmax = xmax.len,
+      ymin = 0.3
+    )
+  
+  # create weight plot
+  
+  plot.weight.freq.dat <- mb.df.non.modem.graded %>%
+    filter(sample.id == i &
+             est.weight != 0)
+  
+  plot.n.weighed <- mb.df.non.modem.graded %>% 
+    filter(sample.id == i &
+             est.weight != 0) %>% 
+    summarise(n = paste('n =', n()))
+  
+  if (nrow(plot.weight.freq.dat) != 0) {
+    
+    weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(est.weight)) +
+      geom_histogram(
+        aes(y = ..density.. * 50),
+        fill = '#0073C2FF',
+        col = 'black',
+        binwidth = 50,
+        alpha = 0.6
+      ) +
+      coord_cartesian(xlim = c(100, 1300),
+                      ylim = c(0, 0.35)) +
+      theme_bw() +
+      theme(panel.grid = element_blank()) +
+      xlab("Estimated Whole weight (g)") +
+      ylab(paste('SubBlockNo', plot.length.freq.dat$subblockno, " Percentage (%)"))+
+      geom_vline(aes(xintercept = 400),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_vline(aes(xintercept = 600),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_vline(aes(xintercept = 800),
+                 colour = 'red',
+                 linetype = 'dotted') +
+      geom_text(
+        data = grades,
+        aes(
+          x = x,
+          y = y,
+          label = lab
+        ),
+        inherit.aes = FALSE,
+        vjust = 0.5,
+        hjust = 0.5,
+        size = 4,
+        angle = 0,
+        colour = c(
+          'xsmall' = '#868686FF',
+          'small' = '#EFC000FF',
+          'medium' = '#0073C2FF',
+          'large' = '#CD534CFF'
+        )
+      ) +
+      scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+      geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+    
+    xbp.wt <- ggplot(
+      plot.weight.freq.dat,
+      aes(
+        x = factor(sample.id.day),
+        y = est.weight,
+        group = sample.id.day
+      )
+    ) +
+      geom_boxplot(
+        fill = 'lightgray',
+        outlier.colour = "black",
+        outlier.size = 1.5,
+        position = position_dodge(0.85),
+        width = 0.3
+      ) +
+      stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+      rotate() +
+      theme_transparent()
+    
+    xbp_grob <- ggplotGrob(xbp.wt)
+    xmin.wt <- min(plot.weight.freq.dat$est.weight)
+    xmax.wt <- max(plot.weight.freq.dat$est.weight)
+    
+    # add pie chart to weight frequency plot
+    
+    sample.id.day.grade.summary <-
+      left_join(sample.id.n, sample.id.grade.meas, by = c('processor', 'plaindate', 'sample.id')) %>%
+      mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+    
+    pie.plot.dat <- sample.id.day.grade.summary %>%
+      filter(sample.id == i) %>%
+      mutate(
+        lab.position = cumsum(grade.perc),
+        lab.y.position = lab.position - grade.perc / 2,
+        lab = paste0(grade.perc, "%")
+      )
+    
+    docket.pie.plot <-
+      ggplot(data = pie.plot.dat, aes(
+        x = "",
+        y = grade.perc,
+        fill = grade
+      )) +
+      geom_bar(stat = "identity", colour = 'white') +
+      coord_polar(theta = "y") +
+      geom_text(
+        aes(label = lab),
+        position = position_stack(vjust = 0.5),
+        colour = 'white',
+        size = 5
+      ) +
+      theme_void() +
+      theme(legend.position = 'none') +
+      scale_fill_manual(
+        values = c(
+          'xsmall' = '#868686FF',
+          'small' = '#EFC000FF',
+          'medium' = '#0073C2FF',
+          'large' = '#CD534CFF'
+        )
+      )
+    
+    pp_grob <- ggplotGrob(docket.pie.plot)
+    
+    wt.plot <- weight.freq.plot +
+      annotation_custom(
+        grob = xbp_grob,
+        xmin = xmin.wt,
+        xmax = xmax.wt,
+        ymin = 0.25
+      ) +
+      annotation_custom(
+        grob = pp_grob,
+        xmin = 900,
+        xmax = 1200,
+        ymax = 0.4
+      )
+    
+    #combine length and weight plots
+    
+    plot.a <- grid.arrange(
+      arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
+                                     ncol = 1), ncol = 1))
+    
+    #save plots
+    setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+    plaindate <- unique(plot.length.freq.dat$plaindate)
+    diver <- unique(plot.length.freq.dat$processor)
+    zone <- unique(plot.length.freq.dat$zone)
+    subblockno <- unique(plot.length.freq.dat$subblockno)
+    
+    ggsave(
+      filename = paste(i, '_', diver, '_', as_date(plaindate),'_', zone, '_', subblockno, '_SUMMARYPLOT', '.pdf', sep = ''),
+   plot = plot.a,
+      width = 200,
+      height = 297,
+      units = 'mm')
+  }
+  else{
+    plot.a <- length.plot
+    
+    #save plots
+    setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+    plaindate <- unique(plot.length.freq.dat$plaindate)
+    diver <- unique(plot.length.freq.dat$processor)
+    zone <- unique(plot.length.freq.dat$zone)
+    subblockno <- unique(plot.length.freq.dat$subblockno)
+    
+    ggsave(
+      filename = paste(i, '_', diver, '_', as_date(plaindate),'_', zone, '_', subblockno, '_SUMMARYPLOT', '.pdf', sep = ''),
+      plot = plot.a,
+      width = 7.4,
+      height = 5.57,
+      units = 'in')
+  }
+}
+
+         

@@ -210,6 +210,8 @@ measure.board.df <- measure.board.df %>%
                docketnum = replace(docketnum, docketnum == 813879, 524402),
                docketnum = replace(docketnum, docketnum == 524402.1, 813879),
                docketnum = replace(docketnum, docketnum == 813854, 520018),
+               docketnum = replace(docketnum, docketnum == 816309, 816307),
+               docketnum = replace(docketnum, docketnum == 817528, 816878),
                zone = if_else(docketnum == 812576, 'AW', 
                               if_else(docketnum == 525708, 'AE', 
                                       if_else(docketnum == 812883, 'AW', 

@@ -322,22 +322,6 @@ site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map
         rename_all(tolower) %>% 
         filter(sampperiod == 'start')
 
-
-# extract reference sites
-df.1 <- site.samp.start.loc %>% 
-    filter(blockno %in% c(13, 14) &
-               sampperiod == 'start')
-
-WGS84 <- st_crs(4326)
-df.2 <- st_transform(df.1, WGS84) %>% 
-    st_coordinates()
-
-st_write(df.1,
-         dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/block13-14_refsites.gpkg",
-         layer = "df.1", driver = "GPKG", overwrite = T, delete_dsn = T)
-
-
-
 # load proposed site file
 ts.sites.final.sf <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
 
@@ -409,6 +393,20 @@ st_write(ts.actual.geom,
          dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.actual.geom_2021-08-10.gpkg", 
          layer = "ts.actual.geom", driver = "GPKG", overwrite = T, delete_dsn = T)
 
+##---------------------------------------------------------------------------##
+# Extract block 13 and 14 reference site coordinates
+df.1 <- site.samp.start.loc %>% 
+  filter(blockno %in% c(13, 14) &
+           sampperiod == 'start')
+
+WGS84 <- st_crs(4326)
+
+df.2 <- st_transform(df.1, WGS84) %>% 
+  st_coordinates()
+
+st_write(df.1,
+         dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/block13-14_refsites.gpkg",
+         layer = "df.1", driver = "GPKG", overwrite = T, delete_dsn = T)
 ##---------------------------------------------------------------------------##
 ## 7. Sites sampled - proposed ####
 ## identify sites sampled based on proposed GPS site data and
@@ -682,12 +680,12 @@ ts.site.cpue.2021.join <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSw
 ts.site.cpue.join <- bind_rows(ts.site.cpue.2020.join, ts.site.cpue.2021.join)
 
 # load sam data and remove duplicate sites with same site name
-ts.site.sam.join <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
-ts.site.sam.join <- ts.site.sam.join %>% 
+ts.site.sam.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.join <- ts.site.sam.dat %>% 
         distinct(site, .keep_all = T)
 
 # join oid and sam data to final size frequency data
-time.swim.dat.final <- left_join(time.swim.dat.act.prop, select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile), by = c('site', 'sampyear')) %>%
+time.swim.dat.final <- left_join(time.swim.dat.act.prop, select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile, cpue.kg.hr), by = c('site', 'sampyear')) %>%
         left_join(., select(ts.site.sam.join, site, sampyear, site.old, sam.count), by = c('site' = 'site')) %>%
     dplyr::rename(sampyear = 'sampyear.x') %>% 
         select(-c(site.old.x, geometry.x, sampyear.y, site.old.y, geometry.y))
@@ -736,9 +734,9 @@ time.swim.dat.df.final <-
         readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.df.final.RDS')
 
 ##---------------------------------------------------------------------------##
-## 10.1 Summarise counts #### 
+## 10.1 Standardise data #### 
 
-# Standardise counts for 10 minute swim
+# Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
 std.ts.dat <- time.swim.dat.final %>% 
     mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
 
@@ -746,9 +744,20 @@ std.ts.dat <- time.swim.dat.final %>%
 ts.count.sum <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C')) %>%
     group_by(blockno, site, sampyear, legal.size) %>% 
-    summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+    summarise(ab.n = sum(sizeclass_freq_10)) %>%  
     group_by(blockno, site, sampyear, legal.size) %>% 
     group_by(site)
+
+ts.av.count <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>%
+  group_by(blockno, site, diver, sampyear, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq_10)) %>%  
+  group_by(blockno, sampyear, legal.size) %>%
+  summarise(av.count = mean(ab.n),
+            sites = n_distinct(site)) %>% 
+  pivot_wider(id_cols = c(blockno),
+              names_from = c(legal.size, sampyear),
+              values_from = c('av.count', 'sites'))
 ##---------------------------------------------------------------------------##
 # PLOT 1: Diver deviation ####
 
@@ -780,21 +789,25 @@ ts.count.divers %>%
   distinct(dive.pair.id) 
 
 # Select sample year
-samp.year <- 2021
+samp.year <- c(2021)
 
-# Identify diver pair IDs x chosen year
+# Identify diver pair IDs x chosen year (remove JM)
 diver.ids <- ts.count.divers %>% 
-  filter(sampyear == samp.year) %>% 
+  filter(sampyear == samp.year,
+         dive.pair.id != 4) %>% 
   distinct(dive.pair.id) %>% 
   pull()
 
+q <- list()
+
 for (i in diver.ids){
 
+  
 # Select data for dive pair and sample year
 ts.diver.dev.dat <- ts.count.divers %>% 
   filter(dive.pair.id == i, sampyear == samp.year) %>% 
-  select(c(site, blockno, legal.size, sampyear, sampdate, diver.x, ab.n)) %>% 
-  spread(key = diver.x, value = ab.n) %>%  
+  select(c(site, blockno, legal.size, sampyear, sampdate, diver.id, ab.n)) %>%  
+  spread(key = diver.id, value = ab.n) %>%  
   mutate(dive.diff = abs(.[[6]] - .[[7]]))
 
 # Identify diver names for plot title
@@ -807,6 +820,7 @@ divers.site.n <- ts.diver.dev.dat %>%
   group_by(blockno) %>% 
   summarise(site.n = paste(n_distinct(site), sep = ''))
 
+q[[i]] <-
 # create plot
 dive.dev.plot <- ggplot(data = ts.diver.dev.dat, aes(x = blockno, y = dive.diff))+
   geom_boxplot(aes(fill = factor(legal.size)))+
@@ -814,12 +828,26 @@ dive.dev.plot <- ggplot(data = ts.diver.dev.dat, aes(x = blockno, y = dive.diff)
   ylab('Diver Total Count Deviation')+
   ylim(0, 90)+
   theme_bw()+
-  ggtitle(paste(samp.year, names(dive.dev.divers[1]), 'vs',
-                          names(dive.dev.divers[2])))+
+  ggtitle(paste(samp.year, 'Diver', names(dive.dev.divers[1]), 'vs',
+                'Diver', names(dive.dev.divers[2])))+
   geom_text(data = divers.site.n, aes(y = 90, label = site.n), size = 3)+
   scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  # theme(legend.title = element_blank(),
+  #       legend.position = c(0.1, 0.8))
   theme(legend.title = element_blank(),
-        legend.position = c(0.1, 0.8))
+        legend.position = ifelse(names(dive.dev.divers) == '1' &
+                                   names(dive.dev.divers) == '5' &
+                                   samp.year == 2020, c(0.1, 0.8), "none"))
+
+}
+
+pq <- c(p, q)
+
+pq %>% 
+  discard(is.null) %>% 
+cowplot::plot_grid(plotlist = .)
+
+
 
 # save plot
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
@@ -1016,139 +1044,6 @@ ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.pdf', sep 
 
 ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.png', sep = ''),
        plot = block.13.plot, units = 'mm', width = 190, height = 120)
-
-##---------------------------------------------------------------------------##
-# ## Join to historic length frequency data ##
-# # load most recent compiled MM dataframe
-# compiledMM.df.final <-
-#         readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
-# 
-# df.1 <- time.swim.dat.df.final %>% 
-#         dplyr::rename(msr.date = 'sampdate',
-#                       blocklist = 'blockno',
-#                       subblocklist = 'subblockno',
-#                       shell.length = 'shelllength') %>% 
-#         mutate(newzone = 'E',
-#                fishyear = 2020,
-#                daylist = as.character(msr.date),
-#                daylist_max = msr.date,
-#                numblocks = 1,
-#                numsubblocks = 1,
-#                species = 1,
-#                blocklist_1 = as.integer(blocklist),
-#                sizelimit = ifelse(blocklist %in% c(27, 28), 145, 138),
-#                datasource = 'ts2020') %>% 
-#         select(c(msr.date, fishyear, newzone, daylist, daylist_max, numblocks, blocklist, numsubblocks, 
-#                  subblocklist, shell.length, species, blocklist_1, sizelimit, datasource))
-# 
-# df.2 <- compiledMM.df.final %>% 
-#         mutate(datasource = 'mm')
-# 
-# df.3 <- bind_rows(df.2, df.1)
-# 
-# ## create box plots for each block sampled in the stock assessment year and compare with historical records
-# unique.zones <- 'E'
-# unique.blocks <- c(16, 22, 23, 24, 27, 28)
-# 
-# for (i in unique.zones) {
-#         for (j in unique.blocks) {
-#                 # select data for block
-#                 plotdat.block <- df.3 %>%
-#                         filter(
-#                                 newzone == i
-#                                 & blocklist == j
-#                                 & datasource == 'ts2020'
-#                                 & between(shell.length, 0, 220))
-#                 
-#                 plotdat.block.historic <- df.3 %>%
-#                         filter(
-#                                 newzone == i
-#                                 & blocklist == j
-#                                 & between(fishyear, 1980, stock.assessment.year - 1)
-#                                 & between(shell.length, sizelimit - 5, 220)
-#                         )
-#                 
-#                 plotdat.block <- bind_rows(plotdat.block, plotdat.block.historic)
-#                 
-#                 # determine last sampling year
-#                 last.fishyear <- max(plotdat.block.historic$fishyear)
-#                 
-#                 # determine number of sampling years
-#                 n.fishyear <- length(unique(plotdat.block$fishyear))
-#                 
-#                 # generate plot for zone and block combination only if data is present
-#                 
-#                 if (nrow(plotdat.block) != 0) {
-#                         # convert required grouping variable to factor for boxplot
-#                         
-#                         plotdat.block$fishyear <- as.factor(plotdat.block$fishyear)
-#                         
-#                         # generate a count of records for each year to add to boxplot
-#                         
-#                         plotdat.n <- plotdat.block %>%
-#                                 group_by(fishyear, blockno) %>%
-#                                 summarize(n = n())
-#                         
-#                         # generate table of size limits for each year to add to boxplot
-#                         
-#                         size.limit <- plotdat.block %>% 
-#                                 group_by(fishyear, blockno) %>% 
-#                                 summarise(legal.min.length = max(sizelimit))
-#                         
-#                         # generate boxplot of shell lengths for chosen grouping variable
-#                         
-#                         mm.zone.boxplot <-
-#                                 ggplot(plotdat.block, aes(x = fishyear, y = shell.length)) +
-#                                 geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
-#                                 geom_text(
-#                                         data = plotdat.n,
-#                                         aes(y = 220, label = n),
-#                                         size = 3,
-#                                         angle = 90
-#                                 ) +
-#                                 # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-#                                 geom_point(data = size.limit, aes(x = fishyear, y = legal.min.length), 
-#                                            shape = 95, size = 7, colour = "red")+
-#                                 geom_vline(
-#                                         aes(xintercept = ifelse(stock.assessment.year - last.fishyear >= 2,
-#                                                                 n.fishyear - 0.5, '')),
-#                                         linetype = 'dashed',
-#                                         colour = 'red',
-#                                         size = 0.5)+
-#                                 xlab('Year') +
-#                                 ylab(paste('BlockNo', j, 'Shell Length (mm)')) +
-#                                 coord_cartesian(ylim = c(0, 225)) +
-#                                 theme_bw() +
-#                                 theme(
-#                                         plot.title = element_text(hjust = 0.5),
-#                                         panel.grid.major = element_blank(),
-#                                         panel.grid.minor = element_blank(),
-#                                         axis.line = element_line(colour = "black"),
-#                                         axis.text.x = element_text(angle = 45, vjust = 0.5)
-#                                 )
-#                         
-#                         # print(mm.zone.boxplot)
-#                         setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-#                         ggsave(
-#                                 filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.pdf', sep = ''),
-#                                 plot = mm.zone.boxplot,
-#                                 width = 7.4,
-#                                 height = 5.57,
-#                                 units = 'in'
-#                         )
-#                         ggsave(
-#                                 filename = paste(i, '_BlockNo', j, '_TimedSwim_Boxplot_2020', '.png', sep = ''),
-#                                 plot = mm.zone.boxplot,
-#                                 width = 7.4,
-#                                 height = 5.57,
-#                                 units = 'in'
-#                         )
-#                 }
-#                 else{
-#                 }
-#                 
-#         }
-# }
 
 ##---------------------------------------------------------------------------##
 ## PLOT 5: LF x block ####
@@ -1437,19 +1332,418 @@ count.plot.rep.sizeclass <- grid.arrange(sub.legal.plot.rep, legal.plot.rep, nro
            plot = count.plot.rep.sizeclass, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
-## TAB 1: SUMMARY ####
-## summary table of counts and CPUE by size class and block (NOTE: run script for CPUE above)
+## PLOT 9: COUNT PER TEN MIN ####
+## plot showing average count of all legal and sub-legal abalone per 10 min for
+## each site within each blockno (i.e. the average between paired divers for each site)
 
-# arrange size classes in order
+# determine number of sites sampled for each blockno
+time.swim.dat.n <- time.swim.dat.final %>%
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>%
+  group_by(blockno) %>%
+  summarise(n = n_distinct(site))
+
+## average count per 10 min for each blockno
+count.plot <- std.ts.dat %>%
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>%
+  # filter(midsize >= 150) %>%
+  group_by(blockno, site, diver) %>%
+  summarise(ab.n = sum(sizeclass_freq_10)) %>%
+  group_by(blockno, site, diver) %>%
+  summarise(mean.ab.n = mean(ab.n)) %>%
+  ggplot(aes(x = blockno, y = mean.ab.n, colour = diver)) +
+  geom_point(size = 3) +
+  scale_colour_grey() +
+  stat_summary(
+    fun.y = mean,
+    geom = 'point',
+    shape = 19,
+    size = 4,
+    colour = 'red',
+    fill = 'red'
+  ) +
+  theme_bw() +
+  ylab(bquote('Average count (abalone.10' *  ~ min ^ -1 * ')')) +
+  xlab('Blockno') +
+  ylim(0, 250) +
+  geom_text(data = time.swim.dat.n,
+            aes(y = 250, label = n),
+            color = 'black',
+            size = 3) +
+  theme(legend.position = 'none')
+
+setwd(
+  'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots'
+)
+ggsave(
+  filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.pdf', sep = ''),
+  plot = count.plot,
+  units = 'mm',
+  width = 190,
+  height = 120
+)
+ggsave(
+  filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.png', sep = ''),
+  plot = count.plot,
+  units = 'mm',
+  width = 190,
+  height = 120
+)
+
+##---------------------------------------------------------------------------##
+##PLOT 10: SAM vs Timed count ####
+## Boxplot comparing average counts from historical SAM data and recent
+## time swim survey data as block x year
+
+# Load original SAM count data and adjusted/renamed site details 
+fis.sam.data <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
+                          detectDates = T)
+
+ts.site.sam.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+
+colnames(fis.sam.data) <- tolower(colnames(fis.sam.data))
+
+# Join original SAM count and site data to get final time swim survey site names 
+sam.dat <- fis.sam.data %>% 
+  filter(stat.block %in% c(16, 22, 23, 24, 27, 28)) %>% 
+  left_join(., ts.site.sam.dat %>% select(c(site.id, site)), by = c('site.id' = 'site.id')) %>% 
+  dplyr::rename(site.sam = site.y) %>%   
+  mutate(sampyear = year(date)) %>% 
+  filter(sampyear >= 2001) %>% 
+  dplyr::rename(sampdate = date,
+                blockno = stat.block,
+                ab.n = avg_count_per.10min,
+                diver = collector) %>% 
+  select(c(blockno, site.sam, diver, ab.n, sampyear)) %>% 
+  filter(!is.na(ab.n))
+
+# Quick plot examining counts by site in each block by year
+sam.dat %>% 
+  ggplot(aes(x = as.factor(blockno), y = ab.n))+
+  geom_jitter(aes(colour = sampyear), width = 0.2, size = 3)+
+  scale_color_gradientn(colours = rainbow(11))
+
+# Select latest time swim survey data from standardised data
+ts.dat <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>%
+  group_by(sampyear, blockno, site, diver) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  mutate(blockno = as.numeric(blockno))
+
+# Combine SAM and latest time swim survey data
+ts.sam.dat <- bind_rows(sam.dat, ts.dat) %>% 
+  mutate(site = if_else(!is.na(site), site, site.sam))
+
+# Create plot 
+ts.sam.count.plot <- ts.sam.dat %>%
+  filter(!blockno %in% c(13, 14, 29, 30)) %>% 
+  group_by(blockno, sampyear, site) %>% 
+  ggplot(aes(x = as.factor(blockno), y = ab.n, fill = as.factor(sampyear)))+
+  geom_boxplot(position = position_dodge2(preserve = "single"))+
+  theme_bw()+
+  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+  xlab('Blockno')+
+  geom_text(data = ts.sam.dat %>%
+              filter(!blockno %in% c(13, 14, 29, 30)) %>%
+              group_by(blockno, sampyear) %>% 
+              summarise(n = n_distinct(site), lab.pos = max(ab.n) + 1),
+            aes(y = lab.pos, label = paste0(n, '\n')),
+            position = position_dodge2(width = 0.75, preserve = 'single'),
+            size = 2)+
+  labs(fill = 'Year')+
+  scale_fill_viridis(discrete = TRUE)
+
+# Save plot
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.pdf', sep = ''), 
+       plot = ts.sam.count.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.png', sep = ''), 
+       plot = ts.sam.count.plot, units = 'mm', width = 190, height = 120)
+
+
+##---------------------------------------------------------------------------##
+## PLOT 11: TIMED VS HISTORIC ####
+## compare average timed swim counts with available historical count data at SAM 
+## research sites and the rating score used to select timed swim sites from GPS logger data
+
+## average count vs cpue rating score
+time.swim.dat.vs.cpue.plot <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate < as.Date('2022-01-01')) %>% 
+  group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(site, legal.size, cell.ntile, sam.count) %>% 
+  summarise(mean.ab.n = mean(ab.n))%>% 
+  filter(!is.na(cell.ntile)) %>%  
+  ggplot(aes(x = cell.ntile, y = mean.ab.n, colour = legal.size))+
+  geom_point(size = 3)+
+  scale_colour_manual(values = c("#999999", "#56B4E9"))+
+  theme_bw()+
+  ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+  xlab('HexCell Rank')+
+  ylim(0, 150)+
+  # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+  theme(legend.position = c(0.9, 0.9),
+        legend.title = element_blank())
+
+
+
+## average count vs historical SAM counts
+time.swim.dat.vs.sam.plot <- std.ts.dat %>%
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate < as.Date('2022-01-01')) %>% 
+  group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(site, legal.size, cell.ntile, sam.count) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  filter(!is.na(sam.count) &
+           sam.count <= 60) %>% #remove outlier from SAM data
+  ggplot(aes(x = sam.count, y = mean.ab.n, colour = legal.size))+
+  geom_point(size = 3)+
+  scale_colour_manual(values = c("#999999", "#56B4E9"))+
+  geom_smooth(method = 'lm', formula = y~x, se = F)+
+  stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+               parse = TRUE) +
+  theme_bw()+
+  ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+  xlab(bquote('SAM average count (abalone.10'*~min^-1*')'))+
+  ylim(0, 125)+
+  # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
+  theme(legend.position = c(0.9, 0.9),
+        legend.title = element_blank())
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE', '.pdf', sep = ''), 
+       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE', '.png', sep = ''), 
+       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsSAM', '.pdf', sep = ''), 
+       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsSAM', '.png', sep = ''), 
+       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+## PLOT 12: COUNT PER TEN MIN SIZECLASS ####
+## average count of all legal and sub-legal abalone per 10 min by sizeclass for each site within each blockno 
+## (i.e. the average between paired divers for each site)
+
+# determine mean count per 10 min by size class for each blockno
+ten.min.mean <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>% 
+  # filter(midsize < 150) %>% 
+  group_by(blockno, site, diver, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(blockno, legal.size) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  mutate(legal.size = factor(legal.size))
+
+ten.min.mean.site <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>% 
+  # filter(midsize < 150) %>% 
+  group_by(site, blockno, subblockno, diver, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(site, blockno, subblockno, legal.size) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  mutate(legal.size = factor(legal.size))%>% 
+  as.data.frame()
+
+count.plot.sizeclass <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>% 
+  # filter(midsize < 150) %>% 
+  group_by(blockno, site, diver, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(blockno, site, legal.size) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  mutate(legal.size = factor(legal.size)) %>% 
+  ggplot(aes(x = blockno, y = mean.ab.n))+
+  # geom_boxplot()+
+  geom_boxplot(aes(fill = legal.size), position = position_dodge(0.9))+
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  # stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 4, colour = 'red', fill = 'red')+
+  geom_point(data = ten.min.mean, aes(group = legal.size), shape = 19, size = 2, colour = 'red', fill = 'red', position = position_dodge(0.9))+
+  theme_bw()+
+  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+  xlab('Blockno')+
+  ylim(0, 125)+
+  geom_text(data = time.swim.dat.n, aes(y = 125, label = n), color = 'black', size = 3)+
+  theme(legend.position="none")
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountSizeClassPlot', '.pdf', sep = ''), 
+       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountSizeClassPlot', '.png', sep = ''), 
+       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+## PLOT 13: CPUE KG.HR ####
+## estimate CPUE in kg/hr for each block using length-weight relationships from commercial catch sampling 
+## to convert timed swim lengths to weight
+
+# load most recent commercial catch sampling compiled MM dataframe
+compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+# select length-weight data, removing obvious erroneous data or data collected from multiple blocks in a trip
+lw.dat <- compiledMM.df.final %>% 
+  filter(between(whole.weight, 200, 1500) & 
+           between(shell.length, sizelimit - 5, 220) & 
+           !(shell.length > 175 & whole.weight < 600), 
+         !(shell.length > 180 & whole.weight < 1000) &
+           numblocks == 1,
+         species == 1) 
+
+# calculate log of length and weight
+lw.dat.log <- lw.dat %>% 
+  mutate(log.sl = log(shell.length),
+         log.wt = log(whole.weight))
+
+# calculate regression coefficient summary table for each blockno
+lw.dat.coeff <- lw.dat.log %>%
+  nest(data = -blockno) %>% 
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>% 
+  select(c(blockno, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(-intercept)
+
+# determine sample size for each blockno and join to regression summaries
+lw.dat.n <- lw.dat.log %>% 
+  group_by(blockno) %>% 
+  summarise(n = n())
+
+lw.dat.coeff.blockno <- left_join(lw.dat.coeff, lw.dat.n)
+
+# select regression parameters to use for estimating weight
+# block 13 used across all blocks given no length-weight data has been collected from
+# the closed blocks since the re-commencement of commercial catch sampling in 2018. 
+lw.coeff <- lw.dat.coeff.blockno %>% 
+  filter(blockno == 13) %>% 
+  select(a, b) %>% 
+  mutate(join.id = 1)
+
+# join chosen regression parameters to timed swim data
+time.swim.dat.df.lw <- std.ts.dat %>% 
+  mutate(join.id = 1) %>% 
+  left_join(., lw.coeff)
+
+# saveRDS(time.swim.dat.df.lw, 'C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData_LW_2020-09-16.RDS')
+
+# estimate total weight of each sizeclass above 140 mm
+time.swim.dat.df.wt <- time.swim.dat.df.lw %>% 
+  filter(midsize >= 150) %>%
+  mutate(est.weight = ((a * (midsize ^ b)) * sizeclass_freq) / 1000)
+
+# quick summary of total kg estimate by block
+time.swim.dat.df.wt %>%
+  filter(!subblockno %in% c('28B', '28C')) %>%
+  dplyr::group_by(sampyear, blockno) %>% 
+  dplyr::summarise(total.kg = round(sum(est.weight), digits = 2)) %>% 
+  as.data.frame()
+
+# estimate CPUE for each site
+time.swim.cpue.site <- time.swim.dat.df.wt %>%
+  filter(!subblockno %in% c('28B', '28C')) %>%
+  dplyr::group_by(blockno, site, diver, sampyear) %>% 
+  dplyr::summarise(total.kg = round(sum(est.weight), digits = 2),
+                   est.kg.hr = round((total.kg / max(time.elapsed)) * 60, digits = 2)) %>%   
+  group_by(blockno, site, sampyear) %>% 
+  summarise(est.kg.hr = round(mean(est.kg.hr), digits = 2)) %>% 
+  as.data.frame()
+
+# estimate CPUE for each blockno
+time.swim.cpue.blockno <- time.swim.cpue.site %>%
+  group_by(blockno, sampyear) %>% 
+  summarise(est.kg.hr = round(mean(est.kg.hr), digits = 2)) %>% 
+  as.data.frame()
+
+# determine number of sites sampled for each blockno
+time.swim.cpue.n <- time.swim.cpue.site %>% 
+  group_by(blockno, sampyear) %>% 
+  summarise(n = n_distinct(site))
+
+# plot CPUE estimate for each blocnkno between years
+cpue.plot <- time.swim.cpue.site %>% 
+  ggplot(aes(x = blockno, y = est.kg.hr)) +
+  geom_boxplot(aes(fill = as.factor(sampyear)), position = position_dodge2(1, preserve = 'single'),
+               outlier.colour = '#EE8866') +
+  scale_fill_manual(values = c("#77AADD", "#BBCC33"))+
+  stat_summary(aes(group = as.factor(sampyear)), fun.y = mean, 
+               geom = 'point', shape = 19, size = 2, colour = 'red', fill = 'red',
+               position = position_dodge2(0.8))+
+  theme_bw() +
+  ylim(0, 200)+
+  ylab(bquote('Estimated CPUE ('*~kg.hr^-1*')'))+
+  xlab('Blockno')+
+  geom_text(data = time.swim.cpue.n, aes(y = 200, label = n, 
+                                         colour = factor(sampyear, levels = c('2020', '2021'))), size = 3, position = position_dodge2(0.8))+
+  scale_colour_manual(values = c("#77AADD", "#BBCC33"))+
+  guides(size = 'legend', colour = 'none',
+         fill = guide_legend(title = 'Year'))
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.pdf', sep = ''), 
+       plot = cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.png', sep = ''), 
+       plot = cpue.plot, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+## PLOT 14: CPUE vs TS ####
+## plot timed swim average counts for legal and sub-leagl
+## against historical fishery CPUE for each site
+
+ts.vs.cpue.plot <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C'),
+         sampdate > as.Date('2021-01-01')) %>% 
+  group_by(site, diver, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
+  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+  group_by(site, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
+  summarise(mean.ab.n = mean(ab.n))%>%  
+  filter(!is.na(cell.ntile)) %>%
+  ggplot(aes(x = cpue.kg.hr, y = mean.ab.n))+
+  geom_point(aes(colour = cell.ntile), size = 3)+
+  geom_smooth(method = 'lm', formula = y~x, se = T)+
+  stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+               parse = TRUE, label.y = 0.95) +
+  theme_bw()+
+  xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+  ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+  labs(colour = 'Rank')+
+  ylim(0, 160)+
+  theme(legend.position = c(0.95, 0.85))+
+  facet_wrap(~legal.size, ncol = 2)+
+  theme(strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.pdf', sep = ''), 
+       plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.png', sep = ''), 
+       plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
+##---------------------------------------------------------------------------##
+        
+## TAB 1: SUMMARY ####
+## summary table of counts and CPUE by size class and block 
+## (NOTE: run script for CPUE above)
+
+# Arrange size classes in order
 sizeclasses <- c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", "120-140", "140-160", "160-180", "180-200", "200-220")
 
-time.swim.count.blockno <- time.swim.dat.final %>% 
+# Create summary table
+time.swim.count.blockno <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C'),
            sampdate > as.Date('2021-01-01')) %>% 
     group_by(blockno, site, diver, sampyear, legal.size, time.elapsed) %>% 
     summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(blockno, legal.size) %>% 
-    # summarise(ab.cpue = mean(ab.n))
+    group_by(blockno, legal.size) %>%
     summarise(sites = n_distinct(site),
               ab.min = round(mean(ab.n), digits = 2)) %>% 
     spread(legal.size, ab.min) %>%
@@ -1460,44 +1754,21 @@ time.swim.count.blockno <- time.swim.dat.final %>%
                   'Average\ncount\n>140mm' = '>140 mm') %>% 
     adorn_totals(fill = '',,,, contains('Sites'))
 
-# time.swim.summary <- left_join(time.swim.count.blockno, time.swim.cpue.blockno) %>% 
-#         dplyr::rename('Blockno' = blockno,
-#                'Sites' = sites,
-#                'Average\ncount\n<140mm' = '<140 mm',
-#                'Average\ncount\n>140mm' = '>140 mm',
-#                'CPUE' = est.kg.hr) %>% 
-#         adorn_totals(fill = '',,,, contains('Sites'))
-
-# create formated summary tables for report layout
-
+# Create formatted summary table
 time.swim.summary.tab <- time.swim.count.blockno %>% 
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
-# time.swim.summary.tab <- time.swim.summary %>% 
-#         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
-
+# Save summary tables
 setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-# ggsave(filename = paste('TimedSwimSurvey_2020_SummaryTable', '.pdf', sep = ''), 
-#        plot = time.swim.summary.tab)
-# ggsave(filename = paste('TimedSwimSurvey_2020_SummaryTable', '.png', sep = ''), 
-#        plot = time.swim.summary.tab)
-
 write.xlsx(time.swim.count.blockno, 'TimedSwimSurvey_2021_SummaryTable.xlsx', sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
-
 ggsave(filename = paste('TimedSwimSurvey_2021_SummaryTable', '.pdf', sep = ''), 
        plot = time.swim.summary.tab, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2021_SummaryTable', '.png', sep = ''), 
        plot = time.swim.summary.tab, units = 'mm', width = 190, height = 120)
-
-df.1 <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>%
-        group_by(site, diver) %>% 
-        summarise(ab.measured = sum(sizeclass_freq))
-
 ##---------------------------------------------------------------------------##
-## MAP 3: Site Count ####
-## average Count by site - possibly explore KUDs
+## MAP 1: Site Count x size ####
+## Average Count by site - possibly explore KUDs
 
 sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
 sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
@@ -1517,14 +1788,14 @@ sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 # join CPUE data to site location data
 
 # identify unique sites sampled from timed swim dataframe and join to renamed site file
-time.swim.sites <- time.swim.dat.final %>%
+time.swim.sites <- std.ts.dat %>%
     filter(sampdate > as.Date('2021-01-01')) %>%
         distinct(site, .keep_all = T) %>% 
         select(c(site, blockno, subblockno, sampdate, actual.geom)) %>% 
         st_as_sf() %>% 
         st_set_crs(GDA2020)
 
-ten.min.mean.site <- time.swim.dat.final %>% 
+ten.min.mean.site <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C'),
            sampdate > as.Date('2021-01-01')) %>%
     group_by(site, blockno, subblockno, diver, legal.size) %>% 
@@ -1546,72 +1817,26 @@ blocks.sampled <- unique(time.swim.count.site.loc$blockno)
 # identify sites not surveyed but proposed
 ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
 
-# not.surveyed.df <- site.samp.subblock.loc %>% 
-#         filter(sampyear == 2021,
-#                sampled == '0')
-
+# identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
   filter(sampyear == 2021,
          sampled == '0')
 
-# create maps
-
-for (i in blocks.sampled){
-        
-        # filter for blockno and legal counts
-        count.site.dat <- time.swim.count.site.loc %>% 
-                filter(blockno == i &
-                               legal.size == '>140 mm') %>% 
-                st_as_sf
-        
-        # filter subblock map for blockno
-        sf.subblock.map.crop <- sf.subblock.map %>%
-                filter(blockno == i &
-                               !subblockno %in% c('28B', '28C'))  %>% 
-                st_as_sf() 
-        
-        # filter proposed sites not surveyed
-        sites.not.surveyed <- not.surveyed.df %>% 
-                filter(blockno == i)
-        
-        # crop tas map to blockno
-        sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
-        
-        count.site.map <- ggplot(data = st_geometry(sf.tas.map.crop)) +
-                geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
-                geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
-                geom_sf(fill = 'grey') +
-                geom_sf(data = sites.not.surveyed, shape = 17, size = 2, colour = 'red')+
-                geom_sf(data = count.site.dat, aes(fill = mean.ab.n), shape = 21, size = 2)+
-                scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
-                theme_bw() +
-                annotation_scale(location = "bl", width_hint = 0.5) +
-                annotation_north_arrow(location = "br", which_north = "true", 
-                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
-                                       style = north_arrow_fancy_orienteering)+
-                labs(fill = (bquote('Average\ncount')))+
-                xlab('Longitude')+
-                ylab('Latitude')
-        
-        setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-        ggsave(filename = paste('TimedSwimSurvey_2021_Site_LegalCount_BlockNo_', i, '.pdf', sep = ''),
-               plot = count.site.map, units = 'mm', width = 190, height = 250)
-        ggsave(filename = paste('TimedSwimSurvey_2021_Site_LegalCount_BlockNo_', i, '.png', sep = ''),
-               plot = count.site.map, units = 'mm', width = 190, height = 150)
-        
-}
+# create plot
 
 for (i in blocks.sampled){
         
         # filter for blockno and sub-legal counts
         count.site.dat.non.legal <- time.swim.count.site.loc %>% 
                 filter(blockno == i &
-                               legal.size == '<140 mm') %>% 
+                               legal.size == '<140 mm',
+                       !subblockno %in% c('28B', '28C')) %>% 
                 st_as_sf
         
         count.site.dat.legal <- time.swim.count.site.loc %>% 
                 filter(blockno == i &
-                               legal.size == '>140 mm') %>% 
+                               legal.size == '>140 mm',
+                       !subblockno %in% c('28B', '28C')) %>% 
                 st_as_sf
         
         # filter subblock map for blockno
@@ -1622,7 +1847,8 @@ for (i in blocks.sampled){
         
         # filter proposed sites not surveyed
         sites.not.surveyed <- not.surveyed.df %>% 
-                filter(blockno == i)
+                filter(blockno == i,
+                       !subblockno %in% c('28B', '28C'))
         
         # crop tas map to blockno
         sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
@@ -1633,7 +1859,10 @@ for (i in blocks.sampled){
                 geom_sf(fill = 'grey') +
                 geom_sf(data = sites.not.surveyed, shape = 5, size = 0.8, colour = 'red')+
                 geom_sf(data = count.site.dat.non.legal, aes(fill = mean.ab.n), shape = 21, size = 2)+
-                scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
+                scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                                     limits = c(0, 125),
+                                     breaks = c(0, 50, 100),
+                                     labels = c(0, 50, 100))+
                 theme_bw() +
                 annotation_scale(location = "bl", width_hint = 0.5) +
                 annotation_north_arrow(location = "br", which_north = "true", 
@@ -1650,7 +1879,10 @@ for (i in blocks.sampled){
                 geom_sf(fill = 'grey') +
                 geom_sf(data = sites.not.surveyed, shape = 5, size = 0.8, colour = 'red')+
                 geom_sf(data = count.site.dat.legal, aes(fill = mean.ab.n), shape = 21, size = 2)+
-                scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
+                scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                                     limits = c(0, 125),
+                                     breaks = c(0, 50, 100),
+                                     labels = c(0, 50, 100))+
                 theme_bw() +
                 annotation_scale(location = "bl", width_hint = 0.5) +
                 annotation_north_arrow(location = "br", which_north = "true", 
@@ -1661,16 +1893,25 @@ for (i in blocks.sampled){
                 scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
                 ylab('Latitude')
         
-        count.site.map <- grid.arrange(
-                arrangeGrob(cowplot::plot_grid(count.site.map.non.legal, count.site.map.legal, align = 'v',
-                                               ncol = 1, nrow = 2), ncol = 1))
+        # extract common legend from maps
+        plot.legend <- get_legend(count.site.map.non.legal)  
         
-        # count.site.map <- ifelse(i != '16', grid.arrange(
-        #         arrangeGrob(cowplot::plot_grid(count.site.map.non.legal, count.site.map.legal, align = 'v',
-        #                                        ncol = 1, nrow = 2), ncol = 2)),
-        #         grid.arrange(
-        #                 arrangeGrob(cowplot::plot_grid(count.site.map.non.legal, count.site.map.legal, align = 'v',
-        #                                                ncol = 2, nrow = 1), ncol = 1)))
+        # remove legend from non legal map
+        no.legend.non.legal <- count.site.map.non.legal +
+          theme(legend.position = "none")
+        
+        # remove legend from 2021 map
+        no.legend.legal <- count.site.map.legal +
+          theme(legend.position = "none")
+        
+        # combine plots with common legend (adjusting layout for blocks)
+        if(!i %in% c('16', '27')){ 
+          count.site.map <- grid.arrange(arrangeGrob(no.legend.non.legal, no.legend.legal), plot.legend, 
+                                         ncol = 2, widths = c(2.5, 0.8))
+        } else{
+          count.site.map <- grid.arrange(no.legend.non.legal, no.legend.legal, plot.legend, 
+                                         ncol = 3, widths = c(2.5, 2.5, 0.8))
+        }
 
         setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
         ggsave(filename = paste('TimedSwimSurvey_2021_SiteCountMap_BlockNo_', i, '.pdf', sep = ''),
@@ -1681,8 +1922,8 @@ for (i in blocks.sampled){
 }
 
 ##---------------------------------------------------------------------------##
-## MAP 4: Site CPUE ####
-## average CPUE by site
+## MAP 2: Site Count x year ####
+## Average Count by site between years
 
 sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
 sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
@@ -1695,393 +1936,432 @@ GDA94 <- st_crs(28355)
 WGS84 <- st_crs(4326)
 
 sf.tas.map <- sf.tas.map %>% 
-        st_set_crs(GDA2020)
+  st_set_crs(GDA2020)
 
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 
 # join CPUE data to site location data
 
 # identify unique sites sampled from timed swim dataframe and join to renamed site file
-time.swim.sites <- time.swim.dat.final %>% 
-        distinct(site, .keep_all = T) %>% 
-        select(c(site, blockno, subblockno, sampdate, actual.geom)) %>% 
-        st_as_sf() %>% 
-        st_set_crs(GDA2020)
+time.swim.sites <- std.ts.dat %>%
+  # filter(sampdate > as.Date('2021-01-01')) %>%
+  distinct(site, sampyear, .keep_all = T) %>% 
+  select(c(site, blockno, subblockno, sampdate, actual.geom, sampyear)) %>% 
+  st_as_sf() %>% 
+  st_set_crs(GDA2020)
 
-# # transform to GDA2020
-# time.swim.sites <- st_transform(time.swim.sites, GDA2020)
+ten.min.mean.site <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>% 
+  group_by(site, blockno, subblockno, diver, sampyear) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(site, blockno, subblockno, sampyear) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  # mutate(sampyear = factor(sampyear))%>% 
+  as.data.frame()
 
-time.swim.cpue.site.loc <- left_join(time.swim.cpue.site, time.swim.sites) %>% 
-        st_as_sf() 
+time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>% 
+  st_as_sf()
 
 # identify blocks sampled
-blocks.sampled <- unique(time.swim.cpue.site.loc$blockno)
+blocks.sampled <- time.swim.count.site.loc %>% 
+  as.data.frame() %>% 
+  filter(sampyear == 2020) %>% 
+  distinct(blockno) %>% 
+  pull()
 
-# create maps
+# identify sites not surveyed but proposed
+ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+
+# identify proposed sites not surveyed
+not.surveyed.df <- ts.proposed.geom %>% 
+  filter(sampled == '0')
+
+# create plot
 
 for (i in blocks.sampled){
+  
+  # filter for blockno and sub-legal counts
+  count.site.dat.2020 <- time.swim.count.site.loc %>% 
+    filter(blockno == i &
+             sampyear == 2020) %>% 
+    st_as_sf
+  
+  count.site.dat.2021 <- time.swim.count.site.loc %>% 
+    filter(blockno == i &
+             sampyear == 2021) %>% 
+    st_as_sf
+  
+  # filter subblock map for blockno
+  sf.subblock.map.crop <- sf.subblock.map %>%
+    filter(blockno == i &
+             !subblockno %in% c('28B', '28C'))  %>% 
+    st_as_sf() 
+  
+  # filter proposed sites not surveyed
+  sites.not.surveyed.2020 <- not.surveyed.df %>% 
+    filter(blockno == i &
+             sampyear == 2020 &
+             !subblockno %in% c('28B', '28C'))
+  
+  sites.not.surveyed.2021 <- not.surveyed.df %>% 
+    filter(blockno == i &
+             sampyear == 2021 &
+             !subblockno %in% c('28B', '28C'))
+  
+  # crop tas map to blockno
+  sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
+  
+  # crop tas and subblock map to spatial extent of all sites with a 1 km buffer
+  df.1 <- bind_rows(count.site.dat.2020, count.site.dat.2021) %>% 
+    st_buffer(dist = 1000)
+  sf.tas.map.crop <- st_crop(sf.tas.map, df.1)
+  sf.subblock.map.crop <- st_crop(st_make_valid(sf.subblock.map), df.1)
+  
+  # ggplot(data = st_geometry(df.2))+
+  #   geom_sf(data = df.3, aes(label = subblockno), fill = NA)+
+  #   geom_sf_text(data = df.3, aes(label = subblockno))
+  
+  # create map for 2020
+  count.site.map.2020 <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2020, aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 200),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2020', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
+  
+  # create map for 2021
+  count.site.map.2021 <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2021, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2021, aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 200),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2021', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
 
-# filter for blockno and remove really high CPUE
-cpue.site.dat <- time.swim.cpue.site.loc %>% 
-        filter(blockno == i &
-                       est.kg.hr < 200) %>% 
-        st_as_sf
+  # extract common legend from maps
+plot.legend <- get_legend(count.site.map.2020)  
 
-# filter subblock map for blockno
-sf.subblock.map.crop <- sf.subblock.map %>% 
-        filter(blockno == i &
-                       !subblockno %in% c('28B', '28C')) %>% 
-        st_as_sf() 
+# remove legend from 2020 map
+no.legend.2020 <- count.site.map.2020 +
+  theme(legend.position = "none")
 
-# crop tas map to blockno
-sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
+# remove legend from 2021 map
+no.legend.2021 <- count.site.map.2021 +
+  theme(legend.position = "none")
 
-cpue.site.map <- ggplot(data = st_geometry(sf.tas.map.crop)) +
-        geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
-        geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
-        geom_sf(fill = 'grey') +
-        geom_sf(data = cpue.site.dat, aes(fill = est.kg.hr), shape = 21, size = 2)+
-        scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"))+
-        theme_bw() +
-        annotation_scale(location = "bl", width_hint = 0.5) +
-        annotation_north_arrow(location = "br", which_north = "true", 
-                               pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
-                               style = north_arrow_fancy_orienteering)+
-        labs(fill = 'Kg/Hr')+
-        xlab('Longitude')+
-        ylab('Latitude')
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-ggsave(filename = paste('TimedSwimSurvey_2020_Site_CPUE_BlockNo_', i, '.pdf', sep = ''),
-       plot = cpue.site.map, units = 'mm', width = 190, height = 250)
-ggsave(filename = paste('TimedSwimSurvey_2020_Site_CPUE_BlockNo_', i, '.png', sep = ''),
-       plot = cpue.site.map, units = 'mm', width = 190, height = 150)
-
+# combine plots with common legend (adjusting layout for blocks)
+if(i != '16'){ 
+  count.site.map <- grid.arrange(no.legend.2020, no.legend.2021, plot.legend, 
+                                 ncol = 3, widths = c(2.5, 2.5, 0.8))
+  # count.site.map <- grid.arrange(arrangeGrob(no.legend.2020, no.legend.2021), plot.legend, 
+  #                              ncol = 2, widths = c(2.5, 0.8))
+} else{
+  count.site.map <- grid.arrange(no.legend.2020, no.legend.2021, plot.legend, 
+                               ncol = 3, widths = c(2.5, 2.5, 0.8))
+}
+  # save plot
+  setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+  ggsave(filename = paste('TimedSwimSurvey_2021_SiteCountMap2020vs2021_BlockNo_', i, '.pdf', sep = ''),
+         plot = count.site.map, units = 'mm', width = 250, height = 250)
+  ggsave(filename = paste('TimedSwimSurvey_2021_SiteCountMap2020vs2021_BlockNo_', i, '.png', sep = ''),
+         plot = count.site.map, units = 'mm', width = 250, height = 250)
+  
 }
 
 ##---------------------------------------------------------------------------##
+## MAP 3: Site Count x year x size class ####
+## Average Count by site between years
 
-# ## create chlorpleth map of count for each block (i.e. interpolate CPUE)
-sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
-sf.tas.map.crop.inverse <- st_difference(sf.subblock.map.crop, sf.tas.map.crop)
+sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
 
-# convert maps to sp
-sp.tas.map.crop <- as_Spatial(sf.tas.map.crop)
-sp.count.site.dat <- as_Spatial(count.site.dat)
-sp.tas.map.crop.inverse <- as_Spatial(sf.tas.map.crop.inverse)
+# transform maps to GDA2020
 
-# grid (1 ha side = 402.0673 m ?)
-idw_grid <- st_make_grid(time.swim.cpue.site.loc, cellsize = 402.0673, square = FALSE)
+# set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
 
-idw_grid <- st_make_grid(sf.tas.map.crop, cellsize = 402.0673, square = FALSE)
+sf.tas.map <- sf.tas.map %>% 
+  st_set_crs(GDA2020)
 
-idw_grid <- st_make_grid(sf.tas.map.crop, cellsize = 402.0673, square = FALSE)
+sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 
-idw_grid <- st_make_grid(sf.tas.map.crop.inverse, cellsize = 402.0673, square = FALSE)
+# join CPUE data to site location data
+
+# identify unique sites sampled from timed swim dataframe and join to renamed site file
+time.swim.sites <- std.ts.dat %>%
+  # filter(sampdate > as.Date('2021-01-01')) %>%
+  distinct(site, sampyear, .keep_all = T) %>% 
+  select(c(site, blockno, subblockno, sampdate, actual.geom, sampyear)) %>% 
+  st_as_sf() %>% 
+  st_set_crs(GDA2020)
+
+ten.min.mean.site <- std.ts.dat %>% 
+  filter(!subblockno %in% c('28B', '28C')) %>% 
+  group_by(site, blockno, subblockno, diver, sampyear, legal.size) %>% 
+  summarise(ab.n = sum(sizeclass_freq)) %>% 
+  group_by(site, blockno, subblockno, sampyear, legal.size) %>% 
+  summarise(mean.ab.n = mean(ab.n)) %>% 
+  # mutate(sampyear = factor(sampyear))%>% 
+  as.data.frame()
 
 
-coast_buffer <- sf.tas.map.crop %>% 
-        st_buffer(dist = units::set_units(500, m))
+time.swim.count.site.loc <- left_join(df.5, time.swim.sites) %>% 
+  st_as_sf()
 
-ggplot(data = sf.tas.map.crop)+
-        geom_sf()+
-        geom_sf(data = coast_buffer, fill = NA)
+# identify blocks sampled
+blocks.sampled <- time.swim.count.site.loc %>% 
+  as.data.frame() %>% 
+  filter(sampyear == 2020) %>% 
+  distinct(blockno) %>% 
+  pull()
 
+# identify sites not surveyed but proposed
+ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
 
+# identify proposed sites not surveyed
+not.surveyed.df <- ts.proposed.geom %>% 
+  filter(sampled == '0')
 
-# idw
-P_idw_hex <- gstat::idw(mean.ab.n ~ 1, sp.count.site.dat, newdata = idw_grid, idp = 2)
+# create plot
 
-rslt_hex <- st_as_sf(P_idw_hex)
+for (i in blocks.sampled){
+  
+  # filter for blockno and sub-legal counts
+  count.site.dat.2020 <- time.swim.count.site.loc %>% 
+    filter(blockno == i &
+             sampyear == 2020) %>% 
+    st_as_sf
+  
+  count.site.dat.2021 <- time.swim.count.site.loc %>% 
+    filter(blockno == i &
+             sampyear == 2021) %>% 
+    st_as_sf
+  
+  # filter subblock map for blockno
+  sf.subblock.map.crop <- sf.subblock.map %>%
+    filter(blockno == i &
+             !subblockno %in% c('28B', '28C'))  %>% 
+    st_as_sf() 
+  
+  # filter proposed sites not surveyed
+  sites.not.surveyed.2020 <- not.surveyed.df %>% 
+    filter(blockno == i &
+             sampyear == 2020 &
+             !subblockno %in% c('28B', '28C'))
+  
+  sites.not.surveyed.2021 <- not.surveyed.df %>% 
+    filter(blockno == i &
+             sampyear == 2021 &
+             !subblockno %in% c('28B', '28C'))
+  
+  # crop tas map to blockno
+  sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
+  
+  # crop tas and subblock map to spatial extent of all sites with a 1 km buffer
+  df.1 <- bind_rows(count.site.dat.2020, count.site.dat.2021) %>% 
+    st_buffer(dist = 1000)
+  sf.tas.map.crop <- st_crop(sf.tas.map, df.1)
+  sf.subblock.map.crop <- st_crop(st_make_valid(sf.subblock.map), df.1)
+  
+  # ggplot(data = st_geometry(df.2))+
+  #   geom_sf(data = df.3, aes(label = subblockno), fill = NA)+
+  #   geom_sf_text(data = df.3, aes(label = subblockno))
+  
+  # create map for 2020
+  count.site.map.2020.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2020 %>% filter(legal.size == '<140 mm'), aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 150),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2020 Sub-legal <140 mm', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
+  
+  count.site.map.2020.legal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2020 %>% filter(legal.size == '>140 mm'), aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 150),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2020 Legal >140 mm', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
+  
+  # create map for 2021
+  count.site.map.2021.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2021, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2021 %>% filter(legal.size == '<140 mm'), aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 150),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2021 Sub-legal <140 mm', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
+  
+  count.site.map.2021.legal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+    geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+    geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+    geom_sf(fill = 'grey') +
+    geom_sf(data = sites.not.surveyed.2021, shape = 5, size = 0.8, colour = 'red')+
+    geom_sf(data = count.site.dat.2021 %>% filter(legal.size == '>140 mm'), aes(fill = mean.ab.n), shape = 21, size = 2)+
+    scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                         limits = c(0, 150),
+                         breaks = c(0, 50, 100, 150),
+                         labels = c(0, 50, 100, 150))+
+    theme_bw() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "br", which_north = "true", 
+                           pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                           style = north_arrow_fancy_orienteering)+
+    labs(title = '2021 Legal >140 mm', fill = (bquote('Average\ncount')))+
+    xlab('Longitude')+
+    scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+    ylab('Latitude')
+  
+  # extract common legend from maps
+  plot.legend <- get_legend(count.site.map.2020.sublegal)  
+  
+  # remove legend from 2020 map
+  no.legend.2020 <- count.site.map.2020.sublegal +
+    theme(legend.position = "none")
+  
+  no.legend.2020.legal <- count.site.map.2020.legal +
+    theme(legend.position = "none")
+  
+  # remove legend from 2021 map
+  no.legend.2021 <- count.site.map.2021.sublegal +
+    theme(legend.position = "none")
+  
+  no.legend.2021.legal <- count.site.map.2021.legal +
+    theme(legend.position = "none")
+  
+  # combine plots with common legend (adjusting layout for blocks)
+  count.site.map <- grid.arrange(no.legend.2020, no.legend.2021, plot.legend,
+                                 no.legend.2020.legal, no.legend.2021.legal, 
+                                   ncol = 3, nrow = 2, widths = c(2.5, 2.5, 0.8))
 
-ggplot(data = st_geometry(sf.tas.map.crop)) +
-        geom_sf(data = rslt_hex, aes(fill = var1.pred), col = "grey60", size = 0.1) +
-        scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red")) +
-        # scale_fill_viridis_c()+
-        # geom_sf(data = df.1) +
-        geom_sf() +
-        # geom_sf(data = df.1) +
-        # scale_colour_viridis_c(option = "viridis") +
-        theme_bw() +
-        annotation_scale(location = "bl", width_hint = 0.5) +
-        annotation_north_arrow(location = "br", which_north = "true", 
-                               pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
-                               style = north_arrow_fancy_orienteering)+
-        labs(fill = 'Kg/Hr')+
-        xlab('Longitude')+
-        ylab('Latitude')
+  # save plot
+  setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+  ggsave(filename = paste('TimedSwimSurvey_2021_SiteCountMap2020vs2021_BlockNo_', i, '.pdf', sep = ''),
+         plot = count.site.map, units = 'mm', width = 250, height = 300)
+  ggsave(filename = paste('TimedSwimSurvey_2021_SiteCountMap2020vs2021_BlockNo_', i, '.png', sep = ''),
+         plot = count.site.map, units = 'mm', width = 250, height = 300)
+  
+}
+
 
 ##---------------------------------------------------------------------------##
-## re-order FIS reference sites data for for sequential site names running south to north (i.e. clockwise)
-# read original site data
-fis.site.ref <- st_read("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwim_Block13_14_300m_2.gpkg")
-fis.site.ref.names <- read.xlsx("C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_ReferenceSiteNames_ordered.xlsx",
-                                detectDates = T)
+## 2021 site selection ####
 
-fis.site.ref.df <- fis.site.ref.names %>% 
-        mutate(oid = as.character(oid)) %>% 
-                       left_join(fis.site.ref, .) %>% 
-        dplyr::rename('name' = site) %>% 
-        select(c(name, geom))
+# Randomly select 15 sites from each block to keep as reference sites for 2021 survey and
+# beyond. Determine hexcell IDs to filter from random generation of new sites from
+# GPS logger data in 2021.
 
-# transform to GDA2020
-# fis.site.ref.df <- st_transform(fis.site.ref.df, WGS84) %>% 
-#         as_Spatial() %>% 
-#         as.data.frame() %>% 
-#         dplyr::rename('latitude' = coords.x2,
-#                       'longitude' = coords.x1)
+set.seed(123) 
+sites.2020.keep <- time.swim.dat.final %>%
+        filter(sampyear == 2020,
+               !subblockno %in% c('28B', '28C')) %>% 
+        group_by(blockno) %>% 
+        distinct(site, .keep_all = T) %>% 
+        sample_n(15) %>% 
+        select(-proposed.geom) %>% 
+        st_as_sf()
 
-fis.site.ref.df <- st_transform(fis.site.ref.df, WGS84)
+# save GIS spatial layer
+# st_write(sites.2020.keep,
+#          dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg",
+#          layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
 
-st_write(fis.site.ref.df, 
-         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TimedSwimReferenceSites.gpkg", 
-         layer = "fis.site.ref.df", driver = "GPKG", overwrite = T, delete_dsn = T)
+# NOTE: set.seed wasn't used when generating the selection of reference sites from 2020 to use in 2021.
+# Therefore the resulting output gpkg file above has been re-imported to identify those reference sites
+# and stored as an RDS for future reference.
 
-st_write(fis.site.ref.df, 
-         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TimedSwimReferenceSites.kml", 
-         layer = "fis.site.ref.df", driver = "kml", overwrite = T, delete_dsn = T)
+sites.2020.kept.sf <- st_read("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg")
 
-##---------------------------------------------------------------------------##
-##PLOT 5: Historic SAM vs Timed count ####
+# convert to data frame
+sites.2020.kept.df <- sites.2020.kept.sf %>%
+  sfheaders::sf_to_df(fill = T)
 
-# load original sam site details and count data
-fis.sam.data <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
-                               detectDates = T)
+# save file
+saveRDS(sites.2020.kept.df, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+sites.2020.kept.df <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
 
-colnames(fis.sam.data) <- tolower(colnames(fis.sam.data))
+# create vector of oid to be sampled in 2021 from 2020 sites sampled
+# Note: 12 of the reference sites are SAM historical research sites (i.e. n = 78) 
+sites.2020.keep <- sites.2020.kept.df
+sites.2020.keep.oid <- sites.2020.keep %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
 
-# join original and 2020 sam survey site data 
-
-df.1 <- fis.sam.data %>% 
-        filter(stat.block %in% c(16, 22, 23, 24, 27, 28)) %>% 
-        left_join(., fis.site.sam.data %>% select(c(SAM_Id, name)), by = c('sam_id' = 'SAM_Id')) %>%
-        dplyr::rename(site.sam = site,
-                      site = name) %>% 
-        mutate(sampyear = year(date)) %>% 
-        filter(sampyear >= 2001) %>% 
-        dplyr::rename(sampdate = date,
-                      blockno = stat.block,
-                      ab.n = avg_count_per.10min,
-                      diver = collector) %>% 
-        select(c(blockno, site, site.sam, diver, ab.n, sampyear)) %>% 
-        filter(!is.na(ab.n))
-
-df.1 %>% 
-        ggplot(aes(x = as.factor(blockno), y = ab.n))+
-        geom_jitter(aes(colour = sampyear), width = 0.2, size = 3)+
-        scale_color_gradientn(colours = rainbow(11))
-
-
-df.2 <- time.swim.dat.final %>% 
+# create vector of all oid sampled in 2020 to filter from 2021 random site selection
+sites.2020.oid <- time.swim.dat.final %>%
         filter(!subblockno %in% c('28B', '28C'),
-               sampdate < as.Date('2021-01-01')) %>%
-        group_by(blockno, site, diver) %>% 
-        summarise(ab.n = sum(sizeclass_freq)) %>% 
-        mutate(sampyear = 2020,
-               blockno = as.numeric(blockno))
+               sampdate < as_date('2021-01-01')) %>% 
+        group_by(blockno) %>% 
+        distinct(site, .keep_all = T) %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
 
-df.3 <- bind_rows(df.1, df.2) %>% 
-        mutate(site = if_else(!is.na(site), site, site.sam))
-
-hist.count.plot <- df.3 %>%
-        group_by(blockno, sampyear, site) %>% 
-        # summarise(mean.ab.n = mean(ab.n)) %>% 
-        ggplot(aes(x = as.factor(blockno), y = ab.n, fill = as.factor(sampyear)))+
-        geom_boxplot(position = position_dodge2(preserve = "single"))+
-        theme_bw()+
-        ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
-        xlab('Blockno')+
-        geom_text(data = df.3 %>% 
-                          group_by(blockno, sampyear) %>% 
-                          summarise(n = n_distinct(site), lab.pos = max(ab.n) + 1),
-                  aes(y = lab.pos, label = paste0(n, '\n')),
-                  position = position_dodge2(width = 0.75, preserve = 'single'),
-                  size = 2)+
-        labs(fill = 'Year')+
-        scale_fill_viridis(discrete = TRUE)
-
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.pdf', sep = ''), 
-       plot = hist.count.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.png', sep = ''), 
-       plot = hist.count.plot, units = 'mm', width = 190, height = 120)
-
-
-##---------------------------------------------------------------------------##
-
-## RANDOM STUFF ####
-
-# time.swim.dat %>%
-#         mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
-#         group_by(sizeclass, blockno) %>%
-#         summarise(n = sum(sizeclass_freq)) %>%
-#         spread(blockno, n) %>%
-#         as.data.frame()
-
-# # summary table of abalone/minute by block and size class
-# time.swim.dat %>%
-#         group_by(blockno, site, diver) %>%
-#         summarise(ab.measured = sum(sizeclass_freq),
-#                   swim.time = max(time.elapsed)) %>%
-#         mutate(ab.cpue = ab.measured / swim.time) %>%
-#         group_by(blockno) %>%
-#         summarise(sites = n_distinct(site),
-#                   ab.min = mean(ab.cpue),) %>%
-#         as.data.frame()
-time.swim.dat %>%
-        group_by(blockno, site, diver) %>%
-        summarise(ab.measured = sum(sizeclass_freq),
-                  swim.time = max(time.elapsed)) %>%
-        mutate(ab.cpue = ab.measured / swim.time) %>%
-        group_by(diver) %>%
-        summarise(ab.min = mean(ab.cpue))
-
-##---------------------------------------------------------------------------##
-## Summary statistics for survey times etc
-time.swim.dat.df.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
-        summarise(samp.days = n_distinct(sampdate),
-                  sites = n_distinct(site),
-                  sites.day = sites / samp.days)
-
-time.swim.dat.df.final %>% 
-        filter(!subblockno %in% c('28B', '28C')) %>%
-        group_by(sampdate) %>% 
-        summarise(divers = n_distinct(diver),
-                  start.time = min(starttime),
-                  end.time = max(finishtime),
-                  day.time = end.time - start.time) %>% 
-        mutate(divers.day = mean(divers),
-               av.day.time = mean(day.time)) %>% 
-        ungroup()
-        
-##---------------------------------------------------------------------------##        
-## PLOT 2: Diver bias 
-## Diver A vs Diver B comparison of sizeclass counts per site
-
-# create datafame of diver details and pairs
-diver.df <- data.frame('diver' = c('LT', 'SI', 'SL', 'JM', 'SL', 'SL', 'BD', 'NW', 'GP', 'PA', 'PA', 'AD'),
-                       'diver.id' = c(1, 2, 3, 4, 3, 3, 5, 6, 7, 8, 8, 9),
-                       'dive.pair.id' = c(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6),
-                       'dive.buddy.id' = c(1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2))
-
-# create plot labels for size classes
-sizeclasses <- c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", 
-                 "120-140", "140-160", "160-180", "180-200", "200-220")
-
-sizeclasses.2021 <- c("0-100", "100-120", 
-                 "120-140", "140-160", "160-180", "180-200", "200-220")
-
-# create dataframe to draw reference regresssion line
-ref.df <- data.frame('diver.a' = c(0, 10, 20, 30, 40),
-                     'diver.b' = c(0, 10, 20, 30, 40))
-
-# df.4 <- time.swim.dat.final %>% 
-#         left_join(diver.df) %>%
-#         spread(sizeclass, sizeclass_freq)
-
-# select data for diver pair of interest and diver A
-diver.a.df <- time.swim.dat.final %>% 
-        filter(sampdate > as.Date('2021-01-01')) %>%
-        left_join(diver.df) %>% 
-        filter(dive.pair.id == 4 & dive.buddy.id == 1) %>%
-        select(c(site, sizeclass.2021, sizeclass_freq, diver)) %>% 
-        dplyr::rename('diver.a' = sizeclass_freq)
-
-# select data for diver pair of interest and diver B
-diver.b.df <- time.swim.dat.final %>%
-        filter(sampdate > as.Date('2021-01-01')) %>%
-        left_join(diver.df) %>% 
-        filter(dive.pair.id == 4 & dive.buddy.id == 2) %>% 
-        select(c(site, sizeclass.2021, sizeclass_freq)) %>% 
-        dplyr::rename('diver.b' = sizeclass_freq)
-
-# join diver pair data
-diver.pair <- left_join(diver.b.df, diver.a.df)
-
-# create plot and label with diver pair
-JM_PA <- diver.pair %>% 
-        mutate(sizeclass = factor(sizeclass.2021, levels = sizeclasses.2021)) %>%
-        ggplot(aes(diver.a, diver.b))+
-        geom_point(aes(colour = factor(sizeclass.2021)), alpha = 1)+
-        scale_colour_viridis_d()+
-        geom_smooth(method='lm')+
-        stat_poly_eq(formula = y~x, 
-                     aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
-                     parse = TRUE) +
-        geom_line(data = ref.df, aes(diver.a, diver.b), 
-                  linetype = 'dashed', colour = 'blue', size = 1)+
-        coord_cartesian(xlim = c(0, 40), ylim = c(0, 40))+
-        xlab(paste('Diver A', 'count'))+
-        ylab(paste('Diver B', 'count'))+
-        labs(colour = 'Size class (mm)')+
-        theme_bw()+
-        guides(colour = guide_legend(ncol=2))
-
-# extract common legend from one of the diver pair plots
-leg <- get_legend(LT_BD)
-
-# reformat plots by removing the legend
-LT_BD_leg <- LT_BD +
-        theme(legend.position = "none")
-# NW_SI_leg <- SI_NW +
-#         theme(legend.position = "none")
-# SL_GP_leg <- SL_GP +
-#         theme(legend.position = "none")
-SL_AD_leg <- SL_AD +
-    theme(legend.position = "none")
-SL_PA_leg <- SL_PA +
-    theme(legend.position = "none")
-JM_PA_leg <- JM_PA +
-    theme(legend.position = "none")
-
-#arrange plots on the same page and add common legend in blank facet
-# diver.bias.plot <- ggarrange(LT_BD_leg, NW_SI_leg, SL_GP_leg, leg, labels = c('A', 'B', 'C'))
-diver.bias.plot <- ggarrange(LT_BD_leg, JM_PA_leg, SL_PA_leg, SL_AD_leg, leg, 
-                             labels = c('A', 'B', 'C', 'D'))
-
-
-# note: A = LT + BD, B = NW + SI, c = GP + SL
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2021_DiverBiasPlot', '.pdf', sep = ''), 
-       plot = diver.bias.plot, units = 'mm', width = 250, height = 190)
-ggsave(filename = paste('TimedSwimSurvey_2021_DiverBiasPlot', '.png', sep = ''), 
-       plot = diver.bias.plot, units = 'mm', width = 250, height = 190)
-
-##---------------------------------------------------------------------------##
-df.1 <- time.swim.dat.final %>%
-        left_join(diver.df, by = 'diver') %>%
-        # mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
-        filter(diver.id) %>% 
-        select(c(site, sizeclass, sizeclass_freq)) %>%
-        dplyr::rename('DIVER A' = sizeclass_freq)
-
-df.2 <- time.swim.dat %>% 
-        mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
-        filter(diver %in% c(diver.b)) %>% 
-        select(c(site, sizeclass, sizeclass_freq)) %>%
-        dplyr::rename('DIVER B' = sizeclass_freq)
-
-df.3 <- left_join(df.1, df.2)
-
-LT_BD <- df.3 %>% 
-        mutate(sizeclass = factor(sizeclass, levels = sizeclasses)) %>%
-        ggplot(aes(`DIVER A`, `DIVER B`))+
-        geom_point(aes(colour = factor(sizeclass)))+
-        geom_smooth(method='lm')+
-        coord_cartesian(xlim = c(0, 40), ylim = c(0, 40))+
-        xlab(paste(diver.a, 'abalone_count'))+
-        ylab(paste(diver.b, 'abalone_count'))+
-        labs(colour = 'Size class (mm)')+
-        theme_bw()
-
-grid.arrange(LT_BD, NW_SI, SL_GP, ncol = 1)
-
-catch <- 1905+11557+38908+119190+490208
-topthree<- 38908+119190+490208
-toptwo <- 119190+490208
 
 ##---------------------------------------------------------------------------##
 #Excel file of raw site data with gps positions
@@ -2091,50 +2371,50 @@ morana.gps <- st_read('C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFI
 
 # separate start positions
 df.start <- time.swim.meta.dat %>%
-        select(-c(waypoint.finish, finishtime)) %>% 
-        dplyr::rename('waypoint' = waypoint.start,
-                      'samptime' = starttime) %>% 
-        mutate(sampperiod = 'start')
+  select(-c(waypoint.finish, finishtime)) %>% 
+  dplyr::rename('waypoint' = waypoint.start,
+                'samptime' = starttime) %>% 
+  mutate(sampperiod = 'start')
 
 # separate finish positions
 df.finish <- time.swim.meta.dat %>%
-        select(-c(waypoint.start, starttime)) %>% 
-        dplyr::rename('waypoint' = waypoint.finish,
-                      'samptime' = finishtime) %>% 
-        mutate(sampperiod = 'finish')
+  select(-c(waypoint.start, starttime)) %>% 
+  dplyr::rename('waypoint' = waypoint.finish,
+                'samptime' = finishtime) %>% 
+  mutate(sampperiod = 'finish')
 
 # re-join start and finish positions  and remove non-sampled sites        
 df.start.finish <- bind_rows(time.swim.site.start, time.swim.site.finish) %>%
-        mutate(waypoint = if_else(waypoint < 100, as.character(paste(0, waypoint, sep = '')), as.character(waypoint))) %>%  
-        # select(c(sampdate, samptime, sampperiod, site, waypoint)) %>% 
-        filter(site != 'Betsey')
+  mutate(waypoint = if_else(waypoint < 100, as.character(paste(0, waypoint, sep = '')), as.character(waypoint))) %>%  
+  # select(c(sampdate, samptime, sampperiod, site, waypoint)) %>% 
+  filter(site != 'Betsey')
 
 # join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
 df.site.start.finish.mark <- df.start.finish %>% 
-        filter(is.na(waypoint) & sampperiod == 'start') %>% 
-        left_join(., morana.gps, by = c('site' = 'name')) %>% 
-        dplyr::rename('gpstime' = time,
-                      'site' = site)
-        # select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
+  filter(is.na(waypoint) & sampperiod == 'start') %>% 
+  left_join(., morana.gps, by = c('site' = 'name')) %>% 
+  dplyr::rename('gpstime' = time,
+                'site' = site)
+# select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
 
 # join geometry where waypoints were recorded 
 df.site.start.finish.wp <- df.start.finish %>% 
-        filter(!is.na(waypoint)) %>% 
-        left_join(., morana.gps, by = c('waypoint' = 'name')) %>% 
-        dplyr::rename('gpstime' = time,
-                      'site' = site) 
-        # select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
+  filter(!is.na(waypoint)) %>% 
+  left_join(., morana.gps, by = c('waypoint' = 'name')) %>% 
+  dplyr::rename('gpstime' = time,
+                'site' = site) 
+# select(c(sampdate, samptime, gpstime, sampperiod, site, waypoint, geometry))
 
 # re-join all waypoint data
 df.site.start.finish.loc <- bind_rows(df.site.start.finish.mark, df.site.start.finish.wp) %>% 
-        st_as_sf() %>%
-        mutate(lat = unlist(map(geometry,1)),
-                       long = unlist(map(geometry,2))) %>% 
-        select(c("sampdate", "site", "divers", "samptime", "waypoint",
-                 "habitat.type", "percent.algae.cover", "percent.urchins",
-                 "comments", "sampperiod", "sym", 'lat', 'long')) %>% 
-        as.data.frame() %>% 
-        select(-c('geometry'))
+  st_as_sf() %>%
+  mutate(lat = unlist(map(geometry,1)),
+         long = unlist(map(geometry,2))) %>% 
+  select(c("sampdate", "site", "divers", "samptime", "waypoint",
+           "habitat.type", "percent.algae.cover", "percent.urchins",
+           "comments", "sampperiod", "sym", 'lat', 'long')) %>% 
+  as.data.frame() %>% 
+  select(-c('geometry'))
 
 # transform to GDA2020
 # df.site.start.finish.loc <- st_transform(df.site.start.finish.loc, GDA2020) %>% 
@@ -2148,334 +2428,12 @@ write.xlsx(df.site.start.finish.loc,
            row.names = TRUE,
            append = FALSE)
 ##---------------------------------------------------------------------------##
-## 2021 site selection ####
 
-# determine hexcell IDs sampled for each block in 2020
-sites.2020.keep <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>% 
-        group_by(blockno) %>% 
-        distinct(site.new, .keep_all = T) %>% 
-        sample_n(15) %>% 
-        select(-proposed.geom) %>% 
-        st_as_sf()
-
-st_write(sites.2020.keep,
-         dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg",
-         layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
-
-# create vector of oid to be sampled in 2021 from 2020 sites sampled
-sites.2020.keep.oid <- sites.2020.keep %>% 
-        filter(!is.na(oid)) %>% 
-        ungroup() %>% 
-        pull(oid)
-
-# create vector of oid sampled in 2020 to filter from 2021 random site selection
-sites.2020.oid <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>% 
-        group_by(blockno) %>% 
-        distinct(site.new, .keep_all = T) %>% 
-        filter(!is.na(oid)) %>% 
-        ungroup() %>% 
-        pull(oid)
-##---------------------------------------------------------------------------##
-## PLOT 2: CPUE ####
-## estimate CPUE in kg/hr for each block using length-weight data from commercial catch sampling length-weight relationships
-
-# load most recent commercial catch sampling compiled MM dataframe
-compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
-
-# select length-weight data, removing obvious erroneous data or data collected from multiple blocks in a trip
-lw.dat <- compiledMM.df.final %>% 
-    filter(between(whole.weight, 200, 1500) &
-               between(shell.length, 120, 210) &
-               numblocks == 1) 
-
-# calculate log of length and weight
-lw.dat.log <- lw.dat %>% 
-    mutate(log.sl = log(shell.length),
-           log.wt = log(whole.weight))
-
-# lw.dat.log %>% 
-#         ggplot(aes(x = shell.length, y = whole.weight)) +
-#         geom_point()
-# 
-# lw.dat.log %>% ggplot(aes(x = log.sl, y = log.wt, colour = blockno))+
-#         geom_point()+
-#         geom_smooth(method = lm)+
-#         facet_wrap(~ blockno, ncol = 2)
-
-# calculate regression coefficient summary table for each blockno
-lw.dat.coeff <- lw.dat.log %>%
-    nest(data = -blockno) %>% 
-    mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
-           tidied = map(fit, broom::tidy)) %>% 
-    unnest(tidied) %>%   
-    filter(term %in% c('(Intercept)', 'log.sl')) %>% 
-    select(c(blockno, estimate, term)) %>% 
-    as.data.frame() %>% 
-    spread(., term, estimate) %>%  
-    dplyr::rename(b = 'log.sl',
-                  intercept = "(Intercept)") %>%  
-    mutate(a = exp(intercept)) %>% 
-    select(-intercept)
-
-# determine sample size for each blockno and join to regression summaries
-lw.dat.n <- lw.dat.log %>% 
-    group_by(blockno) %>% 
-    summarise(n = n())
-
-lw.dat.coeff.blockno <- left_join(lw.dat.coeff, lw.dat.n)
-
-# select regression parameters to use for estimating weight
-lw.coeff <- lw.dat.coeff.blockno %>% 
-    filter(blockno == 13) %>% 
-    select(a, b) %>% 
-    mutate(join.id = 1)
-
-# join chosen regression parameters to timed swim data
-time.swim.dat.df.lw <- time.swim.dat.final %>% 
-    mutate(join.id = 1) %>% 
-    left_join(., lw.coeff)
-
-# saveRDS(time.swim.dat.df.lw, 'C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/TimedSwimData_LW_2020-09-16.RDS')
-
-# estimate total weight of each sizeclass above 140 mm
-time.swim.dat.df.wt <- time.swim.dat.df.lw %>% 
-    filter(midsize >= 150) %>%
-    mutate(est.weight = ((a * (midsize ^ b)) * sizeclass_freq) / 1000)
-
-# quick summary of total kg estimated by block
-time.swim.dat.df.wt %>%
-    filter(!subblockno %in% c('28B', '28C')) %>%
-    dplyr::group_by(blockno) %>% 
-    dplyr::summarise(total.kg = round(sum(est.weight), digits = 2)) %>% 
-    as.data.frame()
-
-# estimate CPUE for each site
-time.swim.cpue.site <- time.swim.dat.df.wt %>%
-    filter(!subblockno %in% c('28B', '28C')) %>%
-    dplyr::group_by(blockno, site, diver) %>% 
-    dplyr::summarise(total.kg = round(sum(est.weight), digits = 2),
-                     est.kg.hr = round((total.kg / max(time.elapsed)) * 60, digits = 2)) %>%   
-    group_by(blockno, site) %>% 
-    summarise(est.kg.hr = round(mean(est.kg.hr), digits = 2)) %>% 
-    as.data.frame()
-
-# estimate CPUE for each blockno
-time.swim.cpue.blockno <- time.swim.cpue.site %>%
-    group_by(blockno) %>% 
-    summarise(est.kg.hr = round(mean(est.kg.hr), digits = 2)) %>% 
-    as.data.frame()
-
-# determine number of sites sampled for each blockno
-time.swim.cpue.n <- time.swim.cpue.site %>% 
-    group_by(blockno) %>% 
-    summarise(n = n_distinct(site))
-
-# plot CPUE estimate for each blocnkno
-cpue.plot <- time.swim.cpue.site %>% 
-    ggplot(aes(x = blockno, y = est.kg.hr)) +
-    geom_boxplot(fill = "#56B4E9") +
-    stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 2, colour = 'red', fill = 'red')+
-    theme_bw() +
-    ylim(0, 200)+
-    ylab(bquote('CPUE ('*~kg.hr^-1*')'))+
-    xlab('Blockno')+
-    geom_text(data = time.swim.cpue.n, aes(y = 200, label = n), color = 'black', size = 3)
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.pdf', sep = ''), 
-       plot = cpue.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.png', sep = ''), 
-       plot = cpue.plot, units = 'mm', width = 190, height = 120)
-
-## PLOT 3: COUNT PER TEN MIN ####
-## average count of all legal and sub-legal abalone per 10 min for each site within each blockno (i.e. the average between
-## paired divers for each site)
-
-# determine number of sites sampled for each blockno
-time.swim.dat.n <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01')) %>% 
-    group_by(blockno) %>% 
-    summarise(n = n_distinct(site))
-
-## average count per 10 min for each blockno
-count.plot <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01')) %>% 
-    # filter(midsize >= 150) %>% 
-    group_by(blockno, site, diver) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(blockno, site, diver) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>%  
-    ggplot(aes(x = blockno, y = mean.ab.n, colour = diver))+
-    geom_point(size = 3)+
-    scale_colour_grey()+
-    stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 4, colour = 'red', fill = 'red')+
-    theme_bw()+
-    ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
-    xlab('Blockno')+
-    ylim(0, 200)+
-    geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
-    theme(legend.position = 'none')
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.pdf', sep = ''), 
-       plot = count.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountPlot', '.png', sep = ''), 
-       plot = count.plot, units = 'mm', width = 190, height = 120)
-
-##---------------------------------------------------------------------------##
-## PLOT: TIMED VS HISTROIC ####
-## compare average timed swim counts with available historical count data at SAM research sites and the rating score used
-## to select timed swim sites from GPS logger data
-
-## average count vs cpue rating score
-time.swim.dat.vs.cpue.plot <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate < as.Date('2021-01-01')) %>% 
-    group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(site, legal.size, cell.ntile, sam.count) %>% 
-    summarise(mean.ab.n = mean(ab.n))%>% 
-    filter(!is.na(cell.ntile)) %>%  
-    ggplot(aes(x = cell.ntile, y = mean.ab.n, colour = legal.size))+
-    geom_point(size = 3)+
-    scale_colour_manual(values = c("#999999", "#56B4E9"))+
-    theme_bw()+
-    ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
-    xlab('HexCell Rank')+
-    ylim(0, 150)+
-    # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
-    theme(legend.position = c(0.9, 0.9),
-          legend.title = element_blank())
-
-
-
-## average count vs historical SAM counts
-time.swim.dat.vs.sam.plot <- time.swim.dat.final %>%
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate < as.Date('2021-01-01')) %>% 
-    group_by(site, diver, legal.size, cell.ntile, sam.count) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(site, legal.size, cell.ntile, sam.count) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>% 
-    filter(!is.na(sam.count) &
-               sam.count <= 60) %>% #remove outlier from SAM data
-    ggplot(aes(x = sam.count, y = mean.ab.n, colour = legal.size))+
-    geom_point(size = 3)+
-    scale_colour_manual(values = c("#999999", "#56B4E9"))+
-    geom_smooth(method = 'lm', formula = y~x, se = F)+
-    stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
-                 parse = TRUE) +
-    theme_bw()+
-    ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
-    xlab(bquote('SAM average count (abalone.10'*~min^-1*')'))+
-    ylim(0, 125)+
-    # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
-    theme(legend.position = c(0.9, 0.9),
-          legend.title = element_blank())
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2020')
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE', '.pdf', sep = ''), 
-       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE', '.png', sep = ''), 
-       plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsSAM', '.pdf', sep = ''), 
-       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsSAM', '.png', sep = ''), 
-       plot = time.swim.dat.vs.sam.plot, units = 'mm', width = 190, height = 120)
-
-size.class <- '>140 mm'
-
-time.swim.dat.vs.cpue.kg.hr.plot <- left_join(time.swim.dat.final, fis.site.cpue.oid.kg.hr) %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate < as.Date('2021-01-01')) %>% 
-    group_by(site, diver, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(site, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
-    summarise(mean.ab.n = mean(ab.n))%>% 
-    filter(!is.na(cell.ntile) &
-               legal.size == size.class) %>%  
-    ggplot(aes(x = cpue.kg.hr, y = mean.ab.n))+
-    geom_point(aes(colour = cell.ntile), size = 3)+
-    # scale_colour_manual(values = c("#999999", "#56B4E9"))+
-    geom_smooth(method = 'lm', formula = y~x, se = T)+
-    stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
-                 parse = TRUE, label.y = 0.9) +
-    theme_bw()+
-    ggtitle(size.class)+
-    xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
-    ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
-    labs(colour = 'Rank')+
-    ylim(0, 60)+
-    # geom_text(data = time.swim.dat.n, aes(y = 200, label = n), color = 'black', size = 3)+
-    theme(legend.position = c(0.95, 0.85),
-          plot.title = element_text(hjust = 0.05, vjust = -10))
-
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE.kg.hr_legal', '.pdf', sep = ''), 
-       plot = time.swim.dat.vs.cpue.kg.hr.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountvsCPUE.kg.hr_legal', '.png', sep = ''), 
-       plot = time.swim.dat.vs.cpue.kg.hr.plot, units = 'mm', width = 190, height = 120)
-
-##---------------------------------------------------------------------------##
-
-
-## PLOT 4: COUNT PER TEN MIN SIZECLASS ####
-## average count of all legal and sub-legal abalone per 10 min by sizeclass for each site within each blockno 
-## (i.e. the average between paired divers for each site)
-
-# determine mean count per 10 min by size class for each blockno
-ten.min.mean <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01')) %>% 
-    # filter(midsize < 150) %>% 
-    group_by(blockno, site, diver, legal.size) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(blockno, legal.size) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>% 
-    mutate(legal.size = factor(legal.size))
-
-ten.min.mean.site <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01')) %>% 
-    # filter(midsize < 150) %>% 
-    group_by(site, blockno, subblockno, diver, legal.size) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(site, blockno, subblockno, legal.size) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>% 
-    mutate(legal.size = factor(legal.size))%>% 
-    as.data.frame()
-
-count.plot.sizeclass <- time.swim.dat.final %>% 
-    filter(!subblockno %in% c('28B', '28C'),
-           sampdate > as.Date('2021-01-01')) %>% 
-    # filter(midsize < 150) %>% 
-    group_by(blockno, site, diver, legal.size) %>% 
-    summarise(ab.n = sum(sizeclass_freq)) %>% 
-    group_by(blockno, site, legal.size) %>% 
-    summarise(mean.ab.n = mean(ab.n)) %>% 
-    mutate(legal.size = factor(legal.size)) %>% 
-    ggplot(aes(x = blockno, y = mean.ab.n))+
-    # geom_boxplot()+
-    geom_boxplot(aes(fill = legal.size), position = position_dodge(0.9))+
-    scale_fill_manual(values = c("#999999", "#56B4E9"))+
-    # stat_summary(fun.y = mean, geom = 'point', shape = 19, size = 4, colour = 'red', fill = 'red')+
-    geom_point(data = ten.min.mean, aes(group = legal.size), shape = 19, size = 2, colour = 'red', fill = 'red', position = position_dodge(0.9))+
-    theme_bw()+
-    ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
-    xlab('Blockno')+
-    ylim(0, 125)+
-    geom_text(data = time.swim.dat.n, aes(y = 125, label = n), color = 'black', size = 3)+
-    theme(legend.position="none")
-
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountSizeClassPlot', '.pdf', sep = ''), 
-       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountSizeClassPlot', '.png', sep = ''), 
-       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 120)
-
-##---------------------------------------------------------------------------##
+df.1 <- time.swim.dat.final %>% 
+  group_by(site, blockno) %>% 
+  filter(sampyear == 2020,
+         grepl('-B', site)) %>% 
+  group_by(blockno) %>% 
+  summarise(n = n_distinct(site))
 
         

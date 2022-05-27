@@ -51,7 +51,7 @@ compiledMM.df.final <-
 
 # add quarter variable
 compiledMM.df.final <- compiledMM.df.final %>% 
-  mutate(fishquarter = quarter(msr.date))
+  mutate(fishquarter = quarter(daylist_max))
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify fish year ####
@@ -105,7 +105,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2021`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2022`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
@@ -121,23 +121,23 @@ size.limits.tab <- size.limits %>%
   mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
   select(sizelimit.index, sizelimit)
 
-# add columns that count number of blocks and subblocks in compiledMM.df
-compiledMM.df.final <- compiledMM.df.final %>%
+# add columns that count number of blocks and subblocks in compiledMM.df.final
+compiledMM.df.blockcount <- compiledMM.df.final %>%
   mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
   mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
   mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
   mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
 
-# add column to determine if the same block was fished where multiple sub-blocks are listed in compiledMM.df
-compiledMM.df.final <- compiledMM.df.final %>%
+# add column to determine if the same block was fished where multiple sub-blocks are listed in compiledMM.df.blockcount
+compiledMM.df.same.blockcount <- compiledMM.df.blockcount %>%
   mutate(same.block = if_else(!is.na(blocklist_1) & is.na(blocklist_2), 1,
                               if_else(is.na(blocklist_5) & is.na(blocklist_4) & is.na(blocklist_3) & blocklist_1 == blocklist_2, 1,
                                       if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
                                               if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
                                                       if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
 
-# create lml index variable in compiledMM.df
-compiledMM.df.final <- compiledMM.df.final %>%
+# create lml index variable in compiledMM.df.same.blockcount
+compiledMM.df.lml.index <- compiledMM.df.same.blockcount %>%
   mutate(sizelimit.index = if_else(
     numsubblocks == 1 & subblockno %in% c('A', 'B', 'C', 'D', 'E'),
     paste(
@@ -180,13 +180,17 @@ compiledMM.df.final <- compiledMM.df.final %>%
       ))))
 
 # join size limit data and compiledMM.df to include size limit for each observation
-compiledMM.df.final <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+compiledMM.df.join <- left_join(compiledMM.df.lml.index, size.limits.tab, "sizelimit.index")
 # compiledMM.df.1 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
 
 # convert zero weights and weights >2000 g to NAs
-compiledMM.df.final <- compiledMM.df.final %>% 
+compiledMM.df.join <- compiledMM.df.join %>% 
   mutate(whole.weight = if_else(whole.weight > 2000, 0, whole.weight),
          whole.weight = na_if(whole.weight, 0))
+
+compiledMM.df.final <- compiledMM.df.join 
+  # select(-c(sizelimit.x)) %>% 
+  # dplyr::rename(sizelimit = sizelimit.y)
 
 saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 ##-------------------------------------------------------------------------------------------------------##
@@ -273,10 +277,10 @@ fishyear.summary.df.formated <- fishyear.summary.df %>%
   ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 # save Excel and Latex tables
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_2020.pdf', sep = ''),
+  filename = paste('MM_Sampling_Summary_2021.pdf', sep = ''),
   plot = fishyear.summary.df.formated,
   width = 200,
   height = 297,
@@ -284,16 +288,31 @@ ggsave(
 )
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_2020.png', sep = ''),
+  filename = paste('MM_Sampling_Summary_2021.png', sep = ''),
   plot = fishyear.summary.df.formated,
   width = 200,
   height = 297,
   units = 'mm'
 )
 
-write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2020.xlsx', sheetName = "Sheet1", 
+write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2021.xlsx', sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2020.tex')
+print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2021.tex', include.rownames = FALSE,
+      include.colnames = FALSE,
+      only.contents = TRUE,
+      hline.after = NULL)
+
+## contents only template
+# print(
+#  mytable,
+#  include.rownames = FALSE,
+#  include.colnames = FALSE,
+#  only.contents = TRUE,
+#  hline.after = NULL,
+#  tabular.environment = "tabularx",
+#  width = \\textwidth
+# )
+
 
 ##-------------------------------------------------------------------------------------------------------##
 # Fish year summary LML ####
@@ -341,10 +360,10 @@ fishyear.summary.LML.df.formated <- fishyear.summary.LML.df %>%
   ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 # save Excel and Latex tables
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_LML_2020.pdf', sep = ''),
+  filename = paste('MM_Sampling_Summary_LML_2021.pdf', sep = ''),
   plot = fishyear.summary.LML.df.formated,
   width = 200,
   height = 297,
@@ -352,16 +371,16 @@ ggsave(
 )
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_LML_2020.png', sep = ''),
+  filename = paste('MM_Sampling_Summary_LML_2021.png', sep = ''),
   plot = fishyear.summary.LML.df.formated,
   width = 200,
   height = 297,
   units = 'mm'
 )
 
-write.xlsx(fishyear.summary.LML.df, 'MM_Sampling_Summary_LML_2020.xlsx', sheetName = "Sheet1", 
+write.xlsx(fishyear.summary.LML.df, 'MM_Sampling_Summary_LML_2021.xlsx', sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(fishyear.summary.LML.df, type = 'latex'), file = 'MM_Sampling_Summary_LML_2020.tex')
+print(xtable(fishyear.summary.LML.df, type = 'latex'), file = 'MM_Sampling_Summary_LML_2021.tex')
 
 ##-------------------------------------------------------------------------------------------------------##
 ## Western zone five-year summary ####
@@ -861,23 +880,23 @@ for (i in df.2019.unique.zones) {
       
       # print(mm.zone.boxplot)
       
-      setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+      setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.pdf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.pdf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.wmf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.wmf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2020', '.png', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.png', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
@@ -981,23 +1000,23 @@ for (i in df.unique.gl.region) {
       
       # print(mm.zone.boxplot)
       
-      setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+      setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
       ggsave(
-        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2020', '.pdf', sep = ''),
+        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2021', '.pdf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2020', '.wmf', sep = ''),
+        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2021', '.wmf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2020', '.png', sep = ''),
+        filename = paste('GZ_', i, '_Region', '_MM_Boxplot_2021', '.png', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
@@ -1115,7 +1134,7 @@ for (i in processors.2019) {
 # create map indicating blocks sampled in stock assessment year (for processor)
 
 # load map of Tasmania and abalone blocks
-tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
+tas.sp <- readOGR(dsn = 'C:/Users/jaimem/Documents/Abalone_r-scripts/ArcGIS/GIS_files/Coastlines_GIS/Tasmania_ll_(WGS 84)/Tas_25k_land_ll_wgs84.shp'
                   , layer = 'Tas_25k_land_ll_wgs84', verbose = F)
 
 # ab.blocks.sp <- readOGR(dsn = 'C:/CloudStor/R_Stuff/BlockSHapefile/Ab_Blocks_MGAZ55.shp'
@@ -1150,7 +1169,7 @@ sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 
 # generate maps
 
-i <- "TASMANIAN SEAFOODS PTY LTD"
+# i <- "TASMANIAN SEAFOODS PTY LTD"
 
 for(i in processors.2019) {
   # summarise dataframe to determine number of catches measured per block by processor
@@ -1231,7 +1250,7 @@ for(i in processors.2019) {
   
   # print(catch.plot)
   
-  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
   
   ggsave(filename = paste(i, '_MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.pdf', sep = ''),
          plot = catch.plot, units = 'mm', width = 190, height = 300)
@@ -1359,7 +1378,7 @@ catch.plot <- ab.subblockno.sf %>%
 
 # print(catch.plot)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
 
 ggsave(filename = paste('MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.pdf', sep = ''),
        plot = catch.plot, units = 'mm', width = 190, height = 300)
@@ -1463,10 +1482,10 @@ ggsave(
 ##-------------------------------------------------------------------------------------------------------##
 # PLOT 7: Boxplot block x quarter ####
 
-# create boxplots for each block and quarter fished in the stock assessment year (for processor)
+# create boxplots for each block and quarter fished in the stock assessment year
 
 # select data for stock assessment year
-stock.assessment.zone <- 'N'
+stock.assessment.zone <- 'E'
 
 df.1 <- compiledMM.df.final %>%
   filter(fishyear == stock.assessment.year &
@@ -1530,7 +1549,7 @@ quarter.boxplot <-
 
 # print(quarter.boxplot)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
 ggsave(
   filename = paste(stock.assessment.zone, 'Z', '_Quarter_MM_Size_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
   plot = quarter.boxplot,
@@ -1554,6 +1573,101 @@ ggsave(
 )
 
 ##-------------------------------------------------------------------------------------------------------##
+# PLOT 7c: Boxplot block x quarter x blockno x five year ####
+
+# create boxplots for each block and quarter fished in the stock assessment year
+
+# select data for stock assessment year
+stock.assessment.zone <- 'E'
+stock.assessment.block <- 13
+
+df.1 <- compiledMM.df.final %>%
+  filter(fishyear >= stock.assessment.year - 4 &
+           newzone == stock.assessment.zone
+         & numblocks <= 1 &
+           shell.length >= sizelimit - 5 &
+           blockno == stock.assessment.block)
+
+# generate a count of records for each year to add label to boxplot
+plotdat.n <- df.1 %>%
+  group_by(fishyear, fishquarter) %>%
+  summarize(n = n())
+
+sl <- df.1 %>% 
+  group_by(fishyear, blockno, fishquarter) %>% 
+  summarise(legal.min.length = max(sizelimit))
+
+# create plot
+quarter.boxplot <-
+  ggplot(df.1, aes(
+    x = reorder(fishyear, as.numeric(as.character(fishyear))),
+    y = shell.length,
+    fill = factor(fishquarter)
+  )) +
+  # geom_boxplot(outlier.colour = "black", outlier.size = 1.5, position = position_dodge(preserve = 'single')) +
+  geom_boxplot(
+    outlier.colour = "black",
+    outlier.size = 1.5,
+    position = position_dodge(0.85)
+  ) +
+  geom_text(
+    data = plotdat.n,
+    aes(y = 220, label = n),
+    size = 3,
+    angle = 90,
+    position = position_dodge(width = 0.85)
+  ) +
+  geom_point(
+    data = sl,
+    aes(x = factor(fishyear), y = legal.min.length),
+    shape = 95,
+    size = 7,
+    colour = "red",
+    position = position_dodge(width = 0.85)
+  ) +
+  xlab('Year') +
+  ylab(paste('Shell Length (mm)')) +
+  coord_cartesian(ylim = c(100, 225)) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(colour = "black"),
+    axis.text.x = element_text(angle = 0, vjust = 0.5),
+    legend.position = 'top'
+  ) +
+  scale_fill_grey(start = 0.8, end = 0.3,
+                  name = 'Quarter',
+                  breaks = c('1', '2', '3', '4'),
+                  labels = c('Q1', 'Q2', 'Q3', 'Q4')
+  )+
+  guides(fill = guide_legend(override.aes = list(shape = NA)))
+
+# print(quarter.boxplot)
+
+setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+ggsave(
+  filename = paste(stock.assessment.zone, '_BlockNo', stock.assessment.block, '_Quarter_MM_Size_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste(stock.assessment.zone, '_BlockNo', stock.assessment.block, '_Quarter_MM_Size_Boxplot_', stock.assessment.year, '.png', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+ggsave(
+  filename = paste(stock.assessment.zone, '_BlockNo', stock.assessment.block, '_Quarter_MM_Size_Boxplot_', stock.assessment.year, '.wmf', sep = ''),
+  plot = quarter.boxplot,
+  width = 7.4,
+  height = 5.57,
+  units = 'in'
+)
+##-------------------------------------------------------------------------------------------------------##
+
 # PLOT 7B: Greenlip Boxplot region x quarter ####
 
 # create boxplots for each block and quarter fished in the stock assessment year (for processor)
@@ -1853,7 +1967,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   
   ##-------------------------------------------------------------------------------------------------------##
 ## PLOT 8: Stacked grade ####
-  ## stacked barplot of grades measured for eah block in stock assessment year
+  ## stacked barplot of grades measured for eaah block in stock assessment year
     
   # determine number of abalone measured by grade per block
   blockno.grade.meas <- compiledMM.df.final.grade %>% 
@@ -2242,7 +2356,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                                      ncol = 1), ncol = 1))
     
     #save plots
-    setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+    setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
     file.zone <- unique(plot.length.freq.dat$zone)
     file.block <- unique(plot.length.freq.dat$blocklist)
     
@@ -2635,7 +2749,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
         ymin = 0.3
       )
     
-    setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+    setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
 
     ggsave(
       filename = paste(i, '_', 'BlockNo', j, '_LENGTHSUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
@@ -2663,37 +2777,77 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   block <- 13
   zone <- 'E'
   
-  # select data for summary year, block and zone and generate percentage of observations within x of lml
-  lml.ind.dat <- compiledMM.df.final %>% 
+  # determine maximum and last size limit changes
+  df.1 <- compiledMM.df.final %>% 
     dplyr::filter(fishyear <= stock.assessment.year & 
-                    # blockno == block &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1) %>% 
+    summarise(max.lml = max(sizelimit)) %>% 
+    pull()
+  
+  # select data for summary year, block and zone and generate percentage of observations within x of lml
+  df.2 <- compiledMM.df.final %>% 
+    dplyr::filter(between(fishyear, stock.assessment.year - 10, stock.assessment.year) &
+                    blockno == block &
                     newzone == zone &
                     numblocks == 1 &
-                    between(shell.length, sizelimit - 5, 220)) %>% 
-    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+                    between(shell.length, df.1 - 5, 220)) %>% 
+                    # sizelimit == as.numeric(df.1)) %>%  
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
     group_by(fishyear) %>% 
     summarise(catches = n_distinct(sample.id),
               n = n(),
               med.sl = round(median(shell.length), 1),
               max.sl = round(max(shell.length), 1),
-              lml5 = sum(between(shell.length, sizelimit, sizelimit + 5)),
-              lml30 = sum(shell.length > sizelimit + 30),
+              lml5 = sum(between(shell.length, df.1, df.1 + 5)),
+              lml30 = sum(shell.length > df.1 + 30),
               lml5.per = (lml5/n)*100,
               lml30.per = (lml30/n)*100)
   
+  # select data prior to LML change
+  df.3 <- df.2 %>% 
+    filter(fishyear <= max(lml.plot.limits$fishyear))
+  
+  # select data post LML change
+  df.4 <- df.2 %>% 
+    filter(fishyear >= max(lml.plot.limits$fishyear))
+  
+  lml.ind.dat <- df.2
+  
+
+  
+  
+  # lml.ind.dat <- compiledMM.df.final %>% 
+  #   dplyr::filter(fishyear <= stock.assessment.year & 
+  #                   blockno == block &
+  #                   newzone == zone &
+  #                   numblocks == 1 &
+  #                   between(shell.length, sizelimit - 5, 220)) %>% 
+  #   mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+  #   group_by(fishyear) %>% 
+  #   summarise(catches = n_distinct(sample.id),
+  #             n = n(),
+  #             med.sl = round(median(shell.length), 1),
+  #             max.sl = round(max(shell.length), 1),
+  #             lml5 = sum(between(shell.length, sizelimit, sizelimit + 5)),
+  #             lml30 = sum(shell.length > sizelimit + 30),
+  #             lml5.per = (lml5/n)*100,
+  #             lml30.per = (lml30/n)*100)
+  # 
   # convert data to long-format for plotting
   lml.ind.dat.long <- lml.ind.dat %>% 
     select(fishyear, lml5.per, lml30.per) %>% 
     melt(., id = 'fishyear')
   
   # identify size limit changes and select data to add reference lines to plot
-  lml.plot.limits <- compiledMM.df.final %>% 
+  df.3 <- compiledMM.df.final %>% 
     dplyr::filter(fishyear <= stock.assessment.year & 
                     blockno == block &
                     newzone == zone &
                     numblocks == 1 &
-                    between(shell.length, sizelimit - 5, 220)) %>% 
-    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+                    between(shell.length, df.1 - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
     group_by(fishyear, sizelimit) %>% 
     summarise(n = n()) %>%
     ungroup() %>% 
@@ -2702,21 +2856,46 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     slice(which.max(lml.increase)) %>% 
     filter(fishyear < 2021)
   
+  # lml.plot.limits <- df.3
+  # 
+  lml.plot.limits <- compiledMM.df.final %>%
+    dplyr::filter(fishyear <= stock.assessment.year &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>%
+    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear, sizelimit) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>%
+    group_by(lml.increase) %>%
+    slice(which.max(lml.increase))
+    
+  lml.plot.limits <- lml.plot.limits %>% 
+    filter(fishyear >= stock.assessment.year - 10)
+  # 
+  # identify year and size limit for last known LML change for plot
+  df.4 <- df.3 %>%
+    ungroup() %>% 
+    slice_max(sizelimit, n = 1, with_ties = FALSE) %>% 
+    mutate(y = 60)
+  
   # generate plot  
   lml.plot <- lml.ind.dat.long %>% 
     ggplot(aes(x = fishyear, y = value, colour = variable, group = variable))+
     geom_point(aes(colour = variable), size = 3)+
     geom_line(aes(colour = variable, group = variable), size = 1)+
     scale_colour_manual(values = c('lml5.per' = 'black', 'lml30.per' = 'red'), labels = c('LML+5 mm', 'LML>30 mm'))+
-    geom_smooth(aes(group = variable), method = 'lm', formula = y~x, se = T, size = 1)+
+    # geom_smooth(aes(group = variable), method = 'lm', formula = y~x, se = T, size = 1)+
     theme_bw()+
-    # ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
-    ylab(paste(zone, ' Zone', ' Percentage', sep = ''))+
+    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    # ylab(paste(zone, ' Zone', ' Percentage', sep = ''))+
     xlab('Year')+
     scale_x_continuous(expand = c(0.01, 0.01),
-                       breaks = seq(1967, 2021, 2))+
-    stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
-                 parse = TRUE, label.x = 'left', label.y = 'top')+
+                       breaks = seq(2006, 2021, 2))+
+    # # stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
+    #              parse = TRUE, label.x = 'left', label.y = 'top')+
     coord_cartesian(ylim = c(0, 60))+
     theme(
       plot.title = element_text(hjust = 0.5),
@@ -2728,6 +2907,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
       legend.background = element_blank()
     )+
     guides(color = guide_legend(override.aes = list(fill = NA)))+
+    geom_text(data = df.4, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')), 
+              inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
     geom_vline(data = lml.plot.limits,
                aes(xintercept = fishyear),
                linetype = 'dashed',
@@ -2743,15 +2924,17 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
               size = 3,
               angle = 90,
               colour = 'red')
-  
+
   print(lml.plot)
   
+
+  
   # save plot
-  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
   
   ggsave(
-    # filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
-    filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year,'_2021_LML', '.pdf', sep = ''),
+    # filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
     plot = lml.plot,
     width = 7.4,
     height = 5.57,
@@ -2759,12 +2942,472 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   )
   
   ggsave(
-    filename = paste('BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.png', sep = ''),
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5-30_', stock.assessment.year, '.png', sep = ''),
     plot = lml.plot,
     width = 7.4,
     height = 5.57,
     units = 'in'
   )
+  ##-------------------------------------------------------------------------------------------------------##
+  # WZ Percent +5LMM ####
+  # Percent +5MM 10 years prior to current stock assessement year LML for western zone blocks
+  
+  # identify block and zone for summary year
+  block <- 6
+  zone <- 'W'
+  
+  # determine maximum and last size limit changes
+  lml.year <- compiledMM.df.final %>%
+    dplyr::filter(fishyear <= stock.assessment.year &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, sizelimit - 5, 220)) %>%
+    mutate(shell.length = ifelse(shell.length < sizelimit, sizelimit, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear, sizelimit) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>%
+    group_by(lml.increase) %>%
+    slice(which.max(lml.increase))
+  
+  # manual adjust for block 6
+  # lml.year <- lml.year %>% 
+  #   mutate(fishyear = 2019)
+  
+  lml.assess.year <- lml.year %>% 
+    ungroup() %>%
+    top_n(n = 1, sizelimit) %>% 
+    select(sizelimit) %>% 
+    pull()
+  
+  
+  df.11 <- size.limits.tab %>%
+    separate(col = sizelimit.index, into = c('abzone', 'subblockno', 'fishmonth', 'fishyear'), sep = '-') %>% 
+    filter(abzone == zone &
+             subblockno == block) %>% 
+    group_by(fishyear, sizelimit) %>%
+    mutate(fishyear = as.numeric(fishyear)) %>% 
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0)) %>%
+    group_by(lml.increase) %>%
+    slice(which.max(lml.increase))
+  
+  # select data for summary year, block and zone and generate percentage of observations within x of lml
+  df.2 <- compiledMM.df.final %>% 
+    dplyr::filter(between(fishyear, stock.assessment.year - 10, stock.assessment.year) &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 & 
+                    between(shell.length, lml.assess.year - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < lml.assess.year, lml.assess.year, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear) %>% 
+    summarise(catches = n_distinct(sample.id),
+              n = n(),
+              med.sl = round(median(shell.length), 1),
+              max.sl = round(max(shell.length), 1),
+              lml5 = sum(between(shell.length, lml.assess.year, lml.assess.year + 5)),
+              lml30 = sum(shell.length > lml.assess.year + 30),
+              lml5.per = (lml5/n)*100,
+              lml30.per = (lml30/n)*100)
+  
+  df.3 <- df.2 %>% 
+    filter(fishyear >= max(lml.year$fishyear))
+  
+  df.4 <- df.2 %>% 
+    filter(fishyear <= max(lml.year$fishyear))
+  
+  # add missing years
+  df.5 <- expand.grid(fishyear = seq(min(df.4$fishyear), max(df.4$fishyear))) %>% 
+    left_join(df.4)
+  
+  LML5.plot <- ggplot()+
+    geom_point(data = df.3, aes(x = fishyear, y = lml5.per), colour = 'red', size = 3)+
+    geom_line(data = df.3, aes(x = fishyear, y = lml5.per), colour = 'red', size = 1)+
+    geom_point(data = df.5, aes(x = fishyear, y = lml5.per), colour = 'red', size = 3)+
+    geom_line(data = df.5, aes(x = fishyear, y = lml5.per), colour = 'red', size = 1, linetype = 'dashed')+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    xlab('Year')+
+    coord_cartesian(ylim = c(0, 60))+
+    # geom_text(data = df.4, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')), 
+    #           inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
+    # scale_x_continuous(expand = c(0.01, 0.01),
+    #                    breaks = seq(min(df.2$fishyear), 2021, 2))+
+    geom_vline(data = df.11 %>% ungroup() %>% filter(fishyear == max(fishyear)),
+               aes(xintercept = fishyear),
+               linetype = 'dashed',
+               colour = 'red',
+               size = 0.5)+
+    geom_text(data = df.11 %>% ungroup() %>% filter(fishyear == max(fishyear)),
+              aes(x = fishyear,
+                  y = 50,
+                  label = paste(sizelimit, 'mm', sep = ' ')),
+              inherit.aes = FALSE,
+              vjust = 1.2,
+              hjust = -0.25,
+              size = 3,
+              angle = 90,
+              colour = 'red')+
+    geom_text(data = df.11 %>% ungroup() %>% top_n(n = 2, fishyear),
+              aes(x = max(fishyear),
+                  y = 50,
+                  label = paste(min(sizelimit), 'mm', sep = ' ')),
+              inherit.aes = FALSE,
+              vjust = -0.5,
+              hjust = -0.25,
+              size = 3,
+              angle = 90,
+              colour = 'red')
+  
+  print(LML5.plot)
+  
+  # save plot
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.png', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ##-------------------------------------------------------------------------------------------------------##
+  # Percent +5LMM ####  
+  
+  # identify block and zone for summary year
+  block <- 33
+  zone <- 'BS'
+  
+  # determine sizelimit for fishyear
+  df.1 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear == stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1) %>% 
+    summarise(max.lml = max(sizelimit)) %>% 
+    pull()
+  
+  # identify size limit changes and select data to add reference lines to plot
+  df.3 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, df.1 - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear, sizelimit) %>% 
+    summarise(n = n()) %>%
+    ungroup() %>% 
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0),
+           lml.decrease = cumsum(c(1, diff(sizelimit)) < 0)) %>% 
+    group_by(lml.increase, lml.decrease) %>%
+    slice(which.max(lml.increase)) %>% 
+    filter(fishyear < 2021)
+  
+  # add sizelimit where it hasn't changed since inception of block 
+  df.3 <- df.3 %>% 
+    mutate(sizelimit = if_else(is.na(sizelimit), df.1, sizelimit))
+  
+  # identify size limit change
+  # df.3 <- df.3 %>% 
+  #   ungroup() %>% 
+  #   top_n(n = 1, wt = fishyear)
+  
+  # select data for summary year, block, zone and generate percentage of observations within x of lml
+  df.2 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 & 
+                    between(shell.length, df.1 - 5, 220) & 
+                    sizelimit == as.numeric(df.1)) %>%
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear) %>% 
+    summarise(catches = n_distinct(sample.id),
+              n = n(),
+              med.sl = round(median(shell.length), 1),
+              max.sl = round(max(shell.length), 1),
+              lml5 = sum(between(shell.length, df.1, df.1 + 5)),
+              lml30 = sum(shell.length > df.1 + 30),
+              lml5.per = (lml5/n)*100,
+              lml30.per = (lml30/n)*100)
+  
+  # identify last size limit change and add plot label position
+  df.5 <- df.3 %>% 
+    ungroup() %>% 
+    filter(fishyear == max(fishyear)) %>% 
+    mutate(y = 60)
+  
+  # identify year of last size limit change
+  # df.5 %>% 
+  #   summarise(max.year = max(fishyear)) %>% 
+  #   pull()
+  
+  # select data post last size limit change
+  df.6 <- df.2 %>% 
+    filter(fishyear >= max(df.5$fishyear))
+  
+  # add missing years
+  df.7 <- expand.grid(fishyear = seq(min(df.6$fishyear), max(df.6$fishyear))) %>% 
+    left_join(df.6)
+  
+  # df.7 <- df.3 %>% 
+  #   ungroup() %>% 
+  #   filter(fishyear == max(fishyear)) %>% 
+  #   mutate(y = 60)
+    
+  
+  # # identify year and size limit for last known LML change for plot
+  # df.4 <- df.3 %>%
+  #   ungroup() %>% 
+  #   slice_max(sizelimit, n = 1, with_ties = FALSE) %>% 
+  #   mutate(y = 60)
+  
+  LML5.plot <- df.7 %>% 
+    ggplot(aes(x = fishyear, y = lml5.per))+
+    geom_point(colour = 'red', size = 3)+
+    geom_line(colour = 'red', size = 1)+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    xlab('Year')+
+    coord_cartesian(ylim = c(0, 60))+
+    geom_text(data = df.5, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')),
+              inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
+    # geom_text(data = df.5, aes(x = 2010, y = y, label = paste('LML = ', sizelimit, 'mm')), 
+    #           inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
+    # scale_x_continuous(expand = c(0.01, 0.01),
+    #                    breaks = seq(2010, 2021, 2))
+    scale_x_continuous(expand = c(0.01, 0.01),
+                       breaks = seq(df.5$fishyear, 2021, 2))
+  
+  print(LML5.plot)
+  
+  # save plot
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.png', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ##-------------------------------------------------------------------------------------------------------##
+  # BS Percent +5LMM ####  
+  
+  # identify block and zone for summary year
+  block <- 39
+  zone <- 'G'
+  
+  # determine sizelimit for fishyear
+  df.1 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear == stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1) %>% 
+    summarise(max.lml = max(sizelimit)) %>% 
+    pull()
+  
+  # identify size limit changes and select data to add reference lines to plot
+  df.3 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, df.1 - 5, 220)) %>% 
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear, sizelimit) %>% 
+    summarise(n = n()) %>%
+    ungroup() %>% 
+    mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0),
+           lml.decrease = cumsum(c(1, diff(sizelimit)) < 0)) %>% 
+    group_by(lml.increase, lml.decrease) %>%
+    slice(which.max(lml.increase)) %>% 
+    filter(fishyear < 2021)
+  
+  # add sizelimit where it hasn't changed since inception of block 
+  df.3 <- df.3 %>% 
+    mutate(sizelimit = if_else(is.na(sizelimit), df.1, sizelimit))
+  
+  # identify size limit change
+  # df.3 <- df.3 %>% 
+  #   ungroup() %>% 
+  #   top_n(n = 1, wt = fishyear)
+  
+  # select data for summary year, block, zone and generate percentage of observations within x of lml
+  df.2 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 & 
+                    between(shell.length, df.1 - 5, 220) & 
+                    sizelimit == as.numeric(df.1)) %>%
+    mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
+    group_by(fishyear) %>% 
+    summarise(catches = n_distinct(sample.id),
+              n = n(),
+              med.sl = round(median(shell.length), 1),
+              max.sl = round(max(shell.length), 1),
+              lml5 = sum(between(shell.length, df.1, df.1 + 5)),
+              lml30 = sum(shell.length > df.1 + 30),
+              lml5.per = (lml5/n)*100,
+              lml30.per = (lml30/n)*100)
+  
+  # identify last size limit change and add plot label position
+  df.5 <- df.3 %>% 
+    ungroup() %>% 
+    filter(fishyear == max(fishyear)) %>% 
+    mutate(y = 60)
+  
+  # identify year of last size limit change
+  # df.5 %>% 
+  #   summarise(max.year = max(fishyear)) %>% 
+  #   pull()
+  
+  # select data post last size limit change
+  df.6 <- df.2 %>% 
+    filter(fishyear >= max(df.5$fishyear))
+  
+  # add missing years
+  df.7 <- expand.grid(fishyear = seq(min(df.6$fishyear), max(df.6$fishyear))) %>% 
+    left_join(df.6)
+  
+  # df.7 <- df.3 %>% 
+  #   ungroup() %>% 
+  #   filter(fishyear == max(fishyear)) %>% 
+  #   mutate(y = 60)
+  
+  
+  # # identify year and size limit for last known LML change for plot
+  # df.4 <- df.3 %>%
+  #   ungroup() %>% 
+  #   slice_max(sizelimit, n = 1, with_ties = FALSE) %>% 
+  #   mutate(y = 60)
+  
+  LML5.plot <- df.7 %>% 
+    ggplot(aes(x = fishyear, y = lml5.per))+
+    geom_point(colour = 'red', size = 3)+
+    geom_line(colour = 'red', size = 1)+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    xlab('Year')+
+    coord_cartesian(ylim = c(0, 60))+
+    geom_text(data = df.5, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')),
+              inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
+    # geom_text(data = df.5, aes(x = 2010, y = y, label = paste('LML = ', sizelimit, 'mm')),
+    #           inherit.aes = FALSE, size = 3.5, hjust = -0.1)+
+    # scale_x_continuous(expand = c(0.01, 0.01),
+    #                    breaks = seq(2010, 2021, 2))
+    scale_x_continuous(expand = c(0.01, 0.01),
+                       breaks = seq(df.5$fishyear, 2021, 2))
+
+  print(LML5.plot)
+  
+  # save plot
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.png', sep = ''),
+    plot = LML5.plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ##-------------------------------------------------------------------------------------------------------##
+  
+  # upper 5th percentile ####
+  
+  # see Punt et al. 2001
+  
+  # identify block and zone for summary year
+  block <- 53
+  zone <- 'BS'
+  
+  # determine maximum and last size limit changes
+  df.1 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year & 
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1) %>% 
+    summarise(max.lml = max(sizelimit)) %>% 
+    pull()
+  
+  # select data for summary year, block and zone and generate percentage of observations within x of lml
+  df.10 <- compiledMM.df.final %>% 
+    dplyr::filter(fishyear <= stock.assessment.year &
+                    blockno == block &
+                    newzone == zone &
+                    numblocks == 1 &
+                    between(shell.length, df.1 - 5, 220)) %>% 
+    group_by(fishyear) %>% 
+    summarise(upperlength = quantile(shell.length, probs = 0.95))
+  
+  # add missing years
+  df.11 <- expand.grid(fishyear = seq(min(df.10$fishyear), max(df.10$fishyear))) %>% 
+    left_join(df.10)
+  
+  upperlengthplot <- df.11 %>% 
+    ggplot(aes(x = fishyear, y = upperlength))+
+    geom_line(size = 1)+
+    geom_point(size = 3)+
+    geom_smooth(method = 'lm', formula = y~x, se = T, size = 1)+
+    theme_bw()+
+    ylab(paste('BlockNo', block, ' Upper Length (mm)', sep = ''))+
+    xlab('Year')+
+    scale_y_continuous(labels = label_number(accuracy = 1))
+  
+  print(upperlengthplot)
+  
+  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_UPPER_LENGTH_', stock.assessment.year, '.pdf', sep = ''),
+    # filename = paste(zone,'_Zone', '_PERCENT_LML5-30_', stock.assessment.year, '.pdf', sep = ''),
+    plot = upperlengthplot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  
+  ggsave(
+    filename = paste(zone, '_BlockNo', block, '_UPPER_LENGTH_', stock.assessment.year, '.png', sep = ''),
+    plot = upperlengthplot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+                  
+                  
   ##-------------------------------------------------------------------------------------------------------##
   # Deviation from LML #### 
   block <- 13

@@ -1602,7 +1602,6 @@ measure.board.df.non.modem.match <- measure.board.df.non.modem %>%
  select(-c(rawutc, logger_date, local_date, abalonenum, logname, geometry, memorymodule, catches.measured)) %>% 
  dplyr::rename(msr.date = plaindate,
         shell.length = shelllength,
-        whole.weight = wholeweight,
         processorname = processor) %>% 
    mutate(proc = NA,
        numprocs = NA,
@@ -1619,7 +1618,7 @@ measure.board.df.non.modem.match <- measure.board.df.non.modem %>%
        numblocks = 1,
        numsubblocks = 1,
        catch = NA) %>% 
-   select(-blockno)
+   select(-c(blockno, est.weight))
 
 # summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
 n.per.docket <- measure.board.df.non.modem.match %>% 
@@ -1656,7 +1655,6 @@ compiled.docket.non.modem <- docket.join %>%
       minSL,
       species,
       shell.length,
-      whole.weight,
       datasource,
       sample.id
    )

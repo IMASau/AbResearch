@@ -87,7 +87,7 @@ docknum.grade.meas <- mb.next.gen.grade.df %>%
 ##-------------------------------------------------------------------------------------------------------##
 # quick summary
 dock.sum <- measure.board.next.gen.df %>% 
-        filter(sampyear == 2021) %>% 
+        filter(sampyear == 2022) %>% 
         group_by(processor, zone) %>% 
         summarise(n = n(),
                   catches = n_distinct(docketnum)) %>% 
@@ -103,7 +103,8 @@ for(i in processors){
 grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docket.index', 'docketnum', 'docketnum.day', 'processor', 'plaindate', 'samptime.max')) %>% 
         filter(processor == i) %>%  
         mutate(grade.perc = round((grade.meas / ab.weighed) * 100),
-               sampyear = year(plaindate)) %>%  
+               sampyear = year(plaindate)) %>% 
+        filter(sampyear == 2022) %>% 
         ungroup() %>% 
         # select(-c(grade.meas, processor, docket.index.x, docket.index.y, sampyear)) %>% 
         select(-c(grade.meas, processor, docket.index, sampyear)) %>% 
@@ -122,15 +123,15 @@ grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docket.index',
                       'Sample\ntime' = samptime,
                'Docket\nno.' = docketnum,
                'Abalone\nmeasured' = ab.meas,
-               'Abalone\nweighed' = ab.weighed) %>% 
+               'Abalone\nweighed' = ab.weighed) %>%
         select(c("Docket\nno.", "Sample\ndate", "Sample\ntime", "Abalone\nmeasured",
                  "Abalone\nweighed", everything())) %>% 
-        select(-c(zone, samptime.max, docketnum.day)) %>%
+        select(-c(zone, samptime.max, docketnum.day)) %>% 
         as.data.frame()
         
 # create length and weight summary table
 length.weight.summary <- mb.next.gen.grade.df %>%
-        filter(wholeweight != 0 & processor == i) %>% 
+        filter(wholeweight != 0 & processor == i & sampyear == 2022) %>% 
         group_by(docketnum.day, processor, plaindate, samptime.max, zone, docket.index) %>%
         summarise('Mean\nweight\n(g)' = round(mean(wholeweight), 0),
                   'Min\nweight\n(g)' = min(wholeweight),
@@ -163,7 +164,7 @@ length.weight.summary <- mb.next.gen.grade.df %>%
 i <- ifelse(i == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
                          'TRUE SOUTH SEAFOOD', i)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
 write.xlsx(grade.summary,
            file = paste(i, '_GradeSummary_', Sys.Date(), '.xlsx'),
            sheetName = "Sheet1",
@@ -213,6 +214,7 @@ else{
 ## measuring board data frame for which to create summaries
 
 # identify local working folder containing existing docket summaries
+processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries'
 processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
 processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
 
@@ -221,8 +223,10 @@ processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020Pro
 # list filenames of existing docket summaries in folder
 docket.summaries.2020 <- list.files(processor.summaries.2020,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2021 <- list.files(processor.summaries.2021,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
+docket.summaries.2022 <- list.files(processor.summaries.2022,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 
-docket.summaries <- c(docket.summaries.2020, docket.summaries.2021)
+
+docket.summaries <- c(docket.summaries.2020, docket.summaries.2021, docket.summaries.2022)
 
 
 # create a vector of existing docket numbers 
@@ -371,7 +375,7 @@ for (i in new.dockets) {
                         ymin = 0.3
                 )
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- unique(plot.length.freq.dat$processor)
@@ -532,7 +536,7 @@ for (j in new.dockets) {
                                 ymax = 0.4
                         )
                 
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
                 file.zone <- unique(plot.weight.freq.dat$zone)
                 file.date <- unique(plot.weight.freq.dat$plaindate)
                 file.processor <- unique(plot.weight.freq.dat$processor)
@@ -775,7 +779,7 @@ for (i in new.dockets) {
                                                ncol = 1), ncol = 1))
         
         #save plots
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
@@ -796,7 +800,7 @@ for (i in new.dockets) {
                 #         arrangeGrob(cowplot::plot_grid(length.plot, align = 'v', 
                 #                                        ncol = 1), ncol = 1))
                 #save plots
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
                 file.zone <- unique(plot.length.freq.dat$zone)
                 file.date <- unique(plot.length.freq.dat$plaindate)
                 file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
@@ -856,7 +860,7 @@ for(i in docket.nums){
         
         print(docket.pie.plot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         ggsave(
                 filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.pdf', sep = ''),
                 plot = docket.pie.plot,
@@ -962,7 +966,7 @@ for (i in processors) {
         
         print(weight.boxplot)
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         ggsave(
                 filename = paste(i, '_weight_pre-docket_boxplot_2020', '.pdf', sep = ''),
                 plot = weight.boxplot,
@@ -1121,14 +1125,14 @@ for (i in processors) {
 # tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2020.xlsx",
 #                        detectDates = T)
 
-tas.seafoods.divers.2021 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2021.xlsx",
+tas.seafoods.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2022.xlsx",
                                       detectDates = T)
 
 
 summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
 summary.year <- year(Sys.time())
 
-tas.seafoods.divers <- tas.seafoods.divers.2021 %>% 
+tas.seafoods.divers <- tas.seafoods.divers.2022 %>% 
         distinct(docketnum, divedate, .keep_all = T) %>% 
         group_by(docketnum, diver) %>% 
         summarise(divedate = max(divedate)) %>% 
@@ -1166,7 +1170,7 @@ tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>%
 
 # print(tas.seafoods.grade.summary.formated)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
 
 write.xlsx(tas.seafoods.grade.summary, paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.xlsx', sep = '_'), 
            sheetName = "Sheet1",
@@ -1182,13 +1186,13 @@ ggsave(
 ##---------------------------------------------------------------------------##
 ## Seafood Traders ####
 
-seafood.traders.divers.2021 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries/SeafoodTraders_2021_DiverDetails.xlsx",
+seafood.traders.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/SeafoodTraders_2022_DiverDetails.xlsx",
                                       detectDates = T)
 
 summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
 summary.year <- year(Sys.time())
 
-seafood.traders.divers.2021 <- seafood.traders.divers.2021 %>% 
+seafood.traders.divers.2022 <- seafood.traders.divers.2022 %>% 
         distinct(docketnum, divedate, .keep_all = T) %>% 
         group_by(docketnum, diver) %>% 
         summarise(divedate = max(divedate)) %>% 
@@ -1210,9 +1214,9 @@ seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c
         select(-zone) %>% 
         as.data.frame()
 
-seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2021, by = c('Docket\nno.' = 'docketnum')) %>%  
+seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2022, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', plaindate, 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
-        filter(plaindate >= as.Date("2021-01-01")) %>% 
+        filter(plaindate >= as.Date("2022-01-01")) %>% 
         dplyr::rename('Dive\ndate' = divedate,
                       'Diver\nname' = diver,
                       'Date\nsampled' = plaindate,
@@ -1221,7 +1225,7 @@ seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafoo
 seafood.traders.grade.summary.formated <- seafood.traders.grade.summary %>% 
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
 
 write.xlsx(seafood.traders.grade.summary, paste('SEAFOOD TRADERS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.xlsx', sep = '_'), 
            sheetName = "Sheet1",
