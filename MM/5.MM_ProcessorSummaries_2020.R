@@ -39,7 +39,7 @@ measure.board.next.gen.df <- left_join(measure.board.next.gen.df, measure.board.
 
 # quick summary of catches measured by processor
 measure.board.next.gen.df %>% 
-        filter(local_date >= as.Date('2020-12-31')) %>% 
+        filter(local_date >= as.Date('2021-12-31')) %>% 
         group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
                   n = n(),

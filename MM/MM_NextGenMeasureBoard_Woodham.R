@@ -613,6 +613,7 @@ measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measur
 
 measure.board.df.non.modem %>% 
   group_by(processor, plaindate) %>% 
+  filter(plaindate >= as.Date('2021-12-31')) %>% 
   summarise(catches.measured = n_distinct(sample.id),
             n = n()) %>% 
   janitor::adorn_totals() %>% 

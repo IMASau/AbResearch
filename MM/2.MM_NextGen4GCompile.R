@@ -366,6 +366,37 @@ measure.board.next.gen.df <- measure.board.next.gen.df %>%
         mutate(docket.index = paste(zone, docketnum.day, plaindate, processor, sep = '-'))
 
 ##---------------------------------------------------------------------------##
+## Need to intergrate logger allocation database sql extract to assign logger to 
+## processor
+
+# ## R/SQLSERVER Connections ####
+# channel <- DBI::dbConnect(odbc(), "AbTrack")
+# 
+# sql <- "SELECT L.CODE as logname, C.CODE as divercode, C.FIRSTNAME as firstname, C.LASTNAME as lastname, C.MOBILE as mobile, 
+#         C.PHONE as phone,[DATE_ALLOCATED] as date_alloc,[DATE_RETURNED] as date_ret,[COMMENT] as comment
+#   FROM [AbTrack].[dbo].[AG_LOGGER_ALLOC] as LA
+#   JOIN Abtrack.dbo.CM_PERSON as C on LA.CM_PERSON_ID = C.ID
+#   JOIN AbTrack.dbo.AG_LOGGER as L on LA.AG_LOGGER_ID = L.ID
+#  JOIN AbTrack.dbo.AG_LOGGER_MODEL as LM on L.AG_LOGGER_MODEL_ID = LM.ID
+#   WHERE LM.ID IN ('18','22','23')                                           -- LM.ID 18 = NG GPS, 22 = NG MB, 23 = NG MBM
+#   AND DATE_RETURNED is NULL                                                 -- For CURRENT allocations
+#   -- AND DATE_RETURNED is NULL                                              -- For ALL allocations (comment out line above using -- )
+#   AND DATE_ALLOCATED >= '2020-01-01'
+#   AND L.CODE IN ('07010050', '07010051', '07010052', '07010053', '07020055', '07020056', '07020057', '07020058')"
+# # AND C.CODE IN ('P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'AD983', 'AD2130', 'AD1276', 'AD39446', 'AD49069') -- Filter for diver/processor "
+# 
+# 
+# 
+# ## Extract data from AbTrack ####
+# logger_alloc <- dbGetQuery(channel, sql, stringsAsFactors = FALSE)
+# dbDisconnect(channel)
+# 
+# logger_alloc$logname <- str_remove_all(logger_alloc$logname,'-')
+# logger_alloc$firstname <- trimws(logger_alloc$firstname, "r")
+# logger_alloc$lastname <- trimws(logger_alloc$lastname, "r")
+# logger_alloc$comment <- trimws(logger_alloc$comment, "r")
+##---------------------------------------------------------------------------##
+
 ## Step 10: incomplete uploads ####
 ## search previous compiled dataframe for incomplete uploads for a docket number to pass onto
 ## processor summary script
