@@ -121,3 +121,19 @@ codeBlregion <- function(Bl) {
  }
  return(Bl)
 }
+
+## Recode points into recreational abalone and rock lobster harvest regions
+codeBlregionRec <- function(Bl) {
+ {
+  Bl$rec.region[Bl$blockno %in%  c(13, 14, 15, 16, 17, 18, 19, 20, 21, 22, '14,13', '13,14', '17,20')] <- 1
+  Bl$rec.region[Bl$blockno %in%  c(23, 24, 25, 26, 27, 28)] <- 2
+  Bl$rec.region[Bl$blockno %in%  c(29, 30, 31)] <- 3
+  Bl$rec.region[Bl$blockno %in%  c(32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 50, 
+                                  51, 52, 53, 54, 55, 56, 57, '35,53', '33,35')] <- 4
+  Bl$rec.region[Bl$blockno %in% c(43, 44, 45, 46, 47, 48, 49, 5, '5,49', '48,49')] <- 5
+  Bl$rec.region[Bl$blockno %in%  c(6, 7)] <- 6
+  Bl$rec.region[Bl$blockno %in% c(8, 9, 10, '10,9', '9,10')] <- 7
+  Bl$rec.region[Bl$blockno %in% c(11, 12, '12,13', '11,12', '12,11', '13,12')] <- 8
+ }
+ return(Bl)
+}
