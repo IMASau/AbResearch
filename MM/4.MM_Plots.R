@@ -57,7 +57,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2021
+stock.assessment.year <- 2022
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify zone/blocks/processors ####
@@ -193,6 +193,31 @@ compiledMM.df.final <- compiledMM.df.join
   # dplyr::rename(sizelimit = sizelimit.y)
 
 saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+##-------------------------------------------------------------------------------------------------------##
+# Milestone Processor Report Summary ####
+
+proc.summ <- compiledMM.df.final %>% 
+ filter(fishyear == stock.assessment.year &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+ group_by(processorname) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ as.data.frame() %>%
+ arrange(desc(processorname)) %>% 
+ adorn_totals(fill = '')
+
+proc.summ.zone <- compiledMM.df.final %>% 
+ filter(fishyear == stock.assessment.year &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+ group_by(newzone) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ mutate('%' = round((catches / sum(catches)) * 100)) %>% 
+ as.data.frame() %>%
+ arrange(desc(newzone)) %>% 
+ adorn_totals(fill = '')
+
+
 ##-------------------------------------------------------------------------------------------------------##
 # Quick summaries ####
 
