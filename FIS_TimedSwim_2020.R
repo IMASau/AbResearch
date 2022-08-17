@@ -45,14 +45,13 @@ source("C:/GitCode/AbResearch/getLegend.r")
 samp.year <- 2022
 
 # identify associated sampling year folder path to save dataframes
-samp.year.folder <- file.path('C:', 'CloudStor', 'R_Stuff', 'FIS', 
-                              paste('FIS_', samp.year, sep = ''),
+samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
+                              'Abalone', 'FISdata',
                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
-ts.plots.folder <- file.path('C:', 'CloudStor', 'R_Stuff', 'FIS', 
-                             paste('FIS_', samp.year, sep = ''),
-                             paste('FIS_TimedSwimSurveys', samp.year, sep = ''),
+ts.plots.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
+                             'Abalone', 'Assessment', 'Figures', 'FIS',
                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
 ## 2. Load raw data ####
