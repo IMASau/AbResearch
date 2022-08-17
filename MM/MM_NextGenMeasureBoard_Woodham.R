@@ -39,7 +39,32 @@ library(tictoc)
 
 measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
 
+##---------------------------------------------------------------------------##
+setwd("R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles")
 
+df.1 <- load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_2022-07-29.RData')
+
+df.2 <- dirlistdf %>% 
+ filter(gps_SID %in% c('05010107', '05010036', '05010045', '05010040', '05010037', '05010112',
+                        '05010156', '05010086', '05010134', '05010016', '05010044'))
+
+df.3 <- df.2 %>% 
+ select(dirlist) %>% 
+ pull()
+
+localfiles <- df.3
+
+df.4 <- lapply(df.3, function(x)read.table(x, header = F))
+
+df.5 <- do.call("rbind", df.4)
+
+df.6 <- df.5 %>% 
+ separate(col = V1, sep = ",", into = c("logname", "seqindex","identifier","rawutc","datapack","crc_status"))
+
+
+
+
+##---------------------------------------------------------------------------##
 # Extract logger data files for GPS loggers allocated to divers 
 # 05010107 - Greg Woodham
 # 05010036 - Ben Allen
@@ -48,7 +73,8 @@ measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/Nex
 
 
 localfiles <- list.files(measureboard.non.modem,  
-                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156|05010086|05010134|05010016.*txt", full.names = T)
+                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|
+                         05010156|05010086|05010134|05010016|05100044.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
