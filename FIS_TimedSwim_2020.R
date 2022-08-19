@@ -188,28 +188,28 @@ GDA2020 <- st_crs(7855)
 # read GPX files from vessel plotter
 
 # vessel data for 2020 surveys
-morana.gps.2020 <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+morana.gps.2020 <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
 
 # vessel data for 2021 reference site surveys (i.e. block 13-14)
-morana.gps.ref <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-04-06_download.gpx', layer = 'waypoints')
+morana.gps.ref <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-04-06_download.gpx', layer = 'waypoints')
 
 # vessel data for 2021 surveys
-morana.gps.2021.a <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-07-15_download.gpx', layer = 'waypoints')
+morana.gps.2021.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-07-15_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.b <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-08-12_download.gpx', layer = 'waypoints')
+morana.gps.2021.b <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-08-12_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.c <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-09-08_download.gpx', layer = 'waypoints')
+morana.gps.2021.c <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-09-08_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.d <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/MORANAII-2021-10-07_download.gpx', layer = 'waypoints')
+morana.gps.2021.d <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-10-07_download.gpx', layer = 'waypoints')
 
-taroona.gps.2021.a <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/TAROONA-2021-10-15_download.gpx', layer = 'waypoints')
+taroona.gps.2021.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/TAROONA-2021-10-15_download.gpx', layer = 'waypoints')
 
 morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.2021.c, 
                              morana.gps.2021.d) %>% 
  distinct(., name, .keep_all = T)
 
 # vessel data for 2022 surveys
-morana.gps.2022 <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2022/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
+morana.gps.2022 <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
 
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
@@ -248,7 +248,7 @@ vessel.gps <- bind_rows(morana.gps.2020, morana.gps.ref, morana.gps.2021, taroon
                gpstime = time) %>% 
         select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
 
-time.swim.meta.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.meta.dat.RDS')
+time.swim.meta.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.meta.dat.RDS')
 
 # separate start positions
 ts.site.start <- time.swim.meta.dat %>%
@@ -315,10 +315,10 @@ st_write(vessel.gps.dat,
 # Combine proposed timed swim sites from all years into one data frame 
 
 # load final proposed sites for 2020 and 2021 surveys (i.e. adjusted site names)
-ts.sites.final.pre2022 <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
+ts.sites.final.pre2022 <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
 
 # load final proposed sites for 2022
-ts.sites.final.2022 <- read.xlsx('C:/CloudStor/R_Stuff/FIS/FIS_2022/FIS_TimedSwimSurveys2022/TimedSwimSites_Final2022.xlsx', 
+ts.sites.final.2022 <- read.xlsx('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/TimedSwimSites_Final2022.xlsx', 
                                       detectDates = T)
 # set CRS
 GDA2020 <- st_crs(7855)
@@ -375,7 +375,8 @@ GDA2020 <- st_crs(7855)
 ts.dat.site.sampled <- st_transform(ts.dat.site.sampled, GDA2020)
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+# sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -495,10 +496,10 @@ st_write(ts.proposed.geom,
 ## add subblock to site name based on vessel GPS data and start position
 ## use these data for 'actual geometry' when joining to raw data 
 
-vessel.gps.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2022/FIS_TimedSwimSurveys2022/vessel.gps.dat.RDS')
+vessel.gps.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/vessel.gps.dat.RDS')
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -534,7 +535,7 @@ site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map
         filter(sampperiod == 'start')
 
 # load proposed site file
-ts.sites.final.sf <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2022/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
+ts.sites.final.sf <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
 
 # join sites sampled to renamed site file for 2020
 ts.actual.geom <- ts.sites.final.sf %>%
@@ -555,14 +556,14 @@ saveRDS(ts.actual.geom, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = '')
 # identify blocks sampled
 blocks.sampled <- unique(site.samp.start.subblock.loc.ref$blockno)
 
-# select sampling year
-samp.year <- 2022
-
-# identify folder path to save plots for sampling year
-ts.plots.folder <- file.path('C:', 'CloudStor', 'R_Stuff', 'FIS', 
-                             paste('FIS_', samp.year, sep = ''),
-                             paste('FIS_TimedSwimSurveys', samp.year, sep = ''),
-                             paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
+# # select sampling year
+# samp.year <- 2022
+# 
+# # identify folder path to save plots for sampling year
+# ts.plots.folder <- file.path('C:', 'CloudStor', 'R_Stuff', 'FIS', 
+#                              paste('FIS_', samp.year, sep = ''),
+#                              paste('FIS_TimedSwimSurveys', samp.year, sep = ''),
+#                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 
 # create maps
 for (i in blocks.sampled){
@@ -622,7 +623,7 @@ st_write(ts.actual.geom,
 #   st_coordinates()
 # 
 # st_write(df.1,
-#          dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/block13-14_refsites.gpkg",
+#          dsn = "C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/block13-14_refsites.gpkg",
 #          layer = "df.1", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
@@ -760,12 +761,12 @@ time.swim.dat.df.act.prop <- left_join(ts.dat.prop.df %>% dplyr::select(-c(subbl
 # include 'oid', 'cell.ntile' and 'sam.count'
 
 # load cpue oid data and combine
-ts.site.cpue.2020.join <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
-ts.site.cpue.2021.join <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
+ts.site.cpue.2020.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
+ts.site.cpue.2021.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
 ts.site.cpue.join <- bind_rows(ts.site.cpue.2020.join, ts.site.cpue.2021.join)
 
 # load sam data and remove duplicate sites with same site name
-ts.site.sam.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
 ts.site.sam.join <- ts.site.sam.dat %>% 
         distinct(site, .keep_all = T)
 
@@ -1346,8 +1347,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.png', 
 ## MAP 1: Site Count x size ####
 ## Average Count by site - possibly explore KUDs
 
-sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.tas.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform maps to GDA2020
 
@@ -1393,7 +1394,7 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
 blocks.sampled <- unique(time.swim.count.site.loc$blockno)
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
@@ -1503,8 +1504,8 @@ for (i in blocks.sampled){
 ## MAP 2: Site Count x year ####
 ## Average Count by site between sample and previous year
 
-sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.tas.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform maps to GDA2020
 
@@ -1548,7 +1549,7 @@ blocks.sampled <- time.swim.count.site.loc %>%
   pull()
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
@@ -1686,8 +1687,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteCountMap-', samp.ye
 ## MAP 3: Site Count x year x size class ####
 ## Average Count by site between years
 
-sf.tas.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.tas.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform maps to GDA2020
 
@@ -1732,7 +1733,7 @@ blocks.sampled <- time.swim.count.site.loc %>%
   pull()
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
@@ -1900,16 +1901,10 @@ for (i in blocks.sampled){
 
 ##---------------------------------------------------------------------------##
 
-
-## These are additional summary plots for final report examining present day with
-# available historical data.
-
-##---------------------------------------------------------------------------##
-
 # PLOT 1: Diver deviation ####
 
 # Load timed swim diver pair data
-time.swim.divers <- read.xlsx("C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/timed_swim_diver_details_2021.xlsx",
+time.swim.divers <- read.xlsx("C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/timed_swim_diver_details_2022.xlsx",
                               detectDates = T)
 
 # Add end date for divers still participating
@@ -1936,7 +1931,7 @@ ts.count.divers %>%
  distinct(dive.pair.id) 
 
 # Select sample year
-samp.year <- c(2021)
+samp.year <- c(2022)
 
 # Identify diver pair IDs x chosen year (remove JM)
 diver.ids <- ts.count.divers %>% 
@@ -1979,35 +1974,37 @@ for (i in diver.ids){
                 'Diver', names(dive.dev.divers[2])))+
   geom_text(data = divers.site.n, aes(y = 90, label = site.n), size = 3)+
   scale_fill_manual(values = c("#999999", "#56B4E9"))+
-  # theme(legend.title = element_blank(),
-  #       legend.position = c(0.1, 0.8))
   theme(legend.title = element_blank(),
-        legend.position = ifelse(names(dive.dev.divers) == '1' &
-                                  names(dive.dev.divers) == '5' &
-                                  samp.year == 2020, c(0.1, 0.8), "none"))
+        legend.position = c(0.15, 0.8))
+  # theme(legend.title = element_blank(),
+  #       legend.position = ifelse(names(dive.dev.divers) == '1' &
+  #                                 names(dive.dev.divers) == '5' &
+  #                                 samp.year == 2020, c(0.1, 0.8), "none"))
  
 }
 
-pq <- c(p, q)
-
-pq %>% 
+dive.dev.plot <- q %>% 
  discard(is.null) %>% 
  cowplot::plot_grid(plotlist = .)
 
 
 
 # save plot
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_', 
-                        names(dive.dev.divers[1]), 'vs',
-                        names(dive.dev.divers[2]), '.pdf', sep = ''),
-       plot = dive.dev.plot, units = 'mm', width = 190, height = 120)
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.pdf', sep = ''),
+       plot = dive.dev.plot, units = 'mm', width = 210, height = 200)
 
-ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '_', 
-                        names(dive.dev.divers[1]), 'vs',
-                        names(dive.dev.divers[2]), '.png', sep = ''),
-       plot = dive.dev.plot, units = 'mm', width = 190, height = 120)
-}
+ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.png', sep = ''),
+       plot = dive.dev.plot, units = 'mm', width = 210, height =200)
+
+
+##---------------------------------------------------------------------------##
+
+## NOTE FOR LACHIE - STOP HERE
+
+## These are additional summary plots for final report examining present day with
+# available historical data.
+
 
 ##---------------------------------------------------------------------------##
 ## 2021 site selection ####
@@ -2042,8 +2039,8 @@ sites.2020.kept.df <- sites.2020.kept.sf %>%
   sfheaders::sf_to_df(fill = T)
 
 # save file
-saveRDS(sites.2020.kept.df, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
-sites.2020.kept.df <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+saveRDS(sites.2020.kept.df, 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+sites.2020.kept.df <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
 
 # create vector of oid to be sampled in 2021 from 2020 sites sampled
 # Note: 12 of the reference sites are SAM historical research sites (i.e. n = 78) 
@@ -2239,7 +2236,7 @@ cpue.plot <- time.swim.cpue.site %>%
  guides(size = 'legend', colour = 'none',
         fill = guide_legend(title = 'Year'))
 
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.pdf', sep = ''), 
        plot = cpue.plot, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.png', sep = ''), 
@@ -2273,7 +2270,7 @@ ts.vs.cpue.plot <- std.ts.dat %>%
  theme(strip.background = element_blank(),
        strip.text.x = element_text(size = 12, face = 'bold'))
 
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.pdf', sep = ''), 
        plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.png', sep = ''), 
@@ -2288,7 +2285,7 @@ ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.png
 fis.sam.data <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TimedSwimFIS/SampleDetailsforTimedSwimV2_JM.xlsx",
                           detectDates = T)
 
-ts.site.sam.dat <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
 
 colnames(fis.sam.data) <- tolower(colnames(fis.sam.data))
 
@@ -2343,7 +2340,7 @@ ts.sam.count.plot <- ts.sam.dat %>%
  scale_fill_viridis(discrete = TRUE)
 
 # Save plot
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.pdf', sep = ''), 
        plot = ts.sam.count.plot, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.png', sep = ''), 
@@ -2400,7 +2397,7 @@ time.swim.dat.vs.sam.plot <- std.ts.dat %>%
  theme(legend.position = c(0.9, 0.9),
        legend.title = element_blank())
 
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE', '.pdf', sep = ''), 
        plot = time.swim.dat.vs.cpue.plot, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE', '.png', sep = ''), 
@@ -2451,7 +2448,7 @@ plot.open <- df.3 %>%
 block.13.plot <- grid.arrange(plot.closed, plot.open, nrow = 1)
 
 # save plot
-setwd('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
 ggsave(filename = paste('TimedSwimSurvey_Block13_OpenvsClosed2021', '.pdf', sep = ''),
        plot = block.13.plot, units = 'mm', width = 190, height = 120)
 
