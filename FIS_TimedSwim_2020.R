@@ -42,7 +42,7 @@ source("C:/GitCode/AbResearch/getLegend.r")
 ## 1. Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2022
+samp.year <- 2021
 
 # identify associated sampling year folder path to save dataframes
 samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
@@ -844,6 +844,16 @@ ts.av.count <- std.ts.dat %>%
   pivot_wider(id_cols = c(blockno),
               names_from = c(legal.size, sampyear),
               values_from = c('av.count', 'sites'))
+##---------------------------------------------------------------------------##
+std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>%
+ group_by(blockno, sampyear) %>% 
+ summarise(n = n_distinct(sampdate),
+           sites = n_distinct(site)) %>% 
+ pivot_wider(id_cols = c(blockno),
+             names_from = c(sampyear),
+             values_from = c('n', 'sites')) %>% 
+ adorn_totals()
 ##---------------------------------------------------------------------------##
 ## PLOT 1: COUNT PER TEN MIN YEARS ####
 ## average count of all legal and sub-legal abalone per 10 min by year for each site within each block 

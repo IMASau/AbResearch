@@ -42,11 +42,11 @@ measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/Nex
 ##---------------------------------------------------------------------------##
 setwd("R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles")
 
-df.1 <- load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_2022-07-29.RData')
+df.1 <- load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_2022-08-22.RData')
 
 df.2 <- dirlistdf %>% 
  filter(gps_SID %in% c('05010107', '05010036', '05010045', '05010040', '05010037', '05010112',
-                        '05010156', '05010086', '05010134', '05010016', '05010044'))
+                        '05010156', '05010086', '05010134', '05010016', '05010044', '05010070'))
 
 df.3 <- df.2 %>% 
  select(dirlist) %>% 
@@ -65,6 +65,12 @@ df.6 <- df.5 %>%
 
 
 ##---------------------------------------------------------------------------##
+load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_220822.RData')
+
+logged.data <- data_packet %>% 
+ select("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+
+##---------------------------------------------------------------------------##
 # Extract logger data files for GPS loggers allocated to divers 
 # 05010107 - Greg Woodham
 # 05010036 - Ben Allen
@@ -74,7 +80,7 @@ df.6 <- df.5 %>%
 
 localfiles <- list.files(measureboard.non.modem,  
                          pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|
-                         05010156|05010086|05010134|05010016|05100044.*txt", full.names = T)
+                         05010156|05010086|05010134|05010016|05100044|05010070.*txt", full.names = T)
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
@@ -626,6 +632,18 @@ mb.df.non.modem.sample.id <- measure.board.df.non.modem %>%
 measure.board.df.non.modem <- left_join(measure.board.df.non.modem, mb.df.non.modem.sample.id)
 
 ##---------------------------------------------------------------------------##
+# remove known practice samples on days where actual sampling occured but could
+# not be identified earlier without location data
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+ filter(!(logname == '07010050' &
+           plaindate == as.Date('2022-08-08') &
+           subblockno %in% c('12D', '13A'))) %>% 
+ filter(!(logname == '07010050' &
+            plaindate == as.Date('2022-01-15') &
+            subblockno %in% c('14A', '13C')))
+
+##---------------------------------------------------------------------------##
 ## Step 11: Save RDS of dataframe ####
 
 saveRDS(measure.board.df.non.modem, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
@@ -791,14 +809,104 @@ mb.df.non.modem.summary.reference.limits <- mb.df.non.modem.summary.ref %>%
 
 setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
 
+write.xlsx(mb.df.non.modem.summary.ref,
+           file = paste(diver, '_Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
 ggsave(
   filename = paste(diver, '_Measureboard_NonModem_SizeSummaryReferenceLimits_Formatted_', Sys.Date(), '.pdf', sep = ''),
   plot = mb.df.non.modem.summary.reference.limits,
   width = 11.69,
-  height = 12,
+  height = 16,
   units = 'in'
 )
 }
+
+##---------------------------------------------------------------------------##
+# summary for greg woodham
+woodie.west <- measure.board.df.non.modem %>%
+ filter(!is.na(shelllength) &
+         grepl('^07', logname) &
+         between(shelllength, 100, 220) &
+         logname == '07010050',
+        zone == 'W') %>%   
+ distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(logname, zone, subblockno, processor, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+           'Min\nsize\n(mm)' = round(min(shelllength), 0),
+           'Max\nsize\n(mm)' = round(max(shelllength), 0),
+           n = n(),
+           ref.a = sum(shelllength >= 150),
+           ref.b = sum(shelllength >= 155),
+           ref.c = sum(shelllength >= 160),
+           '>150mm\n(%)' = round((ref.a/n)*100),
+           '>155mm\n(%)' = round((ref.b/n)*100),
+           '>160mm\n(%)' = round((ref.c/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('SubBlock' = subblockno,
+               'Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
+ dplyr::rename('Diver' = processor) %>% 
+ select(c(Diver, SubBlock, Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">150mm\n(%)", ">155mm\n(%)", ">160mm\n(%)"))
+
+woodie.east <- measure.board.df.non.modem %>%
+ filter(!is.na(shelllength) &
+         grepl('^07', logname) &
+         between(shelllength, 100, 220) &
+         logname == '07010050',
+        zone == 'E') %>%   
+ distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(logname, zone, subblockno, processor, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+           'Min\nsize\n(mm)' = round(min(shelllength), 0),
+           'Max\nsize\n(mm)' = round(max(shelllength), 0),
+           n = n(),
+           ref.a = sum(shelllength >= 140),
+           ref.b = sum(shelllength >= 142),
+           ref.c = sum(shelllength >= 145),
+           '>140mm\n(%)' = round((ref.a/n)*100),
+           '>142mm\n(%)' = round((ref.b/n)*100),
+           '>145mm\n(%)' = round((ref.c/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('SubBlock' = subblockno,
+               'Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
+ dplyr::rename('Diver' = processor) %>% 
+ select(c(Diver, SubBlock, Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">140mm\n(%)", ">142mm\n(%)", ">145mm\n(%)"))
+
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+
+write.xlsx(woodie.west,
+           file = paste('Woodham_WEST__Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
+write.xlsx(woodie.east,
+           file = paste('Woodham_EAST__Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
 
 ##---------------------------------------------------------------------------##
 ## Step 16: Plot Blacklip LF  ####
