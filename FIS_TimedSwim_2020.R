@@ -42,7 +42,7 @@ source("C:/GitCode/AbResearch/getLegend.r")
 ## 1. Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2021
+samp.year <- 2022
 
 # identify associated sampling year folder path to save dataframes
 samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
@@ -209,8 +209,12 @@ morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.20
  distinct(., name, .keep_all = T)
 
 # vessel data for 2022 surveys
-morana.gps.2022 <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
+morana.gps.2022.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
 
+morana.gps.2022.b <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-06_download.gpx', layer = 'waypoints')
+
+morana.gps.2022 <- bind_rows(morana.gps.2022.a, morana.gps.2022.b) %>% 
+ distinct(., name, .keep_all = T)
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
 # therefore DO NOT use this column to determine year. Waypoint numbers should 
@@ -248,7 +252,7 @@ vessel.gps <- bind_rows(morana.gps.2020, morana.gps.ref, morana.gps.2021, taroon
                gpstime = time) %>% 
         select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
 
-time.swim.meta.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.meta.dat.RDS')
+time.swim.meta.dat <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.RDS', sep = ''))
 
 # separate start positions
 ts.site.start <- time.swim.meta.dat %>%
@@ -1404,7 +1408,7 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
 blocks.sampled <- unique(time.swim.count.site.loc$blockno)
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep = ''))
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
@@ -1559,7 +1563,7 @@ blocks.sampled <- time.swim.count.site.loc %>%
   pull()
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep = ''))
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
@@ -1743,7 +1747,7 @@ blocks.sampled <- time.swim.count.site.loc %>%
   pull()
 
 # identify sites not surveyed but proposed
-ts.proposed.geom <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.proposed.geom.RDS')
+ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep = ''))
 
 # identify proposed sites not surveyed
 not.surveyed.df <- ts.proposed.geom %>% 
