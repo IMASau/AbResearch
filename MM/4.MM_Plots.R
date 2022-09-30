@@ -407,7 +407,142 @@ write.xlsx(fishyear.summary.LML.df, 'MM_Sampling_Summary_LML_2021.xlsx', sheetNa
            col.names = TRUE, row.names = TRUE, append = FALSE)
 print(xtable(fishyear.summary.LML.df, type = 'latex'), file = 'MM_Sampling_Summary_LML_2021.tex')
 
-##-------------------------------------------------------------------------------------------------------##
+##---------------------------------------------------------------------------##
+# summary for proposed size limit changes post 2022
+mm.west <- compiledMM.df.final %>%
+ filter(!is.na(shell.length) &
+         fishyear == stock.assessment.year  &
+         between(shell.length, 100, 220) &
+        newzone == 'W' &
+         !subblockno %in% c('6A', '6B', '6C')) %>% 
+         # processorname == "TASMANIAN SEAFOODS PTY LTD") %>%   
+ # distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(newzone, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shell.length), 0),
+           'Min\nsize\n(mm)' = round(min(shell.length), 0),
+           'Max\nsize\n(mm)' = round(max(shell.length), 0),
+           n = n(),
+           ref.a = sum(shell.length >= 150),,
+           '>150mm\n(%)' = round((ref.a/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, newzone)) %>%
+ select(c(Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">150mm\n(%)"))
+
+mm.east <- compiledMM.df.final %>%
+ filter(!is.na(shell.length) &
+         fishyear == stock.assessment.year  &
+         between(shell.length, 100, 220) &
+         newzone == 'E') %>% 
+         # processorname == "TASMANIAN SEAFOODS PTY LTD") %>%   
+ # distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(newzone, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shell.length), 0),
+           'Min\nsize\n(mm)' = round(min(shell.length), 0),
+           'Max\nsize\n(mm)' = round(max(shell.length), 0),
+           n = n(),
+           ref.a = sum(shell.length >= 140),
+           ref.b = sum(shell.length >= 142),
+           ref.c = sum(shell.length >= 145),
+           '>140mm\n(%)' = round((ref.a/n)*100),
+           '>142mm\n(%)' = round((ref.b/n)*100),
+           '>145mm\n(%)' = round((ref.c/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, ref.b, ref.c, newzone)) %>%
+ select(c(Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">140mm\n(%)", ">142mm\n(%)", ">145mm\n(%)"))
+
+# mm.upwest <- compiledMM.df.final %>%
+#  filter(!is.na(shell.length) &
+#          fishyear == c(2020, 2021, 2022)  &
+#          between(shell.length, 100, 220) &
+#          subblockno %in% c('49D', '5A', '5B', '5C', '5D', '6A', '6B', '6C')) %>%    
+#  # distinct(abalonenum, rawutc, .keep_all = T) %>%
+#  group_by(newzone, species) %>%  
+#  summarise('Number\nmeasured' = n(),
+#            'Mean\nsize\n(mm)' = round(mean(shell.length), 0),
+#            'Min\nsize\n(mm)' = round(min(shell.length), 0),
+#            'Max\nsize\n(mm)' = round(max(shell.length), 0),
+#            n = n(),
+#            ref.a = sum(shell.length >= 136),,
+#            '>136mm\n(%)' = round((ref.a/n)*100)) %>% 
+#  ungroup() %>% 
+#  mutate_if(is.factor,
+#            fct_explicit_na,
+#            na_level = '') %>%
+#  mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+#  dplyr::rename('Species' = species) %>% 
+#  as.data.frame() %>%
+#  select(-c(n, ref.a, newzone)) %>%
+#  select(c(Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+#           ">136mm\n(%)"))
+
+# mm.musselroe <- compiledMM.df.final %>%
+#  filter(!is.na(shell.length) &
+#          fishyear == c(2020, 2021, 2022)  &
+#          between(shell.length, 100, 220) &
+#          blockno %in% c(39, 40) |
+#          !is.na(shell.length) &
+#          fishyear == stock.assessment.year  &
+#          between(shell.length, 100, 220) &
+#          subblockno %in% c('31B'))      
+#  # distinct(abalonenum, rawutc, .keep_all = T) %>%
+#  group_by(newzone, species) %>%  
+#  summarise('Number\nmeasured' = n(),
+#            'Mean\nsize\n(mm)' = round(mean(shell.length), 0),
+#            'Min\nsize\n(mm)' = round(min(shell.length), 0),
+#            'Max\nsize\n(mm)' = round(max(shell.length), 0),
+#            n = n(),
+#            ref.a = sum(shell.length >= 130),
+#            ref.b = sum(shell.length >= 132),
+#            '>130mm\n(%)' = round((ref.a/n)*100),
+#            '>132mm\n(%)' = round((ref.b/n)*100),) %>% 
+#  ungroup() %>% 
+#  mutate_if(is.factor,
+#            fct_explicit_na,
+#            na_level = '') %>%
+#  mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+#  dplyr::rename('Species' = species) %>% 
+#  as.data.frame() %>%
+#  select(-c(n, ref.a, newzone)) %>%
+#  select(c(Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+#           ">130mm\n(%)", ">132mm\n(%)"))
+
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries")
+
+write.xlsx(mm.west,
+           file = paste('WEST__Measureboard_ProposedSizeLimit_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
+write.xlsx(mm.east,
+           file = paste('EAST__Measureboard_ProposedSizeLimit_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
+##---------------------------------------------------------------------------##
+
+
+
 ## Western zone five-year summary ####
 # create summary table of most recent year catch sampling data to determine zones (and blocks) sampled
 five.year.summary.df <- compiledMM.df.final %>%
@@ -1401,9 +1536,9 @@ catch.plot <- ab.subblockno.sf %>%
   ylab('Latitude')
 
 
-# print(catch.plot)
+print(catch.plot)
 
-setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
 
 ggsave(filename = paste('MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.pdf', sep = ''),
        plot = catch.plot, units = 'mm', width = 190, height = 300)
@@ -2381,7 +2516,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                                      ncol = 1), ncol = 1))
     
     #save plots
-    setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+    setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
     file.zone <- unique(plot.length.freq.dat$zone)
     file.block <- unique(plot.length.freq.dat$blocklist)
     
@@ -3112,8 +3247,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # Percent +5LMM ####  
   
   # identify block and zone for summary year
-  block <- 33
-  zone <- 'BS'
+  block <- 13
+  zone <- 'E'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3242,8 +3377,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # BS Percent +5LMM ####  
   
   # identify block and zone for summary year
-  block <- 39
-  zone <- 'G'
+  block <- 13
+  zone <- 'W'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3335,7 +3470,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     geom_point(colour = 'red', size = 3)+
     geom_line(colour = 'red', size = 1)+
     theme_bw()+
-    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    ylab(paste('BlockNo', block, ' Percentage LML + 5 mm', sep = ''))+
     xlab('Year')+
     coord_cartesian(ylim = c(0, 60))+
     geom_text(data = df.5, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')),
@@ -3350,7 +3485,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   print(LML5.plot)
   
   # save plot
-  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
   
   ggsave(
     filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
@@ -3375,8 +3510,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # see Punt et al. 2001
   
   # identify block and zone for summary year
-  block <- 53
-  zone <- 'BS'
+  block <- 13
+  zone <- 'W'
   
   # determine maximum and last size limit changes
   df.1 <- compiledMM.df.final %>% 
@@ -3413,7 +3548,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   
   print(upperlengthplot)
   
-  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
   
   ggsave(
     filename = paste(zone, '_BlockNo', block, '_UPPER_LENGTH_', stock.assessment.year, '.pdf', sep = ''),

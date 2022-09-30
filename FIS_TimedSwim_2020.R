@@ -865,7 +865,8 @@ std.ts.dat %>%
 
 # determine mean abalone abundance for block x sampyear x size class
 ten.min.mean.year <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')) %>% 
+ filter(!subblockno %in% c('28B', '28C') &
+         !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, sampyear, legal.size) %>% 
@@ -873,13 +874,15 @@ ten.min.mean.year <- std.ts.dat %>%
  mutate(sampyear = factor(sampyear))
 
 time.swim.dat.n <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')) %>% 
+ filter(!subblockno %in% c('28B', '28C')&
+         !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(sampyear, blockno, legal.size) %>% 
  summarise(n = n_distinct(site))
 
 sub.legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '<140 mm') %>%
+        legal.size == '<140 mm' &
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -907,7 +910,8 @@ sub.legal.plot <- std.ts.dat %>%
 
 legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '>140 mm') %>%
+        legal.size == '>140 mm' &
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -944,7 +948,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSub
 # compare counts at repeat sites between 2020 and 2021
 
 count.plot.rep.dat <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')) %>% 
+ filter(!subblockno %in% c('28B', '28C') &
+         !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(blockno, site, diver, sampyear, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(blockno, site, sampyear, legal.size) %>% 
@@ -1358,6 +1363,35 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.pdf', 
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.png', sep = ''), 
        plot = time.swim.summary.tab, units = 'mm', width = 190, height = 120)
 ##---------------------------------------------------------------------------##
+# Sites completed summary table
+ts.tab <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        sampdate > as.Date('2022-01-01')) %>% 
+ group_by(blockno) %>%
+ summarise(sites = n_distinct(site),
+           field.days = n_distinct(sampdate),
+           site.day = round(sites / field.days, digits = 1)) %>% 
+ as.data.frame() %>% 
+ dplyr::rename('Blockno' = blockno,
+               'Sites' = sites,
+               'Days' = field.days,
+               'Sites.Day' = site.day) %>%
+ add_row(Blockno = 'Total', Sites = sum(.$Sites), Days = sum(.$Days), 
+         Sites.Day = round(mean(.$Sites.Day), digits = 1))
+
+# Create formatted summary table
+ts.tab.format <- ts.tab %>% 
+ ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
+# Save summary tables
+setwd(ts.plots.folder)
+write.xlsx(ts.tab, paste('TimedSwimSurvey_', samp.year, '_SiteSummaryTable.xlsx'), sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteSummaryTable', '.pdf', sep = ''), 
+       plot = ts.tab.format, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteSummaryTable', '.png', sep = ''), 
+       plot = ts.tab.format, units = 'mm', width = 190, height = 120)
+##---------------------------------------------------------------------------##
 ## MAP 1: Site Count x size ####
 ## Average Count by site - possibly explore KUDs
 
@@ -1753,6 +1787,7 @@ ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep
 not.surveyed.df <- ts.proposed.geom %>% 
   filter(sampled == '0')
 
+
 # create plot
 
 for (i in blocks.sampled){
@@ -1817,7 +1852,8 @@ for (i in blocks.sampled){
     labs(title = paste(samp.year - 1, ' Sub-legal <140 mm'), fill = (bquote('Average\ncount')))+
     xlab('Longitude')+
     scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
-    ylab('Latitude')
+    ylab('Latitude')+
+   theme(plot.margin=unit(c(0.1, 0.1, -1, 0.1), "cm"))
   
   count.site.map.2020.legal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
     geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
@@ -1837,7 +1873,8 @@ for (i in blocks.sampled){
     labs(title = paste(samp.year - 1, ' Legal >140 mm'), fill = (bquote('Average\ncount')))+
     xlab('Longitude')+
     scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
-    ylab('Latitude')
+    ylab('Latitude')+
+   theme(plot.margin=unit(c(-1, 0.1, 0.1, 0.1), "cm"))
   
   # create map for 2021
   count.site.map.2021.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
@@ -1858,7 +1895,8 @@ for (i in blocks.sampled){
     labs(title = paste(samp.year, ' Sub-legal <140 mm'), fill = (bquote('Average\ncount')))+
     xlab('Longitude')+
     scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
-    ylab('Latitude')
+    ylab('Latitude')+
+   theme(plot.margin=unit(c(0.1, 0.1, -1, 0.1), "cm"))
   
   count.site.map.2021.legal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
     geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
@@ -1878,7 +1916,8 @@ for (i in blocks.sampled){
     labs(title = paste(samp.year, ' Legal >140 mm'), fill = (bquote('Average\ncount')))+
     xlab('Longitude')+
     scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
-    ylab('Latitude')
+    ylab('Latitude')+
+   theme(plot.margin=unit(c(-1, 0.1, 0.1, 0.1), "cm"))
   
   # extract common legend from maps
   plot.legend <- get_legend(count.site.map.2020.sublegal)  
@@ -1912,6 +1951,137 @@ for (i in blocks.sampled){
          plot = count.site.map, units = 'mm', width = 250, height = 300)
   
 }
+
+##---------------------------------------------------------------------------##
+# above plot as facet wrap
+
+sf.tas.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+
+# transform maps to GDA2020
+
+# set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+sf.tas.map <- sf.tas.map %>% 
+ st_set_crs(GDA2020)
+
+sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
+
+# join CPUE data to site location data
+
+# identify unique sites sampled from timed swim dataframe and join to renamed site file
+time.swim.sites <- std.ts.dat %>%
+ # filter(sampdate > as.Date('2021-01-01')) %>%
+ distinct(site, sampyear, .keep_all = T) %>% 
+ select(c(site, blockno, subblockno, sampdate, actual.geom, sampyear)) %>% 
+ st_as_sf() %>% 
+ st_set_crs(GDA2020)
+
+ten.min.mean.site <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>% 
+ group_by(site, blockno, subblockno, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq)) %>% 
+ group_by(site, blockno, subblockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>% 
+ # mutate(sampyear = factor(sampyear))%>% 
+ as.data.frame()
+
+
+time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>% 
+ st_as_sf()
+
+#create index of legal/sub-legal x sampyear
+
+df.1 <- time.swim.count.site.loc %>% 
+ unite(legal.size.year, sampyear, legal.size,  sep = '', remove = F)
+
+# identify blocks sampled
+blocks.sampled <- df.1 %>% 
+ as.data.frame() %>% 
+ filter(sampyear == samp.year) %>% 
+ distinct(blockno) %>% 
+ pull()
+
+# identify sites not surveyed but proposed
+ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep = ''))
+
+# identify proposed sites not surveyed
+not.surveyed.df <- ts.proposed.geom %>% 
+ filter(sampled == '0')
+
+i <- 16
+
+# filter for blockno and sub-legal counts
+count.site.dat.2020 <- df.1 %>% 
+ filter(blockno == i &
+         between(sampyear, samp.year - 1, samp.year)) %>% 
+ st_as_sf
+
+count.site.dat.2020$legal.size.year = factor(count.site.dat.2020$legal.size.year,
+                                             levels = c(paste(samp.year - 1, '<140 mm', sep = ''),
+                                                        paste(samp.year, '<140 mm', sep = ''),
+                                                        paste(samp.year - 1, '>140 mm', sep = ''),
+                                                        paste(samp.year, '>140 mm', sep = '')))
+
+# count.site.dat.2021 <- df.1 %>% 
+#  filter(blockno == i &
+#          sampyear == samp.year) %>% 
+#  st_as_sf
+
+# filter subblock map for blockno
+sf.subblock.map.crop <- sf.subblock.map %>%
+ filter(blockno == i &
+         !subblockno %in% c('28B', '28C'))  %>% 
+ st_as_sf() 
+
+# filter proposed sites not surveyed
+sites.not.surveyed.2020 <- not.surveyed.df %>% 
+ filter(blockno == i &
+         between(sampyear, samp.year - 1, samp.year) &
+         !subblockno %in% c('28B', '28C'))
+
+# sites.not.surveyed.2021 <- not.surveyed.df %>% 
+#  filter(blockno == i &
+#          sampyear == samp.year &
+#          !subblockno %in% c('28B', '28C'))
+
+# crop tas map to blockno
+sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
+
+# # crop tas and subblock map to spatial extent of all sites with a 1 km buffer
+# df.1 <- bind_rows(count.site.dat.2020, count.site.dat.2021) %>% 
+#   st_buffer(dist = 1000)
+# sf.tas.map.crop <- st_crop(sf.tas.map, df.1)
+# sf.subblock.map.crop <- st_crop(st_make_valid(sf.subblock.map), df.1)
+
+# ggplot(data = st_geometry(df.2))+
+#   geom_sf(data = df.3, aes(label = subblockno), fill = NA)+
+#   geom_sf_text(data = df.3, aes(label = subblockno))
+
+# create map for 2020
+count.site.map.2020.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+ geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
+ geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+ geom_sf(fill = 'grey') +
+ geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'red')+
+ geom_sf(data = count.site.dat.2020, aes(fill = mean.ab.n), shape = 21, size = 2)+
+ scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
+                      limits = c(0, 150),
+                      breaks = c(0, 50, 100, 150),
+                      labels = c(0, 50, 100, 150))+
+ theme_bw() +
+ annotation_scale(location = "bl", width_hint = 0.5) +
+ annotation_north_arrow(location = "br", which_north = "true", 
+                        pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                        style = north_arrow_fancy_orienteering)+
+ xlab('Longitude')+
+ scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
+ ylab('Latitude')+
+ labs(fill = 'Average\ncount')+
+ facet_wrap(~ legal.size.year, ncol = if_else(i == 16, 4, 2))
 
 ##---------------------------------------------------------------------------##
 

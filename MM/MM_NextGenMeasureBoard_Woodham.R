@@ -65,7 +65,7 @@ df.6 <- df.5 %>%
 
 
 ##---------------------------------------------------------------------------##
-load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_220822.RData')
+load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_150922.RData')
 
 logged.data <- data_packet %>% 
  select("logname", "seqindex","identifier","rawutc","datapack","crc_status")
@@ -285,8 +285,18 @@ woodham.bl <- measure.board.df.non.modem %>%
   ) %>% 
   mutate(species = 1)
 
-woodham.gl <- left_join(woodham.gl.bl, woodham.bl) %>% 
+woodham.gl.a <- left_join(woodham.gl.bl, woodham.bl) %>% 
   mutate(species = ifelse(is.na(species), 2, species))
+
+# Woodham greenlip measurements from NE fishery in 2022
+woodham.gl.b <- measure.board.df.non.modem %>%
+ filter(logname == '07010050' &
+         plaindate %in% as.Date(c("2022-07-04", 
+                                  "2022-07-05",
+                                  "2022-07-07"))) %>% 
+ mutate(species = 2)
+
+woodham.gl <- bind_rows(woodham.gl.a, woodham.gl.b)
 
 # Ben Allen greenlip data mostly from block 02C (King Island) and 48C
 
@@ -586,13 +596,18 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
                   plaindate == as.Date('2020-09-29') &
                   subblockno %in% c('31B'),
                 '32B',
+                if_else(
+                 processor == 'Bryan Denny' &
+                  plaindate == as.Date('2022-09-14') &
+                  subblockno %in% c('30A'),
+                 '31B',
                 subblockno
           )
         )
       )
     )
     )
-    ),
+    )),
     blockno = if_else(
       processor == 'Greg Woodham' &
         plaindate == as.Date('2020-05-19') &
@@ -613,12 +628,23 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
               plaindate == as.Date('2020-09-29') &
               subblockno %in% c('32B'),
             '32',
+            if_else(
+             processor == 'Bryan Denny' &
+              plaindate == as.Date('2022-09-14') &
+              subblockno %in% c('31B'),
+             '31',
           blockno
         )
       )
     )
   )
-  )
+  ),
+  zone = if_else(
+   processor == 'Bryan Denny' &
+    plaindate == as.Date('2022-09-14') &
+    subblockno %in% c('31B'), 'N',
+   zone)
+    )
 
 # add sample ID
 mb.df.non.modem.sample.id <- measure.board.df.non.modem %>% 
@@ -1183,9 +1209,14 @@ compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RD
 
 ## remove erroneous data
 lw.dat <- compiledMM.df.final %>%
-  filter(between(whole.weight, 200, 1500) | # abalone above or below these weights unlikely
-      between(shell.length, sizelimit - 5, 220) & # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
-      !(shell.length > 175 & whole.weight < 600) & # & # these appear to be erroneous weights
+ mutate(sizelimit = as.numeric(sizelimit)) %>% 
+  filter(!is.na(shell.length) &
+          !is.na(whole.weight) &
+          !is.na(sizelimit) &
+   between(whole.weight, 200, 1500) & # abalone above or below these weights unlikely
+    (shell.length >= sizelimit - 5 & shell.length <= 220) &  
+    # between(shell.length, sizelimit - 5, 220))  # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
+      !(shell.length > 175 & whole.weight < 600) & # these appear to be erroneous weights
     !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
 
 ## Calculate log of length and weight
