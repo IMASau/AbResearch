@@ -213,7 +213,7 @@ morana.gps.2022.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/
 
 morana.gps.2022.b <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-06_download.gpx', layer = 'waypoints')
 
-morana.gps.2022.c <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-06_download.gpx', layer = 'waypoints')
+morana.gps.2022.c <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-27_download.gpx', layer = 'waypoints')
 
 morana.gps.2022 <- bind_rows(morana.gps.2022.a, morana.gps.2022.b, morana.gps.2022.c) %>% 
  distinct(., name, .keep_all = T)
