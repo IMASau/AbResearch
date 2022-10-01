@@ -2014,8 +2014,10 @@ ts.proposed.geom <- readRDS(paste(samp.year.folder, '/ts.proposed.geom.RDS', sep
 not.surveyed.df <- ts.proposed.geom %>% 
  filter(sampled == '0')
 
-i <- 16
 
+
+for (i in blocks.sampled){
+ 
 # filter for blockno and sub-legal counts
 count.site.dat.2020 <- df.1 %>% 
  filter(blockno == i &
@@ -2064,16 +2066,16 @@ sf.tas.map.crop <- st_crop(sf.tas.map, sf.subblock.map.crop)
 #   geom_sf_text(data = df.3, aes(label = subblockno))
 
 # create map for 2020
-count.site.map.2020.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
+count.site.map.facet <- ggplot(data = st_geometry(sf.tas.map.crop)) +
  geom_sf(data = sf.subblock.map.crop, aes(label = subblockno), fill = NA)+
  geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
  geom_sf(fill = 'grey') +
- geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'red')+
+ geom_sf(data = sites.not.surveyed.2020, shape = 5, size = 0.8, colour = 'black')+
  geom_sf(data = count.site.dat.2020, aes(fill = mean.ab.n), shape = 21, size = 2)+
  scale_fill_gradientn(colours = c("navyblue", "blue", "cyan", "green", "yellow", "orange", "red"),
-                      limits = c(0, 150),
-                      breaks = c(0, 50, 100, 150),
-                      labels = c(0, 50, 100, 150))+
+                      limits = c(0, 100),
+                      breaks = c(0, 50, 100),
+                      labels = c(0, 50, 100))+
  theme_bw() +
  annotation_scale(location = "bl", width_hint = 0.5) +
  annotation_north_arrow(location = "br", which_north = "true", 
@@ -2083,8 +2085,17 @@ count.site.map.2020.sublegal <- ggplot(data = st_geometry(sf.tas.map.crop)) +
  scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
  ylab('Latitude')+
  labs(fill = 'Average\ncount')+
- facet_wrap(~ legal.size.year, ncol = if_else(i == 16, 4, 2))
+ facet_wrap(~ legal.size.year, ncol = if_else(i %in% c(16, 27), 4, 2))
 
+# save plot
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteCountMap-',
+                        samp.year - 1, 'vs', samp.year, '_BlockNo_', i, '.pdf', sep = ''),
+       plot = count.site.map.facet, units = 'mm', width = 250, height = 300)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteCountMap-',
+                        samp.year - 1, 'vs', samp.year, '_BlockNo_', i, '.png', sep = ''),
+       plot = count.site.map.facet, units = 'mm', width = 250, height = 300)
+}
 ##---------------------------------------------------------------------------##
 
 # PLOT 1: Diver deviation ####
