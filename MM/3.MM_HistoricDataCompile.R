@@ -10,7 +10,7 @@
 ## Libaries and Functions ####
 
 # load required libaries and functions for analysis
-
+suppressPackageStartupMessages({
 library(RODBC)
 library(R.utils)
 library(lubridate)
@@ -30,7 +30,7 @@ library(readxl)
 library(data.table)
 library(scales)
 library(gridExtra)
-#library(plyr)
+})
 
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 

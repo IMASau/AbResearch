@@ -189,8 +189,7 @@ compiledMM.df.join <- compiledMM.df.join %>%
          whole.weight = na_if(whole.weight, 0))
 
 compiledMM.df.final <- compiledMM.df.join 
-  # select(-c(sizelimit.x)) %>% 
-  # dplyr::rename(sizelimit = sizelimit.y)
+  # select(-c(sizelimit.x, sizelimit.y))
 
 saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 ##-------------------------------------------------------------------------------------------------------##
@@ -1040,23 +1039,23 @@ for (i in df.2019.unique.zones) {
       
       # print(mm.zone.boxplot)
       
-      setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+      setwd('C:/cloudstor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.pdf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.pdf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.wmf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.wmf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2021', '.png', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.png', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
@@ -2815,8 +2814,60 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     }
   }
   }
-  #---------------------------------------------------------------------------##
+#---------------------------------------------------------------------------##
+#length frequency density plot last five years####
   
+  i <- 'W'
+  j <- '13'
+  
+  plot.length.freq.dat <- compiledMM.df.final.grade %>%
+   filter(
+    newzone == i
+    & blocklist == j
+    & between(fishyear, stock.assessment.year - 5, stock.assessment.year)
+    & between(shell.length, sizelimit - 5, 220))
+  
+  length.freq.plot <- ggplot(plot.length.freq.dat, 
+                             aes(shell.length, 
+                                 colour = as.factor(fishyear),
+                                 fill = as.factor(fishyear))) +
+   geom_density(lwd = 1.2, linetype = 1, alpha = 0.3)+
+   scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+   xlab("Shell Length (mm)") +
+   ylab(paste(i, "BlockNo", j, " Percentage (%)")) +
+   scale_colour_discrete(name = 'FishYear')+
+   scale_fill_discrete(guide = 'none')+
+   theme_bw()+
+   geom_vline(
+    aes(xintercept = ifelse(newzone == 'W', 145, 
+                            ifelse(newzone == 'BS', 114, 
+                                   ifelse(newzone == 'N', 127, 138)))),
+    # aes(xintercept = ifelse(newzone == 'W', 145, 138)),
+    linetype = 'dashed',
+    colour = 'red',
+    size = 1)
+   
+  # save plot
+  setwd('C:/cloudstor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+  
+  ggsave(
+   filename = paste(i, '_BlockNo', j, '_LF_Density_', stock.assessment.year - 5, '-', stock.assessment.year, '.pdf', sep = ''),
+   plot = length.freq.plot,
+   width = 7.4,
+   height = 5.57,
+   units = 'in'
+  )
+  
+  ggsave(
+   filename = paste(i, '_BlockNo', j, '_LF_Density_', stock.assessment.year - 5, '-', stock.assessment.year, '.png', sep = ''),
+   plot = length.freq.plot,
+   width = 7.4,
+   height = 5.57,
+   units = 'in'
+  )
+
+   
+#---------------------------------------------------------------------------## 
   
   
   ## PLOT 9: Length ####
@@ -2872,7 +2923,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                                                        ifelse(subblockno %in% c('31B', '39B', '39A'), 127,
                                                               ifelse(subblockno == '49D', 132,
                                                                      ifelse(subblockno == '04A', 150,
-                                                                            ifelse(subblockno == '02C', 150, 138)))))))),
+                                                                            ifelse(subblockno == '02C', 150,
+                                                                                   ifelse(newzone == 'BS', 114, 138))))))))),
                  linetype = 'dashed', colour = 'red', size = 0.5)+
       scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
       geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
@@ -2909,7 +2961,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
         ymin = 0.3
       )
     
-    setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+    setwd('C:/cloudstor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
 
     ggsave(
       filename = paste(i, '_', 'BlockNo', j, '_LENGTHSUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
@@ -3248,7 +3300,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   
   # identify block and zone for summary year
   block <- 13
-  zone <- 'E'
+  zone <- 'W'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3340,7 +3392,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     geom_point(colour = 'red', size = 3)+
     geom_line(colour = 'red', size = 1)+
     theme_bw()+
-    ylab(paste('BlockNo', block, ' Percentage', sep = ''))+
+    ylab(paste(zone, ' BlockNo', block, ' LML + 5 mm Percentage', sep = ''))+
     xlab('Year')+
     coord_cartesian(ylim = c(0, 60))+
     geom_text(data = df.5, aes(x = fishyear, y = y, label = paste('LML = ', sizelimit, 'mm')),
@@ -3350,12 +3402,12 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
     # scale_x_continuous(expand = c(0.01, 0.01),
     #                    breaks = seq(2010, 2021, 2))
     scale_x_continuous(expand = c(0.01, 0.01),
-                       breaks = seq(df.5$fishyear, 2021, 2))
+                       breaks = seq(df.5$fishyear, 2022, 2))
   
   print(LML5.plot)
   
   # save plot
-  setwd('C:/CloudStor/Shared/RPlots/Tas/MMplots/2021')
+  setwd('C:/cloudstor/Shared/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
   
   ggsave(
     filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
