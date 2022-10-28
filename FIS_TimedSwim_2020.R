@@ -867,8 +867,8 @@ std.ts.dat %>%
 
 # determine mean abalone abundance for block x sampyear x size class
 ten.min.mean.year <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C') &
-         !blockno %in% c('13', '14', '29', '30')) %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>% 
+         # !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, sampyear, legal.size) %>% 
@@ -901,15 +901,15 @@ ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_Per
 
 
 time.swim.dat.n <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')&
-         !blockno %in% c('13', '14', '29', '30')) %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>% 
+         # !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(sampyear, blockno, legal.size) %>% 
  summarise(n = n_distinct(site))
 
 sub.legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '<140 mm' &
-         !blockno %in% c('13', '14', '29', '30')) %>%
+        legal.size == '<140 mm') %>% 
+         # !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -937,8 +937,8 @@ sub.legal.plot <- std.ts.dat %>%
 
 legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '>140 mm' &
-         !blockno %in% c('13', '14', '29', '30')) %>%
+        legal.size == '>140 mm') %>% 
+         # !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -975,8 +975,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSub
 # compare counts at repeat sites between 2020 and 2021
 
 count.plot.rep.dat <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C') &
-         !blockno %in% c('13', '14', '29', '30')) %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30')) %>%
  group_by(blockno, site, diver, sampyear, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(blockno, site, sampyear, legal.size) %>% 
@@ -989,7 +989,7 @@ ten.min.mean.rep.year.sites <- count.plot.rep.dat %>%
  summarise(n = n_distinct(site))
 
 count.plot.rep.mean <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C'),
+ filter(!subblockno %in% c('28B', '28C') & 
         !blockno %in% c(13, 14, 29, 30)) %>%
  group_by(blockno, site, diver, sampyear, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -1450,8 +1450,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.png', 
 # Sites completed summary table
 ts.tab <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        sampdate > as.Date('2022-01-01')) %>% 
- group_by(blockno) %>%
+        sampyear == 2022) %>% 
+ group_by(sampyear, blockno) %>%
  summarise(sites = n_distinct(site),
            field.days = n_distinct(sampdate),
            site.day = round(sites / field.days, digits = 1)) %>% 
@@ -2528,7 +2528,7 @@ ggsave(filename = paste('TimedSwimSurvey_2021_CPUEPlot', '.png', sep = ''),
 
 ts.vs.cpue.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        sampdate > as.Date('2021-01-01')) %>% 
+        sampdate > as.Date('2020-01-01')) %>% 
  group_by(site, diver, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(site, legal.size, cell.ntile, sam.count, cpue.kg.hr) %>% 
@@ -2549,10 +2549,10 @@ ts.vs.cpue.plot <- std.ts.dat %>%
  theme(strip.background = element_blank(),
        strip.text.x = element_text(size = 12, face = 'bold'))
 
-setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.pdf', sep = ''), 
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_TenMinuteCountvsGPS.CPUE.kg.hr', '.pdf', sep = ''), 
        plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
-ggsave(filename = paste('TimedSwimSurvey_2021_TenMinuteCountvsCPUE.kg.hr', '.png', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_TenMinuteCountvsGPS.CPUE.kg.hr', '.png', sep = ''), 
        plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
 
 ##---------------------------------------------------------------------------##
@@ -2601,7 +2601,8 @@ ts.sam.dat <- bind_rows(sam.dat, ts.dat) %>%
 
 # Create plot 
 ts.sam.count.plot <- ts.sam.dat %>%
- filter(!blockno %in% c(13, 14, 29, 30)) %>% 
+ filter(!blockno %in% c(13, 14, 29, 30) &
+         ab.n < 200) %>% 
  group_by(blockno, sampyear, site) %>% 
  ggplot(aes(x = as.factor(blockno), y = ab.n, fill = as.factor(sampyear)))+
  geom_boxplot(position = position_dodge2(preserve = "single"))+
@@ -2609,7 +2610,7 @@ ts.sam.count.plot <- ts.sam.dat %>%
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Blockno')+
  geom_text(data = ts.sam.dat %>%
-            filter(!blockno %in% c(13, 14, 29, 30)) %>%
+            filter(!blockno %in% c(13, 14, 29, 30) & ab.n < 200) %>%
             group_by(blockno, sampyear) %>% 
             summarise(n = n_distinct(site), lab.pos = max(ab.n) + 1),
            aes(y = lab.pos, label = paste0(n, '\n')),
@@ -2619,7 +2620,7 @@ ts.sam.count.plot <- ts.sam.dat %>%
  scale_fill_viridis(discrete = TRUE)
 
 # Save plot
-setwd('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TimedSwimSurvey2021_Plots')
+setwd(ts.plots.folder)
 ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.pdf', sep = ''), 
        plot = ts.sam.count.plot, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_2020_TenMinuteCountHistoricPlot', '.png', sep = ''), 
