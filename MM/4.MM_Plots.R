@@ -206,6 +206,20 @@ proc.summ <- compiledMM.df.final %>%
  arrange(desc(processorname)) %>% 
  adorn_totals(fill = '')
 
+diver.summ <- compiledMM.df.final %>% 
+ filter(fishyear == stock.assessment.year &
+         between(shell.length, sizelimit - 5, 220),
+        processorname %in% c('Stuart Anning', 
+                             'Sean Larby',
+                             'Greg Woodham',
+                             'Bryan Denny')) %>% 
+ group_by(processorname) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ as.data.frame() %>%
+ arrange(desc(processorname)) %>% 
+ adorn_totals(fill = '')
+
 proc.summ.zone <- compiledMM.df.final %>% 
  filter(fishyear == stock.assessment.year &
          between(shell.length, sizelimit - 5, 220)) %>% 
@@ -435,6 +449,27 @@ mm.west <- compiledMM.df.final %>%
  select(-c(n, ref.a, newzone)) %>%
  select(c(Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
           ">150mm\n(%)"))
+
+compiledMM.df.final %>%
+ filter(!is.na(shell.length) &
+         fishyear == stock.assessment.year  &
+         between(shell.length, sizelimit.x - 5, 220) &
+         newzone == 'W' &
+         !subblockno %in% c('6A', '6B', '6C')) %>% 
+ ggplot()+
+ geom_histogram(aes(x = shell.length, y = ..density.. * 1),
+                    fill = 'white',
+                    col = 'black',
+                    binwidth = 1)+
+ geom_vline(
+  aes(xintercept = 145), linetype = 'dashed',
+      colour = 'red',
+      size = 1)+
+ geom_vline(
+  aes(xintercept = 150), linetype = 'dashed',
+  colour = 'blue',
+  size = 1)+
+ scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))
 
 mm.east <- compiledMM.df.final %>%
  filter(!is.na(shell.length) &

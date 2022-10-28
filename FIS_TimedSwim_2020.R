@@ -872,8 +872,33 @@ ten.min.mean.year <- std.ts.dat %>%
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, sampyear, legal.size) %>% 
- summarise(mean.ab.n = mean(ab.n)) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n)) %>% 
  mutate(sampyear = factor(sampyear))
+
+df.1 <- ten.min.mean.year %>% 
+ select(-mean.ab.n) %>% 
+ spread(sampyear, median.ab.n) %>% 
+ dplyr::rename(FY2020 = '2020',
+               FY2021 = '2021',
+               FY2022 = '2022') %>%  
+ mutate(perc.change = round((1 - (FY2021 / FY2022)), 3) * 100) %>% 
+ spread(legal.size, perc.change) 
+ select(-c('FY2020', 'FY2021', 'FY2022')) %>% 
+ mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>% 
+ select(-`>140 mm`) %>% 
+ filter(!is.na(`<140 mm`)) %>% 
+ dplyr::rename(`>140 mm` = `>140 mm2`,
+               'BlockNo' = 'blockno') %>%  
+ ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+setwd(ts.plots.folder)
+write.xlsx(df.1, paste('TimedSwimSurvey_', samp.year-1, 'vs', samp.year, '_PercentChange.xlsx'), sheetName = "Sheet1", 
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_PercentChange', '.pdf', sep = ''), 
+       plot = df.1, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_PercentChange', '.png', sep = ''), 
+       plot = df.1, units = 'mm', width = 190, height = 120)
+
 
 time.swim.dat.n <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C')&
@@ -1304,28 +1329,85 @@ lf.df <- time.swim.dat.final %>%
  mutate(freq = n / sum(n))
 
 lf.plot <- ggplot()+
- geom_bar(data = lf.df, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)),
-          stat = 'identity', position = 'dodge')+
- geom_vline(data = lf.df, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
- theme_bw() +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD"))+
+ # geom_bar(data = lf.df, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)),
+ #          stat = 'identity', position = 'dodge')+
+ geom_line(data = lf.df, aes(x = sizeclass.2021, y = freq*100, 
+                             group = factor(sampyear), 
+                             colour = factor(sampyear)),
+            stat = 'identity', position = position_dodge2(0.1),
+           size = 1)+
+ geom_vline(data = lf.df, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)),
+            linetype = 'dashed', colour = 'red', size = 0.5) +
+ theme_bw()+ 
+ # scale_fill_manual(values = c("#77AADD", "#BBCC33", "#EE8866"))+
  # scale_fill_manual(values = c("#7AA6DC99", "#8F770099"))+
- guides(fill = guide_legend(title = 'Year'))+
- facet_grid(blockno ~ .) +
- scale_y_continuous(breaks = seq(0, 40, 10), labels = seq(0, 40, 10))+
+ # guides(fill = guide_legend(title = 'Year'))+
+ facet_grid(blockno ~ .)+
+ scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
  xlab("Shell Length (mm)")+
  ylab(paste("Percentage (%)"))+
  geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022'))), size = 3, 
-           position = position_stack(vjust = 0.8))+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD"))+
- guides(size = 'legend', colour = 'none',
-        fill = guide_legend(title = 'Year'))
+           position = position_stack(vjust = 0.8), show.legend = F)+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866"))+
+ guides(size = 'legend', 
+        colour = guide_legend(title = 'Year'))
 
 setwd(ts.plots.folder)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28', '.pdf', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28', '.png', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
+
+##---------------------------------------------------------------------------##
+# LF plot reference sites
+ref.sites <- time.swim.dat.final %>%
+ filter(!subblockno %in% c('28B', '28C'),
+        # sampdate > as.Date('2021-01-01'),
+        !blockno %in% c(13, 14, 29, 30)) %>%
+ group_by(sampyear, blockno, site, sizeclass.2021) %>% 
+ summarise(n = sum(sizeclass_freq)) %>% 
+ group_by(site) %>% 
+ summarise(n = n()) %>% 
+ filter(n > 20) %>% 
+ mutate(ref.site = 1)
+
+
+ref.site.dat <- time.swim.dat.final %>%
+ filter(!subblockno %in% c('28B', '28C'),
+        # sampdate > as.Date('2021-01-01'),
+        !blockno %in% c(13, 14, 29, 30)) %>%
+ group_by(sampyear, blockno, site, sizeclass.2021) %>% 
+ left_join(., ref.sites) %>% 
+ filter(ref.site == 1) %>% 
+ group_by(sampyear, blockno, sizeclass.2021) %>%
+ summarise(n = sum(sizeclass_freq)) %>% 
+ mutate(freq = n / sum(n)) 
+
+ 
+lf.plot.2 <- ggplot()+
+ # geom_bar(data = lf.df, aes(x = sizeclass.2021, y = freq*100, fill = factor(sampyear)),
+ #          stat = 'identity', position = 'dodge')+
+ # geom_vline(data = lf.df, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)), linetype = 'dashed', colour = 'red', size = 0.5) +
+ geom_line(data = ref.site.dat, aes(x = sizeclass.2021, y = freq*100, 
+                             group = factor(sampyear), 
+                             colour = factor(sampyear)),
+           stat = 'identity', position = position_dodge2(0.1),
+           size = 1)+
+ theme_bw()+ 
+ # scale_fill_manual(values = c("#77AADD", "#BBCC33", "#EE8866"))+
+ # scale_fill_manual(values = c("#7AA6DC99", "#8F770099"))+
+ # guides(fill = guide_legend(title = 'Year'))+
+ facet_grid(blockno ~ .)+
+ scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
+ xlab("Shell Length (mm)")+
+ ylab(paste("Percentage (%)"))+
+ # geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022'))), size = 3, 
+ #           position = position_stack(vjust = 0.8), show.legend = F)+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866"))+
+ guides(size = 'legend', 
+        colour = guide_legend(title = 'Year'))
+
+
 
 ##---------------------------------------------------------------------------##
 ## TAB 1: SUMMARY ####
