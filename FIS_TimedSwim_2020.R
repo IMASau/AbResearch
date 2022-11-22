@@ -49,6 +49,10 @@ samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries',
                               'Abalone', 'FISdata',
                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
+# samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
+#                               'Abalone', 'FISdata',
+#                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+
 # identify associated sampling year folder path to save plots
 ts.plots.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
                              'Abalone', 'Assessment', 'Figures', 'FIS',
@@ -1359,7 +1363,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCK
        plot = lf.plot, units = 'mm', width = 190, height = 250)
 
 ##---------------------------------------------------------------------------##
-# LF plot reference sites
+## PLOT 9: LF x year reference sites ####
+
 ref.sites <- time.swim.dat.final %>%
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
@@ -1406,8 +1411,6 @@ lf.plot.2 <- ggplot()+
  scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866"))+
  guides(size = 'legend', 
         colour = guide_legend(title = 'Year'))
-
-
 
 ##---------------------------------------------------------------------------##
 ## TAB 1: SUMMARY ####
@@ -2276,6 +2279,51 @@ ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.pdf', se
 ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.png', sep = ''),
        plot = dive.dev.plot, units = 'mm', width = 210, height =200)
 
+
+##---------------------------------------------------------------------------##
+# PLOT 10: Bland-Altman ####
+# Bland-Altman plot of diver count differences
+df.1 <- ts.count.divers %>% 
+ filter(dive.pair.id != 4) %>%
+ select(c(site, blockno, legal.size, sampyear, sampdate, dive.pair.id, ab.n)) %>%  
+ group_by(site, blockno, legal.size, sampyear, sampdate, dive.pair.id) %>% 
+ mutate(var = paste0('ab.n', row_number())) %>% 
+ spread(var,ab.n) %>% 
+ ungroup() %>% 
+ mutate_at(c(7:8), ~replace(., is.na(.), 0)) %>% 
+ mutate(dive.diff = .[[7]] - .[[8]],
+        dive.avg = (.[[7]] + .[[8]]) / 2) %>%  
+ select(c(site, blockno, legal.size, sampyear, sampdate, dive.pair.id, dive.diff, dive.avg))
+
+df.2 <- df.1 %>% group_by(dive.pair.id, legal.size) %>% 
+ summarise(avg.diff = round(mean(dive.diff), 1),
+           pos.sd = round(mean(dive.diff) + (1.96 * sd(dive.diff)), 1),
+           neg.sd = round(mean(dive.diff) - (1.96 * sd(dive.diff)), 1))
+
+BA.plot <- df.1 %>% ggplot(aes(x = dive.avg, y = dive.diff, group = dive.pair.id))+
+ geom_point(aes(colour = blockno), alpha = 0.5) +
+ geom_hline(data = df.2, aes(yintercept = avg.diff), colour = "blue", size = 0.5) +
+ geom_hline(data = df.2, aes(yintercept = pos.sd), colour = "red", size = 0.5, linetype = 'dashed') +
+ geom_hline(data = df.2, aes(yintercept = neg.sd), colour = "red", size = 0.5, linetype = 'dashed') +
+ # geom_hline(yintercept = mean(df.1$dive.diff), colour = "blue", size = 0.5) +
+ # geom_hline(yintercept = mean(df.1$dive.diff) - (1.96 * sd(df.1$dive.diff)), colour = "red", size = 0.5, linetype = 'dashed') +
+ # geom_hline(yintercept = mean(df.1$dive.diff) + (1.96 * sd(df.1$dive.diff)), colour = "red", size = 0.5, linetype = 'dashed') +
+ ylab("Abalone Count Difference Between Divers") +
+ xlab("Average Abalone Count")+
+ labs(colour = 'BlockNo')+
+ theme_bw()+
+ geom_text(data = df.2, aes(x = 150, y = avg.diff, label = avg.diff), size = 2, vjust = -0.5)+
+ # ggtitle(paste('Diver', names(ts.diver.dev.dat[6]), 'vs', 'Diver', names(ts.diver.dev.dat[7])))+
+ # theme(legend.position = 'none')+
+ facet_grid(dive.pair.id ~ legal.size)
+
+# save plot
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_', samp.year, '.pdf', sep = ''),
+       plot = BA.plot, units = 'mm', width = 210, height = 200)
+
+ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_', samp.year, '.png', sep = ''),
+       plot = BA.plot, units = 'mm', width = 210, height =200)
 
 ##---------------------------------------------------------------------------##
 

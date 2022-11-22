@@ -3334,8 +3334,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # Percent +5LMM ####  
   
   # identify block and zone for summary year
-  block <- 13
-  zone <- 'W'
+  block <- 14
+  zone <- 'E'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3597,8 +3597,8 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
   # see Punt et al. 2001
   
   # identify block and zone for summary year
-  block <- 13
-  zone <- 'W'
+  block <- 14
+  zone <- 'E'
   
   # determine maximum and last size limit changes
   df.1 <- compiledMM.df.final %>% 
@@ -3657,7 +3657,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                   
   ##-------------------------------------------------------------------------------------------------------##
   # Deviation from LML #### 
-  block <- 13
+  block <- 14
   zone <- 'E'
   
   df.1 <- compiledMM.df.final %>% 

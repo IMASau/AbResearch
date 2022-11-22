@@ -1596,4 +1596,42 @@ for (i in mb.df.non.modem.bl.samples) {
   }
 }
 
+##---------------------------------------------------------------------------##
+## Step 20: Plot measure location ####
+
+#NOTE: Version2 - work in progress
+
+# Filter for data of interest
+df.1 <- measure.board.df.non.modem %>% 
+ filter(sample.id == 108) %>% 
+ st_as_sf()
+
+idw_grid <- st_make_grid(df.1, cellsize = 402.0673, square = FALSE)
+idw_grid <- st_make_grid(df.1, cellsize = 200, square = FALSE)
+df.2 <- as_Spatial(df.1)
+P_idw_hex <- gstat::idw(shelllength ~ 1, df.2, newdata = idw_grid, idp = 2)
+rslt_hex <- st_as_sf(P_idw_hex)
+
+df.2 <- df.1 %>%
+ mutate(longitude = unlist(map(df.1$geometry,1)),
+        latitude = unlist(map(df.1$geometry,2)))
+
+map.buffer <- 100
+
+ggplot() + 
+ geom_sf(data = sf.tas.coast.map) +
+ # geom_sf(data = df.2 %>% filter(shelllength < 200), aes(colour = shelllength)) +
+ # scale_colour_viridis_c()+
+ geom_sf(data = rslt_hex, aes(fill = var1.pred), col = "grey60", size = 0.1)+
+ scale_fill_viridis_c()+
+ # geom_point(data = Points_properties, 
+ #            aes(x = Longitude, y = Latitude))+
+ coord_sf(xlim = c(min(df.2$longitude) - map.buffer,
+                   max(df.2$longitude) + map.buffer),
+          ylim = c(min(df.2$latitude) - map.buffer,
+                   max(df.2$latitude) + map.buffer),
+          expand = FALSE) +
+ theme_bw()
+
+ggplot(rslt_hex, aes(fill = var1.pred))
          
