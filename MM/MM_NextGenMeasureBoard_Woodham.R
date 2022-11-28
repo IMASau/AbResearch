@@ -30,6 +30,9 @@ library(tictoc)
  library(sp)
  library(rgdal)
   library(gridExtra)
+ library(progress)
+ library(furrr)
+ library(purrr)
 })
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
@@ -37,53 +40,147 @@ library(tictoc)
 # sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
 # measureboard.non.modem <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
 
-measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
-
-
-# Extract logger data files for GPS loggers allocated to divers 
-# 05010107 - Greg Woodham
-# 05010036 - Ben Allen
-# 05010040 or 05010037 or 05010112 - Sean Larby
-# 05010156 - Bryan Denny
-
-
-localfiles <- list.files(measureboard.non.modem,  
-                         pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|05010156|05010086|05010134|05010016.*txt", full.names = T)
+# measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
 
 ##---------------------------------------------------------------------------##
-## Extract .txt files ####
-
-## Extract data from sftp download folder and compile into dataframe
-## Note: measuring board .txt files are normally denoted with '07' prefix however these are field-based
-## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
-## no weight integration.
-
-# localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
-
-# localfiles.dat <- lapply(localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
-#                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
-
-localfiles.dat <- lapply(localfiles, function(x) {
-  tryCatch(read.table(x, header = FALSE, sep = ',', as.is = T,
-                      colClasses = c("character", "numeric", "numeric", "numeric", "character", "character")), 
-           error=function(e) NULL)
-})
 
 
-localfiles.df <- do.call(rbind, localfiles.dat)
+## load latest file directory list (see NewGenBatteryCheck.R script) 
+load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', Sys.Date(), '.RData', sep = ''))
 
-logged.data <- localfiles.df
+# load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', '2022-10-21', '.RData', sep = ''))
+
+
+## filter directory list for loggers paired with measuring boards
+dirlistdf <- dirlistdf %>% 
+ filter(gps_SID %in% c('05010107', '05010036', '05010045', '05010040', '05010037', '05010112',
+                       '05010156', '05010086', '05010134', '05010016', '05010044', '05010070',
+                       '05010083','05010050','05010168'))
+
+## create backup file
+dirlistdf_bk <- dirlistdf
+
+## Import files
+setwd("R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles")
+
+if (exists("data_packet"))
+ rm(data_packet)
+
+numfiles <- nrow(dirlistdf)
+
+## Setup progress bar
+pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)", total = numfiles)
+pb$tick(0)
+
+## Establish function for retrieving  files
+loop_Batt_Check <- function(dirlistdf) {
+ infile <- as.character(dirlistdf$dirlist)
+ data.p <- read.csv(infile,
+                    header=FALSE,
+                    sep=',',
+                    as.is=TRUE,
+                    colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"),
+                    skipNul = TRUE)
+ 
+ colnames(data.p) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+ data.p$logger_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "GMT")
+ data.p$local_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
+ data.p$file_name <- infile # Add file name to row
+ return(data.p)
+} # End Function loop_Batt_Check
+
+## Multi-core apply file retrieve
+options(future.rng.onMisuse="ignore")
+furrr_options(globals = TRUE, seed = TRUE)
+
+## set number of workers ## nb. don't overload cores
+future::plan(multisession(workers = 10)) # Jaime = 14 cores max.
+
+tic("multi core battery check")
+
+data_packet <- dirlistdf %>%
+ split(.$dirlist) %>%
+ future_map_dfr( ~ loop_Batt_Check(.), .progress = TRUE)
+
+toc()
+
+future:::ClusterRegistry("stop")
+
+
+#### ------------------------------------------------------------------------##
+## NewGEN QA/QC processing ####
+
+# # Backup
+# data_packet_bk <- data_packet
+# data_packet <- data_packet_bk
+
+## Data Duplication check 
+# Remove duplicate recs
+# NB local_date needed as seq index cyclical
+data_packet <- rowid_to_column(data_packet, "RowNum")
+dupes <- data_packet[duplicated(data_packet[,c("logname","seqindex","identifier","local_date")]),]
+data_packet <- filter(data_packet, !RowNum %in% c(dupes$RowNum))
+
+unique(dupes$logname)
+
+## Measuring Board
+save(data_packet, file = paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_', Sys.Date(), '.RData', sep = ''))
+
+
+##---------------------------------------------------------------------------##
+# load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_2022-10-20.RData')
+
+# logged.data <- data_packet %>% 
+#  select("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+
+##---------------------------------------------------------------------------##
+# # Extract logger data files for GPS loggers allocated to divers 
+# # 05010107 - Greg Woodham
+# # 05010036 - Ben Allen
+# # 05010040 or 05010037 or 05010112 - Sean Larby
+# # 05010156 - Bryan Denny
+# 
+# 
+# localfiles <- list.files(measureboard.non.modem,  
+#                          pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|
+#                          05010156|05010086|05010134|05010016|05100044|05010070.*txt", full.names = T)
+# 
+# ##---------------------------------------------------------------------------##
+# ## Extract .txt files ####
+# 
+# ## Extract data from sftp download folder and compile into dataframe
+# ## Note: measuring board .txt files are normally denoted with '07' prefix however these are field-based
+# ## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
+# ## no weight integration.
+# 
+# # localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
+# 
+# # localfiles.dat <- lapply(localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
+# #                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+# 
+# localfiles.dat <- lapply(localfiles, function(x) {
+#   tryCatch(read.table(x, header = FALSE, sep = ',', as.is = T,
+#                       colClasses = c("character", "numeric", "numeric", "numeric", "character", "character")), 
+#            error=function(e) NULL)
+# })
+# 
+# 
+# localfiles.df <- do.call(rbind, localfiles.dat)
+# 
+# logged.data <- localfiles.df
+
+logged.data <- data_packet
 
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####
 
 # rename variable names of dataframe
 
-colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+# colnames(logged.data) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
 
 # identify measuring board logger names
 
-unique(logged.data$logname)
+# unique(logged.data$logname)
 
 # identify number of records for each identifier
 # table(logged.data$identifier)
@@ -253,8 +350,18 @@ woodham.bl <- measure.board.df.non.modem %>%
   ) %>% 
   mutate(species = 1)
 
-woodham.gl <- left_join(woodham.gl.bl, woodham.bl) %>% 
+woodham.gl.a <- left_join(woodham.gl.bl, woodham.bl) %>% 
   mutate(species = ifelse(is.na(species), 2, species))
+
+# Woodham greenlip measurements from NE fishery in 2022
+woodham.gl.b <- measure.board.df.non.modem %>%
+ filter(logname == '07010050' &
+         plaindate %in% as.Date(c("2022-07-04", 
+                                  "2022-07-05",
+                                  "2022-07-07"))) %>% 
+ mutate(species = 2)
+
+woodham.gl <- bind_rows(woodham.gl.a, woodham.gl.b)
 
 # Ben Allen greenlip data mostly from block 02C (King Island) and 48C
 
@@ -554,13 +661,18 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
                   plaindate == as.Date('2020-09-29') &
                   subblockno %in% c('31B'),
                 '32B',
+                if_else(
+                 processor == 'Bryan Denny' &
+                  plaindate == as.Date('2022-09-14') &
+                  subblockno %in% c('30A'),
+                 '31B',
                 subblockno
           )
         )
       )
     )
     )
-    ),
+    )),
     blockno = if_else(
       processor == 'Greg Woodham' &
         plaindate == as.Date('2020-05-19') &
@@ -581,12 +693,23 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
               plaindate == as.Date('2020-09-29') &
               subblockno %in% c('32B'),
             '32',
+            if_else(
+             processor == 'Bryan Denny' &
+              plaindate == as.Date('2022-09-14') &
+              subblockno %in% c('31B'),
+             '31',
           blockno
         )
       )
     )
   )
-  )
+  ),
+  zone = if_else(
+   processor == 'Bryan Denny' &
+    plaindate == as.Date('2022-09-14') &
+    subblockno %in% c('31B'), 'N',
+   zone)
+    )
 
 # add sample ID
 mb.df.non.modem.sample.id <- measure.board.df.non.modem %>% 
@@ -598,6 +721,18 @@ mb.df.non.modem.sample.id <- measure.board.df.non.modem %>%
   mutate(sample.id = row_number())
 
 measure.board.df.non.modem <- left_join(measure.board.df.non.modem, mb.df.non.modem.sample.id)
+
+##---------------------------------------------------------------------------##
+# remove known practice samples on days where actual sampling occured but could
+# not be identified earlier without location data
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+ filter(!(logname == '07010050' &
+           plaindate == as.Date('2022-08-08') &
+           subblockno %in% c('12D', '13A'))) %>% 
+ filter(!(logname == '07010050' &
+            plaindate == as.Date('2022-01-15') &
+            subblockno %in% c('14A', '13C')))
 
 ##---------------------------------------------------------------------------##
 ## Step 11: Save RDS of dataframe ####
@@ -765,14 +900,104 @@ mb.df.non.modem.summary.reference.limits <- mb.df.non.modem.summary.ref %>%
 
 setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
 
+write.xlsx(mb.df.non.modem.summary.ref,
+           file = paste(diver, '_Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
 ggsave(
   filename = paste(diver, '_Measureboard_NonModem_SizeSummaryReferenceLimits_Formatted_', Sys.Date(), '.pdf', sep = ''),
   plot = mb.df.non.modem.summary.reference.limits,
   width = 11.69,
-  height = 12,
+  height = 16,
   units = 'in'
 )
 }
+
+##---------------------------------------------------------------------------##
+# summary for greg woodham
+woodie.west <- measure.board.df.non.modem %>%
+ filter(!is.na(shelllength) &
+         grepl('^07', logname) &
+         between(shelllength, 100, 220) &
+         logname == '07010050',
+        zone == 'W') %>%   
+ distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(logname, zone, subblockno, processor, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+           'Min\nsize\n(mm)' = round(min(shelllength), 0),
+           'Max\nsize\n(mm)' = round(max(shelllength), 0),
+           n = n(),
+           ref.a = sum(shelllength >= 150),
+           ref.b = sum(shelllength >= 155),
+           ref.c = sum(shelllength >= 160),
+           '>150mm\n(%)' = round((ref.a/n)*100),
+           '>155mm\n(%)' = round((ref.b/n)*100),
+           '>160mm\n(%)' = round((ref.c/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('SubBlock' = subblockno,
+               'Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
+ dplyr::rename('Diver' = processor) %>% 
+ select(c(Diver, SubBlock, Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">150mm\n(%)", ">155mm\n(%)", ">160mm\n(%)"))
+
+woodie.east <- measure.board.df.non.modem %>%
+ filter(!is.na(shelllength) &
+         grepl('^07', logname) &
+         between(shelllength, 100, 220) &
+         logname == '07010050',
+        zone == 'E') %>%   
+ distinct(abalonenum, rawutc, .keep_all = T) %>%
+ group_by(logname, zone, subblockno, processor, species) %>%  
+ summarise('Number\nmeasured' = n(),
+           'Mean\nsize\n(mm)' = round(mean(shelllength), 0),
+           'Min\nsize\n(mm)' = round(min(shelllength), 0),
+           'Max\nsize\n(mm)' = round(max(shelllength), 0),
+           n = n(),
+           ref.a = sum(shelllength >= 140),
+           ref.b = sum(shelllength >= 142),
+           ref.c = sum(shelllength >= 145),
+           '>140mm\n(%)' = round((ref.a/n)*100),
+           '>142mm\n(%)' = round((ref.b/n)*100),
+           '>145mm\n(%)' = round((ref.c/n)*100)) %>% 
+ ungroup() %>% 
+ mutate_if(is.factor,
+           fct_explicit_na,
+           na_level = '') %>%
+ mutate(species = ifelse(species == 1, 'Blacklip', 'Greenlip')) %>% 
+ dplyr::rename('SubBlock' = subblockno,
+               'Species' = species) %>% 
+ as.data.frame() %>%
+ select(-c(n, ref.a, ref.b, ref.c, zone)) %>% 
+ dplyr::rename('Diver' = processor) %>% 
+ select(c(Diver, SubBlock, Species, 'Number\nmeasured', "Mean\nsize\n(mm)", "Min\nsize\n(mm)", "Max\nsize\n(mm)",
+          ">140mm\n(%)", ">142mm\n(%)", ">145mm\n(%)"))
+
+
+setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham")
+
+write.xlsx(woodie.west,
+           file = paste('Woodham_WEST__Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
+
+write.xlsx(woodie.east,
+           file = paste('Woodham_EAST__Measureboard_NonModem_SizeSummaryReferenceLimits_', Sys.Date(), '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
 
 ##---------------------------------------------------------------------------##
 ## Step 16: Plot Blacklip LF  ####
@@ -1049,9 +1274,14 @@ compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RD
 
 ## remove erroneous data
 lw.dat <- compiledMM.df.final %>%
-  filter(between(whole.weight, 200, 1500) | # abalone above or below these weights unlikely
-      between(shell.length, sizelimit - 5, 220) & # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
-      !(shell.length > 175 & whole.weight < 600) & # & # these appear to be erroneous weights
+ mutate(sizelimit = as.numeric(sizelimit)) %>% 
+  filter(!is.na(shell.length) &
+          !is.na(whole.weight) &
+          !is.na(sizelimit) &
+   between(whole.weight, 200, 1500) & # abalone above or below these weights unlikely
+    (shell.length >= sizelimit - 5 & shell.length <= 220) &  
+    # between(shell.length, sizelimit - 5, 220))  # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
+      !(shell.length > 175 & whole.weight < 600) & # these appear to be erroneous weights
     !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
 
 ## Calculate log of length and weight
@@ -1366,4 +1596,42 @@ for (i in mb.df.non.modem.bl.samples) {
   }
 }
 
+##---------------------------------------------------------------------------##
+## Step 20: Plot measure location ####
+
+#NOTE: Version2 - work in progress
+
+# Filter for data of interest
+df.1 <- measure.board.df.non.modem %>% 
+ filter(sample.id == 108) %>% 
+ st_as_sf()
+
+idw_grid <- st_make_grid(df.1, cellsize = 402.0673, square = FALSE)
+idw_grid <- st_make_grid(df.1, cellsize = 200, square = FALSE)
+df.2 <- as_Spatial(df.1)
+P_idw_hex <- gstat::idw(shelllength ~ 1, df.2, newdata = idw_grid, idp = 2)
+rslt_hex <- st_as_sf(P_idw_hex)
+
+df.2 <- df.1 %>%
+ mutate(longitude = unlist(map(df.1$geometry,1)),
+        latitude = unlist(map(df.1$geometry,2)))
+
+map.buffer <- 100
+
+ggplot() + 
+ geom_sf(data = sf.tas.coast.map) +
+ # geom_sf(data = df.2 %>% filter(shelllength < 200), aes(colour = shelllength)) +
+ # scale_colour_viridis_c()+
+ geom_sf(data = rslt_hex, aes(fill = var1.pred), col = "grey60", size = 0.1)+
+ scale_fill_viridis_c()+
+ # geom_point(data = Points_properties, 
+ #            aes(x = Longitude, y = Latitude))+
+ coord_sf(xlim = c(min(df.2$longitude) - map.buffer,
+                   max(df.2$longitude) + map.buffer),
+          ylim = c(min(df.2$latitude) - map.buffer,
+                   max(df.2$latitude) + map.buffer),
+          expand = FALSE) +
+ theme_bw()
+
+ggplot(rslt_hex, aes(fill = var1.pred))
          
