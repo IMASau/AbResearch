@@ -3,31 +3,24 @@ library(openxlsx)
 library(lubridate)
 
 temp <- read.xlsx(
-<<<<<<< HEAD
- "C:/CloudStor/Shared/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
+ "C:/CloudStor/Fisheries/Research/Abalone/Block30/Block30SL.xlsx",
  sheet = "Sheet1", detectDates = TRUE)
 
-temp2 <- read.xlsx(
- "C:/CloudStor/Shared/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
-=======
- "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30SL.xlsx",
- sheet = "Sheet1", detectDates = TRUE)
 
 temp2 <- read.xlsx(
- "C:/cloudstor/Fisheries Research/Abalone/Block30/Block30_2017.xlsx",
->>>>>>> 2189e5eef8b588d7cc67c6c7585c265040cec8ce
+ "C:/cloudstor/Fisheries/Research/Abalone/Block30/Block30_2017.xlsx",
  sheet = "Pooled", detectDates = TRUE)
 
-## data from Tas Live Lobster collected in block 29 in April 2019 for quick comparison with experimental fishing
-temp3 <- read.xlsx('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.xlsx',
-                   sheet = "TassieLobster_08042019", detectDates = TRUE)
-temp4 <- temp3 %>% filter(blocklist == 29) %>%
- select(c(SmpNum = "order", SLength = "shell.length", Smp_date = "unloading_date")) %>%
- mutate(Trip = 2019, Diver = as.character(NA), Smp_time = as.numeric(NA))
+# ## data from Tas Live Lobster collected in block 29 in April 2019 for quick comparison with experimental fishing
+# temp3 <- read.xlsx('R:/TAFI/TAFI_MRL_Sections/Wild_Fisheries_Program/Shared/13. Market measuring/TassieLobster_08042019.xlsx',
+#                    sheet = "TassieLobster_08042019", detectDates = TRUE)
+# temp4 <- temp3 %>% filter(blocklist == 29) %>%
+#  select(c(SmpNum = "order", SLength = "shell.length", Smp_date = "unloading_date")) %>%
+#  mutate(Trip = 2019, Diver = "JohnDiver", Smp_time = as.numeric(NA))
 
 
 block30lf <- rbind(temp,temp2)
-block30lf <- bind_rows(temp, temp2, temp4)
+#block30lf <- bind_rows(temp, temp2, temp4)
 
 colnames(block30lf) <- tolower(colnames(block30lf))
 
@@ -86,3 +79,4 @@ ggplot(test, aes(x = bins, y = prop)) +
   axis.text.y = element_text(size = 14, color = "Black")
  )
 
+summary(block30lf$slength)
