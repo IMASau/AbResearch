@@ -45,7 +45,7 @@ source("C:/GitCode/AbResearch/getLegend.r")
 samp.year <- 2022
 
 # identify associated sampling year folder path to save dataframes
-samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
+samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
                               'Abalone', 'FISdata',
                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
@@ -54,7 +54,7 @@ samp.year.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries',
 #                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
-ts.plots.folder <- file.path('C:', 'CloudStor', 'Shared', 'DiveFisheries', 
+ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
                              'Abalone', 'Assessment', 'Figures', 'FIS',
                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
@@ -192,32 +192,32 @@ GDA2020 <- st_crs(7855)
 # read GPX files from vessel plotter
 
 # vessel data for 2020 surveys
-morana.gps.2020 <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
+morana.gps.2020 <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2020-10-09_download.gpx', layer = 'waypoints')
 
 # vessel data for 2021 reference site surveys (i.e. block 13-14)
-morana.gps.ref <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-04-06_download.gpx', layer = 'waypoints')
+morana.gps.ref <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-04-06_download.gpx', layer = 'waypoints')
 
 # vessel data for 2021 surveys
-morana.gps.2021.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-07-15_download.gpx', layer = 'waypoints')
+morana.gps.2021.a <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-07-15_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.b <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-08-12_download.gpx', layer = 'waypoints')
+morana.gps.2021.b <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-08-12_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.c <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-09-08_download.gpx', layer = 'waypoints')
+morana.gps.2021.c <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-09-08_download.gpx', layer = 'waypoints')
 
-morana.gps.2021.d <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-10-07_download.gpx', layer = 'waypoints')
+morana.gps.2021.d <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/MORANAII-2021-10-07_download.gpx', layer = 'waypoints')
 
-taroona.gps.2021.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/TAROONA-2021-10-15_download.gpx', layer = 'waypoints')
+taroona.gps.2021.a <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/TAROONA-2021-10-15_download.gpx', layer = 'waypoints')
 
 morana.gps.2021 <- bind_rows(morana.gps.2021.a, morana.gps.2021.b, morana.gps.2021.c, 
                              morana.gps.2021.d) %>% 
  distinct(., name, .keep_all = T)
 
 # vessel data for 2022 surveys
-morana.gps.2022.a <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
+morana.gps.2022.a <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-08-10_download.gpx', layer = 'waypoints')
 
-morana.gps.2022.b <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-06_download.gpx', layer = 'waypoints')
+morana.gps.2022.b <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-06_download.gpx', layer = 'waypoints')
 
-morana.gps.2022.c <- st_read('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-27_download.gpx', layer = 'waypoints')
+morana.gps.2022.c <- st_read('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/MORANAII-2022-09-27_download.gpx', layer = 'waypoints')
 
 morana.gps.2022 <- bind_rows(morana.gps.2022.a, morana.gps.2022.b, morana.gps.2022.c) %>% 
  distinct(., name, .keep_all = T)
@@ -284,11 +284,25 @@ ts.site.start.finish <- bind_rows(ts.site.start, ts.site.finish) %>%
         select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname)) %>%
         filter(site != 'Betsey')
 
+df.10 <- bind_rows(ts.site.start, ts.site.finish) %>%
+ mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
+                           if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
+                                   as.character(waypoint)))) %>%  
+ select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname, max.depth,
+          habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments)) %>%
+ filter(site != 'Betsey')
+
 # join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
 ts.site.start.finish.mark <- ts.site.start.finish %>% 
         filter(is.na(waypoint) & sampperiod == 'start') %>%  
         left_join(., vessel.gps, by = c('site' = 'name', 'sampyear', 'vesselname')) %>% 
         select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
+
+df.11 <- df.10 %>% 
+ filter(is.na(waypoint) & sampperiod == 'start') %>%  
+ left_join(., vessel.gps, by = c('site' = 'name', 'sampyear', 'vesselname')) %>% 
+ select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
+          habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments))
 
 # join geometry where start and finish waypoints were recorded 
 ts.site.start.finish.wp <- ts.site.start.finish %>% 
@@ -299,16 +313,45 @@ ts.site.start.finish.wp <- ts.site.start.finish %>%
         #               'site' = site) %>% 
         select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
 
+df.12 <- df.10 %>% 
+ filter(!is.na(waypoint)) %>% 
+ left_join(., vessel.gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate', 'vesselname')) %>% 
+ dplyr::rename('sampyear' = sampyear.x) %>% 
+ # dplyr::rename('gpstime' = time,
+ #               'site' = site) %>% 
+ select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
+          habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments))
+
 # re-join all waypoint data and transform to GDA2020
 
 ts.site.start.finish.loc <- bind_rows(ts.site.start.finish.mark, ts.site.start.finish.wp) %>% 
         st_as_sf() %>% 
         st_transform(GDA2020)
 
+df.13 <- bind_rows(df.11, df.12) %>% 
+ st_as_sf() %>% 
+ st_transform(GDA2020)
+
+df.14 <- df.13 %>% 
+ mutate(nums = str_count(site, '\\d+')) %>% 
+ # mutate(site2 = site) %>% 
+ mutate(site2 = ifelse(nums == 2, site, '')) %>% 
+ separate(col = site2, into = c('ab', 'blockno'), sep = '-') %>% 
+ mutate(site3 = ifelse(nums == 3, site, '')) %>% 
+ separate(col = site3, into = c('ab', 'sampyear2', 'blockno2'), sep = '-') %>%
+ mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
+                         ifelse(blockno %in% c('BRS'), 13, blockno))) %>% 
+ mutate(blockno = ifelse(is.na(blockno), blockno2, blockno)) %>% 
+ select(-c(ab, sampyear2, blockno2, nums))
+
 vessel.gps.dat <- ts.site.start.finish.loc
+
+meta.dat.start <- df.14
 
 # save files
 saveRDS(vessel.gps.dat, paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
+
+saveRDS(meta.dat.start, paste(samp.year.folder, '/meta.dat.start.RDS', sep = ''))
 
 # save spatial layer for QGIS
 st_write(vessel.gps.dat,
@@ -506,10 +549,10 @@ st_write(ts.proposed.geom,
 ## add subblock to site name based on vessel GPS data and start position
 ## use these data for 'actual geometry' when joining to raw data 
 
-vessel.gps.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/vessel.gps.dat.RDS')
+vessel.gps.dat <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/vessel.gps.dat.RDS')
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -545,7 +588,7 @@ site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map
         filter(sampperiod == 'start')
 
 # load proposed site file
-ts.sites.final.sf <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
+ts.sites.final.sf <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
 
 # join sites sampled to renamed site file for 2020
 ts.actual.geom <- ts.sites.final.sf %>%
@@ -828,6 +871,9 @@ time.swim.dat.final <-
 
 time.swim.dat.df.final <-
         readRDS(paste(samp.year.folder, '/time.swim.dat.df.final.RDS', sep = ''))
+
+# Import metadata frame
+time.swim.meta.dat <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
 ## 11. Standardise data #### 
@@ -1482,8 +1528,8 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteSummaryTable', '.pn
 ## MAP 1: Site Count x size ####
 ## Average Count by site - possibly explore KUDs
 
-sf.tas.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/Shared/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform maps to GDA2020
 

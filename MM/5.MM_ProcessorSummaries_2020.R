@@ -1184,6 +1184,20 @@ ggsave(
         units = 'mm'
 )
 ##---------------------------------------------------------------------------##
+## Tas Seafoods Data ####
+
+tas.seafoods.dat <- mb.next.gen.grade.df %>% 
+ filter(processor == 'TASMANIAN SEAFOODS PTY LTD' &
+         sampyear == 2022) %>% 
+ select(c(plaindate, abalonenum, zone, docketnum, shelllength, wholeweight, grade))
+
+setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+
+write.xlsx(tas.seafoods.dat, paste('TASMANIAN SEAFOODS PTY LTD_MeasurboardData2022', '.xlsx', sep = '_'), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+
+##---------------------------------------------------------------------------##
 ## Seafood Traders ####
 
 seafood.traders.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/SeafoodTraders_2022_DiverDetails.xlsx",
