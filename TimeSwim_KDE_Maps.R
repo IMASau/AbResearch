@@ -73,6 +73,10 @@ library(sp)
 library(sf)
 library(dplyr)
 library(tmap)
+library(spatialEco)
+
+# load count data for each site
+time.swim.count.site.loc <- readRDS(paste(samp.year.folder, '/time.swim.count.site.loc.RDS', sep = ''))
 
 # select timed swim data
 df.1 <- time.swim.count.site.loc %>% 
@@ -81,8 +85,7 @@ df.1 <- time.swim.count.site.loc %>%
  filter(!st_is_empty(.) &
          blockno == 22 &
          sampyear == 2022 &
-         legal.size == '<140 mm') %>% 
- as.data.frame()
+         legal.size == '<140 mm')
 
 # urchin data
 df.1 <- meta.dat.start %>% 
@@ -95,7 +98,7 @@ df.1 <- meta.dat.start %>%
 
 # extract timed swim count data as vector
 weight.ab.n <- df.1 %>% 
- select(mean.ab.n) %>% 
+ dplyr::select(mean.ab.n) %>% 
  pull()
 
 #extract urchin data
@@ -105,12 +108,12 @@ weight.ab.n <- df.1 %>%
 
 # extract timed swim site point geometry data
 points.sites <- df.1 %>% 
- select(geometry) %>% 
+ dplyr::select(geometry) %>% 
  st_as_sf() %>% 
  st_set_crs(GDA2020)
 
 # set band width and cell size of resulting grid
-cell_size <- 400
+cell_size <- 200
 band_width <- 1000
 
 # create hexagonal grid covering sites
@@ -123,11 +126,14 @@ tm_shape(grid_block)+
  tm_polygons()
 
 sf.subblock.map.crop <- sf.subblock.map %>%
- filter(blockno == 24 &
+ filter(blockno == 22 &
          !subblockno %in% c('28B', '28C'))  %>% 
  st_as_sf()
 
 df.2 <- sf::st_intersection(grid_block, sf.subblock.map.crop)
+df.2 <- sf::st_intersection(grid_block, map.crop)
+
+# df.2 <- sf::st_intersection(sf.subblock.map.crop, grid_block)
 
 tm_shape(df.2)+
  tm_polygons()
@@ -136,11 +142,16 @@ kde <- points.sites %>%
  kde(band_width = band_width, kernel = "quartic", grid = df.2, weights = weight.ab.n) %>% 
  filter(kde_value > 0.1)
 
-tm_shape(sf.subblock.map.crop) +
- tm_polygons()+
+kde <- points.sites %>% 
+ kde(band_width = band_width, kernel = "quartic", cell_size = 100, weights = weight.ab.n) %>% 
+ filter(kde_value > 1)
+
+
+# tm_shape(sf.subblock.map.crop)
+# tm_shape(df.2) +
+#  tm_polygons()+
 tm_shape(kde) +
- tm_polygons(col = "kde_value", palette = "viridis", title = "KDE Estimate")
- # tm_shape(points.sites) +
+ tm_polygons(col = "kde_value", palette = 'Spectral', title = "KDE Estimate", colorNA = NULL)
  # tm_bubbles(size = 0.1, col = "red")
 
 raster_block <- points.sites %>% 

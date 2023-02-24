@@ -189,7 +189,8 @@ leg.counts$yr.season <-
                                            "2017.Summer", "2017.Winter", "2017.Spring", 
                                            "2018.Summer", "2018.Winter", "2018.Spring", 
                                            "2019.Summer", '2019.Winter', '2019.Spring',
-                                          '2020.Summer', "2020.Spring", "2021.Summer"))
+                                          '2020.Summer', "2020.Spring", "2021.Summer", '2021.Spring',
+                                          '2022.Summer'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(leg.counts$site == "GAR")
@@ -349,7 +350,8 @@ legs.sl$yr.season <-
                                          "2017.Summer", "2017.Winter", "2017.Spring", 
                                          "2018.Summer", "2018.Winter", "2018.Spring", 
                                          "2019.Summer", '2019.Winter', '2019.Spring',
-                                       '2020.Summer', '2020.Spring', '2021.Summer'))
+                                       '2020.Summer', '2020.Spring', '2021.Summer', '2021.Spring',
+                                       '2022.Summer'))
 
 ## adjust misclassified seasons for The Gardens
 pick <- which(legs.sl$site == "GAR")
@@ -492,7 +494,8 @@ ordered(arms.sl$yr.season, levels = c("2015.Summer", "2015.Winter", "2015.Spring
                                      "2017.Summer", "2017.Winter", "2017.Spring", 
                                      "2018.Summer", "2018.Winter", "2018.Spring",
                                      "2019.Summer", "2019.Winter", "2019.Spring",
-                                     '2020.Summer', '2020.Spring', '2021.Summer'))
+                                     '2020.Summer', '2020.Spring', '2021.Summer',
+                                     '2021.Spring', '2022.Summer'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arms.sl$site == "GAR")
@@ -567,7 +570,8 @@ arm.counts$yr.season <-
                                         "2017.Summer", "2017.Winter", "2017.Spring", 
                                         "2018.Summer", "2018.Winter", "2018.Spring",
                                         "2019.Summer", "2019.Winter", "2019.Spring",
-                                        '2020.Summer', '2020.Spring', '2021.Summer'))
+                                        '2020.Summer', '2020.Spring', '2021.Summer',
+                                        '2021.Spring', '2022.Summer'))
 
 ## recode Gardens 2015.summer samples as 2015.spring
 pick <- which(arm.counts$site == "GAR")
