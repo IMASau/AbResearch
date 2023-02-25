@@ -37,6 +37,7 @@ suppressPackageStartupMessages({
 })
 
 source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
 
 ##---------------------------------------------------------------------------##
 ## 1. Set sample year and file paths ####
@@ -582,12 +583,52 @@ site.samp.start.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, jo
                 (!subblockno %in% c('28C', '28B') & sampperiod == 'start') &
                         (!blockno %in% c('13', '14', '29', '30') & sampperiod == 'start'))
 
+site.samp.finish.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
+ select(-c(version, area, blockno.y, site3)) %>% 
+ dplyr::rename(blockno = blockno.x,
+               finish.geom = geometry) %>% 
+ rename_all(tolower) %>% 
+ filter(
+  (!subblockno %in% c('28C', '28B') & sampperiod == 'finish') &
+   (!blockno %in% c('13', '14', '29', '30') & sampperiod == 'finish'))
+
+site.samp.start.finish <- left_join(as.data.frame(site.samp.start.subblock.loc), 
+                as.data.frame(site.samp.finish.subblock.loc),
+                by = c("sampyear", "site", 
+                       "vesselname", "blockno", "zone",
+                       "subblockno"))
+
+site.samp.distance <- site.samp.start.finish %>%
+ mutate(distance = as.numeric(units::drop_units(st_distance(geometry, finish.geom, by_element = T)))) %>% 
+ dplyr::rename(samptime = samptime.x,
+               gpstime = gpstime.x,
+               sampperiod = sampperiod.x,
+               waypoint = waypoint.x) %>% 
+ select(-c(samptime.y, gpstime.y, sampperiod.y, waypoint.y, finish.geom)) %>% 
+ st_as_sf()
+
+# df.4 %>% 
+#  ggplot(aes(x = sampyear, y = distance, colour = blockno))+
+#  geom_errorbar(aes(ymin = distance - se, ymax = distance + se), width = 0.1, 
+#                position = position_dodge(0.1))+
+#  geom_line(position = position_dodge(0.1))+
+#  geom_point(position = position_dodge(0.1))
+ 
+
 # join data to subblock map to identify subblockno (i.e. inc. all blocks)
 site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
         select(-c(version, area, blockno.y, site3)) %>% 
         dplyr::rename(blockno = blockno.x) %>% 
-        rename_all(tolower) %>% 
+        rename_all(tolower) %>%  
         filter(sampperiod == 'start')
+
+df.1 <- st_join(site.samp.distance, sf.subblock.map, join = st_nearest_feature) %>% 
+ select(-c(version, area, blockno.y, subblockno.y, zone.y)) %>% 
+ dplyr::rename(blockno = blockno.x,
+               subblockno = subblockno.x,
+               zone = zone.x) %>% 
+ rename_all(tolower) %>%  
+ filter(sampperiod == 'start')
 
 # load proposed site file
 ts.sites.final.sf <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
@@ -603,8 +644,19 @@ ts.actual.geom <- ts.sites.final.sf %>%
                site = ifelse(sampyear == 2020 & is.na(site), site.old, site)) %>%  
         select(-site.y)
 
+df.2 <- ts.sites.final.sf %>%
+ st_drop_geometry() %>% 
+ filter(sampyear == 2020) %>% 
+ left_join(df.1, ., by = c('site' = 'site.old',
+                                                       'sampyear' = 'sampyear')) %>% 
+ mutate(site.old = ifelse(sampyear == 2020, site, ''),
+        site = ifelse(sampyear == 2020, site.y, site),
+        site = ifelse(sampyear == 2020 & is.na(site), site.old, site)) %>%  
+ select(-site.y)
+
 # save file of actual geometry for raw data join
 saveRDS(ts.actual.geom, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
+saveRDS(df.2, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
 
 # create maps for each block (#note: sample year and/or reference sites)
 
@@ -749,7 +801,7 @@ ts.actual.geom <- ts.actual.geom %>%
 time.swim.dat.act.prop <- left_join(ts.dat.prop %>% dplyr::select(-c(subblockno, zone)), ts.dat.act) %>%  
         select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime, 
                  firstabtime, finishtime, time.elapsed, sizeclass, sizeclass.2021, sizeclass_freq, 
-                 minsize, midsize, midsize.2021, maxsize, legal.size, actual.geom, proposed.geom))
+                 minsize, midsize, midsize.2021, maxsize, legal.size, actual.geom, proposed.geom, distance))
 
 # join proposed site data to individual length data
 
@@ -810,18 +862,18 @@ time.swim.dat.df.act.prop <- left_join(ts.dat.prop.df %>% dplyr::select(-c(subbl
         select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime,
                  firstabtime, finishtime, time.elapsed, shelllength, shelllength.2021, sizeclass, 
                  sizeclass.2021, sizeclass_freq, minsize, maxsize, legal.size, 
-                 actual.geom, proposed.geom))
+                 actual.geom, proposed.geom, distance))
 
 # join time swim size fequency and individual length data to original site data to 
 # include 'oid', 'cell.ntile' and 'sam.count'
 
 # load cpue oid data and combine
-ts.site.cpue.2020.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
-ts.site.cpue.2021.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
+ts.site.cpue.2020.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
+ts.site.cpue.2021.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
 ts.site.cpue.join <- bind_rows(ts.site.cpue.2020.join, ts.site.cpue.2021.join)
 
 # load sam data and remove duplicate sites with same site name
-ts.site.sam.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.dat <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
 ts.site.sam.join <- ts.site.sam.dat %>% 
         distinct(site, .keep_all = T)
 
@@ -1023,6 +1075,43 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSub
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# Distance travelled per year 
+
+df.1 <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30')) %>%
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10),
+           mean.dist = mean(distance),
+           ab.m2 = ab.n / mean.dist)
+
+df.1 <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30') &
+         distance > 0) %>%
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size, distance) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ ungroup() %>% 
+ mutate(ab.m2 = ab.n / distance) 
+
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.m2 = mean(ab.m2))
+ 
+ 
+df.2 <- summarySE(df.1, measurevar = 'ab.m2', 
+                  groupvars = c('blockno', 'sampyear', 'legal.size'),
+                  na.rm = T)
+
+pd <- position_dodge(0.1)
+
+df.2 %>%
+ ggplot(aes(x = factor(sampyear), y = ab.m2, colour = blockno, group = blockno)) + 
+ geom_errorbar(aes(ymin = ab.m2 - se, ymax = ab.m2 + se), width = 0.1, position = pd) +
+ geom_line(position = pd) +
+ geom_point(position = pd)+
+ facet_wrap(~ legal.size)
 
 ##---------------------------------------------------------------------------##
 ## PLOT 2: REPEAT COUNT PER TEN MIN YEARS ####
