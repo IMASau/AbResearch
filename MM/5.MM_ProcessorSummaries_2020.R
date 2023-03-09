@@ -19,7 +19,15 @@ library(scales)
 library(gridExtra)
 library(hms)        
 })        
-##-------------------------------------------------------------------------------------------------------##
+##---------------------------------------------------------------------------##
+## 1. Set sample year and file paths ####
+
+# identify target year of interest
+target_year <- 2023
+
+target_year_folder <- paste('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/', target_year, "/",
+                            'MM_Plots_2023ProcessorSummaries/', sep = '')
+##---------------------------------------------------------------------------##
 # load data ####
 
 # load latest measuring board data that comes from MM_NextGen_4G.R script
@@ -87,7 +95,7 @@ docknum.grade.meas <- mb.next.gen.grade.df %>%
 ##-------------------------------------------------------------------------------------------------------##
 # quick summary
 dock.sum <- measure.board.next.gen.df %>% 
-        filter(sampyear == 2022) %>% 
+        filter(sampyear == target_year) %>% 
         group_by(processor, zone) %>% 
         summarise(n = n(),
                   catches = n_distinct(docketnum)) %>% 
@@ -104,7 +112,7 @@ grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docket.index',
         filter(processor == i) %>%  
         mutate(grade.perc = round((grade.meas / ab.weighed) * 100),
                sampyear = year(plaindate)) %>% 
-        filter(sampyear == 2022) %>% 
+        filter(sampyear == target_year) %>% 
         ungroup() %>% 
         # select(-c(grade.meas, processor, docket.index.x, docket.index.y, sampyear)) %>% 
         select(-c(grade.meas, processor, docket.index, sampyear)) %>% 
@@ -131,7 +139,7 @@ grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docket.index',
         
 # create length and weight summary table
 length.weight.summary <- mb.next.gen.grade.df %>%
-        filter(wholeweight != 0 & processor == i & sampyear == 2022) %>% 
+        filter(wholeweight != 0 & processor == i & sampyear == target_year) %>% 
         group_by(docketnum.day, processor, plaindate, samptime.max, zone, docket.index) %>%
         summarise('Mean\nweight\n(g)' = round(mean(wholeweight), 0),
                   'Min\nweight\n(g)' = min(wholeweight),
@@ -164,15 +172,15 @@ length.weight.summary <- mb.next.gen.grade.df %>%
 i <- ifelse(i == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
                          'TRUE SOUTH SEAFOOD', i)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+# setwd(target_year_folder)
 write.xlsx(grade.summary,
-           file = paste(i, '_GradeSummary_', Sys.Date(), '.xlsx'),
+           file = paste(target_year_folder, i, '_GradeSummary_', Sys.Date(), '.xlsx'),
            sheetName = "Sheet1",
            col.names = TRUE,
            row.names = TRUE,
            append = FALSE)
 write.xlsx(length.weight.summary,
-           file = paste(i, '_SizeWeightSummary_', Sys.Date(), '.xlsx'),
+           file = paste(target_year_folder, i, '_SizeWeightSummary_', Sys.Date(), '.xlsx'),
            sheetName = "Sheet1",
            col.names = TRUE,
            row.names = TRUE,
@@ -188,7 +196,7 @@ length.weight.summary.formated <- length.weight.summary %>%
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 ggsave(
-        filename = paste(i, '_WEIGHTGRADESUMMARY_', Sys.Date(), '.pdf', sep = ''),
+        filename = paste(target_year_folder, i, '_WEIGHTGRADESUMMARY_', Sys.Date(), '.pdf', sep = ''),
         plot = grade.summary.formated,
         width = 200,
         height = 350,
@@ -196,7 +204,7 @@ ggsave(
 )
 
 ggsave(
-        filename = paste(i, '_LENGTHWEIGHTSUMMARY_', Sys.Date(), '.pdf', sep = ''),
+        filename = paste(target_year_folder, i, '_LENGTHWEIGHTSUMMARY_', Sys.Date(), '.pdf', sep = ''),
         plot = length.weight.summary.formated,
         width = 250,
         height = 300,
@@ -214,6 +222,7 @@ else{
 ## measuring board data frame for which to create summaries
 
 # identify local working folder containing existing docket summaries
+processor.summaries.2023 <- 'C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries'
 processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries'
 processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
 processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
@@ -224,9 +233,11 @@ processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020Pro
 docket.summaries.2020 <- list.files(processor.summaries.2020,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2021 <- list.files(processor.summaries.2021,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2022 <- list.files(processor.summaries.2022,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
+docket.summaries.2023 <- list.files(processor.summaries.2023,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 
 
-docket.summaries <- c(docket.summaries.2020, docket.summaries.2021, docket.summaries.2022)
+docket.summaries <- c(docket.summaries.2020, docket.summaries.2021, docket.summaries.2022,
+                      docket.summaries.2023)
 
 
 # create a vector of existing docket numbers 
@@ -289,6 +300,9 @@ docket.unique <- measure.board.next.gen.df %>%
 # identify dockets missing from summary folder
 # new.dockets <- setdiff(docket.unique, existing.dockets)
 new.dockets <- setdiff(docket.unique, existing.dockets.complete)
+
+# remove persistent docket AW-818662 from list (True South Seafoods)
+new.dockets <- new.dockets[!grepl('AW-818662', new.dockets)]
 
 # # idenitfy processors in measuring board dataframe
 # processor.unique <- unique(measure.board.next.gen.df$processor)
@@ -375,12 +389,12 @@ for (i in new.dockets) {
                         ymin = 0.3
                 )
         
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+        # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- unique(plot.length.freq.dat$processor)
         ggsave(
-                filename = paste(paste(file.zone, docketnum, sep = ''), '_LENGTHSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                filename = paste(paste(target_year_folder, file.zone, docketnum, sep = ''), '_LENGTHSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                 plot = length.plot,
                 width = 7.4,
                 height = 5.57,
@@ -536,12 +550,12 @@ for (j in new.dockets) {
                                 ymax = 0.4
                         )
                 
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+                # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
                 file.zone <- unique(plot.weight.freq.dat$zone)
                 file.date <- unique(plot.weight.freq.dat$plaindate)
                 file.processor <- unique(plot.weight.freq.dat$processor)
                 ggsave(
-                        filename = paste(paste(file.zone, docketnum, sep = ''), '_WEIGHTSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                        filename = paste(paste(target_year_folder, file.zone, docketnum, sep = ''), '_WEIGHTSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                         plot = wt.plot,
                         width = 7.4,
                         height = 5.57,
@@ -779,7 +793,7 @@ for (i in new.dockets) {
                                                ncol = 1), ncol = 1))
         
         #save plots
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+        # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
         file.zone <- unique(plot.length.freq.dat$zone)
         file.date <- unique(plot.length.freq.dat$plaindate)
         file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
@@ -788,7 +802,7 @@ for (i in new.dockets) {
        
         
         ggsave(
-                filename = paste(paste(file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                 plot = plot.a,
                 width = 200,
                 height = 297,
@@ -800,7 +814,7 @@ for (i in new.dockets) {
                 #         arrangeGrob(cowplot::plot_grid(length.plot, align = 'v', 
                 #                                        ncol = 1), ncol = 1))
                 #save plots
-                setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+                # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
                 file.zone <- unique(plot.length.freq.dat$zone)
                 file.date <- unique(plot.length.freq.dat$plaindate)
                 file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
@@ -809,7 +823,7 @@ for (i in new.dockets) {
                 
                 
                 ggsave(
-                        filename = paste(paste(file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+                        filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
                         plot = plot.a,
                         width = 7.4,
                         height = 5.57,

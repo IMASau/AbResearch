@@ -2449,6 +2449,9 @@ df.2 <- df.1 %>% group_by(dive.pair.id, legal.size) %>%
            neg.sd = round(mean(dive.diff) - (1.96 * sd(dive.diff)), 1)) %>% 
  mutate(mean.diff = paste('Mean = ', avg.diff))
 
+diver.pairs <- c('Diver Pair 1', 'Diver Pair 6')
+names(diver.pairs) <- c('1', '6')
+
 BA.plot <- df.1 %>% ggplot(aes(x = dive.avg, y = dive.diff, group = dive.pair.id))+
  # geom_point(aes(colour = blockno), alpha = 0.5) +
  geom_point(color = 'grey', alpha = 0.8) +
@@ -2468,7 +2471,8 @@ BA.plot <- df.1 %>% ggplot(aes(x = dive.avg, y = dive.diff, group = dive.pair.id
  geom_text(data = df.2, aes(x = 150, y = 50, label = mean.diff), size = 3, vjust = -0.5)+
  # ggtitle(paste('Diver', names(ts.diver.dev.dat[6]), 'vs', 'Diver', names(ts.diver.dev.dat[7])))+
  # theme(legend.position = 'none')+
- facet_grid(dive.pair.id ~ legal.size)
+ facet_grid(dive.pair.id ~ legal.size, 
+            labeller = labeller(dive.pair.id = diver.pairs))
 
 # save plot
 setwd(ts.plots.folder)

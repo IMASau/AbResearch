@@ -421,7 +421,8 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
                                          520017, 522969, 523605, 523646, 523858, 523954, 524679, 
                                          524904, 809423, 812647, 812932, 524621, 818662, 818659,
                                          818628, 818604, 818103, 817832, 817778, 817758, 817157,
-                                         817139, 809297, 529002, 529001, 527880, 524091))  #remove samples where manual check of raw data found no refresh/or additional data
+                                         817139, 809297, 529002, 529001, 527880, 524091, 527383,
+                                         527780, 528529, 818687))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
