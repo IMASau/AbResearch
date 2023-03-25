@@ -38,7 +38,18 @@ BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
 BlckPopNew <- BlckPopNew[order(BlckPopNew$SiteCode,BlckPopNew$SPC_ShellLength),]
 
+pick <- which(BlckPopNew$SPC_GonadStage == 4)
+table(BlckPopNew$SiteCode[pick], BlckPopNew$SPC_GonadStage[pick])
+
+
+pick2 <- which(BlckPopNew$SIT_Id %in% BlckPopNew$SIT_Id[pick])
+
+
+table(BlckPopNew$SPC_GonadStage[pick2])
+
+
 BlckPop <- BlckPopNew
+
 
 ## Note SiteCode is a single field that combines SiteNumber, Year & Month
 ## This effectively pools all data colelcted from a site in the same month,
@@ -55,7 +66,13 @@ Trem <- subset(BlckPop, BlckPop$SPC_Sex =="T") # Extract Trematode records
 ## Subset
 samdata <- subset(BlckPop, SPC_Sex %in% c("I", "M", "F"))
 
-## re-code Male and Female as M for Mature (I = Imature)
+table(BlckPop$SPC_Sex, BlckPop$SPC_GonadStage)
+
+pick <- which(samdata$SPC_GonadStage == 4)
+table(samdata$SIT_Id[pick])
+
+
+## re-code Male and Female as M for Mature (I = Immature)
 samdata$Mat <- ifelse(samdata$SPC_Sex=="I", c("I"), c("M")) 
 #samdata$Mat[samdata$SPC_GonadStage %in% c("0")] <- "I"
 
@@ -65,10 +82,10 @@ SamAssess <- samdata %>%
  summarise(N = n()) %>% 
  spread(Mat, N)
 
-SamList <- subset(SamAssess, (I >3 & M > 3))
+SamList <- subset(SamAssess, (I > 3 & M > 3))
 
 ## Remove sites with less than 150 records
-SamList <- droplevels(subset(SamList, (I + M)> 150, drop=TRUE))
+SamList <- droplevels(subset(SamList, (I + M) > 150, drop=TRUE))
 
 
 ## Routine Outlier Removal: Unusual large immature animals
