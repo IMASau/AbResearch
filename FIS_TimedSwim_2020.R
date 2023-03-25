@@ -37,6 +37,7 @@ suppressPackageStartupMessages({
 })
 
 source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
 
 ##---------------------------------------------------------------------------##
 ## 1. Set sample year and file paths ####
@@ -351,6 +352,8 @@ meta.dat.start <- df.14
 # save files
 saveRDS(vessel.gps.dat, paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
 
+vessel.gps.dat <- readRDS(paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
+
 saveRDS(meta.dat.start, paste(samp.year.folder, '/meta.dat.start.RDS', sep = ''))
 
 # save spatial layer for QGIS
@@ -580,12 +583,52 @@ site.samp.start.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, jo
                 (!subblockno %in% c('28C', '28B') & sampperiod == 'start') &
                         (!blockno %in% c('13', '14', '29', '30') & sampperiod == 'start'))
 
+site.samp.finish.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
+ select(-c(version, area, blockno.y, site3)) %>% 
+ dplyr::rename(blockno = blockno.x,
+               finish.geom = geometry) %>% 
+ rename_all(tolower) %>% 
+ filter(
+  (!subblockno %in% c('28C', '28B') & sampperiod == 'finish') &
+   (!blockno %in% c('13', '14', '29', '30') & sampperiod == 'finish'))
+
+site.samp.start.finish <- left_join(as.data.frame(site.samp.start.subblock.loc), 
+                as.data.frame(site.samp.finish.subblock.loc),
+                by = c("sampyear", "site", 
+                       "vesselname", "blockno", "zone",
+                       "subblockno"))
+
+site.samp.distance <- site.samp.start.finish %>%
+ mutate(distance = as.numeric(units::drop_units(st_distance(geometry, finish.geom, by_element = T)))) %>% 
+ dplyr::rename(samptime = samptime.x,
+               gpstime = gpstime.x,
+               sampperiod = sampperiod.x,
+               waypoint = waypoint.x) %>% 
+ select(-c(samptime.y, gpstime.y, sampperiod.y, waypoint.y, finish.geom)) %>% 
+ st_as_sf()
+
+# df.4 %>% 
+#  ggplot(aes(x = sampyear, y = distance, colour = blockno))+
+#  geom_errorbar(aes(ymin = distance - se, ymax = distance + se), width = 0.1, 
+#                position = position_dodge(0.1))+
+#  geom_line(position = position_dodge(0.1))+
+#  geom_point(position = position_dodge(0.1))
+ 
+
 # join data to subblock map to identify subblockno (i.e. inc. all blocks)
 site.samp.start.subblock.loc.ref <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
         select(-c(version, area, blockno.y, site3)) %>% 
         dplyr::rename(blockno = blockno.x) %>% 
-        rename_all(tolower) %>% 
+        rename_all(tolower) %>%  
         filter(sampperiod == 'start')
+
+df.1 <- st_join(site.samp.distance, sf.subblock.map, join = st_nearest_feature) %>% 
+ select(-c(version, area, blockno.y, subblockno.y, zone.y)) %>% 
+ dplyr::rename(blockno = blockno.x,
+               subblockno = subblockno.x,
+               zone = zone.x) %>% 
+ rename_all(tolower) %>%  
+ filter(sampperiod == 'start')
 
 # load proposed site file
 ts.sites.final.sf <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/ts.sites.final.sf.RDS')
@@ -601,8 +644,19 @@ ts.actual.geom <- ts.sites.final.sf %>%
                site = ifelse(sampyear == 2020 & is.na(site), site.old, site)) %>%  
         select(-site.y)
 
+df.2 <- ts.sites.final.sf %>%
+ st_drop_geometry() %>% 
+ filter(sampyear == 2020) %>% 
+ left_join(df.1, ., by = c('site' = 'site.old',
+                                                       'sampyear' = 'sampyear')) %>% 
+ mutate(site.old = ifelse(sampyear == 2020, site, ''),
+        site = ifelse(sampyear == 2020, site.y, site),
+        site = ifelse(sampyear == 2020 & is.na(site), site.old, site)) %>%  
+ select(-site.y)
+
 # save file of actual geometry for raw data join
 saveRDS(ts.actual.geom, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
+saveRDS(df.2, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
 
 # create maps for each block (#note: sample year and/or reference sites)
 
@@ -747,7 +801,7 @@ ts.actual.geom <- ts.actual.geom %>%
 time.swim.dat.act.prop <- left_join(ts.dat.prop %>% dplyr::select(-c(subblockno, zone)), ts.dat.act) %>%  
         select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime, 
                  firstabtime, finishtime, time.elapsed, sizeclass, sizeclass.2021, sizeclass_freq, 
-                 minsize, midsize, midsize.2021, maxsize, legal.size, actual.geom, proposed.geom))
+                 minsize, midsize, midsize.2021, maxsize, legal.size, actual.geom, proposed.geom, distance))
 
 # join proposed site data to individual length data
 
@@ -808,18 +862,18 @@ time.swim.dat.df.act.prop <- left_join(ts.dat.prop.df %>% dplyr::select(-c(subbl
         select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime,
                  firstabtime, finishtime, time.elapsed, shelllength, shelllength.2021, sizeclass, 
                  sizeclass.2021, sizeclass_freq, minsize, maxsize, legal.size, 
-                 actual.geom, proposed.geom))
+                 actual.geom, proposed.geom, distance))
 
 # join time swim size fequency and individual length data to original site data to 
 # include 'oid', 'cell.ntile' and 'sam.count'
 
 # load cpue oid data and combine
-ts.site.cpue.2020.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
-ts.site.cpue.2021.join <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
+ts.site.cpue.2020.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
+ts.site.cpue.2021.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
 ts.site.cpue.join <- bind_rows(ts.site.cpue.2020.join, ts.site.cpue.2021.join)
 
 # load sam data and remove duplicate sites with same site name
-ts.site.sam.dat <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.dat <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
 ts.site.sam.join <- ts.site.sam.dat %>% 
         distinct(site, .keep_all = T)
 
@@ -882,6 +936,8 @@ time.swim.meta.dat <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.RDS',
 std.ts.dat <- time.swim.dat.final %>% 
     mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
 
+saveRDS(std.ts.dat, paste(samp.year.folder, '/std.ts.dat.RDS', sep = ''))
+
 # Summarise total count for blockno x site x sampyear x legal.size
 ts.count.sum <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C')) %>%
@@ -917,8 +973,8 @@ std.ts.dat %>%
 
 # determine mean abalone abundance for block x sampyear x size class
 ten.min.mean.year <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')) %>% 
-         # !blockno %in% c('13', '14', '29', '30')) %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30')) %>%
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, sampyear, legal.size) %>% 
@@ -934,13 +990,13 @@ df.1 <- ten.min.mean.year %>%
                FY2022 = '2022') %>%  
  mutate(perc.change = round((1 - (FY2021 / FY2022)), 3) * 100) %>% 
  spread(legal.size, perc.change) 
- select(-c('FY2020', 'FY2021', 'FY2022')) %>% 
- mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>% 
- select(-`>140 mm`) %>% 
- filter(!is.na(`<140 mm`)) %>% 
- dplyr::rename(`>140 mm` = `>140 mm2`,
-               'BlockNo' = 'blockno') %>%  
- ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+ # select(-c('FY2020', 'FY2021', 'FY2022')) %>% 
+ # mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>% 
+ # select(-`>140 mm`) %>% 
+ # filter(!is.na(`<140 mm`)) %>% 
+ # dplyr::rename(`>140 mm` = `>140 mm2`,
+ #               'BlockNo' = 'blockno') %>%  
+ # ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 setwd(ts.plots.folder)
 write.xlsx(df.1, paste('TimedSwimSurvey_', samp.year-1, 'vs', samp.year, '_PercentChange.xlsx'), sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
@@ -951,15 +1007,15 @@ ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_Per
 
 
 time.swim.dat.n <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C')) %>% 
-         # !blockno %in% c('13', '14', '29', '30')) %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30')) %>%
  group_by(sampyear, blockno, legal.size) %>% 
  summarise(n = n_distinct(site))
 
 sub.legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '<140 mm') %>% 
-         # !blockno %in% c('13', '14', '29', '30')) %>%
+        legal.size == '<140 mm' &
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -987,8 +1043,8 @@ sub.legal.plot <- std.ts.dat %>%
 
 legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '>140 mm') %>% 
-         # !blockno %in% c('13', '14', '29', '30')) %>%
+        legal.size == '>140 mm' &
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -1019,6 +1075,43 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSub
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# Distance travelled per year 
+
+df.1 <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30')) %>%
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10),
+           mean.dist = mean(distance),
+           ab.m2 = ab.n / mean.dist)
+
+df.1 <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30') &
+         distance > 0) %>%
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size, distance) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ ungroup() %>% 
+ mutate(ab.m2 = ab.n / distance) 
+
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.m2 = mean(ab.m2))
+ 
+ 
+df.2 <- summarySE(df.1, measurevar = 'ab.m2', 
+                  groupvars = c('blockno', 'sampyear', 'legal.size'),
+                  na.rm = T)
+
+pd <- position_dodge(0.1)
+
+df.2 %>%
+ ggplot(aes(x = factor(sampyear), y = ab.m2, colour = blockno, group = blockno)) + 
+ geom_errorbar(aes(ymin = ab.m2 - se, ymax = ab.m2 + se), width = 0.1, position = pd) +
+ geom_line(position = pd) +
+ geom_point(position = pd)+
+ facet_wrap(~ legal.size)
 
 ##---------------------------------------------------------------------------##
 ## PLOT 2: REPEAT COUNT PER TEN MIN YEARS ####
@@ -1547,8 +1640,8 @@ sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
 
 # identify unique sites sampled from timed swim dataframe and join to renamed site file
 time.swim.sites <- std.ts.dat %>%
-    filter(sampyear == samp.year) %>% 
-           # sampdate > as.Date('2021-01-01')) %>%
+    # filter(sampyear == samp.year) %>%
+           filter(sampdate > as.Date('2020-01-01')) %>%
         distinct(site, .keep_all = T) %>% 
         select(c(site, blockno, subblockno, sampdate, actual.geom)) %>% 
         st_as_sf() %>% 
@@ -1556,8 +1649,8 @@ time.swim.sites <- std.ts.dat %>%
 
 ten.min.mean.site <- std.ts.dat %>% 
     filter(!subblockno %in% c('28B', '28C'),
-           sampyear == samp.year) %>% 
-           # sampdate > as.Date('2021-01-01')) %>%
+           # sampyear == samp.year) %>% 
+           sampdate > as.Date('2020-01-01')) %>%
     group_by(site, blockno, subblockno, diver, legal.size) %>% 
     summarise(ab.n = sum(sizeclass_freq)) %>% 
     group_by(site, blockno, subblockno, legal.size) %>% 
@@ -1570,6 +1663,9 @@ ten.min.mean.site <- std.ts.dat %>%
 
 time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>% 
         st_as_sf() 
+
+# save file for analysis
+saveRDS(time.swim.count.site.loc, paste(samp.year.folder, '/time.swim.count.site.loc.RDS', sep = ''))
 
 # identify blocks sampled
 blocks.sampled <- unique(time.swim.count.site.loc$blockno)
@@ -2232,7 +2328,7 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SiteCountMap-',
 # PLOT 1: Diver deviation ####
 
 # Load timed swim diver pair data
-time.swim.divers <- read.xlsx("C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/timed_swim_diver_details_2022.xlsx",
+time.swim.divers <- read.xlsx("C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/timed_swim_diver_details_2022.xlsx",
                               detectDates = T)
 
 # Add end date for divers still participating
@@ -2329,8 +2425,11 @@ ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.png', se
 ##---------------------------------------------------------------------------##
 # PLOT 10: Bland-Altman ####
 # Bland-Altman plot of diver count differences
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4470095/
 df.1 <- ts.count.divers %>% 
- filter(dive.pair.id != 4) %>%
+ filter(dive.pair.id != 4 &
+         !blockno %in% c(13, 14, 29, 30) &
+         dive.pair.id %in% c(1, 6)) %>%
  select(c(site, blockno, legal.size, sampyear, sampdate, dive.pair.id, ab.n)) %>%  
  group_by(site, blockno, legal.size, sampyear, sampdate, dive.pair.id) %>% 
  mutate(var = paste0('ab.n', row_number())) %>% 
@@ -2343,14 +2442,22 @@ df.1 <- ts.count.divers %>%
 
 df.2 <- df.1 %>% group_by(dive.pair.id, legal.size) %>% 
  summarise(avg.diff = round(mean(dive.diff), 1),
+           n = n(),
+           pos.ci = round(mean(dive.diff) + 1.96 * sd(dive.diff)/sqrt(n()), 1),
+           neg.ci = round(mean(dive.diff) - 1.96 * sd(dive.diff)/sqrt(n()), 1),
            pos.sd = round(mean(dive.diff) + (1.96 * sd(dive.diff)), 1),
-           neg.sd = round(mean(dive.diff) - (1.96 * sd(dive.diff)), 1))
+           neg.sd = round(mean(dive.diff) - (1.96 * sd(dive.diff)), 1)) %>% 
+ mutate(mean.diff = paste('Mean = ', avg.diff))
 
 BA.plot <- df.1 %>% ggplot(aes(x = dive.avg, y = dive.diff, group = dive.pair.id))+
- geom_point(aes(colour = blockno), alpha = 0.5) +
+ # geom_point(aes(colour = blockno), alpha = 0.5) +
+ geom_point(color = 'grey', alpha = 0.8) +
  geom_hline(data = df.2, aes(yintercept = avg.diff), colour = "blue", size = 0.5) +
  geom_hline(data = df.2, aes(yintercept = pos.sd), colour = "red", size = 0.5, linetype = 'dashed') +
  geom_hline(data = df.2, aes(yintercept = neg.sd), colour = "red", size = 0.5, linetype = 'dashed') +
+ # geom_hline(data = df.2, aes(yintercept = pos.ci), colour = "blue", size = 0.5, linetype = 'dashed') +
+ # geom_hline(data = df.2, aes(yintercept = neg.ci), colour = "blue", size = 0.5, linetype = 'dashed')+
+ geom_hline(data = df.2, aes(yintercept = 0), colour = "black", size = 0.5, linetype = 'dashed') +
  # geom_hline(yintercept = mean(df.1$dive.diff), colour = "blue", size = 0.5) +
  # geom_hline(yintercept = mean(df.1$dive.diff) - (1.96 * sd(df.1$dive.diff)), colour = "red", size = 0.5, linetype = 'dashed') +
  # geom_hline(yintercept = mean(df.1$dive.diff) + (1.96 * sd(df.1$dive.diff)), colour = "red", size = 0.5, linetype = 'dashed') +
@@ -2358,17 +2465,17 @@ BA.plot <- df.1 %>% ggplot(aes(x = dive.avg, y = dive.diff, group = dive.pair.id
  xlab("Average Abalone Count")+
  labs(colour = 'BlockNo')+
  theme_bw()+
- geom_text(data = df.2, aes(x = 150, y = avg.diff, label = avg.diff), size = 2, vjust = -0.5)+
+ geom_text(data = df.2, aes(x = 150, y = 50, label = mean.diff), size = 3, vjust = -0.5)+
  # ggtitle(paste('Diver', names(ts.diver.dev.dat[6]), 'vs', 'Diver', names(ts.diver.dev.dat[7])))+
  # theme(legend.position = 'none')+
  facet_grid(dive.pair.id ~ legal.size)
 
 # save plot
 setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_', samp.year, '.pdf', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_IAS2023_', samp.year, '.pdf', sep = ''),
        plot = BA.plot, units = 'mm', width = 210, height = 200)
 
-ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_', samp.year, '.png', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_Bland-Altman_DiverDifference_IAS2023_', samp.year, '.png', sep = ''),
        plot = BA.plot, units = 'mm', width = 210, height =200)
 
 ##---------------------------------------------------------------------------##
