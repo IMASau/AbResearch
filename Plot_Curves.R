@@ -64,30 +64,62 @@ library(ggplot2)
 
 mod <- lm(log(y) ~ log(x), data = g)
 
-pwr <- function(x) 
- exp(predict(mod, newdata = data.frame(x=x)))
-
-ggplot(g,
-       aes(x = x, y = y)) +
- geom_point() +
- stat_function(fun = pwr)
 
 
 
-ggplot(data.frame(x=c(0,5000)), aes(x)) +
- stat_function(fun=function(x)x^2, geom="line", aes(colour="square")) +
- stat_function(fun=pwr, geom="line", aes(colour="exp")) +
- scale_colour_manual("Function", value=c("blue","red"), breaks=c("square","exp"))
-
-
+## For hyperstability plots
+pwr <- function(x) a*x^lbda
 
 x <- 1:500
-lbda <- 0.75
+lbda <- 1
+a <- 1
+dat_lbda1 <- data.frame(x, y = pwr(x),lbda = "Assumed")
 
-pwr <- function(x) x^lbda
-dat <- data.frame(x, y = pwr(x))
+lbda <- 0.85
+a <- 2.51
+dat_lbda85 <- data.frame(x, y = pwr(x),lbda = "Spatial")
 
-p <- ggplot(dat, aes(x = x, y = y)) + 
- geom_point()
 
-p + stat_function(fun = pwr)
+ lbda <- 0.5
+ a <- 17
+ dat_lbda5A <- data.frame(x, y = pwr(x),lbda = "Hyper")
+
+
+lbda <- 0.5
+a <- 22.25
+dat_lbda5 <- data.frame(x, y = pwr(x),lbda = "Hyperstable")
+
+
+lbda_dat <- bind_rows(dat_lbda1, dat_lbda85, dat_lbda5, dat_lbda5A) %>% 
+ mutate(lbda = as.factor(lbda))
+
+
+p <-
+ filter(lbda_dat,
+        #lbda %in% c("Assumed", "Hyperstable", "Spatial", "Hyper")) %>%
+        lbda %in% c("Assumed",  "Hyper")) %>%
+ ggplot(aes(
+  x = x,
+  y = y,
+  group = lbda,
+  colour = lbda
+ )) +
+ geom_point(size = 1) +
+ scale_color_manual(values = c(
+  "Assumed" = "black",
+  "Spatial" = "green",
+  "Hyperstable" = "red",
+  "Hyper" = "red"
+ )) +
+ theme_light() +
+ theme(
+  text = element_text(size = 16),
+  axis.text = element_blank(),
+  legend.title = element_blank()
+ )
+
+
+pwr_plot <- update_labels(p, list(x = "Abundance/Biomass", y = "Catch Rate"))
+
+savedir <- "C:/Users/cmundy/OneDrives/OneDrive - University of Tasmania/Research/Presentations/Conferences/IntAbSymp/IAS2023"
+ggsave(file.path(savedir, "Biomass_index_spatial.svg"), pwr_plot, device = "svg", width = 12, height = 10, units = "cm")
