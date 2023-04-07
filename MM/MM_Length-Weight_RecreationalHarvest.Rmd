@@ -62,6 +62,7 @@ library(ggpmisc)
 }) 
 
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
+source("C:/GitCode/AbResearch/getSeason.r")
 
 ```
 \subsectionfont{\raggedright}
@@ -74,7 +75,7 @@ source("C:/GitCode/AbResearch/codeBLnewzone.r")
 \vspace{3cm}
 
 ```{r uni_logo, echo=F, out.width="80%"}
-knitr::include_graphics("C:/Users/jaimem/Documents/Abalone_r-scripts/UniTas_IMAS_Tertiary_Pos_RGB.jpg")
+knitr::include_graphics("C:/Users/jaimem/University of Tasmania/IMAS - Documents/Approved Logos/UniTas_IMAS_P_Pos_Col_RGB_2021.png")
 ```
 
 \vspace{4cm}
@@ -157,6 +158,11 @@ compiledMM.df.final %>%
         # around 100 mm and accounts for minor measuring error for abalone near the LML
         !(shell.length > 175 & whole.weight < 600), # these appear to be erroneous weights
         !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
+
+## add season variable
+lw.dat <- lw.dat %>% 
+ mutate(season = getSeason(lw.dat$msr.date))
+
 ```
 
 ```{r east clean plot, fig.cap = "Length-weight relationship of cleaned commercial abalone catch sampling data for the eastern zone collected between 2019-2022.", echo=FALSE}
@@ -181,6 +187,13 @@ lw.dat %>%
 ## Determine average weight by zone
 zone.wt <- lw.dat %>%
   group_by(newzone) %>%
+  summarise(Av.weight = mean(whole.weight),
+            n = n(),
+            catches = n_distinct(docket.number)) %>% 
+ as_tibble()
+
+zone_season_wt <- lw.dat %>%
+  group_by(newzone, season) %>%
   summarise(Av.weight = mean(whole.weight),
             n = n(),
             catches = n_distinct(docket.number)) %>% 
@@ -248,6 +261,25 @@ lw.dat.coeff.zone <- lw.dat.log %>%
                 intercept = "(Intercept)") %>%  
   mutate(a = exp(intercept)) %>% 
   select(c(newzone, a, b))
+
+## Calculate length-weight regression coefficient for each zone and season
+lw_dat_coeff_season_zone <- lw.dat.log %>%
+  nest(data = -c(newzone)) %>%  
+  mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>%   
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log.sl')) %>%  
+  select(c(newzone, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log.sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(c(newzone, a, b)) %>% 
+ mutate(est_wt_140 = ((a * (140 ^ b))),)
+
+library(knitr)
+kable(lw_dat_coeff_season_zone, caption = "Estimated length-weight model parameters from commerical abalone catch sampling data for all zones collected between 2019-2022.", col.names = c('Zone', 'a', 'b', 'Length = 140 mm'))
 
 library(knitr)
 kable(lw.dat.coeff.zone, caption = "Estimated length-weight model parameters from commerical abalone catch sampling data for all zones collected between 2019-2022.", col.names = c('Zone', 'a', 'b'))

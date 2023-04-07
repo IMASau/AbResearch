@@ -47,7 +47,7 @@ measure.board.next.gen.df <- left_join(measure.board.next.gen.df, measure.board.
 
 # quick summary of catches measured by processor
 measure.board.next.gen.df %>% 
-        filter(local_date >= as.Date('2021-12-31')) %>% 
+        filter(local_date >= as.Date('2022-12-31')) %>% 
         group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
                   n = n(),
@@ -600,7 +600,8 @@ for (i in new.dockets) {
                         aes(xintercept = ifelse(zone == 'AW', 145, 
                                                 ifelse(zone == 'AB', 114, 
                                                        ifelse(zone == 'AN', 127, 
-                                                              ifelse(zone == 'AG', 145, 138))))),
+                                                              ifelse(zone == 'AG', 145, 
+                                                                     ifelse(zone == 'AE' & sampyear >= 2023, 140, 138)))))),
                         linetype = 'dashed',
                         colour = 'red',
                         size = 0.5
