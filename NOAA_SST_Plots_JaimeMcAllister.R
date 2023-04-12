@@ -4,10 +4,16 @@ library(sf)
 library(lubridate)
 library(ggplot2)
 library(openxlsx)
+library(RColorBrewer)
 
+source("C:/GitCode/AbResearch/getSeason.r")
+
+# Import latest noaa data 
 noaa_aus <- readRDS('C:/cloudstor/R_Stuff/WEI/Results/noaa_Aus_2023_03_07.RDS')
 
-unique(noaa_aus$sau_name)
+# Import physiology seasonal sampling data
+physio_dat <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/Abalone_Proteomics_Data_SeasonalSampling_July2021.xlsx",
+                        sheet = 'SeasonalData', detectDates = T)
 
 ##---------------------------------------------------------------------------##
 # SST plot for FAO paper - for John Keane 2023-03-10
@@ -45,20 +51,54 @@ ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/EastcoastMeanAnnual_SS
 
 ##---------------------------------------------------------------------------##
 # SST plot for physiology sites in 2021-2022
+# Plot of daily water temperature of each site in sampling period 2021-2022 and sampling periods
 
-df.2 <- noaa_aus %>% 
+# Select NOAA data for physiology site Blocks/SAUs for sampling period 2021-2022
+noaa_physio_site_dat <- noaa_aus %>% 
  mutate(samp_year = year(timestamp),
         samp_month = month(timestamp),
         month_year = paste(samp_year, samp_month, sep = '_')) %>% 
- filter(sau_name %in% c('AB13', 'AB22', 'AB23', 'AB28', 'AB30'),
+ filter(sau_name %in% c('AB13', 'AB14', 'AB22', 'AB23', 'AB28', 'AB30'),
         between(samp_year, 2021, 2022))
 
-df.2 %>% ggplot(aes(x = timestamp, y = C, group = sau_name, colour = sau_name))+
+
+# Add seasonal variable noting adjustment for late Autumn sampling at some sites
+physio_season_dat <- physio_dat %>% 
+ mutate(samp_season = getSeason(date),
+        samp_season = if_else(site %in% c('SIS', 'THU') & date %in% c(as.Date('2022-06-16')), 'Autumn',
+                              if_else(site %in% c('GAR') & date %in% c(as.Date('2022-06-21')), 'Autumn', samp_season)))
+
+# Summarise min and max sampling dates for each season
+physio_season_dates <- physio_season_dat %>% 
+ group_by(samp_season) %>% 
+ summarise(min_date = min(date),
+           max_date = max(date)) %>% 
+ mutate(samp_season = factor(samp_season, levels = c('Winter', 'Spring', 'Summer', 'Autumn')),
+        cols = c('green', 'purple', 'red', 'blue'))
+
+# Create vector of plot colours for sites to match metabolomics analysis
+cols <- c('green', 'blue', 'yellow', 'orange', 'purple', 'red')
+
+physio_site_plot <- noaa_physio_site_dat %>% 
+ ggplot(aes(x = as.Date(timestamp), y = C, group = sau_name, colour = sau_name))+
  geom_line()+
  theme_bw()+
  xlab('Year')+
  ylab(expression("Temperature " ( degree~C)))+
- scale_colour_discrete(name = '', labels = c('ACT', 'THU', 'SIS', 'SEY', 'GAR'))
+ geom_vline(data = physio_season_dates, aes(xintercept = as.Date(min_date)), linetype = 'dashed', alpha = 0.2)+
+ geom_vline(data = physio_season_dates, aes(xintercept = as.Date(max_date)), linetype = 'dashed', alpha = 0.2)+
+ scale_colour_manual(name = '', values = cols, labels = c('ACT', 'MOL', 'THU', 'SIS', 'SEY', 'GAR'))+
+ scale_x_date(date_labels = '%b-%Y')+
+ geom_rect(data= physio_season_dates, inherit.aes = FALSE,
+           aes(xmin = min_date, xmax = max_date, ymin = -Inf, ymax = Inf, group = samp_season, fill = samp_season), 
+           alpha = 0.2)+
+ scale_fill_manual(values = c('blue', 'purple', 'red', 'green'), name = '')
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_2021-2022', '.pdf', sep = ''), 
+       plot = physio_site_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_2021-2022', '.png', sep = ''), 
+       plot = physio_site_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 # WEI for physiology sites
@@ -86,23 +126,11 @@ physio_df %>% ggplot(aes(x = label, y = waveyear))+
  geom_bar(stat = 'identity')+
  theme_bw()
 
-df.2 <- physio_df %>% 
- gather(key = 'wei_month', value = 'wei', month_1:month_12)
-
-levels(df.2$wei_month) <- list(
- Jan = 'month_1',
- Feb = 'month_2',
- Mar = 'month_3',
- Apr = 'month_4',
- May = 'month_5',
- Jun = 'month_6',
- Jul = 'month_7',
- Aug = 'month_8',
- Sep = 'month_9',
- Oct = 'month_10',
- Nov = 'month_11',
- Dec = 'month_12'
-)
+df.2 <- physio_df %>%
+ gather(key = 'wei_month', value = 'wei', month_1:month_12) %>%
+ mutate(wei_month = month.abb[as.numeric(gsub('month_', '', wei_month))],
+        wei_month = factor(wei_month, levels = month.abb))
+ 
 
 df.2 %>% ggplot(aes(x = wei_month, y = wei, group = label, colour = label))+
  geom_line()
