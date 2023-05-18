@@ -1215,13 +1215,13 @@ write.xlsx(tas.seafoods.dat, paste('TASMANIAN SEAFOODS PTY LTD_MeasurboardData20
 ##---------------------------------------------------------------------------##
 ## Seafood Traders ####
 
-seafood.traders.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/SeafoodTraders_2022_DiverDetails.xlsx",
+seafood.traders.divers.2023 <- read.xlsx("C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries/SeafoodTraders_2023_DiverDetails.xlsx",
                                       detectDates = T)
 
 summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
 summary.year <- year(Sys.time())
 
-seafood.traders.divers.2022 <- seafood.traders.divers.2022 %>% 
+seafood.traders.divers.2023 <- seafood.traders.divers.2023 %>% 
         distinct(docketnum, divedate, .keep_all = T) %>% 
         group_by(docketnum, diver) %>% 
         summarise(divedate = max(divedate)) %>% 
@@ -1243,9 +1243,9 @@ seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c
         select(-zone) %>% 
         as.data.frame()
 
-seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2022, by = c('Docket\nno.' = 'docketnum')) %>%  
+seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2023, by = c('Docket\nno.' = 'docketnum')) %>%  
         select(divedate, diver, 'Docket\nno.', plaindate, 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
-        filter(plaindate >= as.Date("2022-01-01")) %>% 
+        filter(plaindate >= as.Date("2023-01-01")) %>% 
         dplyr::rename('Dive\ndate' = divedate,
                       'Diver\nname' = diver,
                       'Date\nsampled' = plaindate,
@@ -1254,7 +1254,8 @@ seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafoo
 seafood.traders.grade.summary.formated <- seafood.traders.grade.summary %>% 
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries')
 
 write.xlsx(seafood.traders.grade.summary, paste('SEAFOOD TRADERS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.xlsx', sep = '_'), 
            sheetName = "Sheet1",

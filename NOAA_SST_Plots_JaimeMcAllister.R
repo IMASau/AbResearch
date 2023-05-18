@@ -3,6 +3,7 @@ library(tidyr)
 library(sf)
 library(lubridate)
 library(ggplot2)
+library(ggfortify)
 library(openxlsx)
 library(RColorBrewer)
 
@@ -242,3 +243,104 @@ ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSite
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteWEI', '.png', sep = ''), 
        plot = physio_wei_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+## Non-linear seasonal trend - Craig's
+
+noaa <- noaa_aus %>% within({
+ year <- year(timestamp)
+ yday <- yday(timestamp)
+ satdate <- as.Date(timestamp)
+ geom <- NULL
+})
+
+# Select NOAA data for physiology site Blocks/SAUs for sampling period 2021-2022
+noaa_physio_site_dat <- noaa %>% 
+ mutate(samp_year = year(timestamp),
+        samp_month = month(timestamp),
+        month_year = paste(samp_year, samp_month, sep = '_')) %>% 
+ filter(sau_name %in% c('AB13', 'AB14', 'AB22', 'AB23', 'AB28', 'AB30'))
+
+# Add site names to match sau_name
+noaa_physio_site_dat <- noaa_physio_site_dat %>% 
+ mutate(site = case_when(sau_name == 'AB13' ~ 'MOL',
+                         sau_name == 'AB14' ~ 'ACT',
+                         sau_name == 'AB22' ~ 'THU',
+                         sau_name == 'AB23' ~ 'SIS',
+                         sau_name == 'AB28' ~ 'SEY',
+                         sau_name == 'AB30' ~ 'GAR'))
+
+noaa_physio_site_dat$site <- factor(noaa_physio_site_dat$site, levels = c('GAR', 'SEY', 'SIS', 'THU', 'ACT', 'MOL'))
+
+# # unique site names
+# noaa_sites <- unique(noaa_physio_site_dat$site)
+# 
+# # create empty list
+# trend_list <- list()
+# 
+# # loop through dataframe to generate trends for each site
+# for(i in noaa_sites){
+#  noaa.day <- noaa_physio_site_dat %>% 
+#   filter(site == i)
+# 
+# ## time-series object
+# noaa.ts <- ts(noaa.day$C, start = c(1989,9) ,frequency = 365.24, class = "ts")
+# decomposition <- stl(noaa.ts, s.window = 365, t.window = 7001)
+# trend_list[[i]] <- decomposition$time.series[,2]
+# }
+# 
+# # create dataframe from list
+# # need to code to convert time-series list to single time series
+
+
+unique(noaa_physio_site_dat$site)
+# GAR SEY SIS THU ACT MOL
+i <- 'MOL'
+
+noaa.day <- noaa_physio_site_dat %>% 
+ filter(site == i)
+
+## time-series object
+noaa.ts <- ts(noaa.day$C, start = c(1989,9) ,frequency = 365.24, class = "ts")
+decomposition <- stl(noaa.ts, s.window = 365, t.window = 7001)
+trend_mol <- decomposition$time.series[,2]
+
+trend <- ts.union(trend_gar, trend_sey, trend_sis, trend_thu, trend_act, trend_mol)
+
+saveRDS(trend, file = 'C:/Users/jaimem/Dropbox/AbaloneData/SeasonalPhysiologySites_TemperatureTrends_1981-2030.rds')
+
+# Create vector of plot colours for sites to match metabolomics analysis
+plot_cols <- c('trend_gar' = 'red', 
+               'trend_sey' = 'purple',
+               'trend_sis' = 'orange', 
+               'trend_thu' = 'yellow3',
+               'trend_act' = 'green3', 
+               'trend_mol' = 'blue')
+
+plot_labs <- c('trend_gar' = 'GAR', 
+               'trend_sey' = 'SEY',
+               'trend_sis' = 'SIS', 
+               'trend_thu' = 'THU',
+               'trend_act' = 'ACT', 
+               'trend_mol' = 'MOL')
+
+physio_trend_plot <- autoplot(trend, facets = F)+
+ labs(x = 'Year', y = 'Degrees')+
+ theme_bw()+
+ # scale_y_continuous(breaks = seq(13, 16, 0.5))+
+ theme_bw()+
+ xlab('Year')+
+ ylab(expression("Temperature " ( degree~C)))+
+ scale_colour_manual(breaks = c('trend_gar','trend_sey', 'trend_sis', 'trend_thu', 'trend_act', 'trend_mol'),
+                     name = '', values = plot_cols, labels = plot_labs)+
+ theme(legend.title = element_blank(),
+       legend.position = c(0, 1),
+       legend.justification = c(0, 1),
+       legend.background = element_rect(fill = "white", color = "black", linewidth = 0.25))+
+ geom_vline(xintercept = 2022, linetype = 'dashed', colour = 'red', linewidth = 0.5)
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_trend', '.pdf', sep = ''), 
+       plot = physio_trend_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_trend', '.png', sep = ''), 
+       plot = physio_trend_plot, units = 'mm', width = 190, height = 200)

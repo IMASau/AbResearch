@@ -1,0 +1,212 @@
+---
+title: "Selecting locations for NE Greenlip Timed-swim surveys"
+author: "Jaime McAllister and Craig Mundy"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_height: 8
+    fig_width: 8
+    # includes:
+    #   in_header: header.tex
+    toc: yes
+  word_document:
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+
+
+suppressPackageStartupMessages({
+library(tictoc)
+library(sf)
+library(nngeo)
+library(maptools)
+library(rgdal)
+library(sp)
+library(spatialEco)  
+library(rgeos)
+library(lubridate)
+library(spdplyr)
+library(tidyverse)
+library(tmap)
+library(tictoc)
+library(spdep)
+library(openxlsx)  
+})
+
+## set EPSG CRS
+
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+
+```
+
+
+# Read in hex layer
+Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer contains the majority of fishing activity in the closed blocks.
+```{r prepare base layers}
+## Read in greenlip abalone wide hex layer
+
+ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/grid1HA_greenlip.rds",
+        Sys.info()[["user"]])) 
+
+
+## convert to sf
+sf.ab.hex <- st_as_sf(ab.hex)
+
+## Transform from GDA94 to GDA2020
+sf.ab.hex <- st_transform(sf.ab.hex, GDA2020)
+```
+
+# Add quartile to dataframe
+THe input variable is the total catch in Kg for each cell from 2012 - 2019. We use the dplyr ntile() function to calculate five quantiles (0-20, 20-40, etc). based on total catch.
+```{r add quartile var}
+
+# Filter hex layer to required block and add quartile
+ts.hex <- sf.ab.hex %>% 
+  mutate(subblockno = gsub(" ", "", subblockno)) %>% 
+  filter(subblockno %in%  c('31A', '31B', '39A','39B')) %>% 
+  within({
+    cell.ntile <- ntile(GLhexcatch, 5)
+  })
+
+outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/grid1HA_greenlip.gpkg", Sys.info()[["user"]])
+st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
+
+hex.cell.summary <- ts.hex %>%
+  st_set_geometry(NULL) %>%
+  group_by(cell.ntile) %>%
+  summarise(
+    mncatch = mean(GLhexcatch, na.rm = T),
+    catch = sum(GLhexcatch, na.rm = T),
+    n = n()
+  ) %>%
+  print()
+
+```
+
+# randomly sample cells within strata.
+We want to randomly select 150 hex cells across the top three quantile strata. The two lower quantile strata contribute `r sum(hex.cell.summary$catch[1:2])/sum(hex.cell.summary$catch)`  of a total catch of `r sum(hex.cell.summary$catch) `. The top three quantile groups contribute `r sum(hex.cell.summary$catch[3])/sum(hex.cell.summary$catch)`, `r sum(hex.cell.summary$catch[4])/sum(hex.cell.summary$catch)`  and `r sum(hex.cell.summary$catch[5])/sum(hex.cell.summary$catch)`  of the catch, respectively.
+```{r random sample of cells}
+
+set.seed(123) 
+
+# set sample size required (i.e. n = 150)
+samp.size <- 150
+
+# Exclude oid where a gps was left on while transiting on a motherboat.
+
+oid_exc <- c(1062044, 1062045, 1062604, 1062605, 1062606, 1062607, 1062608, 1062609, 1062610, 1062611, 1062614, 1062632, 1062633, 1062634, 1062635, 1063208, 1063209, 1063210, 1063211, 1063212, 1063213, 1063214, 1063215, 1063216, 1063217, 1063218, 1063219, 1063220, 1063221, 1063222, 1063223, 1063224, 1063225, 1063226, 1063227, 1063228)
+
+# randomly select sites (NOTE: manually change dataframe name for each block)
+cellqt_NE_GL <- ts.hex %>% 
+  filter(!oid %in% oid_exc &
+           cell.ntile > 2) %>%
+  group_by(blockno, cell.ntile)  %>% 
+  st_as_sf() %>%
+  subsample.distance(size = samp.size, d = 50) %>% 
+  st_as_sf() %>% 
+  ungroup()
+
+  # quick summary of sites x block x strata
+table(cellqt_NE_GL$blockno, cellqt_NE_GL$cell.ntile)
+
+```
+# Examine Nearest Neighbour distances
+We find the  k=1 Nearest Neighbour and then calculate the distance between a cell and its closest neighbor. Centroids of hex cells are ~ 107m apart.
+```{r examine nnb}
+knear <- knearneigh(st_centroid(cellqt_NE_GL), k = 1, longlat = FALSE, use_kd_tree = TRUE)
+neighbors <- knn2nb(knear)
+
+summary.nb(neighbors, st_coordinates(st_centroid(cellqt_NE_GL)), longlat = NULL, zero.policy=TRUE)
+
+coords.hex <- st_coordinates(st_centroid(cellqt_NE_GL))
+nc_sp <- as(cellqt_NE_GL, 'Spatial')
+cellqt_NE_GL.Knbdist <- nbdists(neighbors, st_coordinates(st_centroid(cellqt_NE_GL)), longlat = NULL)
+
+nbdists <- unlist(cellqt_NE_GL.Knbdist) %>% as.tibble()
+
+nbdists %>% filter(nbdists < 125) %>% count()
+
+colnames(nbdists) <- "nbDist"
+
+nbdists %>% 
+  ggplot(aes(nbDist)) +
+  geom_histogram()
+
+nbdists %>% 
+  filter(nbDist < 2000) %>% 
+  ggplot(aes(nbDist)) +
+  geom_histogram()
+```
+
+# Plot of nnb connections
+```{r examine nnb network}
+
+neighbors_sf <- as(nb2lines(neighbors, coords = st_coordinates(st_centroid(cellqt_NE_GL))), 'sf' )
+neighbors_sf <- st_set_crs(neighbors_sf, st_crs(cellqt_NE_GL))
+
+ggplot(cellqt_NE_GL) + 
+  geom_sf(fill = 'salmon', color = 'white') +
+  geom_sf(data = neighbors_sf) +
+  geom_sf(data = st_centroid(cellqt_NE_GL)) +
+  theme_minimal() +
+  ylab("Latitude") +
+  xlab("Longitude")
+
+
+
+```
+
+
+# Export to geopackage
+It is much easier to explore the data in QGIS. We export the selected cells as a hex layer and a point layer (centroid of the hex).
+
+```{r export to gpkg}
+
+## Export cells to gpkg ####
+pointqt <- st_centroid(cellqt_NE_GL)
+outname.point <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_50m.gpkg", Sys.info()[["user"]])
+st_write(pointqt, dsn = outname.point, layer = "pointqt", driver = "GPKG", append = F)
+
+# Convert geometry to latitude and longitude to create dataframe
+pointqt_df <- pointqt %>%
+        st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(c(zone, blockno, subblockno, cell.ntile, oid, x, y)) %>%
+  dplyr::rename('latitude' = y,
+                'longitude' = x) %>% 
+ arrange((oid)) %>% 
+ mutate(site_order = row_number(),
+        site = paste('GL', 2023, blockno, site_order, sep = '-'))
+
+pointqt_sf  <-  pointqt_df %>% 
+  st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
+ 
+# Export Excel file 
+write.xlsx(pointqt_df, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]]), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+ 
+# Export Excel file ready for GPX external file creation for plotter
+# GDAL package for creating GPX files no longer supported in R
+pointqt_gpx <- pointqt_df %>% 
+   select(site, longitude, latitude) %>% 
+   rename('waypointid' = site)
+
+write.xlsx(pointqt_gpx, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_GPX.xlsx", Sys.info()[["user"]]), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+ 
+```

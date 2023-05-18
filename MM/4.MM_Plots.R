@@ -57,7 +57,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2022
+stock.assessment.year <- 2023
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify zone/blocks/processors ####
@@ -98,6 +98,10 @@ processors.2019 <- compiledMM.df.final %>%
 
 # load legal minimum length data
 size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+
+# remove existing size limit data
+compiledMM.df.final <- compiledMM.df.final %>% 
+ select(-c(sizelimit, sizelimit.index))
 
 # clean lml data
 colnames(size.limits) <- tolower(colnames(size.limits))
@@ -190,9 +194,9 @@ compiledMM.df.join <- compiledMM.df.join %>%
 
 compiledMM.df.final <- compiledMM.df.join 
 
-compiledMM.df.final <- compiledMM.df.final %>% 
-  select(-c(sizelimit.y)) %>% 
-   dplyr::rename(sizelimit = sizelimit.x)
+# compiledMM.df.final <- compiledMM.df.final %>% 
+#   select(-c(sizelimit.y)) %>% 
+#    dplyr::rename(sizelimit = sizelimit.x)
 
 saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 ##-------------------------------------------------------------------------------------------------------##

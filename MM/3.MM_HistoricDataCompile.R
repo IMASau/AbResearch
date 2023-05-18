@@ -1697,6 +1697,8 @@ rm(list=ls()[! ls() %in% c('err.docket.match', 'abdb.distinct','abdb.docket.uniq
 
 # Make a copy of the compiledMM.df if needed
 
+# compiledMM.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+
 compiledMM.df.copy <- compiledMM.df
 # compiledMM.df <- compiledMM.df.copy
 # compiledMM.df <- compiledMM.df.2
@@ -1978,6 +1980,11 @@ compiledMM.df.final <- bind_rows(gl.recent.diff.region, gl.recent.same.region,
 missing.region <- subset(compiledMM.df.final, is.na(region.1))
 missing.zone <- subset(compiledMM.df.final, is.na(newzone))
 
+
+# fix up subblocknumbers
+compiledMM.df.final <- compiledMM.df.final %>% 
+ mutate(blockno = if_else(blockno %in% c('1', '2', '3', '4', '5', '6', '7', '8', '9'), paste('0', blockno, sep = ''), blockno),
+        subblockno = if_else(subblockno %in% c('A', 'B', 'C', 'D'), paste(blockno, subblockno, sep = ''), subblockno))
 
 # populate blank sample.id column with docket number
 compiledMM.df.final <- compiledMM.df.final %>% 

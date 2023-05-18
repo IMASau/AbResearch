@@ -48,7 +48,7 @@ library(tictoc)
 ## load latest file directory list (see NewGenBatteryCheck.R script) 
 load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', Sys.Date(), '.RData', sep = ''))
 
-# load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', '2022-10-21', '.RData', sep = ''))
+# load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', '2023-04-24', '.RData', sep = ''))
 
 
 ## filter directory list for loggers paired with measuring boards
