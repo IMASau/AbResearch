@@ -29,3 +29,26 @@ df.2 <- understory.dat %>%
         bio.tot = round(Biomass, 1),
         bio.se = round(Biomass_se, 1)) %>% 
  ungroup()
+
+mycols <- c('Brown' = 'chocolate4', 
+            'Green' = 'darkgreen', 
+            'Red' = 'red')
+
+unique(df.2$Site)
+
+c("Black Reef", "Gardens", "Mouldy Hole", "Seymour", "Sisters", "Thumbs")
+
+plot_site <- 'Mouldy Hole'
+
+pie_plot <- df.2 %>% 
+ filter(Site == plot_site) %>% 
+ ggplot(aes(x = "", y = per.dec, fill = Group))+
+ geom_bar(width = 1, stat = 'identity', colour = 'white')+
+ coord_polar("y", start = 0)+
+ scale_fill_manual(values = mycols)+
+ theme_void()+
+ theme(legend.position = 'none')
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSite_UnderstoryPiePlot_', plot_site, '.png', sep = ''), 
+       plot = pie_plot)
+ 

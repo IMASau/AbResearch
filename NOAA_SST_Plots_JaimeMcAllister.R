@@ -6,6 +6,14 @@ library(ggplot2)
 library(ggfortify)
 library(openxlsx)
 library(RColorBrewer)
+library(tidyverse)
+library(oce)
+library(ocedata)
+library(astsa)
+library(ggfortify)
+library(ggpmisc)
+library(strucchange)
+library(changepoint)
 
 source("C:/GitCode/AbResearch/getSeason.r")
 
@@ -280,7 +288,7 @@ noaa_physio_site_dat$site <- factor(noaa_physio_site_dat$site, levels = c('GAR',
 # 
 # # loop through dataframe to generate trends for each site
 # for(i in noaa_sites){
-#  noaa.day <- noaa_physio_site_dat %>% 
+#  noaa.day <- noaa_physio_site_dat %>%
 #   filter(site == i)
 # 
 # ## time-series object
@@ -292,22 +300,43 @@ noaa_physio_site_dat$site <- factor(noaa_physio_site_dat$site, levels = c('GAR',
 # # create dataframe from list
 # # need to code to convert time-series list to single time series
 
+# df_2 <- ts(bind_rows(trend_list))
+# plot(df_2, col = 1:6)
+
 
 unique(noaa_physio_site_dat$site)
 # GAR SEY SIS THU ACT MOL
-i <- 'MOL'
+i <- 'GAR'
 
 noaa.day <- noaa_physio_site_dat %>% 
  filter(site == i)
 
 ## time-series object
-noaa.ts <- ts(noaa.day$C, start = c(1989,9) ,frequency = 365.24, class = "ts")
+noaa.ts <- ts(noaa.day$C, start = c(1981,9) ,frequency = 365.24, class = "ts")
 decomposition <- stl(noaa.ts, s.window = 365, t.window = 7001)
 trend_mol <- decomposition$time.series[,2]
 
 trend <- ts.union(trend_gar, trend_sey, trend_sis, trend_thu, trend_act, trend_mol)
 
-saveRDS(trend, file = 'C:/Users/jaimem/Dropbox/AbaloneData/SeasonalPhysiologySites_TemperatureTrends_1981-2030.rds')
+saveRDS(trend, file = 'C:/Users/jaimem/Dropbox/AbaloneData/SeasonalPhysiologySites_TemperatureTrends_1981-2023.rds')
+##---------------------------------------------------------------------------##
+## Identify change point of daily sea surface temperature
+daily.changepoints <- noaa.ts %>% 
+ changepoint::cpt.meanvar(penalty="AIC") 
+
+daily.changepoints %>% summary()
+
+daily.changepoints %>% 
+ changepoint::plot(xlab = "", ylab = expression(Temperature~(degree*C)), las = 1)
+
+cp_summary <- data.frame(site = c('GAR', 'SEY', 'SIS', 'THU', 'ACT', 'MOL'),
+                         cp = c(6310, 6310, 6313, 6331, 10330, 10330),
+                         plot_colour <- c('red','purple','orange','yellow3','green3','blue')) %>%
+ mutate(cp_dec_date = decimal_date(ymd("1981-01-08") + cp))
+
+##---------------------------------------------------------------------------##
+trend <- readRDS('C:/Users/jaimem/Dropbox/AbaloneData/SeasonalPhysiologySites_TemperatureTrends_1981-2023.rds')
+
 
 # Create vector of plot colours for sites to match metabolomics analysis
 plot_cols <- c('trend_gar' = 'red', 
@@ -325,7 +354,7 @@ plot_labs <- c('trend_gar' = 'GAR',
                'trend_mol' = 'MOL')
 
 physio_trend_plot <- autoplot(trend, facets = F)+
- labs(x = 'Year', y = 'Degrees')+
+ # labs(x = 'Year', y = 'Degrees')+
  theme_bw()+
  # scale_y_continuous(breaks = seq(13, 16, 0.5))+
  theme_bw()+
@@ -334,10 +363,12 @@ physio_trend_plot <- autoplot(trend, facets = F)+
  scale_colour_manual(breaks = c('trend_gar','trend_sey', 'trend_sis', 'trend_thu', 'trend_act', 'trend_mol'),
                      name = '', values = plot_cols, labels = plot_labs)+
  theme(legend.title = element_blank(),
-       legend.position = c(0, 1),
-       legend.justification = c(0, 1),
+       legend.position = c(0.1, 0.85),
+       # legend.justification = c(0, 1),
        legend.background = element_rect(fill = "white", color = "black", linewidth = 0.25))+
- geom_vline(xintercept = 2022, linetype = 'dashed', colour = 'red', linewidth = 0.5)
+ # geom_vline(xintercept = 2022, linetype = 'dashed', colour = 'red', linewidth = 0.5)+
+ geom_vline(data = cp_summary, aes(xintercept = cp_dec_date), color = plot_colour, 
+            linewidth = 0.5, linetype = 'dashed', position = position_jitter(w = 0.02, h = 0)) 
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_trend', '.pdf', sep = ''), 
        plot = physio_trend_plot, units = 'mm', width = 190, height = 200)
