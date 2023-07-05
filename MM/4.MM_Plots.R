@@ -2557,7 +2557,7 @@ compiledMM.df.final.grade <- compiledMM.df.final %>%
                                      ncol = 1), ncol = 1))
     
     #save plots
-    setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+    setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2023')
     file.zone <- unique(plot.length.freq.dat$zone)
     file.block <- unique(plot.length.freq.dat$blocklist)
     
@@ -3869,3 +3869,27 @@ write.xlsx(lml.wt.est.df.final, paste('EAST_LENGTHWEIGHT_LML_RelativeChange', '.
            sheetName = "Sheet1",
            col.names = TRUE, row.names = TRUE, append = FALSE)
 
+##----------------------------------------------------------------------------##
+## Seasonal changes in weight
+
+df_1 <- compiledMM.df.final %>% 
+ filter(between(fishyear, 2018, 2023) &
+         !is.na(whole.weight) &
+        newzone == 'E' &
+        blockno == 13) %>% 
+ mutate(fishyear = as.factor(fishyear)) %>% 
+ group_by(fishyear, fishquarter, newzone) %>% 
+ summarise(med_w = median(whole.weight),
+           sd_w = sd(whole.weight),
+           n_w = n_distinct(whole.weight),
+           se_w = sd_w/sqrt(n_w),
+           mean_w = mean(whole.weight))
+
+df_1 %>% ggplot(aes(x = newzone, y = mean_w, fill = fishyear))+
+ geom_bar(position = "dodge", stat = "identity")+
+ # geom_errorbar(aes(ymin = se_w, ymax = se_w + med_w), width=.2,
+ #               position=position_dodge(.9))+
+ facet_grid(fishquarter ~ .)+
+ theme_bw()+
+ xlab('Zone')+
+ ylab('Mean Weight (g)')

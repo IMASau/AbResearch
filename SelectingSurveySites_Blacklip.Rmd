@@ -1,6 +1,6 @@
 ---
-title: "Selecting locations for Timed-swim surveys"
-author: "Craig Mundy"
+title: "Selecting locations for Timed-swim surveys Post 2020"
+author: "Jaime McAllister and Craig Mundy"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
@@ -49,263 +49,76 @@ GDA2020 <- st_crs(7855)
 GDA94 <- st_crs(28355)
 WGS84 <- st_crs(4326)
 
-
 ```
-
-
 # Read in hex layer
 Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer contains the majority of fishing activity in the closed blocks.
+
 ```{r prepare base layers}
 ## Read in abalone wide hex layer
-# ab.hex <- readRDS("./../../AbaloneData/g1hawide_2020_03_24.rds")
-ab.hex <- readRDS("C:/Users/jaimem/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/grid1HA_greenlip.rds")
+ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]]))
 
 ## convert to sf
 sf.ab.hex <- st_as_sf(ab.hex)
 
 ## Transform from GDA94 to GDA2020
 sf.ab.hex <- st_transform(sf.ab.hex, GDA2020)
-```
 
+```
 # Add quartile to dataframe
-THe input variable is the total catch in Kg for each cell from 2012 - 2019. We use the dplyr ntile() function to calculate five quantiles (0-20, 20-40, etc). based on total catch. Given that there is negligible fishing in 2018 and 2019, we could sum catch across 2012-2017 and use an variation if we think the 2018/2019 fishing events are sufficinetly unusual.
+THe input variable is the total catch in Kg for each cell from 2012 - 2019. We use the dplyr ntile() function to calculate five quantiles (0-20, 20-40, etc) based on total catch. Given that there is negligible fishing in 2018 and 2019, we could sum catch across 2012-2017 and use an variation if we think the 2018/2019 fishing events are sufficinetly unusual.
+
 ```{r add quartile var}
 # Filter hex layer to required block and add quartile
-# ts.hex <- filter(sf.ab.hex, zone == 'E' &
-#                    blockno %in%  c(13, 14, 16, 22, 23, 24, 27, 28, 29, 30)) %>%
-ts.hex <- sf.ab.hex %>% 
-  mutate(subblockno = gsub(" ", "", subblockno)) %>% 
-  filter(subblockno %in%  c('31A', '31B', '39A','39B')) %>% 
+ts.hex <- filter(sf.ab.hex, zone == 'E' &
+                  blockno %in% c(16, 22, 23, 24, 27, 28)|
+                  subblockno == '28A') %>% 
+  mutate(subblockno = gsub(" ", "", subblockno)) %>%
   within({
-    # cell.ntile <- ntile(blkgtotal, 5)
-    cell.ntile <- ntile(GLhexcatch, 5)
+    cell.ntile <- ntile(blkgtotal, 5)
   })
 
-outname.ts.hex <- "./../../AbaloneData/TimedSwimSites_Hexcell_NE_GLquatiles.gpkg"
- st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
+outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])
+
+st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
 
 hex.cell.summary <- ts.hex %>%
   st_set_geometry(NULL) %>%
   group_by(cell.ntile) %>%
   summarise(
-    mncatch = mean(GLhexcatch, na.rm = T),
-    catch = sum(GLhexcatch, na.rm = T),
+    mncatch = mean(blkgtotal, na.rm = T),
+    catch = sum(blkgtotal, na.rm = T),
     n = n()
   ) %>%
   print()
 
 ```
+# Post 2020 Site Selection
+Timed swim surveys in subsequent years after the collection of baseline data in 2020 involve a semi-repeated measures experimental design where 15 sites from each block sampled in 2020 have been carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in 2020 (n = 229). 
+```{r post 2020 site selection}
+## Post 2020 site selection ####
 
-# randomly sample cells within strata.
-We want to randomly select 15 hex cells in each of the top two quantile strata. The three lower quantile strata contribute `r sum(hex.cell.summary$catch[1:3])/sum(hex.cell.summary$catch)`  of a total catch of `r sum(hex.cell.summary$catch) `. The top two quantile groups contribute `r sum(hex.cell.summary$catch[4])/sum(hex.cell.summary$catch)`  and `r sum(hex.cell.summary$catch[5])/sum(hex.cell.summary$catch)`  of the catch.
-```{r random sample of cells}
+# Specify assessment year
+assess_year <- 2023
 
-
-# cellqt <- ts.hex %>%
-#   filter(cell.ntile > 2) %>%
-#   group_by(blockno, cell.ntile) %>%
-#   sample_n(60, replace = FALSE) %>%
-#   ungroup()
-
-# For 2020 randomly select 60 hex cells/sites from each block from the top three quantile
-# strata with a minimum distance of 300 m between sites.
-# 
-# For 2021, all sites sampled in 2020 have been filtered from the list of available
-# hex cells however a subsample of 15 sites (approx. 1/3) have been randomly selected from
-# those sites for each block to be re-surveyed in 2021 as reference sites. Therefore 45 new
-# sites were randomly selected from remaining hex cells for each block in 2021.
-# See FIS_TimedSwim_2020.R for code.
-
-# set sample size required (i.e. n = 60 in 2020 or n = 45 in 2021)
-samp.size <- 100
-
-# randomly select sites (NOTE: manually change dataframe name for each block)
-cellqt_NE_GL <- ts.hex %>% 
-  # filter(!oid %in% sites.2020.oid &
-  #          cell.ntile > 2) %>%  
-  filter(cell.ntile > 2) %>% 
-  # group_by(blockno, cell.ntile) %>%
-  group_by(blockno, cell.ntile)  %>% 
-  # as_Spatial() 
-  st_as_sf() %>%
-  # sample_n(20, replace = FALSE) %>% 
-  #     as_Spatial() %>% 
-  # group_by(blockno, cell.ntile) %>% 
-  subsample.distance(size = samp.size, d = 40)
-  st_as_sf() %>% 
-  ungroup()
-
-# combine individual dataframes for each block
-# cellqt.1 <- bind_rows(cellqt.16, cellqt.22, cellqt.23, cellqt.24, cellqt.27, cellqt.28)
-# cellqt.1 <- bind_rows(cellqt.29, cellqt.30)
-
-table(cellqt$blockno, cellqt$cell.ntile)
-table(cellqt.13E$blockno, cellqt.13E$cell.ntile)
-table(cellqt.1$subblockno, cellqt.1$cell.ntile)
-table(cellqt_NE_GL$blockno, cellqt_NE_GL$cell.ntile)
-
-
-# randomly sample cells within strata based on proportion of overall block cells
-prop.cell <- ts.hex %>% 
-  st_set_geometry(NULL) %>% 
-  group_by(blockno) %>% 
-  summarise(n.cells = n()) %>% 
-  mutate(prop = n.cells/sum(n.cells), 
-         n.sites = round(240 * prop, 0)) %>% 
-  ungroup()
-
-props <- prop.cell$n.sites
-
-df.1 <- ts.hex %>% 
-  group_by(blockno) %>% 
-  nest() %>% 
-  ungroup() %>% 
-  mutate(n = props) %>%  
-  mutate(samp = map2(data, n, sample_n)) %>%  
-  select(-c(data, n)) %>% 
-  unnest(samp) %>% 
-  ungroup()
-
-df.1 <- st_as_sf(df.1)
-
-# randomly sample cells within strata based on proportion of overall block cells and 500 m minimum distance
-# between sites
-
-#https://gis.stackexchange.com/questions/299625/random-selection-of-points-in-spatialpointsdataframe-r-object-with-distance-cons
-
-block.no <- 28
-samp.size <- 250
-
-df.1 <- st_centroid(ts.hex) %>%
-        #select(c(blockno, cell.ntile)) %>% 
-        #filter(cell.ntile > 3 & blockno == block.no) %>%
-        filter(cell.ntile > 2 ) %>%
-        # group_by(blockno) %>% 
-        as_Spatial() %>% 
-        # subsample.distance(size = samp.size, d = 300) %>% 
-        st_as_sf()
-
-table(df.1$blockno, df.1$cell.ntile)
-
-
-
-```
-
-
-# Examine Nearest Neighbour distances
-We find the  k=1 Nearest Neighbour and then calculate the distance between a cell and its closest neighbor. Centroids of hex cells are ~ 107m apart.
-```{r examine nnb}
-knear <- knearneigh(st_centroid(cellqt.1), k=1, longlat = FALSE, RANN = TRUE)
-neighbors <- knn2nb(knear)
-
-summary.nb(neighbors, st_coordinates(st_centroid(cellqt.1)), longlat = NULL, zero.policy=TRUE)
-
-coords.hex <- st_coordinates(st_centroid(cellqt.1))
-nc_sp <- as(cellqt.1, 'Spatial')
-cellqt.1.Knbdist <- nbdists(neighbors, st_coordinates(st_centroid(cellqt.1)), longlat = NULL)
-
-nbdists <- unlist(cellqt.1.Knbdist) %>% as.tibble()
-
-nbdists %>% filter(nbdists < 125) %>% count()
-
-colnames(nbdists) <- "nbDist"
-
-nbdists %>% 
-  ggplot(aes(nbDist)) +
-  geom_histogram()
-
-nbdists %>% 
-  filter(nbDist < 2000) %>% 
-  ggplot(aes(nbDist)) +
-  geom_histogram()
-```
-
-# Plot of nnb connections
-```{r examine nnb network}
-
-neighbors_sf <- as(nb2lines(neighbors, coords = st_coordinates(st_centroid(cellqt.1))), 'sf' )
-neighbors_sf <- st_set_crs(neighbors_sf, st_crs(cellqt.1))
-
-ggplot(cellqt.1) + 
-  geom_sf(fill = 'salmon', color = 'white') +
-  geom_sf(data = neighbors_sf) +
-  geom_sf(data = st_centroid(cellqt)) +
-  theme_minimal() +
-  ylab("Latitude") +
-  xlab("Longitude")
-
-
-
-```
-
-
-# Export to geopackage
-It is much easier to explore the data in QGIS. We export the selected cells as a hex layer and a point layer (centroid of the hex).
-
-```{r export to gpkg}
-
- ## Export cells to gpkg ####
- 
-#  outname.hex <- "./../../AbaloneData/swimsites_hex.gpkg"
-#  st_write(cellqt, dsn = outname.hex, layer = "cellqt", driver = "GPKG")
-#  
- pointqt <- st_centroid(cellqt.13E)
-  outname.point <- "./../../AbaloneData/TimedSwim_SubBlock13E_2023_50m_v2.gpkg"
- st_write(pointqt, dsn = outname.point, layer = "pointqt", driver = "GPKG")
-
-```
-# 2021 Site Selection
-The 2021 timed swim surveys involved a semi-repeated measures experimental design where 15 sites from each block sampled in 2020 were carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in 2020 (n = 229). 
-```{r 2021 site selection}
-## 2021 site selection ####
-
-# Import final timed swim dataframe 
+# Import final timed swim dataframe from previous assessment year
 time.swim.dat.final <-
-        readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.dat.final.RDS')
+        readRDS(paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year - 1, '/time.swim.dat.final.RDS'))
 
-# Randomly select 15 sites from each Block to keep as reference sites for 2021 survey. 
-# Determine hexcell OIDs to re-include with random generation of new sites.
+# Import reference sites
+time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
 
-set.seed(123) 
-sites.2020.keep <- time.swim.dat.final %>%
-        filter(sampyear == 2020,
-               !subblockno %in% c('28B', '28C')) %>% 
-        group_by(blockno) %>% 
-        distinct(site, .keep_all = T) %>% 
-        sample_n(15) %>% 
-        select(-proposed.geom) %>% 
-        st_as_sf()
-
-# Save GIS spatial layer
-
-# st_write(sites.2020.keep,
-#          dsn = "C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE.gpkg",
-#          layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
-
-# NOTE: set.seed wasn't used when generating the selection of reference sites from 2020 to use in 2021.
-# Therefore the resulting output gpkg file above has been re-imported to identify those reference sites
-# and store as an RDS for future reference.
-
-sites.2020.kept.sf <- st_read("C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg")
-
-# Convert to data frame
-sites.2020.kept.df <- sites.2020.kept.sf %>%
-  sfheaders::sf_to_df(fill = T)
-
-# Save RDS file
-saveRDS(sites.2020.kept.df, 'C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
-# sites.2020.kept.df <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
-
-# Create vector of OIDs to be sampled in 2021 from 2020 sites sampled
-# Note: 12 of the randomly selected reference sites are SAM historical research sites (i.e. n = 78) 
-sites.2020.keep <- sites.2020.kept.df # This is the data re-imported
-sites.2020.keep.oid <- sites.2020.keep %>% 
+# Create vector of OIDs for reference sites to be sampled in assessment year 
+# Note: 12 of the randomly selected reference sites are SAM historical research sites (i.e. n = 78) and
+# have unallocated OIDs
+ref_sites <- time_swim_ref_sites
+ref_sites_oid <- ref_sites %>% 
         filter(!is.na(oid)) %>% 
         ungroup() %>% 
         pull(oid)
 
-# Create vector of all OIDs sampled in 2020 to filter from 2021 random site selection
-sites.2020.oid <- time.swim.dat.final %>%
+# Create vector of all OIDs sampled in previous assessment years to filter from
+# current assessment year random site selection
+ts_sites_sampled <- time.swim.dat.final %>%
         filter(!subblockno %in% c('28B', '28C')) %>% 
         group_by(blockno) %>% 
         distinct(site, .keep_all = T) %>% 
@@ -313,59 +126,41 @@ sites.2020.oid <- time.swim.dat.final %>%
         ungroup() %>% 
         pull(oid)
 
-# Create vector of closed and reference survey blocks
+# Create vector of blocks
 blocknos <- c(16, 22, 23, 24, 27, 28)
-refblocknos <- c(13, 14, 29, 30)
 
 # Create empty lists to populate with random hex cells for each block 
-site.list.2021 <- list()
-site.ref.list.2021 <- list()
+ts_site_list <- list()
+
+# Set seed
+set.seed(1234)
 
 # Run loops to generate random hex cells for each closed and reference block
 for (i in blocknos){
 cellqt <- ts.hex %>% 
-  filter(!oid %in% sites.2020.oid &
+  filter(!oid %in% ts_sites_sampled &
            cell.ntile > 2 &
+           !subblockno %in% c('28B', '28C') &
            blockno == i) %>%  
   group_by(blockno, cell.ntile) %>%
-  as_Spatial() %>% 
+  # as_Spatial() %>% 
   subsample.distance(size = 45, d = 300) %>% 
   st_as_sf() %>% 
   ungroup()
 
-site.list.2021[[i]] <- cellqt
+ts_site_list[[i]] <- cellqt
 }
 
-for (i in refblocknos){
-cellqt <- ts.hex %>% 
-  filter(cell.ntile > 2 &
-           blockno == i) %>%  
-  group_by(blockno, cell.ntile) %>%
-  as_Spatial() %>% 
-  subsample.distance(size = 60, d = 300) %>% 
-  st_as_sf() %>% 
-  ungroup()
-
-site.ref.list.2021[[i]] <- cellqt
-}
 
 # Combine rows of each separate list to create single sf
-ts.sites.2021.sf <- bind_rows(site.list.2021)
-ts.ref.sites.2021.sf <- bind_rows(site.ref.list.2021)
+ts_sites_sf <- bind_rows(ts_site_list)
+
 
 # Find the centroid of each hex cell to create point/site location coordinates
-ts.sites.2021.pointqt.sf <- st_centroid(ts.sites.2021.sf)
-ts.ref.sites.2021.pointqt.sf <- st_centroid(ts.ref.sites.2021.sf)
+ts_sites_pointqt_sf <- st_centroid(ts_sites_sf)
 
 # Convert geometry to latitude and longitude to create dataframe
-ts.sites.2021.unordered.df <- ts.sites.2021.pointqt.sf %>%
-        st_transform(crs = st_crs(4326)) %>%
-  sfheaders::sf_to_df(fill = T) %>%
-  select(c(zone, blockno, subblockno, cell.ntile, oid, x, y)) %>%
-  dplyr::rename('latitude' = y,
-                'longitude' = x)
-
-ts.ref.sites.2021.unordered.df <- ts.ref.sites.2021.pointqt.sf %>%
+ts_sites_df <- ts_sites_pointqt_sf %>%
         st_transform(crs = st_crs(4326)) %>%
   sfheaders::sf_to_df(fill = T) %>%
   select(c(zone, blockno, subblockno, cell.ntile, oid, x, y)) %>%
@@ -373,120 +168,43 @@ ts.ref.sites.2021.unordered.df <- ts.ref.sites.2021.pointqt.sf %>%
                 'longitude' = x)
 
 # Quick summary check of random sites generate per block
-# Note: Block 28 and 30 had limited data to generate 45 or 60 sites, respectively
-ts.sites.2021.unordered.df %>%
+# Note: Block 28 had limited data to generate 45 sites.
+ts_sites_df %>%
   group_by(blockno) %>%
   summarise(n = n())
 
-ts.ref.sites.2021.unordered.df %>%
-  group_by(blockno) %>%
-  summarise(n = n())
-```
-# Re-order new sites from south to north for sequential site names/numbers
-
-```{r reorder sites}
-# The following link provides a method for determining the order of sites from a central point (e.g. median).
-# For the timed swim survey sites the maximum longitude and median latitude of each block were chosen as the
-# central point from which to calculate the angles for the method described.
-
-# https://stackoverflow.com/questions/67497664/how-do-i-sort-points-in-clockwise-order-in-r-with-respect-to-the-center
-
-
-# Create empty list
-site.list.2021.ordered <- list()
-site.ref.list.2021.ordered <- list()
-
-# Run loops to reorder and name sites
-for (i in blocknos){
-  long.max <- ts.sites.2021.unordered.df %>% 
-  filter(blockno == i) %>%
-  slice(which.max(longitude))
-
-angle.df <- ts.sites.2021.unordered.df %>% 
-  filter(blockno == i) %>% 
-  mutate(angle = atan2(longitude + long.max$longitude, latitude - median(latitude)),
-         site.no = row_number())
-
-cent <- data.frame(lat = median(angle.df$latitude), lon = long.max$longitude)
-
-site.order <- angle.df$site.no[order(atan2(angle.df$latitude - cent$lat, angle.df$longitude + cent$lon))] %>%
-  as_data_frame() %>% 
-  dplyr::rename('site.no' = value) %>% 
-  mutate(site.order = row_number())
-
-site.order.df <- left_join(angle.df, site.order, by = 'site.no')
-
-site.list.2021.ordered[[i]] <- site.order.df
-}
-
-for (i in refblocknos){
-  long.max <- ts.ref.sites.2021.unordered.df %>% 
-  filter(blockno == i) %>%
-  slice(which.max(longitude))
-
-angle.df <- ts.ref.sites.2021.unordered.df %>% 
-  filter(blockno == i) %>% 
-  mutate(angle = atan2(longitude + long.max$longitude, latitude - median(latitude)),
-         site.no = row_number())
-
-cent <- data.frame(lat = median(angle.df$latitude), lon = long.max$longitude)
-
-site.order <- angle.df$site.no[order(atan2(angle.df$latitude - cent$lat, angle.df$longitude + cent$lon))] %>%
-  as_data_frame() %>% 
-  dplyr::rename('site.no' = value) %>% 
-  mutate(site.order = row_number())
-
-site.order.df <- left_join(angle.df, site.order, by = 'site.no')
-
-site.ref.list.2021.ordered[[i]] <- site.order.df
-}
-
-# Combine rows of each separate list to create single sf
-ts.sites.2021.ordered.df <- bind_rows(site.list.2021.ordered)
-ts.ref.sites.2021.ordered.df <- bind_rows(site.ref.list.2021.ordered)
 
 # Add site names using naming convention 'AB-sampyear-blockno-site.order'
-ts.sites.2021.df <- ts.sites.2021.ordered.df %>% 
-  mutate(site = paste('AB', 2022, blockno, site.order, sep = '-'))
+ts_sites_df <- ts_sites_df %>% 
+ group_by(blockno) %>% 
+  mutate(site_no = row_number(),
+         site = paste('AB', assess_year, blockno, site_no, sep = '-')) %>% 
+ ungroup()
 
-ts.ref.sites.2021.df <- ts.ref.sites.2021.ordered.df %>% 
-  mutate(site = ifelse(blockno %in% c(29, 30), paste('AB', blockno, site.order, 'A', sep = '-'),
-                       paste('AB', blockno, site.order, 'R', sep = '-')))
 
-# Quick plots to examine re-order of sites for chosen block
-# ts.sites.2021.df %>% 
-ts.sites.2021.df %>% 
-  filter(blockno == 16) %>% 
-  mutate(angle = atan2(longitude + max(longitude), latitude - median(latitude)),
-         site.no = row_number()) %>% 
-  arrange(angle) %>% 
+# Quick plot to examine sites for chosen block
+ts_sites_df %>% 
+  filter(blockno == 16) %>%
 ggplot(aes(x = longitude, y = latitude))+
   geom_point()+
-  geom_path(arrow = arrow(type = "closed", length = unit(0.05, "npc")), aes(longitude, latitude, color = angle))+
+  # geom_path(arrow = arrow(type = "closed", length = unit(0.05, "npc")), aes(longitude, latitude, color = angle))+
   geom_point(aes(x = max(longitude), y = median(latitude)), color = 'red')+
-  geom_text(aes(label = site.no), size = 4, color = 'red')
+  geom_text(aes(label = site_no), size = 4, color = 'red')
 
-ts.ref.sites.2021.df %>% 
-  filter(blockno == 29) %>% 
-  mutate(angle = atan2(longitude + max(longitude), latitude - median(latitude)),
-         site.no = row_number()) %>% 
-  arrange(angle) %>% 
-ggplot(aes(x = longitude, y = latitude))+
-  geom_point()+
-  geom_path(arrow = arrow(type = "closed", length = unit(0.05, "npc")), aes(longitude, latitude, color = angle))+
-  geom_point(aes(x = max(longitude), y = median(latitude)), color = 'red')+
-  geom_text(aes(label = site.no), size = 4, color = 'red')
+# Unset seed
+set.seed(NULL)
 
 ```
 
-# Combine all new sites for 2021 with reference sites retained from 2020 in single dataframe
+# Combine all new sites for assessment year with reference sites retained from 2020 in single dataframe
 
 ```{r rejoin ts sites}
-# Create dataframe of 2020 reference sites
-ts.sites.2020.df <- sites.2020.kept.sf %>% 
-  st_set_crs(st_crs(7855)) %>% 
+# Create dataframe of reference sites
+ts_ref_sites_df <- time_swim_ref_sites %>%
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
   st_transform(crs = st_crs(4326)) %>%
-  sfheaders::sf_to_df(fill = T) %>% 
+  sfheaders::sf_to_df(fill = T) %>%
   select(site.new, blockno, subblockno, oid, cell.ntile, sam.count, x, y) %>% 
   dplyr::rename('latitude' = y,
                 'longitude' = x,
@@ -494,35 +212,48 @@ ts.sites.2020.df <- sites.2020.kept.sf %>%
   mutate(blockno = as.integer(blockno),
          cell.ntile = as.integer(cell.ntile))
 
-ts.sites.2021.df <- ts.sites.2021.df %>% 
+ts_sites_df <- ts_sites_df %>% 
   select(site, blockno, subblockno, oid, cell.ntile, longitude, latitude)
 
-ts.ref.sites.2021.df <- ts.ref.sites.2021.df %>% 
-  select(site, blockno, subblockno, oid, cell.ntile, longitude, latitude)
+ts_sites_final_df <- bind_rows(ts_ref_sites_df, ts_sites_df) %>% 
+ arrange(blockno)
 
-ts.sites.final.2021.df <- bind_rows(ts.sites.2020.df, ts.sites.2021.df, ts.ref.sites.2021.df)
-
-ts.sites.final.2021.sf  <-  ts.sites.final.2021.df %>% 
+ts_sites_final_sf  <-  ts_sites_final_df %>% 
   st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
+
+ts_sites_final_gpx <- ts_sites_final_df %>% 
+ dplyr::rename('name' = 'site') %>% 
+ select(c(name, longitude, latitude)) %>% 
+ add_column(description = NA, 
+            comment = NA)
 
 ```
 # Export data
 ```{r export data}
 
-# Export geospatial package for GIS
-outname.point <- "./../../AbaloneData/TimedSwimSites_Final2022.gpkg"
- st_write(ts.sites.final.2021.sf, dsn = outname.point, layer = "pointqt", driver = "GPKG", append = F)
- 
-# Export Excel file 
- write.xlsx(ts.sites.final.2021.df, './../../AbaloneData/TimedSwimSites_Final2022.xlsx', 
-           sheetName = "Sheet1",
-           col.names = TRUE, row.names = TRUE, append = FALSE)
- 
- # Export GPX file for plotter
- df.1 <- ts.sites.final.2021.df %>% 
-   select(site, longitude, latitude) %>% 
-   rename('waypointid' = site)
- 
-pgirmess::writeGPX(df.1, filename = './../../AbaloneData/TimedSwimSites_Final2022',type = 'w')
+# Export geospatial package for GIS and KML for Google Earth
+outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
 
+st_write(ts_sites_final_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
+
+# Export KML for Google Earth
+outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".kml", sep = "")
+st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F) 
+ 
+# Export Excel files 
+ write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]), 
+            sheetName = "Sheet1", 
+            colNames = TRUE, rowNames = TRUE, append = FALSE)
+ 
+write.xlsx(ts_sites_final_df, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".xlsx", sep = ""), 
+            sheetName = "Sheet1", 
+            colNames = TRUE, rowNames = TRUE, append = FALSE)
+
+# Export Excel file for GPX conversion
+write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, '_GPX', ".xlsx", sep = ""), 
+            sheetName = "Sheet1", 
+            colNames = TRUE, rowNames = FALSE, append = FALSE)
+
+
+  
 ```

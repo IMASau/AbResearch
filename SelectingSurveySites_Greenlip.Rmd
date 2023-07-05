@@ -58,7 +58,7 @@ Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer c
 ```{r prepare base layers}
 ## Read in greenlip abalone wide hex layer
 
-ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/grid1HA_greenlip.rds",
+ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.rds",
         Sys.info()[["user"]])) 
 
 
@@ -170,14 +170,14 @@ ggplot(cellqt_NE_GL) +
 ```
 
 
-# Export to geopackage
+# Export files
 It is much easier to explore the data in QGIS. We export the selected cells as a hex layer and a point layer (centroid of the hex).
 
 ```{r export to gpkg}
 
 ## Export cells to gpkg ####
 pointqt <- st_centroid(cellqt_NE_GL)
-outname.point <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_50m.gpkg", Sys.info()[["user"]])
+outname.point <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2023_50m.gpkg", Sys.info()[["user"]])
 st_write(pointqt, dsn = outname.point, layer = "pointqt", driver = "GPKG", append = F)
 
 # Convert geometry to latitude and longitude to create dataframe
@@ -195,18 +195,24 @@ pointqt_sf  <-  pointqt_df %>%
   st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
  
 # Export Excel file 
-write.xlsx(pointqt_df, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]]), 
+write.xlsx(pointqt_df, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]]), 
            sheetName = "Sheet1",
            col.names = TRUE, row.names = TRUE, append = FALSE)
  
 # Export Excel file ready for GPX external file creation for plotter
 # GDAL package for creating GPX files no longer supported in R
-pointqt_gpx <- pointqt_df %>% 
-   select(site, longitude, latitude) %>% 
-   rename('waypointid' = site)
+# pointqt_gpx <- pointqt_df %>% 
+#    select(site, longitude, latitude) %>% 
+#    rename('waypointid' = site)
 
-write.xlsx(pointqt_gpx, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwim_NE_GL_2023_GPX.xlsx", Sys.info()[["user"]]), 
+pointqt_gpx <- pointqt_df %>% 
+ dplyr::rename('name' = 'site') %>% 
+ select(c(name, longitude, latitude)) %>% 
+ add_column(description = NA, 
+            comment = NA)
+
+write.xlsx(pointqt_gpx, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2023_GPX.xlsx", Sys.info()[["user"]]), 
            sheetName = "Sheet1",
-           col.names = TRUE, row.names = TRUE, append = FALSE)
+           col.names = TRUE, row.names = F, append = FALSE)
  
 ```

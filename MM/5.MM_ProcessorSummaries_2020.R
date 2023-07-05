@@ -1203,12 +1203,12 @@ ggsave(
 
 tas.seafoods.dat <- mb.next.gen.grade.df %>% 
  filter(processor == 'TASMANIAN SEAFOODS PTY LTD' &
-         sampyear == 2022) %>% 
+         sampyear == 2023) %>% 
  select(c(plaindate, abalonenum, zone, docketnum, shelllength, wholeweight, grade))
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries')
 
-write.xlsx(tas.seafoods.dat, paste('TASMANIAN SEAFOODS PTY LTD_MeasurboardData2022', '.xlsx', sep = '_'), 
+write.xlsx(tas.seafoods.dat, paste('TASMANIAN SEAFOODS PTY LTD_MeasurboardData2023', '.xlsx', sep = '_'), 
            sheetName = "Sheet1",
            col.names = TRUE, row.names = TRUE, append = FALSE)
 

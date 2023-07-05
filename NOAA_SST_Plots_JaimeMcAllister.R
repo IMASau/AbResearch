@@ -183,8 +183,8 @@ physio_site_temperature_plot <- noaa_site_dat %>%
  scale_colour_manual(name = '', values = plot_cols, labels = plot_labs)+
  scale_x_date(date_labels = '%b-%Y')+
  theme(legend.title = element_blank(),
-       legend.position = c(0, 1),
-       legend.justification = c(0, 1),
+       legend.position = c(0.1, 0.85),
+       # legend.justification = c(0, 1),
        legend.background = element_rect(fill = "white", color = "black", linewidth = 0.2))
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_1981-2022', '.pdf', sep = ''), 
@@ -216,15 +216,24 @@ physio_sites_sf <- physio_sites %>%
 # Join physiology sites to nearest WEI point along coastline
 physio_df <- st_join(physio_sites_sf, wei_2010, join = st_nearest_feature)
 
-plot_cols <- c('red', 'purple', 'orange', 'yellow3', 'green3', 'blue')
+plot_cols <- c('GAR' = 'red', 
+               'SEY' = 'purple',
+               'SIS' = 'orange', 
+               'THU' = 'yellow3',
+               'ACT' = 'green3', 
+               'MOL' = 'blue')
 plot_labs <- c('GAR', 'SEY', 'SIS', 'THU', 'ACT', 'MOL')
 
 physio_df$label <- factor(physio_df$label, levels = c('GAR', 'SEY', 'SIS', 'THU', 'ACT', 'MOL'))
 
 # Quick plot of annual WEI for each site
-physio_df %>% ggplot(aes(x = label, y = waveyear))+
+physio_wei_plot_annual <- physio_df %>% ggplot(aes(x = label, y = waveyear, fill = label))+
  geom_bar(stat = 'identity')+
- theme_bw()
+ scale_fill_manual(values = plot_cols)+
+ theme_bw()+
+ ylab('WEI')+
+ xlab('Site')+
+ theme(legend.position = 'none')
 
 # Re-format monthly WEI variable names and values for plotting
 physio_wei_df <- physio_df %>%
@@ -242,8 +251,8 @@ physio_wei_plot <- physio_wei_df %>%
  xlab('Month')+
  scale_colour_manual(name = '', values = plot_cols, labels = plot_labs)+
  theme(legend.title = element_blank(),
-  legend.position = c(0, 1),
-       legend.justification = c(0, 1),
+  legend.position = c(0.1, 0.85),
+       # legend.justification = c(0, 1),
        legend.background = element_rect(fill = "white", color = "black", linewidth = 0.2))
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteWEI', '.pdf', sep = ''), 
@@ -251,6 +260,12 @@ ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSite
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteWEI', '.png', sep = ''), 
        plot = physio_wei_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologyAnnualSiteWEI', '.pdf', sep = ''), 
+       plot = physio_wei_plot_annual, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologyAnnualSiteWEI', '.png', sep = ''), 
+       plot = physio_wei_plot_annual, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 ## Non-linear seasonal trend - Craig's
@@ -329,8 +344,12 @@ daily.changepoints %>% summary()
 daily.changepoints %>% 
  changepoint::plot(xlab = "", ylab = expression(Temperature~(degree*C)), las = 1)
 
+# manually find temperature at cp (e.g. for GAR)for creating geom_point
+# window(trend, start = 1998.296)
+
 cp_summary <- data.frame(site = c('GAR', 'SEY', 'SIS', 'THU', 'ACT', 'MOL'),
                          cp = c(6310, 6310, 6313, 6331, 10330, 10330),
+                         C = c(14.86379, 14.76829, 14.27378, 14.23792, 13.94630, 13.94391),
                          plot_colour <- c('red','purple','orange','yellow3','green3','blue')) %>%
  mutate(cp_dec_date = decimal_date(ymd("1981-01-08") + cp))
 
@@ -367,8 +386,9 @@ physio_trend_plot <- autoplot(trend, facets = F)+
        # legend.justification = c(0, 1),
        legend.background = element_rect(fill = "white", color = "black", linewidth = 0.25))+
  # geom_vline(xintercept = 2022, linetype = 'dashed', colour = 'red', linewidth = 0.5)+
- geom_vline(data = cp_summary, aes(xintercept = cp_dec_date), color = plot_colour, 
-            linewidth = 0.5, linetype = 'dashed', position = position_jitter(w = 0.02, h = 0)) 
+ geom_point(data = cp_summary, aes(x = cp_dec_date, y = C), colour = plot_colour)
+ # geom_vline(data = cp_summary, aes(xintercept = cp_dec_date), color = plot_colour, 
+ #            linewidth = 0.5, linetype = 'dashed', position = position_jitter(w = 0.02, h = 0)) 
 
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/PhysiologySeasonalSiteTemperature_trend', '.pdf', sep = ''), 
        plot = physio_trend_plot, units = 'mm', width = 190, height = 200)
