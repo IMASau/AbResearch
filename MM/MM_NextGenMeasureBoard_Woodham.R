@@ -169,6 +169,13 @@ save(data_packet, file = paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawDat
 # 
 # logged.data <- localfiles.df
 
+
+## Run the above code to extract rawdata files only for data pre-2023 ##
+
+## Use the NG_DB_RawData_extract.R code to compile data from the AbTrack database ##
+
+## The later compiles a data_packet which can then run with the same code below ##
+
 logged.data <- data_packet
 
 ##---------------------------------------------------------------------------##
@@ -300,9 +307,9 @@ abweight <- abweight %>%
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, rawutc, abalonenum), by = "rawutc") %>%  
- left_join(select(docket, rawutc, zone, docketnum), by = "rawutc") %>% 
- left_join(select(ablength, rawutc,shelllength), by = "rawutc") %>% 
+                          select(logname, logname, rawutc, abalonenum), by = c("rawutc", 'logname')) %>%  
+ left_join(select(docket, logname, rawutc, zone, docketnum), by = c("rawutc", 'logname')) %>% 
+ left_join(select(ablength, logname, rawutc,shelllength), by = c("rawutc", 'logname')) %>% 
  left_join(select(abweight, rawutc, est.weight), by = "rawutc")
 
 # tail(lengthweight)
@@ -562,7 +569,8 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
   select(-c(long.adj, lat.adj))
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+# sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
 # set CRS
 GDA2020 <- st_crs(7855)
@@ -582,10 +590,11 @@ mb.samp.loc <- measure.board.df.non.modem %>%
 mb.samp.loc <- st_transform(mb.samp.loc, GDA2020)
 
 # create a join based on the nearest SAU polygon to each measuring board measurement
-mb.samp.loc.geo <- st_join(mb.samp.loc, sf.subblock.map, join = st_nearest_feature) %>% 
+mb.samp.loc.geo <- st_join(mb.samp.loc, sf.subblock.map, join = st_nearest_feature) %>%  
   # st_set_geometry(NULL) %>%
-  select(-c(version, area, zone.x)) %>% 
-  dplyr::rename(zone = zone.y) %>% 
+  # select(-c(version, area, zone.x)) %>% 
+  # dplyr::rename(zone = zone.y) %>% 
+ select(-c(zone)) %>% 
   rename_all(tolower)
 
 # identify greenlip zones
@@ -619,7 +628,8 @@ mb.df.non.modem.diver <- fuzzy_left_join(
  select(-c(logname.y, startdate, enddate, platformscales, comments)) %>% 
  dplyr::rename('logname' = logname.x)
 
-measure.board.df.non.modem <- mb.df.non.modem.diver
+measure.board.df.non.modem <- mb.df.non.modem.diver %>% 
+ mutate(blockno = as.character(blockno))
 
 
 ##---------------------------------------------------------------------------##
@@ -723,6 +733,7 @@ mb.df.non.modem.sample.id <- measure.board.df.non.modem %>%
 measure.board.df.non.modem <- left_join(measure.board.df.non.modem, mb.df.non.modem.sample.id)
 
 ##---------------------------------------------------------------------------##
+
 # remove known practice samples on days where actual sampling occured but could
 # not be identified earlier without location data
 
@@ -735,16 +746,46 @@ measure.board.df.non.modem <- measure.board.df.non.modem %>%
             subblockno %in% c('14A', '13C')))
 
 ##---------------------------------------------------------------------------##
-## Step 11: Save RDS of dataframe ####
+## Step 11: Combine data from SQL database with pre-2023 rawdata files ####
 
-saveRDS(measure.board.df.non.modem, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+# load most last compilation of pre-2023 rawdata
+measure.board.df.non.modem_old <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+
+# remove sample.id from dataframes
+measure.board.df.non.modem_old <- measure.board.df.non.modem_old %>% 
+ select(-sample.id)
+
+measure.board.df.non.modem <- measure.board.df.non.modem %>% 
+ select(-sample.id)
+
+# combine dataframes
+mb_df_nm <- bind_rows(measure.board.df.non.modem_old, measure.board.df.non.modem)
+
+# re-add sample_id
+mb_df_nm_id <- mb_df_nm %>% 
+ group_by(processor, plaindate, subblockno, species) %>% 
+ summarise(catches.measured = n_distinct(plaindate),
+           n = n_distinct(abalonenum)) %>% 
+ as.data.frame %>% 
+ arrange(plaindate) %>% 
+ mutate(sample.id = row_number())
+
+mb_df_nm_final <- left_join(mb_df_nm, mb_df_nm_id)
+
+
+##---------------------------------------------------------------------------##
+## Step 12: Save RDS of dataframe ####
+
+# saveRDS(measure.board.df.non.modem, 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+saveRDS(mb_df_nm_final, 'C:/cloudstor/DiveFisheries/Abalone/MMdata/mb_df_nm_final.RDS')
 
 # measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
 ##---------------------------------------------------------------------------##
 ## Step 12: Plot data ####
 
 ## load most recent RDS data frame of non modem measuring board data
-measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+# measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+measure.board.df.non.modem <- readRDS('C:/cloudstor/DiveFisheries/Abalone/MMdata/mb_df_nm_final.RDS')
 
 measure.board.df.non.modem %>% 
   group_by(processor, plaindate) %>% 
@@ -766,7 +807,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2022`) %>% 
+  gather(monthyear, sizelimit, `jan-1962`:`dec-2023`) %>% 
   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 

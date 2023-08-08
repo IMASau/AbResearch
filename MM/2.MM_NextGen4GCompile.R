@@ -29,7 +29,11 @@ library(splitstackshape)
 ##---------------------------------------------------------------------------##
 ## Local working folder ####
 
-sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/sftpServerCopy"
+# sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/sftpServerCopy"
+sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles/MBrawdata"
+
+# ## New measuring board raw text files
+# raw_mb <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawMBFiles"
 
 ##---------------------------------------------------------------------------##
 ## Extract .txt files ####
@@ -37,13 +41,23 @@ sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/sf
 ## Extract data from sftp download folder and compile into dataframe
 ## Note: measuring board .txt files are denoted with '07' prefix
 
-localfiles <- list.files(sftp.local,  pattern = "^07.*txt", full.names = T) 
+localfiles <- list.files(sftp.local,  pattern = "^07.*txt", full.names = T)
+
+ 
 
 localfiles.dat <- lapply (localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
                   colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+
 localfiles.df <- do.call(rbind, localfiles.dat)
 
 logged.data <- localfiles.df
+
+## Extract details for new measuring boards - bind rows with old measuring board data
+# localfiles_new <- list.files(raw_mb,  pattern = "^0B.*txt", full.names = T)
+# localfiles_dat <- lapply (localfiles_new, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
+#                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+# localfiles_df <- do.call(rbind, localfiles_dat)
+# logged.data <- localfiles_df
 
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####
@@ -117,6 +131,11 @@ gps.RMC <- gps.RMC %>%
         distinct(logname, seqindex, identifier, rawutc, .keep_all = T) %>% 
         filter(grepl('^07', logname))
 
+# Filter new measuring board data records
+# gps.RMC <- gps.RMC %>%
+#  distinct(logname, seqindex, identifier, rawutc, .keep_all = T) %>% 
+#  filter(grepl('^0B', logname))
+
 # tail(gps.RMC)
 # 
 # table(gps.RMC$plaindate)
@@ -167,7 +186,7 @@ abweight <- abweight %>%
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%      
+                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%       
  left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>%   
  left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>%  
  left_join(select(abweight, logname, rawutc, wholeweight), by = c('logname', "rawutc"))
@@ -188,7 +207,8 @@ measure.board.df <- measure.board.df %>%
         filter(logname %in% c(7020055, 7020056, 7020057, 7020058) | 
                        !docketnum %in% c(45575, 111111, 123456, 222222, 323232, 
                                          333333, 454545, 474747, 555555, 565656,
-                                         616161, 654321, 666666, 811881, 369852, 0))
+                                         616161, 654321, 666666, 811881, 369852, 
+                                         0, 785632))
 
 # fix any known errors with measureboard data
 # Steve Crocker (Tassie Live Lobster) notified me that he had entered an incorrect docket number
@@ -220,7 +240,9 @@ measure.board.df <- measure.board.df %>%
                                               if_else(docketnum == 524401, 'AE',
                                                       if_else(docketnum == 813879, 'AW',
                                                               if_else(docketnum == 524402, 'AE',
-                                                                      if_else(docketnum == 520018, 'AE', zone))))))))
+                                                                      if_else(docketnum == 520018, 'AE',
+                                                                              if_else(docketnum == 714589, 'AN',
+                                                                                      if_else(docketnum == 713967, 'AN', zone))))))))))
 
 # Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
 measure.board.df <- measure.board.df %>% 
@@ -244,7 +266,7 @@ multi.board.abnum <- measure.board.df %>%
         filter(docketnum %in% c('812108', '812302', '523229', '812204', 
                                 '523630', '519218', '812628', '809078',
                                 '811918', '522956', '812456', '523108',
-                                '512188', '523185', '812802')) %>% 
+                                '512188', '523185', '812802', '713967')) %>% 
         arrange(local_date, docketnum) %>% 
         dplyr::group_by(docketnum) %>% 
         mutate(abalonenum = row_number() - 1)
@@ -253,7 +275,7 @@ measure.board.df.single.board <- measure.board.df %>%
         filter(!docketnum %in% c('812108', '812302', '523229', '812204', 
                                  '523630', '519218', '812628', '809078',
                                  '811918', '522956', '812456', '523108',
-                                 '512188', '523185', '812802'))
+                                 '512188', '523185', '812802', '713967'))
 
 measure.board.df <- bind_rows(multi.board.abnum, measure.board.df.single.board)
 
@@ -431,6 +453,7 @@ saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 ## Step 11: save RDS of dataframe ####
 
 saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+
 
 ##---------------------------------------------------------------------------##
 measure.board.next.gen.df %>% 
