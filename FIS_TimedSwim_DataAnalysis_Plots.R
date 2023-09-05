@@ -115,7 +115,7 @@ std.ts.dat %>%
 # determine mean abalone abundance for block x sampyear x size class
 ten.min.mean.year <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('14', '29', '30') &
+         !blockno %in% c('13', '14', '29', '30') &
          !is.na(sizeclass_freq_10)) %>%
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -138,28 +138,42 @@ mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>%
 select(-`>140 mm`) %>%
 filter(!is.na(`<140 mm`)) %>%
 dplyr::rename(`>140 mm` = `>140 mm2`,
-              'BlockNo' = 'blockno') %>%
+              'BlockNo' = 'blockno')
 ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
+df_2 <- std.ts.dat %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear == samp.year) %>%
+ group_by(blockno) %>% 
+ summarise(Sites = n_distinct(site))
+
+df_3 <- left_join(df_2, df.1, by = c('blockno' = 'BlockNo')) %>%
+ dplyr::rename('BlockNo' = 'blockno')
+
+df_4 <- df_3 %>% 
+ ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+
 setwd(ts.plots.folder)
-write.xlsx(df.1, paste('TimedSwimSurvey_', samp.year-1, 'vs', samp.year, '_PercentChange.xlsx'), sheetName = "Sheet1", 
+write.xlsx(df_3, paste('TimedSwimSurvey_', samp.year-1, 'vs', samp.year, '_PercentChange.xlsx'), sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
 ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_PercentChange', '.pdf', sep = ''), 
-       plot = df.1, units = 'mm', width = 190, height = 120)
+       plot = df_4, units = 'mm', width = 190, height = 120)
 ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_PercentChange', '.png', sep = ''), 
-       plot = df.1, units = 'mm', width = 190, height = 120)
+       plot = df_4, units = 'mm', width = 190, height = 120)
 
 
 time.swim.dat.n <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '29', '30')) %>%
  group_by(sampyear, blockno, legal.size) %>% 
  summarise(n = n_distinct(site))
 
 sub.legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
         legal.size == '<140 mm' &
-         !blockno %in% c('14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -188,7 +202,7 @@ sub.legal.plot <- std.ts.dat %>%
 legal.plot <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
         legal.size == '>140 mm' &
-         !blockno %in% c('14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '29', '30')) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -545,14 +559,16 @@ for (i in ts.blocks){
 # determine number of abalone recorded and number of sites sampled per block
 block.ab.n <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C') &
-         sampyear == samp.year) %>% 
+         sampyear == samp.year &
+         !blockno == '13') %>% 
  # sampdate > as.Date('2021-01-01')) %>% 
  group_by(blockno) %>% 
  summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') &
-         sampyear == samp.year) %>% 
+         sampyear == samp.year &
+         !blockno == '13') %>% 
  # sampdate > as.Date('2021-01-01')) %>% 
  group_by(blockno) %>% 
  summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
@@ -563,7 +579,8 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
 # create length frequency plot
 lf.plot <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C')&
-         sampyear == samp.year) %>% 
+         sampyear == samp.year &
+         !blockno == '13') %>% 
  # sampdate > as.Date('2021-01-01')) %>% 
  ggplot(aes(shelllength.2021, group = blockno)) +
  geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
@@ -592,14 +609,14 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, 'SizeFrequencyPlot', '.pn
 block.ab.n <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(14, 29, 30)) %>% 
+        !blockno %in% c(13, 14, 29, 30)) %>% 
  group_by(sampyear, blockno) %>% 
  summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(14, 29, 30)) %>%
+        !blockno %in% c(13, 14, 29, 30)) %>%
  group_by(sampyear, blockno) %>% 
  summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
 
@@ -610,7 +627,7 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
 lf.df <- time.swim.dat.final %>%
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(14, 29, 30)) %>%
+        !blockno %in% c(13, 14, 29, 30)) %>%
  group_by(sampyear, blockno, sizeclass.2021) %>% 
  summarise(n = sum(sizeclass_freq)) %>% 
  mutate(freq = n / sum(n))
@@ -706,7 +723,7 @@ sizeclasses <- c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", "120-14
 # Create summary table
 time.swim.count.blockno <- std.ts.dat %>% 
  filter(!subblockno %in% c('28B', '28C'),
-        sampdate > as.Date('2022-01-01')) %>% 
+        sampdate > as.Date('2023-01-01')) %>% 
  group_by(blockno, site, diver, sampyear, legal.size, time.elapsed) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(blockno, legal.size) %>%
@@ -787,7 +804,7 @@ time.swim.sites <- std.ts.dat %>%
  # filter(sampyear == samp.year) %>%
  filter(sampdate > as.Date('2020-01-01')) %>%
  distinct(site, .keep_all = T) %>% 
- select(c(site, blockno, subblockno, sampdate, actual.geom)) %>% 
+ dplyr::select(c(site, blockno, subblockno, sampdate, actual.geom)) %>% 
  st_as_sf() %>% 
  st_set_crs(GDA2020)
 
@@ -2210,7 +2227,7 @@ df.3 <- std.ts.dat %>%
  group_by(blockno, site, sampyear, sampdate, legal.size) %>% 
  group_by(site) %>%   
  filter(n() > 2) %>% 
- mutate(status = ifelse(sampdate <= as.Date('2021-03-31'), 'closed', 'open'))
+ mutate(status = ifelse(sampdate <= as.Date('2023-03-31'), 'closed', 'open'))
 
 plot.closed <- df.3 %>% 
  filter(status == 'closed', legal.size == plot.size.class) %>%  

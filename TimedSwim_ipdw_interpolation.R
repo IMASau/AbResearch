@@ -15,8 +15,10 @@ library(terra)
 })
 
 # import tas coastal polygon data 
-sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+# sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])))
+# sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
 sf_buffer <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer.gpkg')
 
 # transform coordinates to GDA2020
@@ -28,7 +30,7 @@ sf_buffer <- st_transform(sf_buffer, st_crs(7855))
 ## Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2022
+samp.year <- 2023
 
 # identify associated sampling year folder path to save dataframes
 samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
@@ -53,7 +55,7 @@ time.swim.meta.dat.final <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat
 
 # Create parameter dataframe of block, year and size class combinations
 blocknos <- c(16, 22, 23, 24, 27, 28)
-sampyears <- seq(2020, 2022, 1)
+sampyears <- seq(2020, 2023, 1)
 legalsizes <- c('<140 mm', '>140 mm')
 
 parameters_data <- expand.grid(blockno = blocknos,
@@ -61,9 +63,9 @@ parameters_data <- expand.grid(blockno = blocknos,
                                legal.size = legalsizes) %>% 
  as_tibble()
 
-ts.pnts.blockno <- 24
-ts.pnts.sampyear <- 2020
-ts.pnts.legal.size <- '<140 mm'
+# ts.pnts.blockno <- 24
+# ts.pnts.sampyear <- 2020
+# ts.pnts.legal.size <- '<140 mm'
 
 # Create function
 ts_ipdw <- function(i){
@@ -224,8 +226,8 @@ saveRDS(ts_ipdw_df_all, paste(samp.year.folder, '/ts_ipdw_df_all.RDS', sep = '')
 ts_ipdw_df_all <- readRDS(paste(samp.year.folder, '/ts_ipdw_df_all.RDS', sep = ''))
 
 # load tas land and coastal polygon maps 
-sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+# sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+# sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform map coordinates to GDA2020
 sf.tas.map <- st_transform(sf.tas.map, st_crs(7855))
@@ -282,7 +284,7 @@ ipdw.plot <- ggplot() +
  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
        axis.title.x = element_blank(),
        axis.title.y = element_blank())+
- facet_wrap(~ sampyear, ncol = 3)
+ facet_wrap(~ sampyear, ncol = 4)
 
  # save plot
 setwd(ts.plots.folder)

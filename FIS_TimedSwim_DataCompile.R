@@ -230,12 +230,17 @@ morana_gps_2023_b <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-06-2
 morana_gps_2023_c <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-07-17_download.gpx'), layer = 'waypoints')
 morana_gps_2023_d <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-07-19_download.gpx'), layer = 'waypoints')
 morana_gps_2023_e <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-03_download.gpx'), layer = 'waypoints')
+morana_gps_2023_f <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-15_download.gpx'), layer = 'waypoints')
+morana_gps_2023_g <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-30_download.gpx'), layer = 'waypoints')
+
 
 morana_gps_2023 <- bind_rows(morana_gps_2023_a, 
                              morana_gps_2023_b, 
                              morana_gps_2023_c, 
                              morana_gps_2023_d,
-                             morana_gps_2023_e) %>% 
+                             morana_gps_2023_e,
+                             morana_gps_2023_f,
+                             morana_gps_2023_g) %>% 
  distinct(., name, .keep_all = T)
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
@@ -480,7 +485,9 @@ ts.dat.site.sampled <- st_transform(ts.dat.site.sampled, GDA2020)
 
 # read in Subblock map as an sf::sfc polygon object
 # sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+# sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -603,7 +610,8 @@ st_write(ts.proposed.geom,
 vessel.gps.dat <- readRDS(paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+# sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)

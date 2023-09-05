@@ -3,7 +3,6 @@
 
 suppressPackageStartupMessages({
 library(RCurl)
-library(tidyverse)
 library(fs)
 library(keyring)
 library(tools)
@@ -30,153 +29,202 @@ library(tictoc)
  library(sp)
  library(rgdal)
   library(gridExtra)
+ library(tidyverse)
  library(progress)
  library(furrr)
  library(purrr)
+ library(keyring)
+ library(odbc)
 })
-##---------------------------------------------------------------------------##
-## Local working folder ####
-
-# sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
-# measureboard.non.modem <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
-
-# measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
-
-##---------------------------------------------------------------------------##
-
-
-## load latest file directory list (see NewGenBatteryCheck.R script) 
-load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', Sys.Date(), '.RData', sep = ''))
-
-# load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', '2023-04-24', '.RData', sep = ''))
-
-
-## filter directory list for loggers paired with measuring boards
-dirlistdf <- dirlistdf %>% 
- filter(gps_SID %in% c('05010107', '05010036', '05010045', '05010040', '05010037', '05010112',
-                       '05010156', '05010086', '05010134', '05010016', '05010044', '05010070',
-                       '05010083','05010050','05010168'))
-
-## create backup file
-dirlistdf_bk <- dirlistdf
-
-## Import files
-setwd("R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles")
-
-if (exists("data_packet"))
- rm(data_packet)
-
-numfiles <- nrow(dirlistdf)
-
-## Setup progress bar
-pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)", total = numfiles)
-pb$tick(0)
-
-## Establish function for retrieving  files
-loop_Batt_Check <- function(dirlistdf) {
- infile <- as.character(dirlistdf$dirlist)
- data.p <- read.csv(infile,
-                    header=FALSE,
-                    sep=',',
-                    as.is=TRUE,
-                    colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"),
-                    skipNul = TRUE)
- 
- colnames(data.p) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
- data.p$logger_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "GMT")
- data.p$local_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
- data.p$file_name <- infile # Add file name to row
- return(data.p)
-} # End Function loop_Batt_Check
-
-## Multi-core apply file retrieve
-options(future.rng.onMisuse="ignore")
-furrr_options(globals = TRUE, seed = TRUE)
-
-## set number of workers ## nb. don't overload cores
-future::plan(multisession(workers = 10)) # Jaime = 14 cores max.
-
-tic("multi core battery check")
-
-data_packet <- dirlistdf %>%
- split(.$dirlist) %>%
- future_map_dfr( ~ loop_Batt_Check(.), .progress = TRUE)
-
-toc()
-
-future:::ClusterRegistry("stop")
-
-
-#### ------------------------------------------------------------------------##
-## NewGEN QA/QC processing ####
-
-# # Backup
-# data_packet_bk <- data_packet
-# data_packet <- data_packet_bk
-
-## Data Duplication check 
-# Remove duplicate recs
-# NB local_date needed as seq index cyclical
-data_packet <- rowid_to_column(data_packet, "RowNum")
-dupes <- data_packet[duplicated(data_packet[,c("logname","seqindex","identifier","local_date")]),]
-data_packet <- filter(data_packet, !RowNum %in% c(dupes$RowNum))
-
-unique(dupes$logname)
-
-## Measuring Board
-save(data_packet, file = paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_', Sys.Date(), '.RData', sep = ''))
-
-
-##---------------------------------------------------------------------------##
-# load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_2022-10-20.RData')
-
-# logged.data <- data_packet %>% 
-#  select("logname", "seqindex","identifier","rawutc","datapack","crc_status")
-
-##---------------------------------------------------------------------------##
-# # Extract logger data files for GPS loggers allocated to divers 
-# # 05010107 - Greg Woodham
-# # 05010036 - Ben Allen
-# # 05010040 or 05010037 or 05010112 - Sean Larby
-# # 05010156 - Bryan Denny
+# ##---------------------------------------------------------------------------##
+# ## Local working folder ####
 # 
+# # sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/sftpServer/FilesNew"
+# # measureboard.non.modem <- "C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Woodham"
 # 
-# localfiles <- list.files(measureboard.non.modem,  
-#                          pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|
-#                          05010156|05010086|05010134|05010016|05100044|05010070.*txt", full.names = T)
+# # measureboard.non.modem <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles"
 # 
 # ##---------------------------------------------------------------------------##
-# ## Extract .txt files ####
-# 
-# ## Extract data from sftp download folder and compile into dataframe
-# ## Note: measuring board .txt files are normally denoted with '07' prefix however these are field-based
-# ## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
-# ## no weight integration.
-# 
-# # localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
-# 
-# # localfiles.dat <- lapply(localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
-# #                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
-# 
-# localfiles.dat <- lapply(localfiles, function(x) {
-#   tryCatch(read.table(x, header = FALSE, sep = ',', as.is = T,
-#                       colClasses = c("character", "numeric", "numeric", "numeric", "character", "character")), 
-#            error=function(e) NULL)
-# })
 # 
 # 
-# localfiles.df <- do.call(rbind, localfiles.dat)
+# ## load latest file directory list (see NewGenBatteryCheck.R script) 
+# load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', Sys.Date(), '.RData', sep = ''))
 # 
-# logged.data <- localfiles.df
-
-
+# # load(paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/BV_Rev/dirlistdf_', '2023-04-24', '.RData', sep = ''))
+# 
+# 
+# ## filter directory list for loggers paired with measuring boards
+# dirlistdf <- dirlistdf %>% 
+#  filter(gps_SID %in% c('05010107', '05010036', '05010045', '05010040', '05010037', '05010112',
+#                        '05010156', '05010086', '05010134', '05010016', '05010044', '05010070',
+#                        '05010083','05010050','05010168'))
+# 
+# ## create backup file
+# dirlistdf_bk <- dirlistdf
+# 
+# ## Import files
+# setwd("R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawTextFiles")
+# 
+# if (exists("data_packet"))
+#  rm(data_packet)
+# 
+# numfiles <- nrow(dirlistdf)
+# 
+# ## Setup progress bar
+# pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)", total = numfiles)
+# pb$tick(0)
+# 
+# ## Establish function for retrieving  files
+# loop_Batt_Check <- function(dirlistdf) {
+#  infile <- as.character(dirlistdf$dirlist)
+#  data.p <- read.csv(infile,
+#                     header=FALSE,
+#                     sep=',',
+#                     as.is=TRUE,
+#                     colClasses=c("character", "numeric", "numeric", "numeric", "character", "character"),
+#                     skipNul = TRUE)
+#  
+#  colnames(data.p) <- c("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+#  data.p$logger_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "GMT")
+#  data.p$local_date <- as.POSIXct(data.p$rawutc, origin = "1970-01-01", tz = "Australia/BRISBANE")
+#  data.p$file_name <- infile # Add file name to row
+#  return(data.p)
+# } # End Function loop_Batt_Check
+# 
+# ## Multi-core apply file retrieve
+# options(future.rng.onMisuse="ignore")
+# furrr_options(globals = TRUE, seed = TRUE)
+# 
+# ## set number of workers ## nb. don't overload cores
+# future::plan(multisession(workers = 10)) # Jaime = 14 cores max.
+# 
+# tic("multi core battery check")
+# 
+# data_packet <- dirlistdf %>%
+#  split(.$dirlist) %>%
+#  future_map_dfr( ~ loop_Batt_Check(.), .progress = TRUE)
+# 
+# toc()
+# 
+# future:::ClusterRegistry("stop")
+# 
+# 
+# #### ------------------------------------------------------------------------##
+# ## NewGEN QA/QC processing ####
+# 
+# # # Backup
+# # data_packet_bk <- data_packet
+# # data_packet <- data_packet_bk
+# 
+# ## Data Duplication check 
+# # Remove duplicate recs
+# # NB local_date needed as seq index cyclical
+# data_packet <- rowid_to_column(data_packet, "RowNum")
+# dupes <- data_packet[duplicated(data_packet[,c("logname","seqindex","identifier","local_date")]),]
+# data_packet <- filter(data_packet, !RowNum %in% c(dupes$RowNum))
+# 
+# unique(dupes$logname)
+# 
+# ## Measuring Board
+# save(data_packet, file = paste('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_', Sys.Date(), '.RData', sep = ''))
+# 
+# 
+# ##---------------------------------------------------------------------------##
+# # load('R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/WorkingData/MeasuringBoard/data_packet_full_2022-10-20.RData')
+# 
+# # logged.data <- data_packet %>% 
+# #  select("logname", "seqindex","identifier","rawutc","datapack","crc_status")
+# 
+# ##---------------------------------------------------------------------------##
+# # # Extract logger data files for GPS loggers allocated to divers 
+# # # 05010107 - Greg Woodham
+# # # 05010036 - Ben Allen
+# # # 05010040 or 05010037 or 05010112 - Sean Larby
+# # # 05010156 - Bryan Denny
+# # 
+# # 
+# # localfiles <- list.files(measureboard.non.modem,  
+# #                          pattern = "^05010107|05010036|05010045|05010040|05010037|05010112|
+# #                          05010156|05010086|05010134|05010016|05100044|05010070.*txt", full.names = T)
+# # 
+# # ##---------------------------------------------------------------------------##
+# # ## Extract .txt files ####
+# # 
+# # ## Extract data from sftp download folder and compile into dataframe
+# # ## Note: measuring board .txt files are normally denoted with '07' prefix however these are field-based
+# # ## measuring boards and are linked to a diver GPS unit (i.e. prefix '05'). They only record length data as there is currently
+# # ## no weight integration.
+# # 
+# # # localfiles <- list.files(measureboard.non.modem,  pattern = "^05.*txt", full.names = T) 
+# # 
+# # # localfiles.dat <- lapply(localfiles, read.table, sep = ",", header = F, row.names = NULL, as.is = T,
+# # #                           colClasses = c("character", "numeric", "numeric", "numeric", "character", "character"))
+# # 
+# # localfiles.dat <- lapply(localfiles, function(x) {
+# #   tryCatch(read.table(x, header = FALSE, sep = ',', as.is = T,
+# #                       colClasses = c("character", "numeric", "numeric", "numeric", "character", "character")), 
+# #            error=function(e) NULL)
+# # })
+# # 
+# # 
+# # localfiles.df <- do.call(rbind, localfiles.dat)
+# # 
+# # logged.data <- localfiles.df
+##---------------------------------------------------------------------------##
 ## Run the above code to extract rawdata files only for data pre-2023 ##
 
 ## Use the NG_DB_RawData_extract.R code to compile data from the AbTrack database ##
 
-## The later compiles a data_packet which can then run with the same code below ##
+## Set source location of functions to be used in script
+source("c:/GitCode/AbSpatial/AbTrack/MapNextgen_Queries_v1.R")
 
-logged.data <- data_packet
+## Establish connection to database
+conn <- DBI::dbConnect(odbc(), "AbTrack")
+
+# Set year
+year = 2023
+
+# Import data
+tic("sql retrieve")
+dstream <-
+ DBI::dbGetQuery(conn,
+                 NG_DATA_STREAM_VIEW_select,
+                 params = year)
+toc()
+dbDisconnect(conn)
+
+## Force time zone changes
+dstream$Logger_Date <- force_tz(dstream$Logger_Date, tzone="GMT")
+dstream$Local_Date <- force_tz(dstream$Local_Date, tzone="Australia/BRISBANE")
+
+## Filter for columns and rename to match data_packet
+data_packet <- dstream %>% select(10:17) %>% 
+ rename(logname = Logname, seqindex = SeqIndex, identifier = Identifier, logger_date = Logger_Date, local_date = Local_Date)
+
+# Remove dstream
+# rm(dstream)
+
+## Remove duplicate recs 
+# NB. local_date needed as seq index cyclical
+data_packet <- rowid_to_column(data_packet, "RowNum")
+dupes <- data_packet[duplicated(data_packet[,c("logname","seqindex","identifier","local_date")]),]
+data_packet <- filter(data_packet, !RowNum %in% c(dupes$RowNum))
+unique(dupes$logname)
+
+## Filter for measuring board data
+logged_data <- data_packet %>% 
+ filter(logname %in% c('07010050', 
+                       '07010051', 
+                       '07010052', 
+                       '07010053'))
+
+## Save logged_data
+save(logged_data, file = paste('C:/cloudstor/R_Stuff/MMLF/measuringboard_logged_data_', Sys.Date(), '.RData', sep = ''))
+
+## Load logged_data
+load('C:/cloudstor/R_Stuff/MMLF/measuringboard_logged_data_2023-08-31.RData')
+
+logged.data <- logged_data
 
 ##---------------------------------------------------------------------------##
 ## Extract info from data packet ####
