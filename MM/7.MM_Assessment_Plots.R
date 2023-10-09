@@ -47,11 +47,11 @@ compiledMM.df.final <-
   readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 
 ##-------------------------------------------------------------------------------------------------------##
-# Data additions ####
-
-# add quarter variable
-compiledMM.df.final <- compiledMM.df.final %>% 
-  mutate(fishquarter = quarter(daylist_max))
+# # Data additions ####
+# 
+# # add quarter variable
+# compiledMM.df.final <- compiledMM.df.final %>% 
+#   mutate(fishquarter = quarter(daylist_max))
 
 ##-------------------------------------------------------------------------------------------------------##
 # Identify fish year ####
@@ -93,112 +93,112 @@ processors.2019 <- compiledMM.df.final %>%
   pull()
 
 ##-------------------------------------------------------------------------------------------------------##
-# Size limits data ####
-# Add size limit data to filter out measurement errors and for reference points on plots.
-
-# load legal minimum length data
-size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
-
-# remove existing size limit data
-compiledMM.df.final <- compiledMM.df.final %>% 
- select(-c(sizelimit, sizelimit.index))
-
-# clean lml data
-colnames(size.limits) <- tolower(colnames(size.limits))
-names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
-
-# convert lml data to long format and create lml index variable
-size.limits.tab <- size.limits %>%
-  gather(monthyear, sizelimit, `jan-1962`:`dec-2022`) %>% 
-  mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
-  mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
-  mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
-  mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
-  mutate(monthyear = gsub('may', 5, monthyear)) %>% 
-  mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
-  mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
-  mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
-  mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
-  mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
-  mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
-  mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
-  mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
-  select(sizelimit.index, sizelimit)
-
-# add columns that count number of blocks and subblocks in compiledMM.df.final
-compiledMM.df.blockcount <- compiledMM.df.final %>%
-  mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
-  mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
-  mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
-  mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
-
-# add column to determine if the same block was fished where multiple sub-blocks are listed in compiledMM.df.blockcount
-compiledMM.df.same.blockcount <- compiledMM.df.blockcount %>%
-  mutate(same.block = if_else(!is.na(blocklist_1) & is.na(blocklist_2), 1,
-                              if_else(is.na(blocklist_5) & is.na(blocklist_4) & is.na(blocklist_3) & blocklist_1 == blocklist_2, 1,
-                                      if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
-                                              if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
-                                                      if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
-
-# create lml index variable in compiledMM.df.same.blockcount
-compiledMM.df.lml.index <- compiledMM.df.same.blockcount %>%
-  mutate(sizelimit.index = if_else(
-    numsubblocks == 1 & subblockno %in% c('A', 'B', 'C', 'D', 'E'),
-    paste(
-      newzone,
-      blockno,
-      lubridate::month(daylist_max),
-      fishyear,
-      sep = '-'
-    ),
-    if_else(
-      numsubblocks == 1 & is.na(subblockno),
-      paste(
-        newzone,
-        blockno,
-        lubridate::month(daylist_max),
-        fishyear,
-        sep = '-'
-      ),
-      if_else(
-        numsubblocks == 1,
-        paste(
-          newzone,
-          subblockno,
-          lubridate::month(daylist_max),
-          fishyear,
-          sep = '-'
-        ),
-        if_else(
-          numsubblocks > 1 & same.block == 1,
-          paste(
-            newzone,
-            blockno,
-            lubridate::month(daylist_max),
-            fishyear,
-            sep = '-'
-          ),        
-          NA_character_
-          
-        )
-      ))))
-
-# join size limit data and compiledMM.df to include size limit for each observation
-compiledMM.df.join <- left_join(compiledMM.df.lml.index, size.limits.tab, "sizelimit.index")
-# compiledMM.df.1 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
-
-# convert zero weights and weights >2000 g to NAs
-compiledMM.df.join <- compiledMM.df.join %>% 
-  mutate(whole.weight = if_else(whole.weight > 2000, 0, whole.weight),
-         whole.weight = na_if(whole.weight, 0))
-
-compiledMM.df.final <- compiledMM.df.join 
-
+# # Size limits data ####
+# # Add size limit data to filter out measurement errors and for reference points on plots.
+# 
+# # load legal minimum length data
+# size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+# 
+# # remove existing size limit data
 # compiledMM.df.final <- compiledMM.df.final %>% 
-#   select(-c(sizelimit.y)) %>% 
-#    dplyr::rename(sizelimit = sizelimit.x)
-
-saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+#  select(-c(sizelimit, sizelimit.index))
+# 
+# # clean lml data
+# colnames(size.limits) <- tolower(colnames(size.limits))
+# names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+# 
+# # convert lml data to long format and create lml index variable
+# size.limits.tab <- size.limits %>%
+#   gather(monthyear, sizelimit, `jan-1962`:`dec-2022`) %>% 
+#   mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
+#   mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
+#   mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
+#   mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
+#   mutate(monthyear = gsub('may', 5, monthyear)) %>% 
+#   mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
+#   mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
+#   mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
+#   mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
+#   mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
+#   mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
+#   mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
+#   mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
+#   select(sizelimit.index, sizelimit)
+# 
+# # add columns that count number of blocks and subblocks in compiledMM.df.final
+# compiledMM.df.blockcount <- compiledMM.df.final %>%
+#   mutate(subblocklist = ifelse(is.na(subblocklist), subblockno, subblocklist)) %>%
+#   mutate(blocklist = ifelse(is.na(blocklist), as.numeric(gsub("([0-9]+).*$", "\\1", subblocklist)), blocklist)) %>%
+#   mutate(numblocks = count.fields(textConnection(blocklist), sep = ',')) %>%
+#   mutate(numsubblocks = count.fields(textConnection(subblocklist), sep = ','))
+# 
+# # add column to determine if the same block was fished where multiple sub-blocks are listed in compiledMM.df.blockcount
+# compiledMM.df.same.blockcount <- compiledMM.df.blockcount %>%
+#   mutate(same.block = if_else(!is.na(blocklist_1) & is.na(blocklist_2), 1,
+#                               if_else(is.na(blocklist_5) & is.na(blocklist_4) & is.na(blocklist_3) & blocklist_1 == blocklist_2, 1,
+#                                       if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
+#                                               if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
+#                                                       if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
+# 
+# # create lml index variable in compiledMM.df.same.blockcount
+# compiledMM.df.lml.index <- compiledMM.df.same.blockcount %>%
+#   mutate(sizelimit.index = if_else(
+#     numsubblocks == 1 & subblockno %in% c('A', 'B', 'C', 'D', 'E'),
+#     paste(
+#       newzone,
+#       blockno,
+#       lubridate::month(daylist_max),
+#       fishyear,
+#       sep = '-'
+#     ),
+#     if_else(
+#       numsubblocks == 1 & is.na(subblockno),
+#       paste(
+#         newzone,
+#         blockno,
+#         lubridate::month(daylist_max),
+#         fishyear,
+#         sep = '-'
+#       ),
+#       if_else(
+#         numsubblocks == 1,
+#         paste(
+#           newzone,
+#           subblockno,
+#           lubridate::month(daylist_max),
+#           fishyear,
+#           sep = '-'
+#         ),
+#         if_else(
+#           numsubblocks > 1 & same.block == 1,
+#           paste(
+#             newzone,
+#             blockno,
+#             lubridate::month(daylist_max),
+#             fishyear,
+#             sep = '-'
+#           ),        
+#           NA_character_
+#           
+#         )
+#       ))))
+# 
+# # join size limit data and compiledMM.df to include size limit for each observation
+# compiledMM.df.join <- left_join(compiledMM.df.lml.index, size.limits.tab, "sizelimit.index")
+# # compiledMM.df.1 <- left_join(compiledMM.df.final, size.limits.tab, "sizelimit.index")
+# 
+# # convert zero weights and weights >2000 g to NAs
+# compiledMM.df.join <- compiledMM.df.join %>% 
+#   mutate(whole.weight = if_else(whole.weight > 2000, 0, whole.weight),
+#          whole.weight = na_if(whole.weight, 0))
+# 
+# compiledMM.df.final <- compiledMM.df.join 
+# 
+# # compiledMM.df.final <- compiledMM.df.final %>% 
+# #   select(-c(sizelimit.y)) %>% 
+# #    dplyr::rename(sizelimit = sizelimit.x)
+# 
+# saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 ##-------------------------------------------------------------------------------------------------------##
 # Milestone Processor Report Summary ####
 
@@ -2108,11 +2108,11 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
 ##-------------------------------------------------------------------------------------------------------##
 # 2020 weight grading ####
 
-compiledMM.df.final.grade <- compiledMM.df.final %>% 
-    mutate(grade = dplyr::if_else(whole.weight == 0, NA_character_,
-                                  dplyr::if_else(between(whole.weight, 1, 600), 'small', #0-400g can also be labelled xsmall
-                                                 dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))),
-           whole.weight = replace(whole.weight, whole.weight == 0, NA))
+# compiledMM.df.final.grade <- compiledMM.df.final %>% 
+#     mutate(grade = dplyr::if_else(whole.weight == 0, NA_character_,
+#                                   dplyr::if_else(between(whole.weight, 1, 600), 'small', #0-400g can also be labelled xsmall
+#                                                  dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))),
+#            whole.weight = replace(whole.weight, whole.weight == 0, NA))
   
 # vector of unique subblockno for summary and plot loops
   subblockno.fishyear <- compiledMM.df.final.grade %>% 

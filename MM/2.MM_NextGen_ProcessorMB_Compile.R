@@ -390,36 +390,6 @@ measure.board.next.gen.df <- measure.board.next.gen.df %>%
         mutate(docket.index = paste(zone, docketnum.day, plaindate, processor, sep = '-'))
 
 ##---------------------------------------------------------------------------##
-## Need to intergrate logger allocation database sql extract to assign logger to 
-## processor
-
-# ## R/SQLSERVER Connections ####
-# channel <- DBI::dbConnect(odbc(), "AbTrack")
-# 
-# sql <- "SELECT L.CODE as logname, C.CODE as divercode, C.FIRSTNAME as firstname, C.LASTNAME as lastname, C.MOBILE as mobile, 
-#         C.PHONE as phone,[DATE_ALLOCATED] as date_alloc,[DATE_RETURNED] as date_ret,[COMMENT] as comment
-#   FROM [AbTrack].[dbo].[AG_LOGGER_ALLOC] as LA
-#   JOIN Abtrack.dbo.CM_PERSON as C on LA.CM_PERSON_ID = C.ID
-#   JOIN AbTrack.dbo.AG_LOGGER as L on LA.AG_LOGGER_ID = L.ID
-#  JOIN AbTrack.dbo.AG_LOGGER_MODEL as LM on L.AG_LOGGER_MODEL_ID = LM.ID
-#   WHERE LM.ID IN ('18','22','23')                                           -- LM.ID 18 = NG GPS, 22 = NG MB, 23 = NG MBM
-#   AND DATE_RETURNED is NULL                                                 -- For CURRENT allocations
-#   -- AND DATE_RETURNED is NULL                                              -- For ALL allocations (comment out line above using -- )
-#   AND DATE_ALLOCATED >= '2020-01-01'
-#   AND L.CODE IN ('07010050', '07010051', '07010052', '07010053', '07020055', '07020056', '07020057', '07020058')"
-# # AND C.CODE IN ('P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'AD983', 'AD2130', 'AD1276', 'AD39446', 'AD49069') -- Filter for diver/processor "
-# 
-# 
-# 
-# ## Extract data from AbTrack ####
-# logger_alloc <- dbGetQuery(channel, sql, stringsAsFactors = FALSE)
-# dbDisconnect(channel)
-# 
-# logger_alloc$logname <- str_remove_all(logger_alloc$logname,'-')
-# logger_alloc$firstname <- trimws(logger_alloc$firstname, "r")
-# logger_alloc$lastname <- trimws(logger_alloc$lastname, "r")
-# logger_alloc$comment <- trimws(logger_alloc$comment, "r")
-##---------------------------------------------------------------------------##
 
 ## Step 10: incomplete uploads ####
 ## search previous compiled dataframe for incomplete uploads for a docket number to pass onto
@@ -454,9 +424,115 @@ saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 
 saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
-
 ##---------------------------------------------------------------------------##
 measure.board.next.gen.df %>% 
         arrange(local_date) %>% 
         tail()
+##---------------------------------------------------------------------------##
+## Step 12: match docketinfo ####
 
+# The following script allocates NextGen measuring board data from processing 
+# facilities to docket information extracted from FILMS using '1.MM_Processor_Docketinfo.R'.
+# Measuring board data are then matched to historical data structure.
+
+# NOTE: Recent measuring board data may not be allocated to docketinfo depending
+# on the latest input of paper docket data by NRE into FILMs.
+##----------------------------------------------------------------------------##
+# Load latest docketinfo data
+
+docketinfo <- readRDS("c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
+
+##----------------------------------------------------------------------------##
+# Match processor measuring board data to historical, allocate to docket data and
+# join to historical data. Data are compiled in the separate script 
+# '2.MM_NextGen_ProcessorMB_Compile.R'.
+
+# Import latest version of compiled next generation measuring board data
+
+measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+
+# Match data to historical compiled dataframes, remove unecessary variables and 
+# rename variables to match compiledMM.df
+
+measure.board.next.gen.df.match <- measure.board.next.gen.df %>% 
+ select(-c(rawutc, logger_date, local_date, latitude, longitude, abalonenum, zone, logname)) %>% 
+ dplyr::rename(msr.date = plaindate,
+               docket.number = docketnum,
+               shell.length = shelllength,
+               whole.weight = wholeweight,
+               e.processor = processor) %>% 
+ mutate(e.processor = replace(e.processor, e.processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD', "RALPH'S TASMANIAN SEAFOOD PTY LTD"))
+
+# Add variable to distinguish datasource
+measure.board.next.gen.df.match$datasource <- '2020NextGen4G'                  
+
+# Extract docketinfo for e.processors listed in new data
+eproname <- as.data.frame(unique(measure.board.next.gen.df.match$e.processor))
+colnames(eproname) <- c("e.processor")
+e.processors <- eproname$e.processor
+
+docketinfo.epro <- droplevels(subset(docketinfo, processorname %in% e.processors)) %>% 
+ dplyr::rename(e.processor = processorname)
+
+# Summarise data for number of samples, mean and min shell length and add to 
+# dataframe to check for duplicates
+n.per.docket <- measure.board.next.gen.df.match %>% 
+ group_by(docket.number, msr.date, e.processor) %>%
+ summarise(n = length(shell.length),
+           meanSL = round(mean(shell.length, na.rm = T), 1),
+           minSL = round(min(shell.length), 1))
+
+# Match docketinfo.epro to the n.per.docket dataframe
+docket.join <- inner_join(n.per.docket, docketinfo.epro, by = c("docket.number", "e.processor"))
+
+# Add date difference column
+docket.join <- docket.join %>%
+ ungroup() %>%
+ mutate(msr.date = as.Date(msr.date)) %>%
+ mutate(msr.date.diff = as.numeric(msr.date - daylist_max))
+
+# Check for and seperate out dupilicated dockets
+n_occur <- data.frame(table(docket.join$docket.number))
+range(n_occur$Freq)
+docket.uniq <- as.data.frame(docket.join[docket.join$docket.number %in% n_occur$Var1[n_occur$Freq == 1],])
+
+# Check
+n_occur <- data.frame(table(docket.uniq$docket.number))
+range(n_occur$Freq)
+
+# Join unique dockets to df.1
+measure.board.next.gen.df.unique <- inner_join(measure.board.next.gen.df.match, docket.uniq)
+
+# Subset data and filter out uneeded or duplicated variables
+compiled.docket.next.gen <- measure.board.next.gen.df.unique %>%
+ select(
+  docket.number,
+  msr.date,
+  proc,
+  e.processor,
+  numprocs,
+  proclist,
+  newzone,
+  numdays,
+  daylist,
+  daylist_max,
+  msr.date.diff,
+  numblocks,
+  blocklist,
+  numsubblocks,
+  subblocklist,
+  catch,
+  n,
+  meanSL,
+  minSL,
+  shell.length,
+  whole.weight,
+  datasource
+ ) %>% 
+ dplyr::rename('processorname' = e.processor)
+
+# Save RDS file
+
+saveRDS(compiled.docket.next.gen, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+# compiled.docket.next.gen <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+##----------------------------------------------------------------------------##

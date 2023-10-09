@@ -1,3 +1,6 @@
+# clear console
+rm(list = ls())
+
 ##---------------------------------------------------------------------------##
 #https://cran.r-project.org/web/packages/ipdw/vignettes/ipdw2.html
 #https://eriqande.github.io/2014/12/24/plotting-sst-with-ggplot.html
@@ -33,22 +36,54 @@ sf_buffer <- st_transform(sf_buffer, st_crs(7855))
 samp.year <- 2023
 
 # identify associated sampling year folder path to save dataframes
-samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                              'Abalone', 'FISdata',
-                              paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+# samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
+#                               'Abalone', 'FISdata',
+#                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+
+samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
-ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                             'Abalone', 'Assessment', 'Figures', 'FIS',
-                             paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
+# ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
+#                              'Abalone', 'Assessment', 'Figures', 'FIS',
+#                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
+
+ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+                                           Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
 # Import data
 
 # timed swim point data 
-time.swim.count.site.loc <- readRDS(paste(samp.year.folder, '/time.swim.count.site.loc.RDS', sep = ''))
+# time.swim.count.site.loc <- readRDS(paste(samp.year.folder, '/time.swim.count.site.loc.RDS', sep = ''))
 
 # Import metadata frame
 time.swim.meta.dat.final <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.final.RDS', sep = ''))
+
+# Import raw data
+time.swim.dat.final <-
+ readRDS(paste(samp.year.folder, '/time.swim.dat.final.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+# identify unique sites sampled from timed swim dataframe and join to renamed site file
+time.swim.sites <- time.swim.dat.final %>%
+ filter(!subblockno %in% c('28B', '28C')) %>% 
+ distinct(site, .keep_all = T) %>% 
+ dplyr::select(c(sampyear, site, blockno, subblockno, sampdate, actual.geom)) %>% 
+ st_as_sf() %>% 
+ st_set_crs(st_crs(7855))
+
+ten.min.mean.site <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>% 
+ group_by(sampyear, site, blockno, subblockno, diver, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq)) %>% 
+ group_by(sampyear, site, blockno, subblockno, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>% 
+ mutate(legal.size = factor(legal.size))%>% 
+ as.data.frame()
+
+time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>% 
+ st_as_sf() 
 
 ##---------------------------------------------------------------------------##
 ## Create function to interpolate abundance by each block, year and size class ####
@@ -284,7 +319,8 @@ ipdw.plot <- ggplot() +
  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
        axis.title.x = element_blank(),
        axis.title.y = element_blank())+
- facet_wrap(~ sampyear, ncol = 4)
+ facet_wrap(~ sampyear, ncol = if_else(ts.blockno.plot %in% c(16, 22, 27, 28), 4, 2))
+ # facet_wrap(~ sampyear, ncol = 4)
 
  # save plot
 setwd(ts.plots.folder)

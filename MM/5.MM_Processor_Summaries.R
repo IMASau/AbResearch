@@ -1,11 +1,11 @@
 # This script provides a preliminary analysis of measuring board data prior to catch dockets being processed
-# by DPIPWE and further catch details becoming available. These analysis are intended to provide processors with
+# by NRE and further catch details becoming available. These analysis are intended to provide processors with
 # near real-time summary of catches which they have measured.
 
 # Created by: Jaime McAllister
 
-##-------------------------------------------------------------------------------------------------------##
-# load libaries ####
+##----------------------------------------------------------------------------##
+# 1. load libaries ####
 suppressPackageStartupMessages({
 library(openxlsx)
 library(fuzzyjoin)
@@ -19,8 +19,8 @@ library(scales)
 library(gridExtra)
 library(hms)        
 })        
-##---------------------------------------------------------------------------##
-## 1. Set sample year and file paths ####
+##----------------------------------------------------------------------------##
+# 2. Set sample year and file paths ####
 
 # identify target year of interest
 target_year <- 2023
@@ -28,10 +28,9 @@ target_year <- 2023
 target_year_folder <- paste('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/', target_year, "/",
                             'MM_Plots_2023ProcessorSummaries/', sep = '')
 ##---------------------------------------------------------------------------##
-# load data ####
+# 3. Load data ####
 
 # load latest measuring board data that comes from MM_NextGen_4G.R script
-# measure.board.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.df.RDS')
 measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
 
 # add sample year
@@ -56,12 +55,6 @@ measure.board.next.gen.df %>%
         as.data.frame()
 
 # add weight grading categories used by processors
-# mb.next.gen.grade.df <- measure.board.next.gen.df %>%
-#         filter(wholeweight != 0) %>%
-#         mutate(grade = dplyr::if_else(wholeweight <= 400, 'small', #0-400g can also be labelled xsmall
-#                                       dplyr::if_else(between(wholeweight, 401, 600), 'small',
-#                                                      dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))))
-
 mb.next.gen.grade.df <- measure.board.next.gen.df %>% 
         mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
                                       dplyr::if_else(processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD' & between(wholeweight, 1, 400), 'xsmall', #0-400g can also be labelled xsmall requested by RTS
@@ -92,8 +85,7 @@ docknum.grade.meas <- mb.next.gen.grade.df %>%
         group_by(docketnum, docketnum.day, grade, processor, plaindate,  samptime.max, docket.index) %>% 
         summarise(grade.meas = n())
 
-##-------------------------------------------------------------------------------------------------------##
-# quick summary
+# quick summary by zone and processor
 dock.sum <- measure.board.next.gen.df %>% 
         filter(sampyear == target_year) %>% 
         group_by(processor, zone) %>% 
@@ -101,8 +93,19 @@ dock.sum <- measure.board.next.gen.df %>%
                   catches = n_distinct(docketnum)) %>% 
         janitor::adorn_totals()
 
-##-------------------------------------------------------------------------------------------------------##
-## Summ Tab: length/weight and grade summary tables  ####
+# quick summary by zone
+measure.board.next.gen.df %>% 
+ filter(sampyear == target_year) %>% 
+ group_by(zone) %>% 
+ summarise(n = n(),
+           catches = n_distinct(docketnum)) %>% 
+ mutate(perc = (catches/sum(catches)*100)) %>% 
+ janitor::adorn_totals()
+
+##----------------------------------------------------------------------------##
+# 4. Table 1: Summary ####
+
+# Summary length/weight and grade table for each processor
 
 for(i in processors){
 
@@ -174,13 +177,13 @@ i <- ifelse(i == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
 
 # setwd(target_year_folder)
 write.xlsx(grade.summary,
-           file = paste(target_year_folder, i, '_GradeSummary_', Sys.Date(), '.xlsx'),
+           file = paste(target_year_folder, i, '_GradeSummary_', target_year, '.xlsx'),
            sheetName = "Sheet1",
            col.names = TRUE,
            row.names = TRUE,
            append = FALSE)
 write.xlsx(length.weight.summary,
-           file = paste(target_year_folder, i, '_SizeWeightSummary_', Sys.Date(), '.xlsx'),
+           file = paste(target_year_folder, i, '_SizeWeightSummary_', target_year, '.xlsx'),
            sheetName = "Sheet1",
            col.names = TRUE,
            row.names = TRUE,
@@ -196,7 +199,7 @@ length.weight.summary.formated <- length.weight.summary %>%
         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 ggsave(
-        filename = paste(target_year_folder, i, '_WEIGHTGRADESUMMARY_', Sys.Date(), '.pdf', sep = ''),
+        filename = paste(target_year_folder, i, '_WEIGHTGRADESUMMARY_', target_year, '.pdf', sep = ''),
         plot = grade.summary.formated,
         width = 200,
         height = 350,
@@ -204,7 +207,7 @@ ggsave(
 )
 
 ggsave(
-        filename = paste(target_year_folder, i, '_LENGTHWEIGHTSUMMARY_', Sys.Date(), '.pdf', sep = ''),
+        filename = paste(target_year_folder, i, '_LENGTHWEIGHTSUMMARY_', target_year, '.pdf', sep = ''),
         plot = length.weight.summary.formated,
         width = 250,
         height = 300,
@@ -215,10 +218,10 @@ else{
 }
 }
 
-##---------------------------------------------------------------------------##
-## Plot setup  ####
+##----------------------------------------------------------------------------##
+# 5. Plot setup  ####
 
-## search for existing docket summaries on file and identify new dockets in the compiled
+## Search for existing docket summaries on file and identify new dockets in the compiled
 ## measuring board data frame for which to create summaries
 
 # identify local working folder containing existing docket summaries
@@ -227,20 +230,19 @@ processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022Pro
 processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
 processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
 
-
-
-# list filenames of existing docket summaries in folder
+# list filenames of existing docket summaries in each folder
 docket.summaries.2020 <- list.files(processor.summaries.2020,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2021 <- list.files(processor.summaries.2021,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2022 <- list.files(processor.summaries.2022,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2023 <- list.files(processor.summaries.2023,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 
-
-docket.summaries <- c(docket.summaries.2020, docket.summaries.2021, docket.summaries.2022,
+# combine filenames
+docket.summaries <- c(docket.summaries.2020, 
+                      docket.summaries.2021, 
+                      docket.summaries.2022,
                       docket.summaries.2023)
 
-
-# create a vector of existing docket numbers 
+# create a vector of existing docket numbers from filenames 
 existing.dockets <- as.data.frame(docket.summaries) %>%
         mutate(docket.summaries = mgsub::mgsub(docket.summaries, c('_1_', '_2_', '_3_'), c('-1_', '-2_', '-3_'))) %>% 
         separate(docket.summaries, c('docket.number',
@@ -251,10 +253,6 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
         separate(docket.number, into = c('docket.zone', 'docket.number'), "(?<=[A-Z])(?=[0-9])") %>%
         mutate(docketnum.day = docket.number,
                docketnum.day = gsub('-', '_', docket.number)) %>% 
-        # separate(docket.number, into = c('docket.number', 'dock.samp.no'), sep = '-') %>% 
-        # mutate(dock.samp.no = ifelse(is.na(dock.samp.no), 1, dock.samp.no)) %>% 
-        # mutate(docket.number = as.numeric(docket.number),
-        #        docket.processor = gsub('.pdf', '', docket.processor)) %>% 
         mutate(docket.processor = gsub('.pdf', '', docket.processor)) %>% 
         group_by_all() %>% 
         summarise(n = n()) %>%  
@@ -262,8 +260,8 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
                docket.index = paste(docket.zone, docketnum.day, docket.date, docket.processor, sep = '-')) %>%        
         pull(docket.index)
 
-# load vector of incomplete measureboard data for existing docket numbers determined in 
-# MM_NextGen4GCompile.RDS
+# Load vector of incomplete measureboard data for existing docket numbers determined in 
+# MM_NextGen4GCompile.RDS (i.e. where data upload to server was incomplete)
 docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
 
 docket.incomplete <- docket.incomplete %>% 
@@ -273,11 +271,7 @@ docket.incomplete <- docket.incomplete %>%
 # identify complete existing dockets
 existing.dockets.complete <- setdiff(existing.dockets, docket.incomplete)
 
-# df.3 <- left_join(existing.dockets, docket.incomplete, by = 'docket.index')
-
 # identify all dockets in measuring board dataframe
-# docket.unique <- unique(measure.board.next.gen.df$docketnum)
-
 docket.unique <- measure.board.next.gen.df %>% 
         mutate(docket.index = ifelse(processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD' &
                                              sampyear == 2021, gsub('RALPHS TASMANIAN SEAFOODS PTY LTD',
@@ -288,971 +282,349 @@ docket.unique <- measure.board.next.gen.df %>%
         # mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-'))  
         pull(docket.index)
 
-# df.2 <- existing.dockets %>% 
-#         mutate(docket.date = as.Date(docket.date)) %>% 
-#         left_join(df.1, ., by = c(docketnum = 'docket.number',
-#                   zone = 'docket.zone', plaindate = 'docket.date')) %>% 
-#         filter(is.na(summary.plot.exists)) %>% 
-#         mutate(docket.index = paste(zone, docketnum, plaindate, sep = '-'))
-# 
-# new.dockets <- unique(df.2$docket.index)
-
 # identify dockets missing from summary folder
-# new.dockets <- setdiff(docket.unique, existing.dockets)
 new.dockets <- setdiff(docket.unique, existing.dockets.complete)
 
 # remove persistent docket AW-818662 from list (True South Seafoods)
 new.dockets <- new.dockets[!grepl('AW-818662', new.dockets)]
-
-# # idenitfy processors in measuring board dataframe
-# processor.unique <- unique(measure.board.next.gen.df$processor)
 
 # create a dataframe of weight grading threshold for plotting reference lines
 grades <- data.frame(y = 0.35, x = c(300, 500, 700, 900), 
                      lab = c('XSmall', 'Small', 'Medium', 'Large'))
 
 ##---------------------------------------------------------------------------##
-## Plot 1: Length ####
-# overlay length frequency histogram with boxplot
-
-# measure.board.next.gen.df <- measure.board.next.gen.df %>% 
-#         mutate(docket.index = paste(zone, docketnum, plaindate, sep = '-'))
-
-for (i in new.dockets) {
-        plot.length.freq.dat <- measure.board.next.gen.df %>%
-                filter(docket.index == i &
-                               between(shelllength, 100, 200))
-        
-        plot.n.measured <- measure.board.next.gen.df %>% 
-                filter(!is.na(shelllength) &
-                               docket.index == i
-                       & between(shelllength, 100, 200)) %>%  
-                summarise(n = paste('n =', n()))
-        
-        plot.zone <- unique(plot.length.freq.dat$zone)
-        docketnum <- unique(plot.length.freq.dat$docketnum)
-        
-        length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
-                geom_histogram(
-                        aes(y = ..density.. * 5),
-                        fill = '#EFC000FF',
-                        col = 'black',
-                        binwidth = 5,
-                        alpha = 0.6
-                ) +
-                coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.4)) +
-                theme_bw() +
-                xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
-                # geom_vline(aes(xintercept = 138), colour = 'red',
-                #            linetype = 'dashed', size = 0.5)+
-                geom_vline(
-                        aes(xintercept = ifelse(zone == 'AW', 145, 
-                                                ifelse(zone == 'AB', 114, 
-                                                       ifelse(zone == 'AN', 127, 138)))),
-                        linetype = 'dashed',
-                        colour = 'red',
-                        size = 0.5
-                ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
-                geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
-        
-        # print(length.freq.plot)
-        
-        xbp.len <- ggplot(plot.length.freq.dat,
-                          aes(
-                                  x = factor(docketnum),
-                                  y = shelllength,
-                                  group = docketnum
-                          )) +
-                geom_boxplot(
-                        fill = 'lightgray',
-                        outlier.colour = "black",
-                        outlier.size = 1.5,
-                        position = position_dodge(0.85),
-                        width = 0.5
-                ) +
-                rotate() +
-                theme_transparent()
-        
-        # print(xbp.len)
-        
-        xbp_grob <- ggplotGrob(xbp.len)
-        xmin.len <- min(plot.length.freq.dat$shelllength)
-        xmax.len <- max(plot.length.freq.dat$shelllength)
-        
-        length.plot <- length.freq.plot +
-                annotation_custom(
-                        grob = xbp_grob,
-                        xmin = xmin.len,
-                        xmax = xmax.len,
-                        ymin = 0.3
-                )
-        
-        # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-        file.zone <- unique(plot.length.freq.dat$zone)
-        file.date <- unique(plot.length.freq.dat$plaindate)
-        file.processor <- unique(plot.length.freq.dat$processor)
-        ggsave(
-                filename = paste(paste(target_year_folder, file.zone, docketnum, sep = ''), '_LENGTHSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
-                plot = length.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        
-}
-
-## Plot 2: Weight####
-# overlay weight frequency with boxplot and pie chart of grading
-
-for (j in new.dockets) {
-                plot.weight.freq.dat <- measure.board.next.gen.df %>%
-                        filter(docket.index == j &
-                                       wholeweight != 0)
-                
-                plot.n.weighed <- measure.board.next.gen.df %>% 
-                        filter(docket.index == j &
-                               wholeweight != 0) %>% 
-                        summarise(n = paste('n =', n()))
-                
-                plot.zone <- unique(plot.weight.freq.dat$zone)
-                docketnum <- unique(plot.weight.freq.dat$docketnum)
-                
-                weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
-                        geom_histogram(
-                                aes(y = ..density.. * 50),
-                                fill = '#0073C2FF',
-                                col = 'black',
-                                binwidth = 50,
-                                alpha = 0.6
-                        ) +
-                        coord_cartesian(xlim = c(100, 1200),
-                                        ylim = c(0, 0.35)) +
-                        theme_bw() +
-                        theme(panel.grid = element_blank()) +
-                        xlab("Whole weight (g)") +
-                        ylab(paste("Docket no.", plot.zone, docketnum, " Percentage (%)")) +
-                        geom_vline(aes(xintercept = 400),
-                                   colour = 'red',
-                                   linetype = 'dotted') +
-                        geom_vline(aes(xintercept = 600),
-                                   colour = 'red',
-                                   linetype = 'dotted') +
-                        geom_vline(aes(xintercept = 800),
-                                   colour = 'red',
-                                   linetype = 'dotted') +
-                        geom_text(
-                                data = grades,
-                                aes(
-                                        x = x,
-                                        y = y,
-                                        label = lab
-                                ),
-                                inherit.aes = FALSE,
-                                vjust = 0.5,
-                                hjust = 0.5,
-                                size = 4,
-                                angle = 0,
-                                colour = c(
-                                        'small' = '#EFC000FF',
-                                        'medium' = '#0073C2FF',
-                                        'large' = '#CD534CFF'
-                                )
-                        ) +
-                        scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
-                        geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
-                
-                # print(weight.freq.plot)
-                
-                xbp.wt <- ggplot(
-                        plot.weight.freq.dat,
-                        aes(
-                                x = factor(docketnum),
-                                y = wholeweight,
-                                group = docketnum
-                        )
-                ) +
-                        geom_boxplot(
-                                fill = 'lightgray',
-                                outlier.colour = "black",
-                                outlier.size = 1.5,
-                                position = position_dodge(0.85),
-                                width = 0.3
-                        ) +
-                        stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
-                        rotate() +
-                        theme_transparent()
-                
-                # print(xbp.wt)
-                
-                xbp_grob <- ggplotGrob(xbp.wt)
-                xmin.wt <- min(plot.weight.freq.dat$wholeweight)
-                xmax.wt <- max(plot.weight.freq.dat$wholeweight)
-                
-                # weight.freq.plot +
-                #         annotation_custom(grob = xbp_grob, xmin = xmin.wt, xmax = xmax.wt,  ymin = 0.17)
-                
-                # add pie chart to weight frequency plot
-                docketnum.grade.summary <-
-                        left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate', 'docket.index')) %>%
-                        mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
-                
-                pie.plot.dat <- docketnum.grade.summary %>%
-                        filter(docket.index == j) %>%
-                        mutate(
-                                lab.position = cumsum(grade.perc),
-                                lab.y.position = lab.position - grade.perc / 2,
-                                lab = paste0(grade.perc, "%")
-                        )
-                
-                docket.pie.plot <-
-                        ggplot(data = pie.plot.dat, aes(
-                                x = "",
-                                y = grade.perc,
-                                fill = grade
-                        )) +
-                        geom_bar(stat = "identity", colour = 'white') +
-                        coord_polar(theta = "y") +
-                        geom_text(
-                                aes(label = lab),
-                                position = position_stack(vjust = 0.5),
-                                colour = 'white',
-                                size = 5
-                        ) +
-                        theme_void() +
-                        theme(legend.position = 'none') +
-                        scale_fill_manual(
-                                values = c(
-                                        'small' = '#EFC000FF',
-                                        'medium' = '#0073C2FF',
-                                        'large' = '#CD534CFF'
-                                )
-                        )
-                        # labs(fill = (paste('Grade')))
-                
-                
-                # print(docket.pie.plot)
-                
-                pp_grob <- ggplotGrob(docket.pie.plot)
-                
-                wt.plot <- weight.freq.plot +
-                        annotation_custom(
-                                grob = xbp_grob,
-                                xmin = xmin.wt,
-                                xmax = xmax.wt,
-                                ymin = 0.25
-                        ) +
-                        annotation_custom(
-                                grob = pp_grob,
-                                xmin = 900,
-                                xmax = 1200,
-                                ymax = 0.4
-                        )
-                
-                # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-                file.zone <- unique(plot.weight.freq.dat$zone)
-                file.date <- unique(plot.weight.freq.dat$plaindate)
-                file.processor <- unique(plot.weight.freq.dat$processor)
-                ggsave(
-                        filename = paste(paste(target_year_folder, file.zone, docketnum, sep = ''), '_WEIGHTSUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
-                        plot = wt.plot,
-                        width = 7.4,
-                        height = 5.57,
-                        units = 'in'
-                )
-        }
-
-#---------------------------------------------------------------------------##
-## Plot 2b: LT + WT combined ####
+# 6. Plot 1: LW Summary ####
 # combine weight and length summaryplot on the same page
 
 for (i in new.dockets) {
-        # create length plot
-        plot.length.freq.dat <- measure.board.next.gen.df %>%
-                filter(docket.index == i &
-                               between(shelllength, 100, 200))
-        
-        plot.n.measured <- measure.board.next.gen.df %>% 
-                filter(!is.na(shelllength) &
-                               docket.index == i
-                       & between(shelllength, 100, 200)) %>%  
-                summarise(n = paste('n =', n()))
-        
-        plot.zone <- unique(plot.length.freq.dat$zone)
-        docketnum.day <- unique(plot.length.freq.dat$docketnum.day)
-        
-        length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
-                geom_histogram(
-                        aes(y = ..density.. * 5),
-                        fill = '#EFC000FF',
-                        col = 'black',
-                        binwidth = 5,
-                        alpha = 0.6
-                ) +
-                coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
-                theme_bw() +
-                xlab("Shell Length (mm)") +
-                ylab(paste("Docket no.", plot.zone, docketnum.day, " Percentage (%)")) +
-                # geom_vline(aes(xintercept = 138), colour = 'red',
-                #            linetype = 'dashed', size = 0.5)+
-                geom_vline(
-                        aes(xintercept = ifelse(zone == 'AW', 145, 
-                                                ifelse(zone == 'AB', 114, 
-                                                       ifelse(zone == 'AN', 127, 
-                                                              ifelse(zone == 'AG', 145, 
-                                                                     ifelse(zone == 'AE' & sampyear >= 2023, 140, 138)))))),
-                        linetype = 'dashed',
-                        colour = 'red',
-                        size = 0.5
-                ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
-                geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
-        
-        # print(length.freq.plot)
-        
-        xbp.len <- ggplot(plot.length.freq.dat,
-                          aes(
-                                  x = factor(docketnum.day),
-                                  y = shelllength,
-                                  group = docketnum.day
-                          )) +
-                geom_boxplot(
-                        fill = 'lightgray',
-                        outlier.colour = "black",
-                        outlier.size = 1.5,
-                        position = position_dodge(0.85),
-                        width = 0.5
-                ) +
-                rotate() +
-                theme_transparent()
-        
-        # print(xbp.len)
-        
-        xbp_grob <- ggplotGrob(xbp.len)
-        xmin.len <- min(plot.length.freq.dat$shelllength)
-        xmax.len <- max(plot.length.freq.dat$shelllength)
-        
-        length.plot <- length.freq.plot +
-                annotation_custom(
-                        grob = xbp_grob,
-                        xmin = xmin.len,
-                        xmax = xmax.len,
-                        ymin = 0.3
-                )
-        
-        # create weight plot
-        
-        plot.weight.freq.dat <- measure.board.next.gen.df %>%
-                filter(docket.index == i &
-                               wholeweight != 0)
-        
-        plot.n.weighed <- measure.board.next.gen.df %>% 
-                filter(docket.index == i &
-                               wholeweight != 0) %>% 
-                summarise(n = paste('n =', n()))
-        
-        if (nrow(plot.weight.freq.dat) != 0) {
-        
-        weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
-                geom_histogram(
-                        aes(y = ..density.. * 50),
-                        fill = '#0073C2FF',
-                        col = 'black',
-                        binwidth = 50,
-                        alpha = 0.6
-                ) +
-                coord_cartesian(xlim = c(100, 1300),
-                                ylim = c(0, 0.35)) +
-                theme_bw() +
-                theme(panel.grid = element_blank()) +
-                xlab("Whole weight (g)") +
-                ylab(paste("Docket no.", plot.zone, docketnum.day, " Percentage (%)")) +
-                geom_vline(aes(xintercept = 400),
-                           colour = 'red',
-                           linetype = 'dotted') +
-                geom_vline(aes(xintercept = 600),
-                           colour = 'red',
-                           linetype = 'dotted') +
-                geom_vline(aes(xintercept = 800),
-                           colour = 'red',
-                           linetype = 'dotted') +
-                geom_text(
-                        data = grades,
-                        aes(
-                                x = x,
-                                y = y,
-                                label = lab
-                        ),
-                        inherit.aes = FALSE,
-                        vjust = 0.5,
-                        hjust = 0.5,
-                        size = 4,
-                        angle = 0,
-                        colour = c(
-                                'xsmall' = '#868686FF',
-                                'small' = '#EFC000FF',
-                                'medium' = '#0073C2FF',
-                                'large' = '#CD534CFF'
-                        )
-                ) +
-                scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
-                geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
-        
-        # print(weight.freq.plot)
-        
-        xbp.wt <- ggplot(
-                plot.weight.freq.dat,
-                aes(
-                        x = factor(docketnum.day),
-                        y = wholeweight,
-                        group = docketnum.day
-                )
-        ) +
-                geom_boxplot(
-                        fill = 'lightgray',
-                        outlier.colour = "black",
-                        outlier.size = 1.5,
-                        position = position_dodge(0.85),
-                        width = 0.3
-                ) +
-                stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
-                rotate() +
-                theme_transparent()
-        
-        # print(xbp.wt)
-        
-        xbp_grob <- ggplotGrob(xbp.wt)
-        xmin.wt <- min(plot.weight.freq.dat$wholeweight)
-        xmax.wt <- max(plot.weight.freq.dat$wholeweight)
-        
-        # weight.freq.plot +
-        #         annotation_custom(grob = xbp_grob, xmin = xmin.wt, xmax = xmax.wt,  ymin = 0.17)
-        
-        # add pie chart to weight frequency plot
-        
-        docketnum.day.grade.summary <-
-                left_join(docknum.n, docknum.grade.meas, by = c('docketnum.day', 'processor', 'plaindate', 'docket.index')) %>%
-                mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
-        
-        pie.plot.dat <- docketnum.day.grade.summary %>%
-                filter(docket.index == i) %>%
-                mutate(
-                        lab.position = cumsum(grade.perc),
-                        lab.y.position = lab.position - grade.perc / 2,
-                        lab = paste0(grade.perc, "%")
-                )
-        
-        docket.pie.plot <-
-                ggplot(data = pie.plot.dat, aes(
-                        x = "",
-                        y = grade.perc,
-                        fill = grade
-                )) +
-                geom_bar(stat = "identity", colour = 'white') +
-                coord_polar(theta = "y") +
-                geom_text(
-                        aes(label = lab),
-                        position = position_stack(vjust = 0.5),
-                        colour = 'white',
-                        size = 5
-                ) +
-                theme_void() +
-                theme(legend.position = 'none') +
-                scale_fill_manual(
-                        values = c(
-                                'xsmall' = '#868686FF',
-                                'small' = '#EFC000FF',
-                                'medium' = '#0073C2FF',
-                                'large' = '#CD534CFF'
-                        )
-                )
-        # labs(fill = (paste('Grade')))
-        
-        # print(docket.pie.plot)
-        
-        pp_grob <- ggplotGrob(docket.pie.plot)
-        
-        wt.plot <- weight.freq.plot +
-                annotation_custom(
-                        grob = xbp_grob,
-                        xmin = xmin.wt,
-                        xmax = xmax.wt,
-                        ymin = 0.25
-                ) +
-                annotation_custom(
-                        grob = pp_grob,
-                        xmin = 900,
-                        xmax = 1200,
-                        ymax = 0.4
-                )
-        
-        #combine length and weight plots
-        
-        plot.a <- grid.arrange(
-                arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
-                                               ncol = 1), ncol = 1))
-        
-        #save plots
-        # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-        file.zone <- unique(plot.length.freq.dat$zone)
-        file.date <- unique(plot.length.freq.dat$plaindate)
-        file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
-                                 'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
-        
-       
-        
-        ggsave(
-                filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
-                plot = plot.a,
-                width = 200,
-                height = 297,
-                units = 'mm')
-        }
-        else{
-                plot.a <- length.plot
-                # plot.a <- grid.arrange(
-                #         arrangeGrob(cowplot::plot_grid(length.plot, align = 'v', 
-                #                                        ncol = 1), ncol = 1))
-                #save plots
-                # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-                file.zone <- unique(plot.length.freq.dat$zone)
-                file.date <- unique(plot.length.freq.dat$plaindate)
-                file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
-                                         'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
-                
-                
-                
-                ggsave(
-                        filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
-                        plot = plot.a,
-                        width = 7.4,
-                        height = 5.57,
-                        units = 'in')
-        }
+ # create length plot
+ plot.length.freq.dat <- measure.board.next.gen.df %>%
+  filter(docket.index == i &
+          between(shelllength, 100, 200))
+ 
+ plot.n.measured <- measure.board.next.gen.df %>% 
+  filter(!is.na(shelllength) &
+          docket.index == i
+         & between(shelllength, 100, 200)) %>%  
+  summarise(n = paste('n =', n()))
+ 
+ plot.zone <- unique(plot.length.freq.dat$zone)
+ docketnum.day <- unique(plot.length.freq.dat$docketnum.day)
+ 
+ length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
+  geom_histogram(
+   aes(y = ..density.. * 5),
+   fill = '#EFC000FF',
+   col = 'black',
+   binwidth = 5,
+   alpha = 0.6
+  ) +
+  coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+  theme_bw() +
+  xlab("Shell Length (mm)") +
+  ylab(paste("Docket no.", plot.zone, docketnum.day, " Percentage (%)")) +
+  # geom_vline(aes(xintercept = 138), colour = 'red',
+  #            linetype = 'dashed', size = 0.5)+
+  geom_vline(
+   aes(xintercept = ifelse(zone == 'AW', 145, 
+                           ifelse(zone == 'AB', 114, 
+                                  ifelse(zone == 'AN', 127, 
+                                         ifelse(zone == 'AG', 145, 
+                                                ifelse(zone == 'AE' & sampyear >= 2023, 140, 138)))))),
+   linetype = 'dashed',
+   colour = 'red',
+   size = 0.5
+  ) +
+  scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+  geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+ 
+ # print(length.freq.plot)
+ 
+ xbp.len <- ggplot(plot.length.freq.dat,
+                   aes(
+                    x = factor(docketnum.day),
+                    y = shelllength,
+                    group = docketnum.day
+                   )) +
+  geom_boxplot(
+   fill = 'lightgray',
+   outlier.colour = "black",
+   outlier.size = 1.5,
+   position = position_dodge(0.85),
+   width = 0.5
+  ) +
+  rotate() +
+  theme_transparent()
+ 
+ # print(xbp.len)
+ 
+ xbp_grob <- ggplotGrob(xbp.len)
+ xmin.len <- min(plot.length.freq.dat$shelllength)
+ xmax.len <- max(plot.length.freq.dat$shelllength)
+ 
+ length.plot <- length.freq.plot +
+  annotation_custom(
+   grob = xbp_grob,
+   xmin = xmin.len,
+   xmax = xmax.len,
+   ymin = 0.3
+  )
+ 
+ # create weight plot
+ 
+ plot.weight.freq.dat <- measure.board.next.gen.df %>%
+  filter(docket.index == i &
+          wholeweight != 0)
+ 
+ plot.n.weighed <- measure.board.next.gen.df %>% 
+  filter(docket.index == i &
+          wholeweight != 0) %>% 
+  summarise(n = paste('n =', n()))
+ 
+ if (nrow(plot.weight.freq.dat) != 0) {
+  
+  weight.freq.plot <- ggplot(plot.weight.freq.dat, aes(wholeweight)) +
+   geom_histogram(
+    aes(y = ..density.. * 50),
+    fill = '#0073C2FF',
+    col = 'black',
+    binwidth = 50,
+    alpha = 0.6
+   ) +
+   coord_cartesian(xlim = c(100, 1300),
+                   ylim = c(0, 0.35)) +
+   theme_bw() +
+   theme(panel.grid = element_blank()) +
+   xlab("Whole weight (g)") +
+   ylab(paste("Docket no.", plot.zone, docketnum.day, " Percentage (%)")) +
+   geom_vline(aes(xintercept = 400),
+              colour = 'red',
+              linetype = 'dotted') +
+   geom_vline(aes(xintercept = 600),
+              colour = 'red',
+              linetype = 'dotted') +
+   geom_vline(aes(xintercept = 800),
+              colour = 'red',
+              linetype = 'dotted') +
+   geom_text(
+    data = grades,
+    aes(
+     x = x,
+     y = y,
+     label = lab
+    ),
+    inherit.aes = FALSE,
+    vjust = 0.5,
+    hjust = 0.5,
+    size = 4,
+    angle = 0,
+    colour = c(
+     'xsmall' = '#868686FF',
+     'small' = '#EFC000FF',
+     'medium' = '#0073C2FF',
+     'large' = '#CD534CFF'
+    )
+   ) +
+   scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+   geom_text(data = plot.n.weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+  
+  # print(weight.freq.plot)
+  
+  xbp.wt <- ggplot(
+   plot.weight.freq.dat,
+   aes(
+    x = factor(docketnum.day),
+    y = wholeweight,
+    group = docketnum.day
+   )
+  ) +
+   geom_boxplot(
+    fill = 'lightgray',
+    outlier.colour = "black",
+    outlier.size = 1.5,
+    position = position_dodge(0.85),
+    width = 0.3
+   ) +
+   stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+   rotate() +
+   theme_transparent()
+  
+  # print(xbp.wt)
+  
+  xbp_grob <- ggplotGrob(xbp.wt)
+  xmin.wt <- min(plot.weight.freq.dat$wholeweight)
+  xmax.wt <- max(plot.weight.freq.dat$wholeweight)
+  
+  # weight.freq.plot +
+  #         annotation_custom(grob = xbp_grob, xmin = xmin.wt, xmax = xmax.wt,  ymin = 0.17)
+  
+  # add pie chart to weight frequency plot
+  
+  docketnum.day.grade.summary <-
+   left_join(docknum.n, docknum.grade.meas, by = c('docketnum.day', 'processor', 'plaindate', 'docket.index')) %>%
+   mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+  
+  pie.plot.dat <- docketnum.day.grade.summary %>%
+   filter(docket.index == i) %>%
+   mutate(
+    lab.position = cumsum(grade.perc),
+    lab.y.position = lab.position - grade.perc / 2,
+    lab = paste0(grade.perc, "%")
+   )
+  
+  docket.pie.plot <-
+   ggplot(data = pie.plot.dat, aes(
+    x = "",
+    y = grade.perc,
+    fill = grade
+   )) +
+   geom_bar(stat = "identity", colour = 'white') +
+   coord_polar(theta = "y") +
+   geom_text(
+    aes(label = lab),
+    position = position_stack(vjust = 0.5),
+    colour = 'white',
+    size = 5
+   ) +
+   theme_void() +
+   theme(legend.position = 'none') +
+   scale_fill_manual(
+    values = c(
+     'xsmall' = '#868686FF',
+     'small' = '#EFC000FF',
+     'medium' = '#0073C2FF',
+     'large' = '#CD534CFF'
+    )
+   )
+  # labs(fill = (paste('Grade')))
+  
+  # print(docket.pie.plot)
+  
+  pp_grob <- ggplotGrob(docket.pie.plot)
+  
+  wt.plot <- weight.freq.plot +
+   annotation_custom(
+    grob = xbp_grob,
+    xmin = xmin.wt,
+    xmax = xmax.wt,
+    ymin = 0.25
+   ) +
+   annotation_custom(
+    grob = pp_grob,
+    xmin = 900,
+    xmax = 1200,
+    ymax = 0.4
+   )
+  
+  #combine length and weight plots
+  
+  plot.a <- grid.arrange(
+   arrangeGrob(cowplot::plot_grid(wt.plot, length.plot, align = 'v', 
+                                  ncol = 1), ncol = 1))
+  
+  #save plots
+  # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+  file.zone <- unique(plot.length.freq.dat$zone)
+  file.date <- unique(plot.length.freq.dat$plaindate)
+  file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
+                           'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
+  
+  
+  
+  ggsave(
+   filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+   plot = plot.a,
+   width = 200,
+   height = 297,
+   units = 'mm')
+ }
+ else{
+  plot.a <- length.plot
+  # plot.a <- grid.arrange(
+  #         arrangeGrob(cowplot::plot_grid(length.plot, align = 'v', 
+  #                                        ncol = 1), ncol = 1))
+  #save plots
+  # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+  file.zone <- unique(plot.length.freq.dat$zone)
+  file.date <- unique(plot.length.freq.dat$plaindate)
+  file.processor <- ifelse(unique(plot.length.freq.dat$processor) == 'RALPHS TASMANIAN SEAFOODS PTY LTD',
+                           'TRUE SOUTH SEAFOOD', unique(plot.length.freq.dat$processor))
+  
+  
+  
+  ggsave(
+   filename = paste(paste(target_year_folder, file.zone, docketnum.day, sep = ''), '_SUMMARYPLOT_', file.date, '_', file.processor, '.pdf', sep = ''),
+   plot = plot.a,
+   width = 7.4,
+   height = 5.57,
+   units = 'in')
+ }
 }
 
-#---------------------------------------------------------------------------##
+#-----------------------------------------------------------------------------##
+# 7. Processor Data Export ####
+## raw data Excel export for processors
 
-## Plot 3: Grades ####
-## pie chart of weight grades by docketnum
+df.1 <- measure.board.next.gen.df %>% 
+ mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
+                               dplyr::if_else(between(wholeweight, 1, 600), 'small', #0-400g can also be labelled xsmall
+                                              dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))),
+        wholeweight = replace(wholeweight, wholeweight == 0, NA))
 
-docketnum.grade.summary <- left_join(docknum.n.meas, docknum.grade.meas, by = 'docketnum') %>% 
-        mutate(grade.perc = round((grade.meas / ab.meas) * 100))
-
-docket.nums <- unique(docketnum.grade.summary$docketnum)
-
-for(i in docket.nums){
-        
-        pie.plot.dat <- docketnum.grade.summary %>%
-                filter(docketnum == i) %>%
-                mutate(lab.position = cumsum(grade.perc),
-                       lab.y.position = lab.position - grade.perc / 2,
-                       lab = paste0(grade.perc, "%"))
-        
-        docket.pie.plot <- ggplot(data = pie.plot.dat, aes(x = "", y = grade.perc, fill = grade)) +
-                # ggplot(pie.plot.dat, aes(x = '', weight = grade.perc, fill = grade)) +
-                # geom_bar(width = 1, position = "stack", colour = 'white') +
-                geom_bar(stat = "identity", colour = 'white') +
-                coord_polar(theta = "y") +
-                # geom_text(aes(x = 1, y = lab.position, label = lab), colour = 'white', size = 5)+
-                # geom_text(aes(x = 1, y = lab.y.position, label = lab), colour = 'white', size = 5)+
-                geom_text(aes(label = lab), position = position_stack(vjust = 0.5), colour = 'white', size = 5) +
-                theme(axis.ticks = element_blank(), axis.title = element_blank(), 
-                      axis.text.y = , panel.grid  = element_blank(),
-                      axis.text.x = element_blank(), panel.background = element_blank())+
-                # scale_fill_brewer(palette = 'Set1')+
-                # scale_fill_jco()+
-                scale_fill_manual(values = c('xsmall' = '#868686FF',
-                                             'small' = '#EFC000FF',
-                                             'medium' = '#0073C2FF',
-                                             'large' = '#CD534CFF'))+
-                # scale_fill_manual(values = c('xsmall' = 'orange', 
-                #                              'small' = 'green', 
-                #                              'medium' = 'blue', 
-                #                              'large' = 'red'))+
-                labs(fill = (paste('Docket no:', i, '\n\nGrade')))
-        
-        print(docket.pie.plot)
-        
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-        ggsave(
-                filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.pdf', sep = ''),
-                plot = docket.pie.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.wmf', sep = ''),
-                plot = docket.pie.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste('Docket no. ', i, '_weightgrade_piechart_pre-docket_2020', '.png', sep = ''),
-                plot = docket.pie.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        
+for(i in processors){
+ df.2 <- df.1 %>%
+  filter(sampyear == target_year,
+         processor == i)
+ 
+ write.xlsx(df.2,
+            file = paste(target_year_folder, i, '_MeasuringBoardData_', target_year, '.xlsx'),
+            sheetName = "Sheet1",
+            col.names = TRUE,
+            row.names = TRUE,
+            append = FALSE)
 }
 
-##---------------------------------------------------------------------------##
-## Plot 4: Grade multi ####
-## faceted pie chart of weight grades by all docketnum
-
-multi.pie.plot.dat <- docketnum.grade.summary %>%
-        group_by(docketnum, grade) %>% 
-        mutate(lab.position = cumsum(grade.perc),
-               lab.y.position = lab.position - grade.perc / 2,
-               lab = paste0(grade.perc, "%"))
-
-ggplot(data = multi.pie.plot.dat, aes(x = "", y = grade.perc, fill = grade)) + 
-        geom_bar(stat = "identity", colour = 'white') +
-        geom_text(aes(label = lab), position = position_stack(vjust = 0.5), colour = 'white') +
-        coord_polar(theta = "y") +
-        facet_wrap(.~docketnum, nrow = 3)+
-        theme(axis.ticks = element_blank(), axis.title = element_blank(), 
-              axis.text.y = , panel.grid  = element_blank(),
-              axis.text.x = element_blank(), panel.background = element_blank(), 
-              panel.border = element_blank(), strip.background = element_blank())+
-        scale_fill_manual(values = c('xsmall' = '#868686FF',
-                                     'small' = '#EFC000FF',
-                                     'medium' = '#0073C2FF',
-                                     'large' = '#CD534CFF'))+
-        labs(fill = 'Weight grade')
-
-##---------------------------------------------------------------------------##
-## Plot 5: WT BP ####
-## box plot of weights by docketnum per processor (inc. grade intervals)
-
-for (i in processors) {
-        
-        weight.plot.dat <- mb.next.gen.grade.df %>%
-                filter(!is.na(wholeweight)
-                       & between(wholeweight, 1, 2000)
-                       & processor == i)
-        
-        plotdat.n <- weight.plot.dat %>%
-                group_by(docketnum) %>%
-                summarize(n = n())
-        
-        dockets <- length(unique(weight.plot.dat$docketnum))
-        
-        grades <- data.frame(x = dockets + 0.5, y = c(500, 700, 900), lab = c('small', 'medium', 'large'))
-        
-        weight.boxplot <-
-                ggplot(weight.plot.dat, aes(
-                        x = factor(docketnum),
-                        y = wholeweight,
-                        group = docketnum
-                )) +
-                # geom_boxplot(outlier.colour = "black", outlier.size = 1.5, position = position_dodge(preserve = 'single')) +
-                geom_boxplot(
-                        outlier.colour = "black",
-                        outlier.size = 1.5,
-                        position = position_dodge(0.85)
-                ) +
-                geom_text(
-                        data = plotdat.n,
-                        aes(y = 1000, label = n),
-                        size = 3,
-                        angle = 0,
-                        position = position_dodge(width = 0.85)
-                ) +
-                # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-                xlab('Docket number') +
-                ylab(paste('Whole weight (g)')) +
-                coord_cartesian(ylim = c(300, 1000)) +
-                theme_bw() +
-                theme(
-                        plot.title = element_text(hjust = 0.5),
-                        axis.line = element_line(colour = "black"),
-                        axis.text.x = element_text(angle = 0, vjust = 0.5),
-                        legend.position = 'top'
-                )+
-                geom_hline(aes(yintercept = 400), colour = 'red', linetype = 'dotted')+
-                geom_hline(aes(yintercept = 600), colour = 'red', linetype = 'dotted')+
-                geom_hline(aes(yintercept = 800), colour = 'red', linetype = 'dotted')+
-                geom_text(data = grades, aes(x = x, y = y, label = lab), inherit.aes = FALSE, vjust = 0.5, hjust = 0.5, size = 4, angle = 270)
-        
-        print(weight.boxplot)
-        
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-        ggsave(
-                filename = paste(i, '_weight_pre-docket_boxplot_2020', '.pdf', sep = ''),
-                plot = weight.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste(i, '_weight_pre-docket_boxplot_2020', '.wmf', sep = ''),
-                plot = weight.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste(i, '_weight_pre-docket_boxplot_2020', '.png', sep = ''),
-                plot = weight.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-}
-
-##---------------------------------------------------------------------------##
-## Plot 6: LF Histo ####
-## length frequency of catch per docket
-
-for (i in docket.nums){
-        
-        plot.length.freq.dat <- mb.next.gen.grade.df %>% 
-                filter(docketnum == i &
-                               between(shelllength, 120, 200))
-        
-        length.freq.plot <- ggplot(plot.length.freq.dat, aes(shelllength)) +
-                geom_histogram(aes(y = ..density.. * 5),
-                               fill = 'white',
-                               col = 'black',
-                               binwidth = 5) +
-                coord_cartesian(xlim = c(130, 200), ylim = c(0, 0.4)) +
-                theme_bw() +
-                xlab("Shell Length (mm)")+
-                ylab(paste("Docket no.", i, " Percentage (%)")) +
-                # geom_vline(aes(xintercept = 138), colour = 'red', 
-                #            linetype = 'dashed', size = 0.5)+
-                geom_vline(aes(xintercept = ifelse(zone == 'AW', 145, 138)),
-                           linetype = 'dashed', colour = 'red', size = 0.5)
-        
-        print(length.freq.plot)
-        
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
-        
-        ggsave(
-                filename = paste('Docket no. ', i, '_lengthfrequency_pre-docket_2020', '.pdf', sep = ''),
-                plot = length.freq.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste('Docket no. ', i, '_lengthfrequency_pre-docket_2020', '.wmf', sep = ''),
-                plot = length.freq.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste('Docket no. ', i, '_lengthfrequency_pre-docket_2020', '.png', sep = ''),
-                plot = length.freq.plot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        
-}
-
-##---------------------------------------------------------------------------##
-## Plot 5: LF BP ####
-## box plot of lengths by docketnum per processor
-
-for (i in processors) {
-        
-        length.plot.dat <- mb.next.gen.grade.df %>%
-                filter(!is.na(shelllength)
-                       & between(shelllength, 120, 200)
-                       & processor == i)
-        
-        plotdat.n <- length.plot.dat %>%
-                group_by(docketnum) %>%
-                summarize(n = n())
-        
-        dockets <- length(unique(length.plot.dat$docketnum))
-        
-        length.boxplot <-
-                ggplot(length.plot.dat, aes(
-                        x = factor(docketnum),
-                        y = shelllength,
-                        group = docketnum
-                )) +
-                # geom_boxplot(outlier.colour = "black", outlier.size = 1.5, position = position_dodge(preserve = 'single')) +
-                geom_boxplot(
-                        outlier.colour = "black",
-                        outlier.size = 1.5,
-                        position = position_dodge(0.85)
-                ) +
-                geom_text(
-                        data = plotdat.n,
-                        aes(y = 200, label = n),
-                        size = 3,
-                        angle = 0,
-                        position = position_dodge(width = 0.85)
-                ) +
-                # geom_hline(aes(yintercept = 132), colour = 'red', linetype = 'dotted')+
-                xlab('Docket number') +
-                ylab(paste('Shell length (mm)')) +
-                coord_cartesian(ylim = c(130, 200)) +
-                theme_bw() +
-                theme(
-                        plot.title = element_text(hjust = 0.5),
-                        axis.line = element_line(colour = "black"),
-                        axis.text.x = element_text(angle = 0, vjust = 0.5),
-                        legend.position = 'top'
-                )+
-                geom_hline(aes(yintercept = ifelse(zone == 'AW', 145, 138)),
-                           linetype = 'dashed', colour = 'red', size = 0.5)
-        
-        print(length.boxplot)
-        
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
-        ggsave(
-                filename = paste(i, '_length_pre-docket_boxplot_2020', '.pdf', sep = ''),
-                plot = length.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste(i, '_length_pre-docket_boxplot_2020', '.wmf', sep = ''),
-                plot = length.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-        ggsave(
-                filename = paste(i, '_length_pre-docket_boxplot_2020', '.png', sep = ''),
-                plot = length.boxplot,
-                width = 7.4,
-                height = 5.57,
-                units = 'in'
-        )
-}
-
-##---------------------------------------------------------------------------##
-## Tas Seafoods ####
-## Tasmanian Seafoods Diver Summary - Mark Fleming
-
-# tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2020.xlsx",
-#                        detectDates = T)
-
-tas.seafoods.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2022.xlsx",
-                                      detectDates = T)
-
-
-summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
-summary.year <- year(Sys.time())
-
-tas.seafoods.divers <- tas.seafoods.divers.2022 %>% 
-        distinct(docketnum, divedate, .keep_all = T) %>% 
-        group_by(docketnum, diver) %>% 
-        summarise(divedate = max(divedate)) %>% 
-        mutate(docketnum = trimws(docketnum))
-
-
-tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
-        filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
-        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
-        ungroup() %>% 
-        select(-c(grade.meas, processor)) %>% 
-        spread(grade, grade.perc) %>% 
-        dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
-        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
-        arrange(desc(plaindate)) %>%
-        ungroup() %>% 
-        mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
-        dplyr::rename('Sample\ndate' = plaindate,
-               'Docket\nno.' = docketnum,
-               'Abalone\nmeasured' = ab.weighed) %>% 
-        select(-zone) %>% 
-        as.data.frame()
-
-tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers, by = c('Docket\nno.' = 'docketnum')) %>%  
-        select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>%  
-        filter(divedate >= as.Date("2021-01-01")) %>% 
-        dplyr::rename('Dive\ndate' = divedate,
-               'Diver\nname' = diver,
-               'Date\nsampled' = 'Sample\ndate',
-               'Number\nsampled' = 'Abalone\nmeasured') 
-        
-
-tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>% 
-        ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
-
-# print(tas.seafoods.grade.summary.formated)
-
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
-
-write.xlsx(tas.seafoods.grade.summary, paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.xlsx', sep = '_'), 
-           sheetName = "Sheet1",
-           col.names = TRUE, row.names = TRUE, append = FALSE)
-
-ggsave(
-        filename = paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
-        plot = tas.seafoods.grade.summary.formated,
-        width = 200,
-        height = 400,
-        units = 'mm'
-)
-##---------------------------------------------------------------------------##
-## Tas Seafoods Data ####
-
-tas.seafoods.dat <- mb.next.gen.grade.df %>% 
- filter(processor == 'TASMANIAN SEAFOODS PTY LTD' &
-         sampyear == 2023) %>% 
- select(c(plaindate, abalonenum, zone, docketnum, shelllength, wholeweight, grade))
-
-setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries')
-
-write.xlsx(tas.seafoods.dat, paste('TASMANIAN SEAFOODS PTY LTD_MeasurboardData2023', '.xlsx', sep = '_'), 
-           sheetName = "Sheet1",
-           col.names = TRUE, row.names = TRUE, append = FALSE)
-
-##---------------------------------------------------------------------------##
-## Seafood Traders ####
+##----------------------------------------------------------------------------##
+# 8. Seafood Traders Divers ####
 
 seafood.traders.divers.2023 <- read.xlsx("C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries/SeafoodTraders_2023_DiverDetails.xlsx",
-                                      detectDates = T)
+                                         detectDates = T)
 
 summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
 summary.year <- year(Sys.time())
 
 seafood.traders.divers.2023 <- seafood.traders.divers.2023 %>% 
-        distinct(docketnum, divedate, .keep_all = T) %>% 
-        group_by(docketnum, diver) %>% 
-        summarise(divedate = max(divedate)) %>% 
-        mutate(docketnum = trimws(docketnum))
+ distinct(docketnum, divedate, .keep_all = T) %>% 
+ group_by(docketnum, diver) %>% 
+ summarise(divedate = max(divedate)) %>% 
+ mutate(docketnum = trimws(docketnum))
 
 seafood.traders.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum.day', 'processor', 'plaindate')) %>% 
-        filter(processor == "SEAFOOD TRADERS PTY LTD") %>% 
-        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
-        ungroup() %>% 
-        select(-c(grade.meas, processor)) %>% 
-        spread(grade, grade.perc) %>% 
-        dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
-        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
-        arrange(desc(plaindate)) %>%
-        ungroup() %>%  
-        mutate(docketnum = paste(zone, docketnum.x, sep = '')) %>%
-        dplyr::rename('Docket\nno.' = docketnum,
-                      'Abalone\nmeasured' = ab.weighed) %>% 
-        select(-zone) %>% 
-        as.data.frame()
+ filter(processor == "SEAFOOD TRADERS PTY LTD") %>% 
+ mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
+ ungroup() %>% 
+ select(-c(grade.meas, processor)) %>% 
+ spread(grade, grade.perc) %>% 
+ dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+ {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
+ arrange(desc(plaindate)) %>%
+ ungroup() %>%  
+ mutate(docketnum = paste(zone, docketnum.x, sep = '')) %>%
+ dplyr::rename('Docket\nno.' = docketnum,
+               'Abalone\nmeasured' = ab.weighed) %>% 
+ select(-zone) %>% 
+ as.data.frame()
 
 seafood.traders.grade.summary <- left_join(seafood.traders.grade.summary, seafood.traders.divers.2023, by = c('Docket\nno.' = 'docketnum')) %>%  
-        select(divedate, diver, 'Docket\nno.', plaindate, 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
-        filter(plaindate >= as.Date("2023-01-01")) %>% 
-        dplyr::rename('Dive\ndate' = divedate,
-                      'Diver\nname' = diver,
-                      'Date\nsampled' = plaindate,
-                      'Number\nsampled' = 'Abalone\nmeasured')
+ select(divedate, diver, 'Docket\nno.', plaindate, 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>% 
+ filter(plaindate >= as.Date("2023-01-01")) %>% 
+ dplyr::rename('Dive\ndate' = divedate,
+               'Diver\nname' = diver,
+               'Date\nsampled' = plaindate,
+               'Number\nsampled' = 'Abalone\nmeasured')
 
 seafood.traders.grade.summary.formated <- seafood.traders.grade.summary %>% 
-        ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+ ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
 setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries')
@@ -1262,88 +634,132 @@ write.xlsx(seafood.traders.grade.summary, paste('SEAFOOD TRADERS PTY LTD', 'DIVE
            col.names = TRUE, row.names = TRUE, append = FALSE)
 
 ggsave(
-        filename = paste('SEAFOOD TRADERS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
-        plot = seafood.traders.grade.summary.formated,
-        width = 200,
-        height = 300,
-        units = 'mm'
+ filename = paste('SEAFOOD TRADERS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
+ plot = seafood.traders.grade.summary.formated,
+ width = 200,
+ height = 300,
+ units = 'mm'
 )
-
-##---------------------------------------------------------------------------##
-## Ralphs Tasmanian Seafoods ####
-
-ralphs.divers.2021 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries/RalphsTasmanianSeafoods_DiverDetails_2021.xlsx",
-                                         detectDates = T)
-
-summary.month <- month(Sys.time(), label = T, abbr = FALSE)
-summary.year <- year(Sys.time())
-
-ralphs.divers.2021 <- ralphs.divers.2021 %>% 
-        distinct(docketnum, divedate, .keep_all = T) %>% 
-        group_by(docketnum, diver) %>% 
-        summarise(divedate = max(divedate)) %>% 
-        mutate(docketnum = trimws(docketnum))
-
-ralphs.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'docketnum.day', 'processor', 'plaindate', 'samptime.max', 'docket.index')) %>% 
-        filter(processor == "RALPHS TASMANIAN SEAFOODS PTY LTD") %>% 
-        mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
-        ungroup() %>% 
-        select(-c(grade.meas, processor)) %>% 
-        spread(grade, grade.perc) %>% 
-        dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
-        {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
-        arrange(desc(plaindate)) %>%
-        ungroup() %>% 
-        mutate(docketnum = paste(zone, docketnum, sep = ''),
-               docketnum.day = paste(zone, docketnum.day, sep = '')) %>%
-        dplyr::rename('Sample\ndate' = plaindate,
-                      'Docket\nno.' = docketnum,
-                      'Abalone\nmeasured' = ab.weighed) %>% 
-        select(-zone) %>% 
-        as.data.frame()
-
-ralphs.grade.summary <- left_join(ralphs.grade.summary, ralphs.divers.2021, by = c('Docket\nno.' = 'docketnum')) %>%  
-        select(docketnum.day, divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>%  
-        filter(divedate >= as.Date("2020-12-29")) %>%
-        dplyr::rename('Dive\ndate' = divedate,
-                      'Diver\nname' = diver,
-                      'Date\nsampled' = 'Sample\ndate',
-                      'Number\nsampled' = 'Abalone\nmeasured') %>% 
-        mutate('Docket\nno.' = docketnum.day) %>% 
-        select(c('Dive\ndate', 'Diver\nname', 'Docket\nno.', 'Date\nsampled', 'Number\nsampled', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)'))
-
-ralphs.grade.summary.formated <- ralphs.grade.summary %>% 
-        ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
-
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
-ggsave(
-        filename = paste('TRUE SOUTH SEAFOOD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
-        plot = ralphs.grade.summary.formated,
-        width = 200,
-        height = 300,
-        units = 'mm'
-)
-
-#---------------------------------------------------------------------------##
-## Excel Export ####
-## raw data Excel export for processors
-
-df.1 <- measure.board.next.gen.df %>% 
-        mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
-                                      dplyr::if_else(between(wholeweight, 1, 600), 'small', #0-400g can also be labelled xsmall
-                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large'))),
-               wholeweight = replace(wholeweight, wholeweight == 0, NA))
-
-for(i in processors){
-        df.2 <- df.1 %>%
-                filter(processor == i)
-        
-        setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries')
-        write.xlsx(df.2,
-                   file = paste(i, '_MeasuringBoardData_', Sys.Date(), '.xlsx'),
-                   sheetName = "Sheet1",
-                   col.names = TRUE,
-                   row.names = TRUE,
-                   append = FALSE)
-}
-##---------------------------------------------------------------------------##
+##----------------------------------------------------------------------------##
+# # Tas Seafoods Divers
+# ## Tasmanian Seafoods Diver Summary - Mark Fleming
+# 
+# # tas.seafoods.divers.2020 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2020.xlsx",
+# #                        detectDates = T)
+# 
+# tas.seafoods.divers.2022 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries/TasmaniaSeafoods_DiverDetails_2022.xlsx",
+#                                       detectDates = T)
+# 
+# 
+# summary.month <- lubridate::month(Sys.time(), label = T, abbr = FALSE)
+# summary.year <- year(Sys.time())
+# 
+# tas.seafoods.divers <- tas.seafoods.divers.2022 %>% 
+#         distinct(docketnum, divedate, .keep_all = T) %>% 
+#         group_by(docketnum, diver) %>% 
+#         summarise(divedate = max(divedate)) %>% 
+#         mutate(docketnum = trimws(docketnum))
+# 
+# 
+# tas.seafoods.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'processor', 'plaindate')) %>% 
+#         filter(processor == "TASMANIAN SEAFOODS PTY LTD") %>% 
+#         mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
+#         ungroup() %>% 
+#         select(-c(grade.meas, processor)) %>% 
+#         spread(grade, grade.perc) %>% 
+#         dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+#         {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
+#         arrange(desc(plaindate)) %>%
+#         ungroup() %>% 
+#         mutate(docketnum = paste(zone, docketnum, sep = '')) %>%
+#         dplyr::rename('Sample\ndate' = plaindate,
+#                'Docket\nno.' = docketnum,
+#                'Abalone\nmeasured' = ab.weighed) %>% 
+#         select(-zone) %>% 
+#         as.data.frame()
+# 
+# tas.seafoods.grade.summary <- left_join(tas.seafoods.grade.summary, tas.seafoods.divers, by = c('Docket\nno.' = 'docketnum')) %>%  
+#         select(divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>%  
+#         filter(divedate >= as.Date("2021-01-01")) %>% 
+#         dplyr::rename('Dive\ndate' = divedate,
+#                'Diver\nname' = diver,
+#                'Date\nsampled' = 'Sample\ndate',
+#                'Number\nsampled' = 'Abalone\nmeasured') 
+#         
+# 
+# tas.seafoods.grade.summary.formated <- tas.seafoods.grade.summary %>% 
+#         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+# 
+# # print(tas.seafoods.grade.summary.formated)
+# 
+# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries')
+# 
+# write.xlsx(tas.seafoods.grade.summary, paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.xlsx', sep = '_'), 
+#            sheetName = "Sheet1",
+#            col.names = TRUE, row.names = TRUE, append = FALSE)
+# 
+# ggsave(
+#         filename = paste('TASMANIAN SEAFOODS PTY LTD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
+#         plot = tas.seafoods.grade.summary.formated,
+#         width = 200,
+#         height = 400,
+#         units = 'mm'
+# )
+# 
+# 
+# ##----------------------------------------------------------------------------##
+# # True South Divers
+# 
+# ralphs.divers.2021 <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries/RalphsTasmanianSeafoods_DiverDetails_2021.xlsx",
+#                                          detectDates = T)
+# 
+# summary.month <- month(Sys.time(), label = T, abbr = FALSE)
+# summary.year <- year(Sys.time())
+# 
+# ralphs.divers.2021 <- ralphs.divers.2021 %>% 
+#         distinct(docketnum, divedate, .keep_all = T) %>% 
+#         group_by(docketnum, diver) %>% 
+#         summarise(divedate = max(divedate)) %>% 
+#         mutate(docketnum = trimws(docketnum))
+# 
+# ralphs.grade.summary <- left_join(docknum.n, docknum.grade.meas, by = c('docketnum', 'docketnum.day', 'processor', 'plaindate', 'samptime.max', 'docket.index')) %>% 
+#         filter(processor == "RALPHS TASMANIAN SEAFOODS PTY LTD") %>% 
+#         mutate(grade.perc = round((grade.meas / ab.weighed) * 100)) %>%   
+#         ungroup() %>% 
+#         select(-c(grade.meas, processor)) %>% 
+#         spread(grade, grade.perc) %>% 
+#         dplyr::rename("Large\n(%)" = large, "Medium\n(%)" = medium, "Small\n(%)" = small) %>%
+#         {if('xsmall' %in% names(.)) rename(., "XSmall (%)" = xsmall) else .} %>% 
+#         arrange(desc(plaindate)) %>%
+#         ungroup() %>% 
+#         mutate(docketnum = paste(zone, docketnum, sep = ''),
+#                docketnum.day = paste(zone, docketnum.day, sep = '')) %>%
+#         dplyr::rename('Sample\ndate' = plaindate,
+#                       'Docket\nno.' = docketnum,
+#                       'Abalone\nmeasured' = ab.weighed) %>% 
+#         select(-zone) %>% 
+#         as.data.frame()
+# 
+# ralphs.grade.summary <- left_join(ralphs.grade.summary, ralphs.divers.2021, by = c('Docket\nno.' = 'docketnum')) %>%  
+#         select(docketnum.day, divedate, diver, 'Docket\nno.', 'Sample\ndate', 'Abalone\nmeasured', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)') %>%  
+#         filter(divedate >= as.Date("2020-12-29")) %>%
+#         dplyr::rename('Dive\ndate' = divedate,
+#                       'Diver\nname' = diver,
+#                       'Date\nsampled' = 'Sample\ndate',
+#                       'Number\nsampled' = 'Abalone\nmeasured') %>% 
+#         mutate('Docket\nno.' = docketnum.day) %>% 
+#         select(c('Dive\ndate', 'Diver\nname', 'Docket\nno.', 'Date\nsampled', 'Number\nsampled', 'Large\n(%)', 'Medium\n(%)', 'Small\n(%)'))
+# 
+# ralphs.grade.summary.formated <- ralphs.grade.summary %>% 
+#         ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+# 
+# setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries')
+# ggsave(
+#         filename = paste('TRUE SOUTH SEAFOOD', 'DIVERSUMMARY', summary.month, summary.year, '.pdf', sep = '_'),
+#         plot = ralphs.grade.summary.formated,
+#         width = 200,
+#         height = 300,
+#         units = 'mm'
+# )
+# 
+##----------------------------------------------------------------------------##

@@ -16,6 +16,7 @@ library(lubridate)
 library(tidyverse)
 library(gdata)
 library(tictoc)
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
 setwd("c:/CloudStor/R_Stuff/AutoAssess")
 
@@ -195,6 +196,59 @@ docketinfo.transfer <- docketprocs.films %>%
 docketinfo <- left_join(docketprocs.films.mdn, docketinfo.transfer, by = c("masterdocketid" = "joincode"))
 
 docketinfo <- left_join(docketinfo, select(processorlicense,processor_entitlement, expiry_year, certificate_holder) , by = c("proc" = "processor_entitlement", "fishyear" = "expiry_year"))
+
+docketinfo_backup <- docketinfo
+##--------------------------------------------------------------------------##
+## Data clean ####
+
+# remove alpha characters from docket_number in processor data
+
+docketinfo <- docketinfo %>%
+ mutate(docket_number = as.numeric((gsub('[^0-9]', '', docket_number)))) %>%
+ mutate(masterdocket = as.numeric((gsub('[^0-9]', '', masterdocket))))
+
+# change 'docket_number' and 'certifcate_holder' column name out of SQL format in docketinfo
+
+# names(docketinfo)[names(docketinfo)=="docket_number"] <- "docket.number"
+docketinfo <- docketinfo %>% 
+ dplyr::rename(docket.number = docket_number,
+               processorname = certificate_holder)
+
+# # NOTE: certifcate_holder removed from latest docketinfo so added temporarily
+# docketinfo$certificate_holder <- NA
+# colnames(docketinfo)[colnames(docketinfo) == "certificate_holder"] <- "processorname"
+
+# change processorname toupper
+
+docketinfo <- docketinfo %>%
+ dplyr::mutate_at('processorname', funs(toupper))
+
+# add newzone using function (NOTE: G zone needs to be manually re-named)
+
+docketinfo <- docketinfo %>%
+ mutate(subblockno = subblocklist) %>%
+ codeBlnewzone() %>%
+ mutate(newzone = ifelse(zone == 'G', 'G', newzone)) %>%
+ select(-c(subblockno))
+
+# rename some of the processors who have changed buisness names over the years
+
+docketinfo$processorname[docketinfo$processorname %in%
+                          c(
+                           "R & R HOBART INVESTMENTS PTY LTD",
+                           "RTS PAUACO PTY LTD AS BARE TRUSTEE FOR THE RTS PAUACO LIMITED PARTNERSHIP"
+                          )] <- "RALPH'S TASMANIAN SEAFOOD PTY LTD"
+
+# the processor data extract from 2019 no longer contains unloading date or location, instead contains a list of fishing dates which
+# can be used to generate the last fishing day in the case of a multi-day trip (i.e. daylist_max). In most cases there are no more
+# than 6 fishing dates per record.
+
+docketinfo <- docketinfo %>%
+ separate(daylist, c('daylist_1', 'daylist_2', 'daylist_3', 'daylist_4', 'daylist_5', 'daylist_6', 'daylist_7', 'daylist_8'), sep = ',', remove = F) %>%
+ mutate_at(vars(starts_with('daylist_')), funs(as.Date)) %>%
+ ungroup() %>%
+ mutate(daylist_max = pmax(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, daylist_7, daylist_8, na.rm = T)) %>%
+ select(-c(daylist_1, daylist_2, daylist_3, daylist_4, daylist_5, daylist_6, daylist_7, daylist_8))
 
 ##--------------------------------------------------------------------------##
 ## Save docketinfo ####

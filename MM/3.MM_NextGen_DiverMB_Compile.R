@@ -828,7 +828,89 @@ mb_df_nm_final <- left_join(mb_df_nm, mb_df_nm_id)
 saveRDS(mb_df_nm_final, 'C:/cloudstor/DiveFisheries/Abalone/MMdata/mb_df_nm_final.RDS')
 
 # measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+
 ##---------------------------------------------------------------------------##
+## Step 13: match data structure ####
+
+# Match diver measuring board data to historical data structure. 
+# Data are compiled in the separate script '3.MM_NextGen_DiverMB_Compile.R'.
+# Measuring board data are then matched to historical data structure.
+
+# Import latest version of compiled next generation woodham measuring board data
+
+# measure.board.df.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/MM_Plots/measure.board.df.non.modem.RDS')
+
+mb_df_nm_final <- readRDS('C:/cloudstor/DiveFisheries/Abalone/MMdata/mb_df_nm_final.RDS')
+
+measure.board.df.non.modem <- mb_df_nm_final
+
+# Match data to existing compiled dataframes
+measure.board.df.non.modem.match <- measure.board.df.non.modem %>% 
+ select(-c(rawutc, logger_date, local_date, abalonenum, logname, geometry, memorymodule, catches.measured)) %>% 
+ dplyr::rename(msr.date = plaindate,
+               shell.length = shelllength,
+               processorname = processor) %>% 
+ mutate(proc = NA,
+        numprocs = NA,
+        proclist = NA,
+        blocklist = blockno,
+        subblocklist = subblockno,
+        datasource = '2020NONMODEM',
+        msr.date = as.Date(msr.date),
+        daylist = as.character(msr.date),
+        daylist_max = msr.date,
+        msr.date.diff = as.numeric(msr.date - daylist_max),
+        newzone = zone,
+        numdays = 1,
+        numblocks = 1,
+        numsubblocks = 1,
+        catch = NA) %>% 
+ select(-c(blockno, est.weight))
+
+# Summarise data for number of samples, mean and min shell length and add to dataframe to check for duplicates
+n.per.docket <- measure.board.df.non.modem.match %>% 
+ group_by(sample.id, species, msr.date) %>%
+ summarise(n = length(shell.length),
+           meanSL = round(mean(shell.length, na.rm = T), 1),
+           minSL = round(min(shell.length), 1))
+
+# Match docketinfo.epro to the n.per.docket dataframe
+docket.join <- inner_join(n.per.docket, measure.board.df.non.modem.match, 
+                          by = c("sample.id", 'species', 'msr.date')) %>% 
+ ungroup()
+# select(-(sample.id))
+
+# Subset data and filter out uneeded or duplicated variables
+compiled.docket.non.modem <- docket.join %>%
+ select(
+  msr.date,
+  proc,
+  processorname,
+  numprocs,
+  proclist,
+  newzone,
+  numdays,
+  daylist,
+  daylist_max,
+  msr.date.diff,
+  numblocks,
+  blocklist,
+  numsubblocks,
+  subblocklist,
+  catch,
+  meanSL,
+  minSL,
+  species,
+  shell.length,
+  datasource,
+  sample.id
+ )
+
+# Save RDS file
+
+saveRDS(compiled.docket.non.modem, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.non.modem.RDS')
+
+##----------------------------------------------------------------------------##
 ## Step 12: Plot data ####
 
 ## load most recent RDS data frame of non modem measuring board data

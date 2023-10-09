@@ -46,14 +46,20 @@ source("C:/GitCode/AbResearch/StandardError_Functions.r")
 samp.year <- 2023
 
 # identify associated sampling year folder path to save dataframes
-samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                              'Abalone', 'FISdata',
-                              paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+# samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
+#                               'Abalone', 'FISdata',
+#                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+
+samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+                        Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
-ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                             'Abalone', 'Assessment', 'Figures', 'FIS',
-                             paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
+# ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
+#                              'Abalone', 'Assessment', 'Figures', 'FIS',
+#                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
+
+ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
 ## 3. Load raw data ####
 
@@ -170,7 +176,8 @@ ts.dat.sites <- time.swim.dat %>%
         distinct_all()
 
 ts.meta.dat.sites <- time.swim.meta.dat %>% 
-        dplyr::select(sampdate, site) %>% 
+        dplyr::select(sampdate, site) %>%
+ filter(!site %in% c('AB-22-4-A', 'Betsey')) %>% 
         distinct_all()
 
 # compare data frames to see if the site-date combinations match
@@ -232,6 +239,11 @@ morana_gps_2023_d <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-07-1
 morana_gps_2023_e <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-03_download.gpx'), layer = 'waypoints')
 morana_gps_2023_f <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-15_download.gpx'), layer = 'waypoints')
 morana_gps_2023_g <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-30_download.gpx'), layer = 'waypoints')
+morana_gps_2023_h <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-07_download.gpx'), layer = 'waypoints')
+morana_gps_2023_i <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-19_download.gpx'), layer = 'waypoints')
+morana_gps_2023_j <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-25_download.gpx'), layer = 'waypoints')
+morana_gps_2023_k <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-10-02_download.gpx'), layer = 'waypoints') %>% 
+ filter(time >= ymd_hms('2023-09-20 00:00:00'))
 
 
 morana_gps_2023 <- bind_rows(morana_gps_2023_a, 
@@ -240,8 +252,13 @@ morana_gps_2023 <- bind_rows(morana_gps_2023_a,
                              morana_gps_2023_d,
                              morana_gps_2023_e,
                              morana_gps_2023_f,
-                             morana_gps_2023_g) %>% 
- distinct(., name, .keep_all = T)
+                             morana_gps_2023_g,
+                             morana_gps_2023_h,
+                             morana_gps_2023_i,
+                             morana_gps_2023_j,
+                             morana_gps_2023_k) %>% 
+ mutate(gps_date = as.Date(time)) %>% 
+ distinct(., name, gps_date, .keep_all = T)
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
 # therefore DO NOT use this column to determine year. Waypoint numbers should 
@@ -532,74 +549,75 @@ ts.proposed.geom <- site.samp.subblock.loc.ref
 
 saveRDS(ts.proposed.geom, paste(samp.year.folder, '/ts.proposed.geom.RDS', sep = ''))
 
-# create maps for each block (#note: sample year and/or reference sites)
-
-# select sampling year
-samp.year <- 2023
-
-# identify blocks sampled
-blocks.sampled <- site.samp.loc %>% 
- filter(sampyear == samp.year) %>% 
- distinct(blockno) %>% 
- pull()
-
-# create maps
-for (i in blocks.sampled){
- 
- site.samp.loc.blockno <- site.samp.subblock.loc.ref %>% 
-  filter(blockno == i &
-          sampyear == samp.year) %>%  
-  mutate(sampled = factor(sampled, levels = c('0', '1')))
- 
- sub_blocks <- site.samp.loc.blockno %>% distinct(subblockno) %>% pull()
-  
- sf.subblock.map.crop.1 <- sf.subblock.map %>%
-  filter(blockno == i &
-          !subblockno %in% c('28B', '28C'))
- 
- sf.subblock.map.crop.2 <- sf.subblock.map %>%
-  {if(i == '27') filter(., blockno == '26') else filter(., blockno == i)}
- 
- sf.subblock.map.crop.3 <- sf.subblock.map %>%
-  {if(i == '16') filter(., blockno %in% c('14', '15')) else filter(., blockno == i)}
- 
- sf.subblock.map.crop.4 <- sf.subblock.map %>%
-  {if(i == '13') filter(., subblockno %in% c('13D', '13E')) else filter(., blockno == i)}
- 
- 
- sf.subblock.map.crop <- bind_rows(sf.subblock.map.crop.1, sf.subblock.map.crop.2, 
-                                   sf.subblock.map.crop.3, sf.subblock.map.crop.4) %>% 
-  filter(subblockno %in% sub_blocks)
- 
- site.samp.map.blockno <- ggplot(data = st_geometry(sf.subblock.map.crop)) +
-  geom_sf(fill = NA) +
-  geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
-  geom_sf(data = site.samp.loc.blockno, aes(colour = sampled)) +
-  scale_colour_manual(values = c('red', 'blue'))+
-  theme_bw() +
-  annotation_scale(location = "bl", width_hint = 0.5) +
-  annotation_north_arrow(location = "br", which_north = "true", 
-                         pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
-                         style = north_arrow_fancy_orienteering)+
-  theme(legend.position="none")+
-  xlab('Longitude')+
-  ylab('Latitude')
-
- # save plots
- setwd(ts.plots.folder)
- ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_Proposed_BlockNo_', i, '.pdf', sep = ''),
-        plot = site.samp.map.blockno, units = 'mm', width = 190, height = 250)
- ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_Proposed_BlockNo_', i, '.png', sep = ''),
-        plot = site.samp.map.blockno, units = 'mm', width = 190, height = 150)
- 
-}
-
 # save spatial layer for QGIS
 st_write(ts.proposed.geom, 
          dsn = paste(samp.year.folder, '/ts.proposed.geom_', Sys.Date(), '.gpkg', sep = ''),
          layer = "ts.proposed.geom", driver = "GPKG", overwrite = T, delete_dsn = T)
 
-##---------------------------------------------------------------------------##
+##----------------------------------------------------------------------------##
+# # create maps for each block (#note: sample year and/or reference sites)
+# 
+# # select sampling year
+# samp.year <- 2023
+# 
+# # identify blocks sampled
+# blocks.sampled <- site.samp.loc %>% 
+#  filter(sampyear == samp.year) %>% 
+#  distinct(blockno) %>% 
+#  pull()
+# 
+# # create maps
+# for (i in blocks.sampled){
+#  
+#  site.samp.loc.blockno <- site.samp.subblock.loc.ref %>% 
+#   filter(blockno == i &
+#           sampyear == samp.year) %>%  
+#   mutate(sampled = factor(sampled, levels = c('0', '1')))
+#  
+#  sub_blocks <- site.samp.loc.blockno %>% distinct(subblockno) %>% pull()
+#   
+#  sf.subblock.map.crop.1 <- sf.subblock.map %>%
+#   filter(blockno == i &
+#           !subblockno %in% c('28B', '28C'))
+#  
+#  sf.subblock.map.crop.2 <- sf.subblock.map %>%
+#   {if(i == '27') filter(., blockno == '26') else filter(., blockno == i)}
+#  
+#  sf.subblock.map.crop.3 <- sf.subblock.map %>%
+#   {if(i == '16') filter(., blockno %in% c('14', '15')) else filter(., blockno == i)}
+#  
+#  sf.subblock.map.crop.4 <- sf.subblock.map %>%
+#   {if(i == '13') filter(., subblockno %in% c('13D', '13E')) else filter(., blockno == i)}
+#  
+#  
+#  sf.subblock.map.crop <- bind_rows(sf.subblock.map.crop.1, sf.subblock.map.crop.2, 
+#                                    sf.subblock.map.crop.3, sf.subblock.map.crop.4) %>% 
+#   filter(subblockno %in% sub_blocks)
+#  
+#  site.samp.map.blockno <- ggplot(data = st_geometry(sf.subblock.map.crop)) +
+#   geom_sf(fill = NA) +
+#   geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+#   geom_sf(data = site.samp.loc.blockno, aes(colour = sampled)) +
+#   scale_colour_manual(values = c('red', 'blue'))+
+#   theme_bw() +
+#   annotation_scale(location = "bl", width_hint = 0.5) +
+#   annotation_north_arrow(location = "br", which_north = "true", 
+#                          pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+#                          style = north_arrow_fancy_orienteering)+
+#   theme(legend.position="none")+
+#   xlab('Longitude')+
+#   ylab('Latitude')
+# 
+#  # save plots
+#  setwd(ts.plots.folder)
+#  ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_Proposed_BlockNo_', i, '.pdf', sep = ''),
+#         plot = site.samp.map.blockno, units = 'mm', width = 190, height = 250)
+#  ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_Proposed_BlockNo_', i, '.png', sep = ''),
+#         plot = site.samp.map.blockno, units = 'mm', width = 190, height = 150)
+#  
+# }
+
+##----------------------------------------------------------------------------##
 ## 8. Actual site data ####
 ## Create dataframe of actual sites sampled and generate map of sites sampled within 
 ## each Block with recorded GPS positions and 
@@ -692,67 +710,68 @@ ts.actual.geom <- ts.sites.final.sf %>%
 # save file of actual geometry for raw data join
 saveRDS(ts.actual.geom, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
 
-# create maps for each block (#note: sample year and/or reference sites)
-
-# identify blocks sampled
-blocks.sampled <- site.samp.start.subblock.loc.ref %>% 
- filter(sampyear == samp.year) %>% 
- distinct(blockno) %>% 
- pull()
-
-# create maps
-for (i in blocks.sampled){
-        
-        site.samp.loc.blockno <- site.samp.start.subblock.loc.ref %>% 
-                filter(blockno == i &
-                               sampyear == samp.year)
-        
-        sub_blocks <- site.samp.loc.blockno %>% distinct(subblockno) %>% pull()
-        
-        sf.subblock.map.crop.1 <- sf.subblock.map %>%
-                       filter(blockno == i &
-                               !subblockno %in% c('28B', '28C'))
-
-        sf.subblock.map.crop.2 <- sf.subblock.map %>%
-                {if(i == '27') filter(., blockno == '26') else filter(., blockno == i)}
-        
-        sf.subblock.map.crop.3 <- sf.subblock.map %>%
-                {if(i == '16') filter(., blockno %in% c('14', '15')) else filter(., blockno == i)}
-        
-        sf.subblock.map.crop.4 <- sf.subblock.map %>%
-         {if(i == '13') filter(., subblockno %in% c('13D', '13E')) else filter(., blockno == i)}
-        
-        
-        sf.subblock.map.crop <- bind_rows(sf.subblock.map.crop.1, sf.subblock.map.crop.2, 
-                                          sf.subblock.map.crop.3, sf.subblock.map.crop.4) %>% 
-         filter(subblockno %in% sub_blocks)
-        
-        site.samp.map.blockno <- ggplot(data = st_geometry(sf.subblock.map.crop)) +
-                geom_sf(fill = NA) +
-                geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
-                geom_sf(data = site.samp.loc.blockno, colour = 'blue') +
-                theme_bw() +
-                annotation_scale(location = "bl", width_hint = 0.5) +
-                annotation_north_arrow(location = "br", which_north = "true",
-                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
-                                       style = north_arrow_fancy_orienteering)+
-                theme(legend.position="none")+
-                xlab('Longitude')+
-                ylab('Latitude')
-   
-        
-        setwd(ts.plots.folder)
-        ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_GPS_BlockNo_', i, '.pdf', sep = ''),
-               plot = site.samp.map.blockno, units = 'mm', width = 190, height = 250)
-        ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_GPS_BlockNo_', i, '.png', sep = ''),
-               plot = site.samp.map.blockno, units = 'mm', width = 190, height = 150)
-        
-}
-
 # save spatial layer for QGIS
 st_write(ts.actual.geom, 
          dsn = paste(samp.year.folder, '/ts.actual.geom_', Sys.Date(), '.gpkg', sep = ''),
          layer = "ts.actual.geom", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+##----------------------------------------------------------------------------##
+# # create maps for each block (#note: sample year and/or reference sites)
+# 
+# # identify blocks sampled
+# blocks.sampled <- site.samp.start.subblock.loc.ref %>% 
+#  filter(sampyear == samp.year) %>% 
+#  distinct(blockno) %>% 
+#  pull()
+# 
+# # create maps
+# for (i in blocks.sampled){
+#         
+#         site.samp.loc.blockno <- site.samp.start.subblock.loc.ref %>% 
+#                 filter(blockno == i &
+#                                sampyear == samp.year)
+#         
+#         sub_blocks <- site.samp.loc.blockno %>% distinct(subblockno) %>% pull()
+#         
+#         sf.subblock.map.crop.1 <- sf.subblock.map %>%
+#                        filter(blockno == i &
+#                                !subblockno %in% c('28B', '28C'))
+# 
+#         sf.subblock.map.crop.2 <- sf.subblock.map %>%
+#                 {if(i == '27') filter(., blockno == '26') else filter(., blockno == i)}
+#         
+#         sf.subblock.map.crop.3 <- sf.subblock.map %>%
+#                 {if(i == '16') filter(., blockno %in% c('14', '15')) else filter(., blockno == i)}
+#         
+#         sf.subblock.map.crop.4 <- sf.subblock.map %>%
+#          {if(i == '13') filter(., subblockno %in% c('13D', '13E')) else filter(., blockno == i)}
+#         
+#         
+#         sf.subblock.map.crop <- bind_rows(sf.subblock.map.crop.1, sf.subblock.map.crop.2, 
+#                                           sf.subblock.map.crop.3, sf.subblock.map.crop.4) %>% 
+#          filter(subblockno %in% sub_blocks)
+#         
+#         site.samp.map.blockno <- ggplot(data = st_geometry(sf.subblock.map.crop)) +
+#                 geom_sf(fill = NA) +
+#                 geom_sf_text(data = sf.subblock.map.crop, aes(label = subblockno))+
+#                 geom_sf(data = site.samp.loc.blockno, colour = 'blue') +
+#                 theme_bw() +
+#                 annotation_scale(location = "bl", width_hint = 0.5) +
+#                 annotation_north_arrow(location = "br", which_north = "true",
+#                                        pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+#                                        style = north_arrow_fancy_orienteering)+
+#                 theme(legend.position="none")+
+#                 xlab('Longitude')+
+#                 ylab('Latitude')
+#    
+#         
+#         setwd(ts.plots.folder)
+#         ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_GPS_BlockNo_', i, '.pdf', sep = ''),
+#                plot = site.samp.map.blockno, units = 'mm', width = 190, height = 250)
+#         ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SitesSampled_GPS_BlockNo_', i, '.png', sep = ''),
+#                plot = site.samp.map.blockno, units = 'mm', width = 190, height = 150)
+#         
+# }
 
 ##---------------------------------------------------------------------------##
 # # Extract block 13 and 14 reference site coordinates
@@ -770,8 +789,8 @@ st_write(ts.actual.geom,
 #          layer = "df.1", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
-## 9. Final data frames ####
-## Join spatial site data (proposed and actual GPS sites) to raw count data and save final dataframe
+## 9. Join site data ####
+## Join spatial site data (proposed and actual GPS sites) to count and meta data
 
 # Load raw count, proposed and actual site data frames
 time.swim.dat <- readRDS(paste(samp.year.folder, '/time.swim.dat.RDS', sep = ''))
@@ -1008,17 +1027,41 @@ time.swim.meta.dat.final <- df_start_finish %>%
  select(c(site, blockno, divers, starttime, finishtime, max.depth, habitat.type, percent.algae.cover,
           percent.urchins, urchin.deep, comments, vesselname, start_waypoint, finish_waypoint,
           start_gps_time, finish_gps_time, start_geom, finish_geom))
+##---------------------------------------------------------------------------##
+# 10. Identify reference sites ####
 
-# save dataframes
-saveRDS(time.swim.dat.final, paste(samp.year.folder, '/time.swim.dat.final.RDS', sep = ''))
-saveRDS(time.swim.dat.df.final, paste(samp.year.folder, '/time.swim.dat.df.final.RDS', sep = ''))
-saveRDS(time.swim.meta.dat.final, paste(samp.year.folder, '/time.swim.meta.dat.final.RDS', sep = ''))
+# Import reference sites
+time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+
+ref_sites <- time_swim_ref_sites %>% 
+ select(site.new) %>%  
+ dplyr::rename(site = 'site.new')%>% 
+ mutate(ref_site = 1)
+
+ts_dat_final_ref <- left_join(time.swim.dat.final, ref_sites, by = c('site'))
+ts_dat_df_final_ref <- left_join(time.swim.dat.df.final, ref_sites, by = c('site'))
+ts_meta_dat_final_ref <- left_join(time.swim.meta.dat.final, ref_sites, by = c('site'))
 
 ##---------------------------------------------------------------------------##
-rm(list = setdiff(ls(), c('time.swim.dat.final',
-                          'time.swim.dat.df.final',
-                          'time.swim.meta.dat.final',
-                          'samp.year', 
-                          'samp.year.folder', 
-                          'ts.plots.folder')))
+# 11. Standardise data #### 
+
+# Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
+time.swim.dat.final <- ts_dat_final_ref %>% 
+ mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
+
+##---------------------------------------------------------------------------##
+# 11. Save final dataframes ####
+
+saveRDS(time.swim.dat.final, paste(samp.year.folder, '/time.swim.dat.final.RDS', sep = ''))
+saveRDS(ts_dat_df_final_ref, paste(samp.year.folder, '/time.swim.dat.df.final.RDS', sep = ''))
+saveRDS(ts_meta_dat_final_ref, paste(samp.year.folder, '/time.swim.meta.dat.final.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+# rm(list = setdiff(ls(), c('time.swim.dat.final',
+#                           'time.swim.dat.df.final',
+#                           'time.swim.meta.dat.final',
+#                           'samp.year', 
+#                           'samp.year.folder', 
+#                           'ts.plots.folder')))
 

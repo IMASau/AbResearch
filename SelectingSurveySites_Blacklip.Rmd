@@ -101,6 +101,43 @@ hex.cell.summary <- ts.hex %>%
   print()
 
 ```
+# Reference Site Selection from 2020
+Randomly select 15 sites from each block to keep as reference sites for 2021 survey and beyond.
+
+```{r reference site selection 2021}
+
+# Set seed
+set.seed(123) 
+
+# Randomly select 15 sites from 2020 data
+sites.2020.keep <- time.swim.dat.final %>%
+ filter(sampyear == 2020,
+        !subblockno %in% c('28B', '28C')) %>% 
+ group_by(blockno) %>% 
+ distinct(site, .keep_all = T) %>% 
+ sample_n(15) %>% 
+ select(-proposed.geom) %>% 
+ st_as_sf()
+
+# save GIS spatial layer
+# st_write(sites.2020.keep,
+#          dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg", layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+# NOTE: set.seed wasn't used when generating the selection of reference sites from 2020 to use in 2021.
+# Therefore the resulting output gpkg file above has been re-imported to identify those reference sites
+# and stored as an RDS for future reference.
+
+sites.2020.kept.sf <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg')
+
+# convert to data frame
+sites.2020.kept.df <- sites.2020.kept.sf %>%
+ sfheaders::sf_to_df(fill = T)
+
+# save file
+saveRDS(sites.2020.kept.df, 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+
+```
+
 # Post 2020 Site Selection
 Timed swim surveys in subsequent years after the collection of baseline data in 2020 involve a semi-repeated measures experimental design where 15 sites from each block sampled in 2020 have been carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in 2020 (n = 229). 
 ```{r post 2020 site selection}
@@ -120,6 +157,7 @@ time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimS
 # Note: 12 of the randomly selected reference sites are SAM historical research sites (i.e. n = 78) and
 # have unallocated OIDs
 ref_sites <- time_swim_ref_sites
+
 ref_sites_oid <- ref_sites %>% 
         filter(!is.na(oid)) %>% 
         ungroup() %>% 
