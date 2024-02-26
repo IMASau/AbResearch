@@ -18,9 +18,14 @@ library(gdata)
 library(tictoc)
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
-setwd("c:/CloudStor/R_Stuff/AutoAssess")
+# setwd("c:/CloudStor/R_Stuff/AutoAssess")
 
 ##--------------------------------------------------------------------------##
+# identify data folder
+mm_data_folder <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/',
+                                Sys.info()[["user"]]))
+##--------------------------------------------------------------------------##
+
 ## QMS/LMM Extract data ####
 ## QMS/LMM Extract data from the TAFIPROD processor and docketlink views
 ## setup connection to cray_res
@@ -253,7 +258,8 @@ docketinfo <- docketinfo %>%
 ##--------------------------------------------------------------------------##
 ## Save docketinfo ####
 
-saveRDS(docketinfo, "c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
+saveRDS(docketinfo, paste0(mm_data_folder, 'docketinfo3.rds'))
+# saveRDS(docketinfo, "c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
 # saveRDS(docketinfo, "c:/CloudStor/R_Stuff/AutoAssess/docketinfo3.rds")
 # docketinfo <- readRDS("c:/CloudStor/R_Stuff/AutoAssess/docketinfo3.rds")
 

@@ -50,16 +50,16 @@ samp.year <- 2023
 #                               'Abalone', 'FISdata',
 #                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
-samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
-                        Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
 # ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
 #                              'Abalone', 'Assessment', 'Figures', 'FIS',
 #                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 
-ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
-                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
+ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
+                                           Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
 ## 3. Load raw data ####
 
@@ -242,7 +242,11 @@ morana_gps_2023_g <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-08-3
 morana_gps_2023_h <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-07_download.gpx'), layer = 'waypoints')
 morana_gps_2023_i <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-19_download.gpx'), layer = 'waypoints')
 morana_gps_2023_j <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-09-25_download.gpx'), layer = 'waypoints')
-morana_gps_2023_k <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-10-02_download.gpx'), layer = 'waypoints') %>% 
+morana_gps_2023_k <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-10-02_download.gpx'), layer = 'waypoints')
+morana_gps_2023_l <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-10-19_download.gpx'), layer = 'waypoints')
+morana_gps_2023_m <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-10-31_download.gpx'), layer = 'waypoints') 
+morana_gps_2023_n <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-11-21_download.gpx'), layer = 'waypoints') 
+morana_gps_2023_o <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-11-30_download.gpx'), layer = 'waypoints') %>% 
  filter(time >= ymd_hms('2023-09-20 00:00:00'))
 
 
@@ -256,9 +260,17 @@ morana_gps_2023 <- bind_rows(morana_gps_2023_a,
                              morana_gps_2023_h,
                              morana_gps_2023_i,
                              morana_gps_2023_j,
-                             morana_gps_2023_k) %>% 
+                             morana_gps_2023_k,
+                             morana_gps_2023_l,
+                             morana_gps_2023_m,
+                             morana_gps_2023_n,
+                             morana_gps_2023_o) %>% 
  mutate(gps_date = as.Date(time)) %>% 
  distinct(., name, gps_date, .keep_all = T)
+
+# vessel data for 2024 surveys
+morana_gps_2024 <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-02-07_download.gpx'), layer = 'waypoints')
+
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
 # therefore DO NOT use this column to determine year. Waypoint numbers should 
@@ -293,19 +305,23 @@ morana_gps_2023 <- morana_gps_2023 %>%
  mutate(sampyear = 2023,
         vesselname = 'MoranaII')
 
+morana_gps_2024 <- morana_gps_2024 %>%
+ mutate(sampyear = 2024,
+        vesselname = 'MoranaII')
+
 # combine dataframes
 vessel.gps <- bind_rows(morana.gps.2020, morana.gps.ref, morana.gps.2021, taroona.gps.2021,
-                        morana.gps.2022, morana_gps_2023) %>%  
+                        morana.gps.2022, morana_gps_2023, morana_gps_2024) %>%  
         mutate(gpsdate = as.Date(time),
                gpstime = time) %>% 
-        select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
+        dplyr::select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
 
 # load latest compiled timed swim meta dataframe
 time.swim.meta.dat <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.RDS', sep = ''))
 
 # separate start positions
 ts.site.start <- time.swim.meta.dat %>%
-        select(-c(waypoint.finish, finishtime)) %>% 
+        dplyr::select(-c(waypoint.finish, finishtime)) %>% 
         dplyr::rename('waypoint' = waypoint.start,
                       'samptime' = starttime) %>% 
         mutate(sampperiod = 'start',
@@ -313,7 +329,7 @@ ts.site.start <- time.swim.meta.dat %>%
 
 # separate finish positions
 ts.site.finish <- time.swim.meta.dat %>%
-        select(-c(waypoint.start, starttime)) %>% 
+        dplyr::select(-c(waypoint.start, starttime)) %>% 
         dplyr::rename('waypoint' = waypoint.finish,
                       'samptime' = finishtime) %>% 
         mutate(sampperiod = 'finish',
@@ -324,21 +340,21 @@ ts.site.start.finish <- bind_rows(ts.site.start, ts.site.finish) %>%
         mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
                                   if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
                                           as.character(waypoint)))) %>%  
-        select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname)) %>%
+        dplyr::select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname)) %>%
         filter(site != 'Betsey')
 
 # join geometry where start waypoint recorded as being on the original GPS position/waypoint mark
 ts.site.start.finish.mark <- ts.site.start.finish %>% 
         filter(is.na(waypoint) & sampperiod == 'start') %>%  
         left_join(., vessel.gps, by = c('site' = 'name', 'sampyear', 'vesselname')) %>% 
-        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
+        dplyr::select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
 
 # join geometry where start and finish waypoints were recorded 
 ts.site.start.finish.wp <- ts.site.start.finish %>% 
         filter(!is.na(waypoint)) %>% 
         left_join(., vessel.gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate', 'vesselname')) %>% 
         dplyr::rename('sampyear' = sampyear.x) %>%
-        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
+        dplyr::select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname))
 
 # re-join all waypoint data and transform to GDA2020
 
@@ -353,7 +369,7 @@ ts_meta_dat <- bind_rows(ts.site.start, ts.site.finish) %>%
  mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
                            if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
                                    as.character(waypoint)))) %>%  
- select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname, max.depth,
+ dplyr::select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear, vesselname, max.depth,
           habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments)) %>%
  filter(site != 'Betsey')
 
@@ -361,7 +377,7 @@ ts_meta_dat <- bind_rows(ts.site.start, ts.site.finish) %>%
 meta_dat_no_wp <- ts_meta_dat %>% 
  filter(is.na(waypoint) & sampperiod == 'start') %>%  
  left_join(., vessel.gps, by = c('site' = 'name', 'sampyear', 'vesselname')) %>% 
- select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
+ dplyr::select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
           habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments))
 
 # separate metadata where start waypoint recorded and join vessel data
@@ -369,7 +385,7 @@ meta_dat_wp <- ts_meta_dat %>%
  filter(!is.na(waypoint)) %>% 
  left_join(., vessel.gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate', 'vesselname')) %>% 
  dplyr::rename('sampyear' = sampyear.x) %>%
- select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
+ dplyr::select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry, vesselname, max.depth,
           habitat.type, percent.algae.cover, percent.urchins, urchin.deep, comments))
 
 # recombine metadata and transform geometry
@@ -388,7 +404,7 @@ meta_dat_vessel <- meta_dat_gps %>%
  mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
                          ifelse(blockno %in% c('BRS'), 13, blockno))) %>% 
  mutate(blockno = ifelse(is.na(blockno), blockno2, blockno)) %>% 
- select(-c(ab, sampyear2, blockno2, nums))
+ dplyr::select(-c(ab, sampyear2, blockno2, nums))
 
 # save files
 saveRDS(vessel.gps.dat, paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
@@ -410,25 +426,37 @@ st_write(vessel.gps.dat,
 # Combine proposed timed swim sites from all years into one data frame 
 
 # load final proposed sites for 2020 and 2021 surveys (i.e. adjusted site names)
-ts.sites.final.pre2022 <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
+# ts.sites.final.pre2022 <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS')
+ts.sites.final.pre2022 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.sites.final.sf.RDS", Sys.info()[["user"]])))
 
 # load final proposed sites for 2022
-ts.sites.final.2022 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/TimedSwimSites_Final2022.xlsx', 
-                                      detectDates = T)
+# ts.sites.final.2022 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/TimedSwimSites_Final2022.xlsx', 
+#                                       detectDates = T)
+ts.sites.final.2022 <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2022/TimedSwimSites_Final2022.xlsx", Sys.info()[["user"]])))
 
 # load final proposed sites for 2023
-ts_sites_east_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final2023.xlsx', 
-                                          detectDates = T) %>% .[,-1]
+# ts_sites_east_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final2023.xlsx', 
+#                                           detectDates = T) %>% .[,-1]
+ts_sites_east_final_2023 <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final2023.xlsx", Sys.info()[["user"]]))) %>% .[,-1]
 
-ts_sites_actaeons_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_Actaeons/TimedSwimSites_SubBlock13DE_Final2023.xlsx', 
-                                 detectDates = T) %>% .[,-1] 
+# ts_sites_actaeons_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_Actaeons/TimedSwimSites_SubBlock13DE_Final2023.xlsx', 
+#                                  detectDates = T) %>% .[,-1]
 
-ts_sites_greens_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_NEGreens/TimedSwim_NE_GL_2023_50m.xlsx', 
-                                          detectDates = T) %>% .[,-1] %>% mutate(oid = as.character(oid))
+ts_sites_actaeons_final_2023 <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_Actaeons/TimedSwimSites_SubBlock13DE_Final2023.xlsx", Sys.info()[["user"]]))) %>% .[,-1]
+
+# ts_sites_greens_final_2023 <- read.xlsx('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_NEGreens/TimedSwim_NE_GL_2023_50m.xlsx', 
+#                                           detectDates = T) %>% .[,-1] %>% mutate(oid = as.character(oid))
+ts_sites_greens_final_2023 <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_NEGreens/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]]))) %>% .[,-1] %>% mutate(oid = as.character(oid))
 
 ts.sites.final.2023 <- bind_rows(ts_sites_east_final_2023, 
                                  ts_sites_actaeons_final_2023, 
                                  ts_sites_greens_final_2023)
+
+# load final proposed sites for 2024
+ts_sites_block29_final_2024 <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2024/TimedSwimSites_Block29_Final2024_GPX.xlsx", Sys.info()[["user"]])))
+
+ts.sites.final.2024 <- bind_rows(ts_sites_block29_final_2024)
+
 
 # set CRS
 GDA2020 <- st_crs(7855)
@@ -438,19 +466,26 @@ WGS84 <- st_crs(4326)
 # convert 2022 site data to sf
 ts.site.2022.sf <- ts.sites.final.2022 %>% 
  st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>%
- select(c(site, geometry)) %>% 
+ dplyr::select(c(site, geometry)) %>% 
  mutate(sampyear = 2022)
 
 # convert 2023 site data to sf
 ts.site.2023.sf <- ts.sites.final.2023 %>% 
  st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>%
- select(c(site, geometry)) %>% 
+ dplyr::select(c(site, geometry)) %>% 
  mutate(sampyear = 2023)
+
+# convert 2024 site data to sf
+ts.site.2024.sf <- ts.sites.final.2024 %>% 
+ st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>%
+ dplyr::rename('site' = 'name') %>% 
+ dplyr::select(c(site, geometry)) %>% 
+ mutate(sampyear = 2024)
 
 ts.sites.final.pre2022 <- st_transform(ts.sites.final.pre2022, crs = WGS84)
 
 # combine all years
-ts.sites.final.sf <- bind_rows(ts.sites.final.pre2022, ts.site.2022.sf, ts.site.2023.sf)
+ts.sites.final.sf <- bind_rows(ts.sites.final.pre2022, ts.site.2022.sf, ts.site.2023.sf, ts.site.2024.sf)
 
 # save final proposed sites up to sample year
 saveRDS(ts.sites.final.sf, paste(samp.year.folder, '/ts.sites.final.sf.RDS', sep = ''))
@@ -461,7 +496,7 @@ time.swim.dat <- readRDS(paste(samp.year.folder, '/time.swim.dat.RDS', sep = '')
 # identify unique sites sampled from timed swim dataframe
 ts.dat.unique <- time.swim.dat %>%
  distinct(site, sampyear, .keep_all = T) %>% 
- select(c(site, sampyear, sampdate))
+ dplyr::select(c(site, sampyear, sampdate))
 
 # join sites sampled to renamed site file for 2020
 ts.sites.join.2020 <- ts.sites.final.sf %>% 
@@ -487,14 +522,21 @@ ts.sites.join.2023 <- ts.sites.final.sf %>%
  left_join(., ts.dat.unique, by = c('site' = 'site',
                                     'sampyear' = 'sampyear'))
 
+# join sites sampled to renamed site file for 2024
+ts.sites.join.2024 <- ts.sites.final.sf %>% 
+ filter(sampyear == 2024) %>% 
+ left_join(., ts.dat.unique, by = c('site' = 'site',
+                                    'sampyear' = 'sampyear'))
+
 # compile joint site files
 ts.dat.site.join <- bind_rows(ts.sites.join.2020, ts.sites.join.2021,
-                              ts.sites.join.2022, ts.sites.join.2023)
+                              ts.sites.join.2022, ts.sites.join.2023,
+                              ts.sites.join.2024)
 
 # identity sites sampled 
 ts.dat.site.sampled <- ts.dat.site.join %>% 
  mutate(sampled = ifelse(is.na(sampdate), 0, 1)) %>%  
- select(c(site, site.old, sampled, sampyear, geometry))
+ dplyr::select(c(site, site.old, sampled, sampyear, geometry))
 
 # transform to GDA2020
 GDA2020 <- st_crs(7855)
@@ -504,7 +546,7 @@ ts.dat.site.sampled <- st_transform(ts.dat.site.sampled, GDA2020)
 # sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
 # sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -520,12 +562,12 @@ site.samp.loc <- ts.dat.site.sampled %>%
  mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
                          ifelse(blockno %in% c('BRS'), 13, blockno))) %>% 
  mutate(blockno = ifelse(is.na(blockno), blockno2, blockno)) %>% 
- select(-c(ab, sampyear2, blockno2, nums))
+ dplyr::select(-c(ab, sampyear2, blockno2, nums))
 
 # join data to subblock map to identify subblockno and remove reference sites 
 # (i.e. these subblocks were open to fishing)
 site.samp.subblock.loc <- st_join(site.samp.loc, sf.subblock.map, join = st_nearest_feature) %>% 
- select(-c(version, area, blockno.y)) %>% 
+ dplyr::select(-c(version, area, blockno.y)) %>% 
  dplyr::rename(blockno = blockno.x) %>% 
  rename_all(tolower) %>% 
  mutate(subblockno = ifelse(subblockno == '29A' &
@@ -537,7 +579,7 @@ site.samp.subblock.loc <- st_join(site.samp.loc, sf.subblock.map, join = st_near
 
 # join data to subblock map to identify subblockno (i.e. inc. all blocks)
 site.samp.subblock.loc.ref <- st_join(site.samp.loc, sf.subblock.map, join = st_nearest_feature) %>% 
- select(-c(version, area, blockno.y)) %>% 
+ dplyr::select(-c(version, area, blockno.y)) %>% 
  dplyr::rename(blockno = blockno.x) %>% 
  rename_all(tolower) %>% 
  mutate(subblockno = ifelse(subblockno == '29A' &
@@ -629,7 +671,7 @@ vessel.gps.dat <- readRDS(paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = '
 
 # read in Subblock map as an sf::sfc polygon object
 # sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
 
 # transform map to GDA2020
 sf.subblock.map <- st_transform(sf.subblock.map, GDA2020)
@@ -644,12 +686,12 @@ site.samp.start.loc <- vessel.gps.dat %>%
         mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
                                 ifelse(blockno %in% c('BRS'), 13, blockno))) %>% 
         mutate(blockno = ifelse(is.na(blockno), blockno2, blockno)) %>%
-        select(-c(ab, sampyear2, blockno2, nums))
+        dplyr::select(-c(ab, sampyear2, blockno2, nums))
 
 # join data to subblock map to identify subblockno and remove any blocks/sites 
 # (i.e. these subblocks were open to fishing) and select start position
 site.samp.start.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
-        select(-c(version, area, blockno.y, site3)) %>% 
+        dplyr::select(-c(version, area, blockno.y, site3)) %>% 
         dplyr::rename(blockno = blockno.x) %>% 
         rename_all(tolower) %>% 
         filter(
@@ -659,7 +701,7 @@ site.samp.start.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, jo
 # join data to subblock map to identify subblockno and remove any blocks/sites 
 # (i.e. these subblocks were open to fishing) and select finish position
 site.samp.finish.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, join = st_nearest_feature) %>% 
- select(-c(version, area, blockno.y, site3)) %>% 
+ dplyr::select(-c(version, area, blockno.y, site3)) %>% 
  dplyr::rename(blockno = blockno.x,
                finish.geom = geometry) %>% 
  rename_all(tolower) %>% 
@@ -681,12 +723,12 @@ site.samp.distance <- site.samp.start.finish %>%
                gpstime = gpstime.x,
                sampperiod = sampperiod.x,
                waypoint = waypoint.x) %>% 
- select(-c(samptime.y, gpstime.y, sampperiod.y, waypoint.y, finish.geom)) %>% 
+ dplyr::select(-c(samptime.y, gpstime.y, sampperiod.y, waypoint.y, finish.geom)) %>% 
  st_as_sf()
 
 # join data to subblock map to identify subblockno (i.e. inc. all blocks)
 site.samp.start.subblock.loc.ref <- st_join(site.samp.distance, sf.subblock.map, join = st_nearest_feature) %>% 
- select(-c(version, area, blockno.y, subblockno.y, zone.y)) %>% 
+ dplyr::select(-c(version, area, blockno.y, subblockno.y, zone.y)) %>% 
  dplyr::rename(blockno = blockno.x,
                subblockno = subblockno.x,
                zone = zone.x) %>% 
@@ -705,7 +747,7 @@ ts.actual.geom <- ts.sites.final.sf %>%
  mutate(site.old = ifelse(sampyear == 2020, site, ''),
         site = ifelse(sampyear == 2020, site.y, site),
         site = ifelse(sampyear == 2020 & is.na(site), site.old, site)) %>%  
- select(-site.y)
+ dplyr::select(-site.y)
 
 # save file of actual geometry for raw data join
 saveRDS(ts.actual.geom, paste(samp.year.folder, '/ts.actual.geom.RDS', sep = ''))
@@ -828,8 +870,15 @@ ts.actual.geom <- ts.actual.geom %>%
          left_join(., ts.proposed.geom, by = c('site' = 'site',
                                                'sampyear' = 'sampyear'))
         
-        ts.dat.prop <- bind_rows(ts.dat.prop.2020, ts.dat.prop.2021, ts.dat.prop.2022, ts.dat.prop.2023) %>%   
-                select(-c(blockno.y, site.y, site.old)) %>% 
+        ts.dat.prop.2024 <- time.swim.dat %>% 
+         filter(sampyear == 2024) %>% 
+         left_join(., ts.proposed.geom, by = c('site' = 'site',
+                                               'sampyear' = 'sampyear'))
+        
+        ts.dat.prop <- bind_rows(ts.dat.prop.2020, ts.dat.prop.2021, 
+                                 ts.dat.prop.2022, ts.dat.prop.2023,
+                                 ts.dat.prop.2024) %>%   
+                dplyr::select(-c(blockno.y, site.y, site.old)) %>% 
                 dplyr::rename(proposed.geom = 'geometry',
                               blockno = 'blockno.x') 
         
@@ -840,7 +889,7 @@ ts.actual.geom <- ts.actual.geom %>%
                                                       'sampyear' = 'sampyear',
                                                     'sampdate')) %>%    
                 mutate(site = ifelse(is.na(site.y), site, site.y)) %>% 
-                select(-site.y)
+                dplyr::select(-site.y)
         
         ts.dat.act.2021 <- time.swim.dat %>% 
                 filter(sampyear == 2021) %>% 
@@ -860,13 +909,21 @@ ts.actual.geom <- ts.actual.geom %>%
                                              'sampyear' = 'sampyear',
                                              'sampdate'))
         
-        ts.dat.act <- bind_rows(ts.dat.act.2020, ts.dat.act.2021, ts.dat.act.2022, ts.dat.act.2023) %>%    
-                select(-c(blockno.y, site.old)) %>% 
+        ts.dat.act.2024 <- time.swim.dat %>% 
+         filter(sampyear == 2024) %>% 
+         left_join(., ts.actual.geom, by = c('site' = 'site',
+                                             'sampyear' = 'sampyear',
+                                             'sampdate'))
+        
+        ts.dat.act <- bind_rows(ts.dat.act.2020, ts.dat.act.2021, 
+                                ts.dat.act.2022, ts.dat.act.2023,
+                                ts.dat.act.2024) %>%    
+                dplyr::select(-c(blockno.y, site.old)) %>% 
                 dplyr::rename(actual.geom = 'geometry',
                               blockno = 'blockno.x')         
         
 time.swim.dat.act.prop <- left_join(ts.dat.prop %>% dplyr::select(-c(subblockno, zone)), ts.dat.act) %>%  
-        select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime, 
+        dplyr::select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime, 
                  firstabtime, finishtime, time.elapsed, sizeclass, sizeclass.2021, sizeclass_freq, 
                  minsize, midsize, midsize.2021, maxsize, legal.size, actual.geom, proposed.geom, distance))
 
@@ -897,11 +954,18 @@ ts.dat.prop.df.2023 <- time.swim.dat.df %>%
  left_join(., ts.proposed.geom, by = c('site' = 'site',
                                        'sampyear' = 'sampyear'))
 
-ts.dat.prop.df <- bind_rows(ts.dat.prop.df.2020, ts.dat.prop.df.2021, ts.dat.prop.df.2022, ts.dat.prop.df.2023) %>%
-        select(-c(blockno.y, site.y, site.old)) %>%
+ts.dat.prop.df.2024 <- time.swim.dat.df %>%
+ filter(sampyear == 2024) %>%
+ left_join(., ts.proposed.geom, by = c('site' = 'site',
+                                       'sampyear' = 'sampyear'))
+
+ts.dat.prop.df <- bind_rows(ts.dat.prop.df.2020, ts.dat.prop.df.2021, 
+                            ts.dat.prop.df.2022, ts.dat.prop.df.2023,
+                            ts.dat.prop.df.2024) %>%
+        dplyr::select(-c(blockno.y, site.y, site.old)) %>%
         dplyr::rename(proposed.geom = 'geometry',
                       blockno = 'blockno.x') %>%
-        select(c(-sampled))
+        dplyr::select(c(-sampled))
 
 # join actual site data to individual length data
 ts.dat.act.df.2020 <- time.swim.dat.df %>%
@@ -910,7 +974,7 @@ ts.dat.act.df.2020 <- time.swim.dat.df %>%
                                             'sampyear' = 'sampyear',
                                             'sampdate')) %>%
         mutate(site = ifelse(is.na(site.y), site, site.y)) %>%
-        select(-site.y)
+        dplyr::select(-site.y)
 
 ts.dat.act.df.2021 <- time.swim.dat.df %>%
         filter(sampyear == 2021) %>%
@@ -930,14 +994,22 @@ ts.dat.act.df.2023 <- time.swim.dat.df %>%
                                      'sampyear' = 'sampyear',
                                      'sampdate'))
 
-ts.dat.act.df <- bind_rows(ts.dat.act.df.2020, ts.dat.act.df.2021, ts.dat.act.df.2022, ts.dat.act.df.2023) %>%
-        select(-c(blockno.y, site.old)) %>%
+ts.dat.act.df.2024 <- time.swim.dat.df %>%
+ filter(sampyear == 2024) %>%
+ left_join(., ts.actual.geom, by = c('site' = 'site',
+                                     'sampyear' = 'sampyear',
+                                     'sampdate'))
+
+ts.dat.act.df <- bind_rows(ts.dat.act.df.2020, ts.dat.act.df.2021, 
+                           ts.dat.act.df.2022, ts.dat.act.df.2023,
+                           ts.dat.act.df.2024) %>%
+        dplyr::select(-c(blockno.y, site.old)) %>%
         dplyr::rename(actual.geom = 'geometry',
                       blockno = 'blockno.x') %>%
-        select(-c(gpstime, sampperiod, samptime, waypoint))
+        dplyr::select(-c(gpstime, sampperiod, samptime, waypoint))
 
 time.swim.dat.df.act.prop <- left_join(ts.dat.prop.df %>% dplyr::select(-c(subblockno, zone)), ts.dat.act.df) %>%  
-        select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime,
+        dplyr::select(c(site, sampdate, sampyear, blockno, subblockno, diver, starttime,
                  firstabtime, finishtime, time.elapsed, shelllength, shelllength.2021, sizeclass, 
                  sizeclass.2021, sizeclass_freq, minsize, maxsize, legal.size, 
                  actual.geom, proposed.geom, distance))
@@ -946,26 +1018,29 @@ time.swim.dat.df.act.prop <- left_join(ts.dat.prop.df %>% dplyr::select(-c(subbl
 # include 'oid', 'cell.ntile' and 'sam.count'
 
 # load cpue oid data and combine
-ts.site.cpue.2020.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
-ts.site.cpue.2021.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
+# ts.site.cpue.2020.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS')
+# ts.site.cpue.2021.join <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS')
+ts.site.cpue.2020.join <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2020.join.RDS", Sys.info()[["user"]])))
+ts.site.cpue.2021.join <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.cpue.2021.join.RDS", Sys.info()[["user"]])))
 ts.site.cpue.join <- bind_rows(ts.site.cpue.2020.join, ts.site.cpue.2021.join)
 
 # load sam data and remove duplicate sites with same site name
-ts.site.sam.dat <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+# ts.site.sam.dat <- readRDS('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS')
+ts.site.sam.dat <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/ts.site.sam.2020.join.RDS", Sys.info()[["user"]])))
 ts.site.sam.join <- ts.site.sam.dat %>% 
         distinct(site, .keep_all = T)
 
 # join oid and sam data to final size frequency data
-time.swim.dat.final <- left_join(time.swim.dat.act.prop, select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile, cpue.kg.hr), by = c('site', 'sampyear')) %>%
-        left_join(., select(ts.site.sam.join, site, sampyear, site.old, sam.count), by = c('site' = 'site')) %>%
+time.swim.dat.final <- left_join(time.swim.dat.act.prop, dplyr::select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile, cpue.kg.hr), by = c('site', 'sampyear')) %>%
+        left_join(., dplyr::select(ts.site.sam.join, site, sampyear, site.old, sam.count), by = c('site' = 'site')) %>%
     dplyr::rename(sampyear = 'sampyear.x') %>% 
-        select(-c(site.old.x, geometry.x, sampyear.y, site.old.y, geometry.y))
+        dplyr::select(-c(site.old.x, geometry.x, sampyear.y, site.old.y, geometry.y))
 
 # join oid and sam data to final individual size data
-time.swim.dat.df.final <- left_join(time.swim.dat.df.act.prop, select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile), by = c('site', 'sampyear')) %>%
-    left_join(., select(ts.site.sam.join, site, sampyear, site.old, sam.count), by = c('site' = 'site')) %>% 
+time.swim.dat.df.final <- left_join(time.swim.dat.df.act.prop, dplyr::select(ts.site.cpue.join, site, site.old, sampyear, oid, cell.ntile), by = c('site', 'sampyear')) %>%
+    left_join(., dplyr::select(ts.site.sam.join, site, sampyear, site.old, sam.count), by = c('site' = 'site')) %>% 
     dplyr::rename(sampyear = 'sampyear.x') %>% 
-    select(-c(site.old.x, geometry.x, sampyear.y, site.old.y, geometry.y))
+    dplyr::select(-c(site.old.x, geometry.x, sampyear.y, site.old.y, geometry.y))
 
 # join vessel GPS data to meta-data frame
 
@@ -984,7 +1059,7 @@ ts_meta_dat_rename <- time.swim.meta.dat %>%
  gather(., sampperiod, waypoint, waypoint.start:waypoint.finish) %>% 
  mutate(sampperiod = gsub('waypoint.', '', sampperiod),
         sampyear = year(sampdate)) %>% 
- select(-c(sampdate))
+ dplyr::select(-c(sampdate))
 
 # join meta and vessel data
 ts_meta_dat_join <- ts_meta_dat_rename %>% 
@@ -996,7 +1071,7 @@ df_start <- ts_meta_dat_join %>%
  dplyr::rename(start_geom = 'geometry',
                start_gps_time = 'gpstime',
                start_waypoint = 'waypoint') %>% 
- select(-c(sampperiod, finishtime))
+ dplyr::select(-c(sampperiod, finishtime))
 
 # separate meta data finish position and label
 df_finish <- ts_meta_dat_join %>% 
@@ -1004,11 +1079,11 @@ df_finish <- ts_meta_dat_join %>%
  dplyr::rename(finish_geom = 'geometry',
                finish_gps_time = 'gpstime',
                finish_waypoint = 'waypoint') %>% 
- select(-c(sampperiod, starttime, samptime))
+ dplyr::select(-c(sampperiod, starttime, samptime))
 
 # rejoin start and finish data with labels
 df_start_finish <- left_join(df_start, df_finish) %>% 
- select(c(site, divers, starttime, finishtime, max.depth, habitat.type, percent.algae.cover,
+ dplyr::select(c(site, divers, starttime, finishtime, max.depth, habitat.type, percent.algae.cover,
           percent.urchins, urchin.deep, comments, vesselname, start_waypoint, finish_waypoint,
           start_gps_time, finish_gps_time, start_geom, finish_geom))
 
@@ -1021,21 +1096,23 @@ time.swim.meta.dat.final <- df_start_finish %>%
  mutate(site3 = ifelse(nums == 3, site, '')) %>% 
  separate(col = site3, into = c('ab', 'sampyear2', 'blockno2'), sep = '-') %>%
  mutate(blockno = ifelse(blockno %in% c(72, 74, 'LEG', 'THU'), 22, 
-                         ifelse(blockno %in% c('BRS'), 13, blockno))) %>% 
+                         ifelse(blockno %in% c('BRS'), 13, 
+                                ifelse(blockno %in% c(2024), 29, blockno)))) %>% 
  mutate(blockno = ifelse(is.na(blockno), blockno2, blockno)) %>% 
- select(-c(ab, sampyear2, blockno2, nums)) %>% 
- select(c(site, blockno, divers, starttime, finishtime, max.depth, habitat.type, percent.algae.cover,
+ dplyr::select(-c(ab, sampyear2, blockno2, nums)) %>% 
+ dplyr::select(c(site, blockno, divers, starttime, finishtime, max.depth, habitat.type, percent.algae.cover,
           percent.urchins, urchin.deep, comments, vesselname, start_waypoint, finish_waypoint,
           start_gps_time, finish_gps_time, start_geom, finish_geom))
 ##---------------------------------------------------------------------------##
 # 10. Identify reference sites ####
 
 # Import reference sites
-time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+# time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+time_swim_ref_sites <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/shared/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS", Sys.info()[["user"]])))
 
-ref_sites <- time_swim_ref_sites %>% 
- select(site.new) %>%  
- dplyr::rename(site = 'site.new')%>% 
+ref_sites <- time_swim_ref_sites %>%
+ dplyr::select(site.new) %>%
+ dplyr::rename(site = 'site.new') %>%
  mutate(ref_site = 1)
 
 ts_dat_final_ref <- left_join(time.swim.dat.final, ref_sites, by = c('site'))

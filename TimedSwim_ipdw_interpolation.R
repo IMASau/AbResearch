@@ -19,28 +19,48 @@ library(terra)
 
 # import tas coastal polygon data 
 # sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])))
+# sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
 # sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
-sf_buffer <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer.gpkg')
+# sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
-# transform coordinates to GDA2020
-sf.tas.map <- st_transform(sf.tas.map, st_crs(7855))
-sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855))
-sf_buffer <- st_transform(sf_buffer, st_crs(7855))
+sf_buffer_16 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_16.gpkg')
+sf_buffer_21 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_21.gpkg')
+sf_buffer_22 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_22.gpkg')
+sf_buffer_23 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_23.gpkg')
+sf_buffer_24 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_24.gpkg')
+sf_buffer_27 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_27.gpkg')
+sf_buffer_28 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_28.gpkg')
+
+
+
+# transform coordinates to GDA2020 and colnames to lower
+sf.tas.map <- st_transform(sf.tas.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
+sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
+
+sf_buffer_16 <- st_transform(sf_buffer_16, st_crs(7855))
+sf_buffer_21 <- st_transform(sf_buffer_21, st_crs(7855))
+sf_buffer_22 <- st_transform(sf_buffer_22, st_crs(7855))
+sf_buffer_23 <- st_transform(sf_buffer_23, st_crs(7855))
+sf_buffer_24 <- st_transform(sf_buffer_24, st_crs(7855))
+sf_buffer_27 <- st_transform(sf_buffer_27, st_crs(7855))
+sf_buffer_28 <- st_transform(sf_buffer_28, st_crs(7855))
 
 ##---------------------------------------------------------------------------##
 ## Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2023
+samp.year <- 2024
 
 # identify associated sampling year folder path to save dataframes
 # samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
 #                               'Abalone', 'FISdata',
 #                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
-samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
                                             Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
@@ -48,7 +68,7 @@ samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)
 #                              'Abalone', 'Assessment', 'Figures', 'FIS',
 #                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 
-ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
 ##---------------------------------------------------------------------------##
 # Import data
@@ -93,13 +113,24 @@ blocknos <- c(16, 22, 23, 24, 27, 28)
 sampyears <- seq(2020, 2023, 1)
 legalsizes <- c('<140 mm', '>140 mm')
 
+blocknos_21 <- c(21)
+sampyears_21 <- seq(2023, 2023, 1)
+legalsizes_21 <- c('<140 mm', '>140 mm')
+
 parameters_data <- expand.grid(blockno = blocknos,
                                sampyear = sampyears,
                                legal.size = legalsizes) %>% 
  as_tibble()
 
-# ts.pnts.blockno <- 24
-# ts.pnts.sampyear <- 2020
+parameters_data_21 <- expand.grid(blockno = blocknos_21,
+                               sampyear = sampyears_21,
+                               legal.size = legalsizes_21) %>% 
+ as_tibble()
+
+parameters_data <- bind_rows(parameters_data, parameters_data_21)
+
+# ts.pnts.blockno <- 21
+# ts.pnts.sampyear <- 2023
 # ts.pnts.legal.size <- '<140 mm'
 
 # Create function
@@ -117,7 +148,7 @@ ts_ipdw <- function(i){
 ts.pnts <- time.swim.count.site.loc %>% 
  dplyr::rename(geom = actual.geom) %>%
  mutate(sampyear = year(sampdate)) %>% 
- filter(!st_is_empty(.) &
+ dplyr::filter(!st_is_empty(.) &
          blockno == ts.pnts.blockno &
          sampyear == ts.pnts.sampyear &
          legal.size == ts.pnts.legal.size) %>%
@@ -135,7 +166,27 @@ ts.tas.subblockmap.crop <- sf.subblock.map %>%
 # crop coastal map to subblock
 # ts.tas.coast.crop <- st_crop(sf.tas.map, ts.tas.subblockmap.crop)
 
+# select coastal map
+
+sf_buffer <- if(ts.pnts.blockno == 16) {
+ sf_buffer_16
+} else if(ts.pnts.blockno == 21) {
+ sf_buffer_21
+} else if(ts.pnts.blockno == 22) {
+ sf_buffer_22
+} else if(ts.pnts.blockno == 23) {
+  sf_buffer_23
+} else if(ts.pnts.blockno == 24) {
+ sf_buffer_24
+} else if(ts.pnts.blockno == 27) {
+ sf_buffer_27
+} else {
+ sf_buffer_28
+}
+
 buffer.coast <- st_crop(sf_buffer, ts.tas.subblockmap.crop)
+# buffer.coast <- st_intersection(sf_buffer, ts.tas.subblockmap.crop)
+
 # 
 # # add 500 m buffer around coastal map 
 # ts.tas.coast.crop.buffer <- ts.tas.coast.crop %>% 
@@ -265,8 +316,10 @@ ts_ipdw_df_all <- readRDS(paste(samp.year.folder, '/ts_ipdw_df_all.RDS', sep = '
 # sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 
 # transform map coordinates to GDA2020
-sf.tas.map <- st_transform(sf.tas.map, st_crs(7855))
-sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855))
+sf.tas.map <- st_transform(sf.tas.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
+sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
 
 # create custom gradient colour scheme
 mycolor = c("#7f007f", "#0000ff",  "#007fff", "#00ffff", "#00bf00", "#7fdf00",
@@ -274,11 +327,11 @@ mycolor = c("#7f007f", "#0000ff",  "#007fff", "#00ffff", "#00bf00", "#7fdf00",
 
 
 # # select block and size
-ts.blockno.plot <- 28
-ts.legal.size.plot <- '>140 mm'
+# ts.blockno.plot <- 28
+# ts.legal.size.plot <- '>140 mm'
 
 # Create parameter dataframe of block and size class combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 legalsizes <- c('<140 mm', '>140 mm')
 
 plot_parameters_data <- expand.grid(blockno = blocknos,
@@ -360,17 +413,32 @@ df_2 <- urchin_data %>%
  filter(sampyear != 2020)
 
 urchin_data <- bind_rows(df_1, df_2)
-                                          
+   
+# save dataframe
+saveRDS(urchin_data, paste(samp.year.folder, '/urchin_data.RDS', sep = '')) 
+
+st_write(urchin_data,
+         dsn = paste(samp.year.folder, '/urchin_data.gpkg', sep = ''),
+         layer = "urchin_data", driver = "GPKG", overwrite = T, delete_dsn = T)
                                           
 ## Create function to interpolate abundance by each block and year ####
 
 # Create parameter dataframe of block, year and size class combinations
 blocknos <- c(16, 22, 23, 24, 27, 28)
-sampyears <- seq(2020, 2022, 1)
+sampyears <- seq(2020, 2023, 1)
+
+blocknos_21 <- c(21)
+sampyears_21 <- seq(2023, 2023, 1)
 
 parameters_data <- expand.grid(blockno = blocknos,
                                sampyear = sampyears) %>% 
  as_tibble()
+
+parameters_data_21 <- expand.grid(blockno = blocknos_21,
+                               sampyear = sampyears_21) %>% 
+ as_tibble()
+
+parameters_data <- bind_rows(parameters_data, parameters_data_21)
 
 # Create function
 ts_ipdw <- function(i){
@@ -400,6 +468,22 @@ ts_ipdw <- function(i){
  
  # crop coastal map to subblock
  # ts.tas.coast.crop <- st_crop(sf.tas.map, ts.tas.subblockmap.crop)
+ 
+ sf_buffer <- if(ts.pnts.blockno == 16) {
+  sf_buffer_16
+ } else if(ts.pnts.blockno == 21) {
+  sf_buffer_21
+ } else if(ts.pnts.blockno == 22) {
+  sf_buffer_22
+ } else if(ts.pnts.blockno == 23) {
+  sf_buffer_23
+ } else if(ts.pnts.blockno == 24) {
+  sf_buffer_24
+ } else if(ts.pnts.blockno == 27) {
+  sf_buffer_27
+ } else {
+  sf_buffer_28
+ }
  
  buffer.coast <- st_crop(sf_buffer, ts.tas.subblockmap.crop)
  
@@ -533,19 +617,42 @@ st_write(ts_ipdw_sf_urchins,
 # load ipdw dataframe 
 ts_ipdw_df_all <- readRDS(paste(samp.year.folder, '/ts_ipdw_df_urchins.RDS', sep = ''))
 
-# load tas land and coastal polygon maps 
-sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+# load point dataframe
+# urchin_data <- readRDS(paste(samp.year.folder, '/urchin_data.RDS', sep = ''))
 
-# transform map coordinates to GDA2020
-sf.tas.map <- st_transform(sf.tas.map, st_crs(7855))
-sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855))
+urchin_data <- time.swim.meta.dat.final %>% 
+ filter(!is.na(starttime) &
+         !is.na(percent.urchins) &
+         urchin.deep != 'VIS') %>% 
+ mutate(sampyear = year(starttime),
+        percent.urchins = as.numeric(percent.urchins)) %>%
+ dplyr::select(c(site, blockno, sampyear, percent.urchins, start_geom)) %>% 
+ st_as_sf() %>% 
+ filter(!st_is_empty(.))
+
+# load tas land and coastal polygon maps 
+# sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
+# sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+
+# transform coordinates to GDA2020 and colnames to lower
+sf.tas.map <- st_transform(sf.tas.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
+sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
 
 # create custom gradient colour scheme
-mycolor <- wesanderson::wes_palette("Zissou1", 100, type = "continuous")
+# mycolor_ipdw <- wesanderson::wes_palette("Zissou1", 10, type = "continuous")
+mycolor_point <- c('5' = 'red',
+             '4' = 'orange', 
+             '3' = '#ffce00',
+             '2' = 'yellow',
+             '1' = 'greenyellow',
+             '0' = 'green4')
 
 # Create parameter dataframe of block combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 
 plot_parameters_data <- expand.grid(blockno = blocknos) %>% 
  as_tibble()
@@ -564,43 +671,70 @@ ts_ipdw_plot <- function(i){
  ts.tas.coast.crop <- st_crop(sf.tas.map, ts.tas.subblockmap.crop)
  
  # create plot
- ipdw.plot <- ggplot() +
-  geom_tile(data = ts_ipdw_df_all %>% 
-             filter(blockno == ts.blockno.plot), aes(x = x, y = y, fill = layer)) +
+ # ipdw.plot <- ggplot() +
+ #  geom_tile(data = ts_ipdw_df_all %>% 
+ #             filter(blockno == ts.blockno.plot), aes(x = x, y = y, fill = layer)) +
+ #  coord_fixed(1.1)+
+ #  # scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
+ #  #                      labels = c('0 - No Barren',
+ #  #                                 '1 - Urchins Present (<10%)',
+ #  #                                 '2 - Barren Patches rare (10-20%)',
+ #  #                                 '3 - Barren Patches Moderate (20-40%)',
+ #  #                                 '4 - Barren Patches Abundant (40-80%)',
+ #  #                                 '5 - Barren Zone (>85%)'), 
+ #  #                      name = "Percent \nurchins",
+ #  #                      guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
+ #  scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
+ #                       labels = c('No Barren',
+ #                                  '<10%',
+ #                                  '10-20%',
+ #                                  '20-40%',
+ #                                  '40-85%',
+ #                                  'Barren >85%'), 
+ #                       name = "Percent \nurchins",
+ #                       guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
+ #  geom_sf(data = ts.tas.coast.crop)+
+ #  theme_bw()+
+ #  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+ #        axis.title.x = element_blank(),
+ #        axis.title.y = element_blank())+
+ #  facet_wrap(~ sampyear, ncol = 3)
+ 
+ ipdw.plot_point <- ggplot() +
   coord_fixed(1.1)+
-  # scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
-  #                      labels = c('0 - No Barren',
-  #                                 '1 - Urchins Present (<10%)',
-  #                                 '2 - Barren Patches rare (10-20%)',
-  #                                 '3 - Barren Patches Moderate (20-40%)',
-  #                                 '4 - Barren Patches Abundant (40-80%)',
-  #                                 '5 - Barren Zone (>85%)'), 
-  #                      name = "Percent \nurchins",
-  #                      guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
-  scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
-                       labels = c('No Barren',
-                                  '<10%',
-                                  '10-20%',
-                                  '20-40%',
-                                  '40-85%',
-                                  'Barren >85%'), 
-                       name = "Percent \nurchins",
-                       guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
   geom_sf(data = ts.tas.coast.crop)+
+  geom_sf(data = urchin_data %>% filter(blockno == ts.blockno.plot), aes(colour = as.factor(percent.urchins)), size = 2)+
+  scale_colour_manual(values = rev(mycolor_point), breaks = seq(0,5,1),
+                      labels = c('0 - No Urchins',
+                                 '1 - Urchins Present (Non Barren)', # <10%
+                                 '2 - Barren Patches - Rare', #10-20%
+                                 '3 - Barren Patches - Moderate', #20-40%
+                                 '4 - Barren Patches - Abundant', #40-85%'
+                                 '5 - Barren Zone'), #>85% 
+                      limits = names(mycolor_point),
+                      name = "Barren Classification")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
         axis.title.x = element_blank(),
-        axis.title.y = element_blank())+
+        axis.title.y = element_blank(),
+        plot.margin = margin(0,0,0,0),
+        axis.ticks.length = unit(0, "pt"))+
   facet_wrap(~ sampyear, ncol = 3)
  
  # save plot
  setwd(ts.plots.folder)
- ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IPDW_BlockNo_Urchins', 
+ # ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IPDW_BlockNo_Urchins', 
+ #                         ts.blockno.plot, '.pdf', sep = ''),
+ #        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
+ # ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IDPW_BlockNo_Urchins', 
+ #                         ts.blockno.plot, '.png', sep = ''),
+ #        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
+ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IPDW_BlockNo_Urchins_Point', 
                          ts.blockno.plot, '.pdf', sep = ''),
-        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
- ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IDPW_BlockNo_Urchins', 
+        plot = ipdw.plot_point, units = 'mm', width = 250)
+ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IDPW_BlockNo_Urchins_Point', 
                          ts.blockno.plot, '.png', sep = ''),
-        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
+        plot = ipdw.plot_point, units = 'mm', width = 250)
  
 }
 
@@ -639,11 +773,20 @@ df_2 <- urchin_data %>%
 
 # Create parameter dataframe of block, year and size class combinations
 blocknos <- c(16, 22, 23, 24, 27, 28)
-sampyears <- seq(2021, 2022, 1)
+sampyears <- seq(2021, 2023, 1)
+
+blocknos_21 <- c(21)
+sampyears_21 <- seq(2023, 2023, 1)
 
 parameters_data <- expand.grid(blockno = blocknos,
                                sampyear = sampyears) %>% 
  as_tibble()
+
+parameters_data_21 <- expand.grid(blockno = blocknos_21,
+                                  sampyear = sampyears_21) %>% 
+ as_tibble()
+
+parameters_data <- bind_rows(parameters_data, parameters_data_21)
 
 # ts.pnts.blockno <- 22
 # ts.pnts.sampyear <- 2020
@@ -676,6 +819,22 @@ ts_ipdw <- function(i){
  
  # crop coastal map to subblock
  # ts.tas.coast.crop <- st_crop(sf.tas.map, ts.tas.subblockmap.crop)
+ 
+ sf_buffer <- if(ts.pnts.blockno == 16) {
+  sf_buffer_16
+ } else if(ts.pnts.blockno == 21) {
+  sf_buffer_21
+ } else if(ts.pnts.blockno == 22) {
+  sf_buffer_22
+ } else if(ts.pnts.blockno == 23) {
+  sf_buffer_23
+ } else if(ts.pnts.blockno == 24) {
+  sf_buffer_24
+ } else if(ts.pnts.blockno == 27) {
+  sf_buffer_27
+ } else {
+  sf_buffer_28
+ }
  
  buffer.coast <- st_crop(sf_buffer, ts.tas.subblockmap.crop)
  
@@ -800,19 +959,38 @@ saveRDS(ts_ipdw_df_all, paste(samp.year.folder, '/ts_ipdw_df_urchins_deep.RDS', 
 # load ipdw dataframe 
 ts_ipdw_df_all <- readRDS(paste(samp.year.folder, '/ts_ipdw_df_urchins_deep.RDS', sep = ''))
 
-# load tas land and coastal polygon maps 
-sf.tas.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg")
-sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
+urchin_data <- time.swim.meta.dat.final %>% 
+ filter(!is.na(starttime) &
+         !is.na(urchin.deep) &
+         urchin.deep != 'VIS') %>% 
+ mutate(sampyear = year(starttime),
+        urchin.deep = as.numeric(urchin.deep)) %>%
+ dplyr::select(c(site, blockno, sampyear, urchin.deep, start_geom)) %>% 
+ st_as_sf() %>% 
+ filter(!st_is_empty(.))
 
-# transform map coordinates to GDA2020
-sf.tas.map <- st_transform(sf.tas.map, st_crs(7855))
-sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855))
+# load tas land and coastal polygon maps 
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+
+# transform coordinates to GDA2020 and colnames to lower
+sf.tas.map <- st_transform(sf.tas.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
+sf.subblock.map <- st_transform(sf.subblock.map, st_crs(7855)) %>% 
+ rename_all(., .funs = tolower)
 
 # create custom gradient colour scheme
-mycolor <- wesanderson::wes_palette("Zissou1", 100, type = "continuous")
+# mycolor <- wesanderson::wes_palette("Zissou1", 100, type = "continuous")
+# mycolor <- colorRamps::green2red
+mycolor <- c('5' = 'red',
+             '4' = 'orange', 
+             '3' = '#ffce00',
+             '2' = 'yellow',
+             '1' = 'greenyellow',
+             '0' = 'green4')
 
 # Create parameter dataframe of block combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 
 plot_parameters_data <- expand.grid(blockno = blocknos) %>% 
  as_tibble()
@@ -830,44 +1008,85 @@ ts_ipdw_plot <- function(i){
  # crop tas land map to subblock
  ts.tas.coast.crop <- st_crop(sf.tas.map, ts.tas.subblockmap.crop)
  
+ # filter urchin data for site location 
+ ts.pnts <- urchin_data %>% 
+  dplyr::rename(geom = start_geom) %>%
+  filter(!st_is_empty(.) &
+          blockno == ts.blockno.plot) %>%
+  mutate(id = row_number())
+ 
+ # transform coordinates to GDA2020
+ ts.pnts <-  ts.pnts %>% 
+  dplyr::select(c(site, id, urchin.deep, geom)) %>%
+  st_transform(st_crs(7855))
+ 
  # create plot
- ipdw.plot <- ggplot() +
-  geom_tile(data = ts_ipdw_df_all %>% 
-             filter(blockno == ts.blockno.plot), aes(x = x, y = y, fill = layer)) +
+ # ipdw.plot_tile <- ggplot() +
+ #  geom_tile(data = ts_ipdw_df_all %>%
+ #             filter(blockno == ts.blockno.plot), aes(x = x, y = y, fill = layer)) +
+ #  coord_fixed(1.1)+
+ #  scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5),
+ #                       labels = c('No Barren',
+ #                                  '<10%', #Urchins Present
+ #                                  '10-20%', #Barren Patches rare
+ #                                  '20-40%', #Barren Patches Moderate
+ #                                  '40-85%', #Barren Patches Abundant
+ #                                  'Barren >85%'),
+ #                       name = "Percent \nurchins",
+ #                       guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE, barheight = unit(6,"cm")))+
+ #  geom_sf(data = ts.tas.coast.crop)+
+ #  # geom_sf(data = urchin_data %>% filter(blockno == ts.blockno.plot), shape = 1, size = 2, alpha = 0.5)+
+ #  theme_bw()+
+ #  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+ #        axis.title.x = element_blank(),
+ #        axis.title.y = element_blank())+
+ #  facet_wrap(~ sampyear, ncol = 3)
+ 
+ ipdw.plot_point <- ggplot() +
   coord_fixed(1.1)+
-  # scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
-  #                      labels = c('0 - No Barren',
-  #                                 '1 - Urchins Present (<10%)',
-  #                                 '2 - Barren Patches rare (10-20%)',
-  #                                 '3 - Barren Patches Moderate (20-40%)',
-  #                                 '4 - Barren Patches Abundant (40-80%)',
-  #                                 '5 - Barren Zone (>85%)'), 
-  #                      name = "Percent \nurchins",
-  #                      guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
-  scale_fill_gradientn(colours = mycolor, breaks = seq(0,5,1), limits = c(0, 5), 
-                       labels = c('No Barren',
-                                  '<10%',
-                                  '10-20%',
-                                  '20-40%',
-                                  '40-85%',
-                                  'Barren >85%'), 
-                       name = "Percent \nurchins",
-                       guide = guide_colorbar(reverse = TRUE, nbin = 10, raster = FALSE,barheight = unit(6,"cm")))+
   geom_sf(data = ts.tas.coast.crop)+
+  geom_sf(data = urchin_data %>% filter(blockno == ts.blockno.plot), aes(colour = as.factor(urchin.deep)), size = 2)+
+  # scale_colour_manual(values = mycolor, breaks = seq(0,5,1), limits = c(0, 5),
+  #                        labels = c('No Barren',
+  #                                   '<10%', #Urchins Present
+  #                                   '10-20%', #Barren Patches rare
+  #                                   '20-40%', #Barren Patches Moderate
+  #                                   '40-85%', #Barren Patches Abundant
+  #                                   'Barren >85%'),
+  #                        name = "Percent \nurchins",
+  #                        guide = guide_colorbar(reverse = TRUE, nbin = 5, raster = FALSE, barheight = unit(6,"cm")))+
+  # scale_colour_manual(values = rev(mycolor))+
+  scale_colour_manual(values = rev(mycolor), breaks = seq(0,5,1),
+                         labels = c('0 - No Urchins',
+                                    '1 - Urchins Present (Non Barren)', # <10%
+                                    '2 - Barren Patches - Rare', #10-20%
+                                    '3 - Barren Patches - Moderate', #20-40%
+                                    '4 - Barren Patches - Abundant', #40-85%'
+                                    '5 - Barren Zone'),
+                                    limits = names(mycolor),
+                      name = "Barren Classification")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
         axis.title.x = element_blank(),
-        axis.title.y = element_blank())+
+        axis.title.y = element_blank(),
+        plot.margin = margin(0,0,0,0),
+        axis.ticks.length = unit(0, "pt"))+
   facet_wrap(~ sampyear, ncol = 3)
  
  # save plot
  setwd(ts.plots.folder)
+ # ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IPDW_BlockNo_Urchins_', 
+ #                         ts.blockno.plot, '_Deep', '.pdf', sep = ''),
+ #        plot = ipdw.plot_tile, units = 'mm', width = 250, height = 250)
+ # ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IDPW_BlockNo_Urchins_', 
+ #                         ts.blockno.plot, '_Deep', '.png', sep = ''),
+ #        plot = ipdw.plot_tile, units = 'mm', width = 250, height = 250)
  ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IPDW_BlockNo_Urchins_', 
-                         ts.blockno.plot, '_Deep', '.pdf', sep = ''),
-        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
+                         ts.blockno.plot, '_Deep_Point', '.pdf', sep = ''),
+        plot = ipdw.plot_point, units = 'mm', width = 250)
  ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_IDPW_BlockNo_Urchins_', 
-                         ts.blockno.plot, '_Deep', '.png', sep = ''),
-        plot = ipdw.plot, units = 'mm', width = 250, height = 250)
+                         ts.blockno.plot, '_Deep_Point', '.png', sep = ''),
+        plot = ipdw.plot_point, units = 'mm', width = 250)
  
 }
 

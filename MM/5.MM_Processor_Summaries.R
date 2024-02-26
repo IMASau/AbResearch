@@ -23,15 +23,24 @@ library(hms)
 # 2. Set sample year and file paths ####
 
 # identify target year of interest
-target_year <- 2023
+target_year <- 2024
 
-target_year_folder <- paste('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/', target_year, "/",
-                            'MM_Plots_2023ProcessorSummaries/', sep = '')
+target_year_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                              Sys.info()[["user"]])),
+                                              paste(target_year, '/', 'MM_Plots_', target_year, 'ProcessorSummaries//', sep = ''))
+
+# identify data folder
+mm_data_folder <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/',
+                                Sys.info()[["user"]]))
+
+# target_year_folder <- paste('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/', target_year, "/",
+#                             'MM_Plots_', target_year, 'ProcessorSummaries/', sep = '')
 ##---------------------------------------------------------------------------##
 # 3. Load data ####
 
 # load latest measuring board data that comes from MM_NextGen_4G.R script
-measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+# measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+measure.board.next.gen.df <- readRDS(paste0(mm_data_folder, 'measure.board.next.gen.df.RDS'))
 
 # add sample year
 measure.board.next.gen.df <- measure.board.next.gen.df %>% 
@@ -46,7 +55,7 @@ measure.board.next.gen.df <- left_join(measure.board.next.gen.df, measure.board.
 
 # quick summary of catches measured by processor
 measure.board.next.gen.df %>% 
-        filter(local_date >= as.Date('2022-12-31')) %>% 
+        filter(local_date >= as.Date('2023-12-31')) %>% 
         group_by(processor) %>% 
         summarise(catches.measured = n_distinct(docketnum),
                   n = n(),
@@ -225,22 +234,39 @@ else{
 ## measuring board data frame for which to create summaries
 
 # identify local working folder containing existing docket summaries
-processor.summaries.2023 <- 'C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries'
-processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries'
-processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
-processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
+processor_summaries_2024 <- target_year_folder
+# processor.summaries.2023 <- 'C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries'
+# processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries'
+# processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
+# processor.summaries.2020 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2020ProcessorSummaries'
+
+processor.summaries.2020 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                              Sys.info()[["user"]])),
+                                paste(2020, '/', 'MM_Plots_', 2020, 'ProcessorSummaries//', sep = ''))
+processor.summaries.2021 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                                    Sys.info()[["user"]])),
+                                      paste(2021, '/', 'MM_Plots_', 2021, 'ProcessorSummaries//', sep = ''))
+processor.summaries.2022 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                                    Sys.info()[["user"]])),
+                                      paste(2022, '/', 'MM_Plots_', 2022, 'ProcessorSummaries//', sep = ''))
+processor.summaries.2023 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                                    Sys.info()[["user"]])),
+                                      paste(2023, '/', 'MM_Plots_', 2023, 'ProcessorSummaries//', sep = ''))
 
 # list filenames of existing docket summaries in each folder
 docket.summaries.2020 <- list.files(processor.summaries.2020,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2021 <- list.files(processor.summaries.2021,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2022 <- list.files(processor.summaries.2022,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2023 <- list.files(processor.summaries.2023,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
+docket_summaries_2024 <- list.files(processor_summaries_2024,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
+
 
 # combine filenames
 docket.summaries <- c(docket.summaries.2020, 
                       docket.summaries.2021, 
                       docket.summaries.2022,
-                      docket.summaries.2023)
+                      docket.summaries.2023,
+                      docket_summaries_2024)
 
 # create a vector of existing docket numbers from filenames 
 existing.dockets <- as.data.frame(docket.summaries) %>%
@@ -262,7 +288,9 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
 
 # Load vector of incomplete measureboard data for existing docket numbers determined in 
 # MM_NextGen4GCompile.RDS (i.e. where data upload to server was incomplete)
-docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+# docket.incomplete <- readRDS('C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+
+docket.incomplete <- readRDS(paste(mm_data_folder, '/docket.incomplete.RDS', sep = ''))
 
 docket.incomplete <- docket.incomplete %>% 
         mutate(docket.index = paste(zone, docketnum, plaindate, processor, sep = '-')) %>%  

@@ -43,8 +43,11 @@ source("C:/GitCode/AbResearch/codeBLnewzone.r")
 # Load data ####
 
 # load most recent compiled MM dataframe
-compiledMM.df.final <-
-  readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# compiledMM.df.final <-
+#   readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+compiledMM.df.final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+                                            Sys.info()[["user"]])))
 
 ##-------------------------------------------------------------------------------------------------------##
 # # Data additions ####

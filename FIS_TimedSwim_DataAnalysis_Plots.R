@@ -50,7 +50,7 @@ samp.year <- 2023
 #                               'Abalone', 'FISdata',
 #                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
-samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
                                             Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
 # identify associated sampling year folder path to save plots
@@ -58,8 +58,11 @@ samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)
 #                              'Abalone', 'Assessment', 'Figures', 'FIS',
 #                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
 
-ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)', 
+ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
+
+
+
 ##---------------------------------------------------------------------------##
 # 3. Load data ####
 
@@ -192,7 +195,7 @@ rm('perc_change', 'sites_year', 'year_tab', 'year_tab_format')
 # Determine mean abalone abundance for block x sampyear x size class
 ten.min.mean.year <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('13', '14', '29', '30') &
+         !blockno %in% c('13', '14', '21', '29', '30') &
          !is.na(sizeclass_freq_10) &
          ref_site == 1) %>%
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
@@ -427,7 +430,7 @@ rm('count.plot.sizeclass', 'legal.plot', 'sub.legal.plot', 'time.swim.dat.n',
 
 count.plot.rep.dat <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('13', '14', '29', '30') &
+         !blockno %in% c('13', '14', '21', '29', '30') &
          ref_site == 1) %>%
  group_by(blockno, site, diver, sampyear, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -442,7 +445,7 @@ ten.min.mean.rep.year.sites <- count.plot.rep.dat %>%
 
 count.plot.rep.mean <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c(13, 14, 29, 30) &
+         !blockno %in% c('13', '14', '21', '29', '30') &
          ref_site == 1) %>%
  group_by(blockno, site, diver, sampyear, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
@@ -513,7 +516,7 @@ rm('count.plot.rep.sizeclass', 'legal.plot.rep', 'sub.legal.plot.rep', 'count.pl
 # determine mean count per 10 min by size class for each blockno
 ten.min.mean <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c(13, 14, 29, 30)) %>% 
+         !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(sampyear, site, blockno, subblockno, diver, legal.size) %>%  
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(sampyear, blockno, legal.size) %>% 
@@ -522,7 +525,7 @@ ten.min.mean <- time.swim.dat.final %>%
 
 ten.min.mean.site <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c(13, 14, 29, 30)) %>% 
+         !blockno %in% c('13', '14', '29', '30')) %>% 
  group_by(site, blockno, subblockno, diver, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(site, blockno, subblockno, legal.size) %>% 
@@ -538,7 +541,7 @@ time.swim.dat.n <- time.swim.dat.final %>%
 
 count.plot.sizeclass <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c(13, 14, 29, 30)) %>%
+         !blockno %in% c('13', '14', '29', '30')) %>%
  group_by(blockno, site, diver, legal.size, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq)) %>% 
  group_by(blockno, site, legal.size, sampyear) %>% 
@@ -713,7 +716,7 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
 lf.plot <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C')&
          sampyear == samp.year &
-         !blockno == '13') %>%
+         !blockno %in% c('13')) %>%
  ggplot(aes(shelllength, group = blockno)) +
  geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
  geom_vline(aes(xintercept = ifelse(blockno %in% c('27', '28'), 145, 138)), 
@@ -725,12 +728,34 @@ lf.plot <- time.swim.dat.df.final %>%
  ylab(paste("Percentage (%)"))+
  geom_text(data = block.ab.site.n, aes(x = 180, y = 0.2, label = n), color = 'black', size = 3)
 
+# Create length frequency plot (absolute)
+lf_plot_abs <- time.swim.dat.df.final %>% 
+ filter(!subblockno %in% c('28B', '28C')&
+         sampyear == samp.year &
+         !blockno %in% c('13')) %>%
+ ggplot(aes(shelllength, group = blockno)) +
+ # geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
+ geom_bar(width = 20, col = 'black', fill = '#EFC000FF')+
+ geom_vline(aes(xintercept = ifelse(blockno %in% c('27', '28'), 145, 138)), 
+            linetype = 'dashed', colour = 'red', size = 0.5) +
+ theme_bw() +
+ facet_grid(blockno ~ .) +
+ # scale_y_continuous(breaks = seq(0, 0.4, 0.1), labels = seq(0, 40, 10))+
+ xlab("Shell Length (mm)")+
+ ylab(paste("Count"))+
+ geom_text(data = block.ab.site.n, aes(x = 180, y = 1000, label = n), color = 'black', size = 3)
+
 # Save plot
 setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot', '.pdf', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_Percent', '.pdf', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, 'SizeFrequencyPlot', '.png', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_Percent', '.png', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
+
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_Count', '.pdf', sep = ''),
+       plot = lf_plot_abs, units = 'mm', width = 190, height = 250)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, 'SizeFrequencyPlot_Count', '.png', sep = ''),
+       plot = lf_plot_abs, units = 'mm', width = 190, height = 250)
 
 rm(lf.plot, block.ab.n, block.ab.site.n, block.site.n)
 ##---------------------------------------------------------------------------##
@@ -785,14 +810,37 @@ lf.plot <- ggplot()+
  guides(size = 'legend', 
         colour = guide_legend(title = 'Year'))
 
+lf_plot_abs <- ggplot()+
+ geom_line(data = lf.df, aes(x = sizeclass.2021, y = n, 
+                             group = factor(sampyear), 
+                             colour = factor(sampyear)),
+           stat = 'identity', position = position_dodge2(0.1),
+           size = 1)+
+ geom_vline(data = lf.df, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)),
+            linetype = 'dashed', colour = 'red', size = 0.5) +
+ theme_bw()+
+ facet_grid(blockno ~ .)+
+ # scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
+ xlab("Shell Length (mm)")+
+ ylab(paste("Count"))+
+ geom_text(data = block.ab.site.n, aes(x = 7, y = 500, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), size = 3, 
+           position = position_stack(vjust = 0.8), show.legend = F)+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866", '#44BB99'))+
+ guides(size = 'legend', 
+        colour = guide_legend(title = 'Year'))
+
 setwd(ts.plots.folder)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28', '.pdf', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28', '.png', sep = ''),
        plot = lf.plot, units = 'mm', width = 190, height = 250)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28_Count', '.pdf', sep = ''),
+       plot = lf_plot_abs, units = 'mm', width = 190, height = 250)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28_Count', '.png', sep = ''),
+       plot = lf_plot_abs, units = 'mm', width = 190, height = 250)
 
 ##---------------------------------------------------------------------------##
-# Boxplot of legal abalone to compare with hisroic market measure pre 2019
+# Boxplot of legal abalone to compare with historic market measure pre 2019
 
 df_1 <- time.swim.dat.df.final %>%
  filter(!subblockno %in% c('28B', '28C'),
@@ -961,9 +1009,10 @@ rm('density_plot', 'pd', 'mean_density', 'site_distance',
 # Average count by site for each block and year represented by a coloured circle
 # run for both size classes
 
-sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
-
+# sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+# sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
 # transform maps to GDA2020
 
@@ -999,7 +1048,7 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
  st_as_sf() 
 
 # Create parameter dataframe of block and size class combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 legal_sizes <- c('<140 mm', '>140 mm')
 
 plot_parameters_data <- expand.grid(blockno = blocknos,
@@ -1067,8 +1116,11 @@ ts_site_plots <- lapply(1:nrow(plot_parameters_data), ts_site_plot)
 # Average count by site for each block and size represented by a coloured circle
 # for assessment year
 
-sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+# sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+# sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+
 
 # transform maps to GDA2020
 
@@ -1104,7 +1156,7 @@ time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>%
  st_as_sf() 
 
 # Create parameter dataframe of block and year combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 samp_years <- c(2020, 2021, 2022, 2023)
 
 plot_parameters_data <- expand.grid(blockno = blocknos,
@@ -1175,8 +1227,10 @@ rm(list = setdiff(ls(), c('time.swim.dat.final', 'time.swim.meta.dat.final', 'ti
 # Average count by site for each block and size represented by a coloured circle
 # for assessment year
 
-sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
-sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+# sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+# sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+sf.tas.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/OldAbLayers/TasLand.gpkg", Sys.info()[["user"]])))
+sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
 # transform maps to GDA2020
 
@@ -1220,6 +1274,23 @@ df_1 <- ten.min.mean.site %>%
         point_col_21_20 = ifelse(n_diff_21_20 < 1, 'red', 'darkgreen')) %>%
  gather(., n_diff, point_col, point_col_23_22, point_col_22_21, point_col_21_20)
 
+df_2 <- df_1 %>% 
+ filter(!is.na(point_col)) %>% 
+ group_by(n_diff, blockno, legal.size) %>% 
+ mutate(improve = ifelse(point_col == 'darkgreen', 1, 0)) %>% 
+ summarise(n = n(),
+           sites_improve = sum(improve),
+           perc_improve = round(((sites_improve / 15) * 100), 0),
+           crit_col = ifelse(perc_improve >= 75, 'darkgreen', 'red'))
+
+
+df_5 <- df_2 %>% 
+ filter(n_diff == 'point_col_23_22') %>% 
+ left_join(., df_3) %>% 
+ mutate(trend_col = ifelse(perc_improve >= 75 &
+                            mean_slope >= 0, 'green',
+                           ifelse(perc_improve < 75 & 
+                                   mean_slope >= 0, 'yellow', 'red')))
 
 
 time.swim.count.site.loc <- left_join(df_1, time.swim.sites) %>% 
@@ -1242,6 +1313,10 @@ plot_parameters_data <- plot_parameters_data %>%
 # Facet labels
 facet_labs <- c('2020 v 2021', '2021 vs 2022', '2022 vs 2023')
 names(facet_labs) <- c('point_col_21_20', 'point_col_22_21', 'point_col_23_22')
+
+ts_blockno_plot <- 16
+ts_samp_year_plot <- 2023
+ts_legal_size_plot <- '>140 mm'
 
 # Create plot function
 ts_site_size_plot <- function(i){
@@ -1281,7 +1356,10 @@ ts_site_size_plot <- function(i){
   ylab('Latitude')+
   labs(title = size_class)+
   facet_wrap(. ~ n_diff, ncol = if_else(ts_blockno_plot %in% c(16, 22, 27, 28), 4, 2),
-             labeller = labeller(n_diff = facet_labs))
+             labeller = labeller(n_diff = facet_labs))+
+  geom_point(data = df_5 %>% filter(blockno == ts_blockno_plot & 
+                                    legal.size == ts_legal_size_plot), 
+            aes(col = trend_col, x = Inf, y = Inf), vjust = 1.5, hjust = 1.5)
  
  # save plot
  setwd(ts.plots.folder)
@@ -1296,6 +1374,58 @@ ts_site_size_plot <- function(i){
 
 # Run function across all block, year and size class combinations
 ts_site_size_plots <- lapply(1:nrow(plot_parameters_data), ts_site_size_plot)
+
+##---------------------------------------------------------------------------##
+# Determine trajectory (slope) of reference site abundance between years
+
+ten.min.mean.site <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') &
+         ref_site == 1) %>% 
+ group_by(sampyear, site, blockno, subblockno, diver, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq)) %>% 
+ group_by(sampyear, site, blockno, subblockno, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>% 
+ mutate(legal.size = factor(legal.size)) %>% 
+ spread(sampyear, mean.ab.n) %>% 
+ as.data.frame()
+
+df_1 <- ten.min.mean.site %>% 
+ mutate(n_diff_23_22 = (`2023` - `2022`) / `2023` * 100,
+        point_col_23_22 = ifelse(n_diff_23_22 < 1, 'red', 'darkgreen'),
+        n_diff_22_21 = (`2022` - `2021`) / `2022` * 100,
+        point_col_22_21 = ifelse(n_diff_22_21 < 1, 'red', 'darkgreen'), 
+        n_diff_21_20 = (`2021` - `2020`) / `2021` * 100,
+        point_col_21_20 = ifelse(n_diff_21_20 < 1, 'red', 'darkgreen')) %>%
+ gather(., n_diff, point_col, point_col_23_22, point_col_22_21, point_col_21_20)
+
+# create a "slope" column
+df_1$slope <- NA
+# extract the slopes of the regressions with each row beginning from the 2nd as the y values and the first row as the x values
+df_1[2:nrow(df_1), "slope"] <- apply(df_1[2:nrow(df_1), c("2020", "2021", "2022", "2022")], 1, function(row_i){
+ lm(unlist(row_i) ~ unlist(df_1[1, c("2020", "2021", "2022", "2022")]))$coefficients[2]
+})
+
+df_3 <- df_1 %>% 
+ group_by(n_diff, blockno, legal.size) %>% 
+ summarise(mean_slope = mean(slope))
+
+df_2 <- df_1 %>% 
+ filter(!is.na(point_col)) %>% 
+ group_by(n_diff, blockno, legal.size) %>% 
+ mutate(improve = ifelse(point_col == 'darkgreen', 1, 0)) %>% 
+ summarise(n = n(),
+           sites_improve = sum(improve),
+           perc_improve = round(((sites_improve / 15) * 100), 0),
+           crit_col = ifelse(perc_improve >= 75, 'darkgreen', 'red'))
+
+# determine if trend meets criteria of increasing abundance in sample year
+df_2 %>% 
+ filter(n_diff == 'point_col_23_22') %>% 
+ left_join(., df_3) %>% 
+ mutate(trend_col = ifelse(perc_improve >= 75 &
+                            mean_slope >= 0, 'green',
+                           ifelse(perc_improve < 75 & 
+                                   mean_slope >= 0, 'yellow', 'red')))
 
 ##---------------------------------------------------------------------------##
 # PLOT 11: Diver Deviation ####

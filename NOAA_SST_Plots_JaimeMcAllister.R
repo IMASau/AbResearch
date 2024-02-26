@@ -18,7 +18,16 @@ library(changepoint)
 source("C:/GitCode/AbResearch/getSeason.r")
 
 # Import latest noaa data 
-noaa_aus <- readRDS('C:/cloudstor/R_Stuff/WEI/Results/noaa_Aus_2023_03_07.RDS')
+noaa_data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Climatologydata/WEI/Results//',
+                                              Sys.info()[["user"]])))
+
+# noaa_aus <- readRDS('C:/cloudstor/R_Stuff/WEI/Results/noaa_Aus_2023_03_07.RDS')
+
+noaa_aus_pre2024 <- readRDS(paste(noaa_data_folder, 'noaa_archive_Aus_1981_2023.RDS', sep = ''))
+
+noaa_aus_post2024 <- readRDS(paste(noaa_data_folder, 'noaa_Aus_2024_01_19.RDS', sep = ''))
+
+noaa_aus <- bind_rows(noaa_aus_pre2024, noaa_aus_post2024)
 
 # Import physiology seasonal sampling data
 physio_dat <- read.xlsx("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/Abalone_Proteomics_Data_SeasonalSampling_July2021.xlsx",
@@ -33,11 +42,11 @@ df.1 <- noaa_aus %>%
         month_year = paste(samp_year, samp_month, sep = '_')) %>% 
  filter(sau_name %in% c('AB22', 'AB30'),
         between(samp_year, 1982, 2022),
- samp_month %in% c(8)) %>%
+ samp_month %in% c(8)) %>% 
  group_by(sau_name, samp_year) %>% 
- summarise(mean_sst = mean(C),
-           q10_sst = quantile(C, probs = c(0.1)),
-           q90_sst = quantile(C, probs = c(0.9)))
+ summarise(mean_sst = mean(sst),
+           q10_sst = quantile(sst, probs = c(0.1)),
+           q90_sst = quantile(sst, probs = c(0.9)))
 
 sst_plot <- df.1 %>% ggplot(aes(x = samp_year, y = mean_sst, group = sau_name, colour = sau_name))+
  geom_line()+
@@ -57,6 +66,13 @@ ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/EastcoastMeanAnnual_SS
        plot = sst_plot, units = 'mm', width = 190, height = 200)
 ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/EastcoastMeanAnnual_SST_NEvsSE_1982-2022', '.png', sep = ''), 
        plot = sst_plot, units = 'mm', width = 190, height = 200)
+
+write.xlsx(df.1,
+           file = paste(noaa_data_folder, 'McAllister_FAO_Report_Figure_2_data', '.xlsx'),
+           sheetName = "Sheet1",
+           col.names = TRUE,
+           row.names = TRUE,
+           append = FALSE)
 
 ##---------------------------------------------------------------------------##
 # Physiology marine heat wave event data

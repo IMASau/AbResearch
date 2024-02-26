@@ -36,6 +36,11 @@ sftp.local <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/Ra
 # raw_mb <- "R:/TAFI/TAFI_MRL_Sections/Abalone/AbTrack/RawData/NextGen/Data/RawMBFiles"
 
 ##---------------------------------------------------------------------------##
+# set file path to save data
+mm_data_folder <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/',
+                                Sys.info()[["user"]]))
+
+##---------------------------------------------------------------------------##
 ## Extract .txt files ####
 
 ## Extract data from sftp download folder and compile into dataframe
@@ -347,8 +352,10 @@ measure.board.df <- left_join(measure.board.df, multi.samp.day.df) %>%
 
 # load inventory of processors which held measuring boards 
 
-mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
-                       detectDates = T)
+# mb.invent <- read.xlsx("C:/CloudStor/R_Stuff/MMLF/IMAS_measuringboard_log_inventory.xlsx",
+#                        detectDates = T)
+
+mb.invent <- read.xlsx(paste0(mm_data_folder, 'IMAS_measuringboard_log_inventory.xlsx'), detectDates = T)
 
 # where measuring board is still with processor and the enddate is missing replace with todays date
 
@@ -396,7 +403,8 @@ measure.board.next.gen.df <- measure.board.next.gen.df %>%
 ## processor summary script
 
 # load previous measuring board data that comes from MM_NextGen_4G.R script
-measure.board.next.gen.df.old <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+# measure.board.next.gen.df.old <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+measure.board.next.gen.df.old <- readRDS(paste0(mm_data_folder, 'measure.board.next.gen.df.RDS'))
 
 docket.incomplete <- measure.board.next.gen.df.old %>% 
         group_by(zone, docketnum, plaindate, processor) %>%  
@@ -417,12 +425,14 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
                                          527780, 528529, 818687))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
-saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+# saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')
+saveRDS(docket.incomplete, paste(mm_data_folder, '/docket.incomplete.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
 ## Step 11: save RDS of dataframe ####
 
-saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+# saveRDS(measure.board.next.gen.df, 'C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+saveRDS(measure.board.next.gen.df, paste(mm_data_folder, '/measure.board.next.gen.df.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
 measure.board.next.gen.df %>% 
@@ -440,7 +450,8 @@ measure.board.next.gen.df %>%
 ##----------------------------------------------------------------------------##
 # Load latest docketinfo data
 
-docketinfo <- readRDS("c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
+# docketinfo <- readRDS("c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
+docketinfo <- readRDS(paste0(mm_data_folder, 'docketinfo3.rds'))
 
 ##----------------------------------------------------------------------------##
 # Match processor measuring board data to historical, allocate to docket data and
@@ -449,7 +460,8 @@ docketinfo <- readRDS("c:/CloudStor/R_Stuff/MMLF/docketinfo3.rds")
 
 # Import latest version of compiled next generation measuring board data
 
-measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+# measure.board.next.gen.df <- readRDS('C:/CloudStor/R_Stuff/MMLF/measure.board.next.gen.df.RDS')
+measure.board.next.gen.df <- readRDS(paste0(mm_data_folder, 'measure.board.next.gen.df.RDS'))
 
 # Match data to historical compiled dataframes, remove unecessary variables and 
 # rename variables to match compiledMM.df
@@ -533,6 +545,8 @@ compiled.docket.next.gen <- measure.board.next.gen.df.unique %>%
 
 # Save RDS file
 
-saveRDS(compiled.docket.next.gen, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+saveRDS(compiled.docket.next.gen, paste0(mm_data_folder, 'compiled.docket.next.gen.RDS'))
+
+# saveRDS(compiled.docket.next.gen, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
 # compiled.docket.next.gen <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
 ##----------------------------------------------------------------------------##

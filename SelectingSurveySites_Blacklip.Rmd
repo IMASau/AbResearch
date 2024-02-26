@@ -55,7 +55,9 @@ Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer c
 
 ```{r prepare base layers}
 ## Read in abalone wide hex layer
-ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]]))
+# ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]]))
+
+ab.hex <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]])))
 
 ## convert to sf
 sf.ab.hex <- st_as_sf(ab.hex)
@@ -70,8 +72,15 @@ THe input variable is the total catch in Kg for each cell from 2012 - 2019. We u
 ```{r add quartile var}
 # Filter hex layer to required block and add quartile
 ts.hex <- filter(sf.ab.hex, zone == 'E' &
-                  blockno %in% c(16, 21, 22, 23, 24, 27, 28)|
+                  blockno %in% c(16, 21, 22, 23, 24, 27, 28, 29)|
                   subblockno == '28A') %>%
+  mutate(subblockno = gsub(" ", "", subblockno)) %>%
+  within({
+    cell.ntile <- ntile(blkgtotal, 5)
+  })
+
+ts.hex <- filter(sf.ab.hex, zone == 'N' &
+                  blockno %in% c(5, 6)) %>%
   mutate(subblockno = gsub(" ", "", subblockno)) %>%
   within({
     cell.ntile <- ntile(blkgtotal, 5)
@@ -84,7 +93,9 @@ ts.hex <- filter(sf.ab.hex, zone == 'E' &
 #     cell.ntile <- ntile(blkgtotal, 5)
 #   })
 
-outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])
+# outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])
+
+outname.ts.hex <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])))
 
 # outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/Blacklip_Hexcell_quantiles.gpkg", Sys.info()[["user"]])
 
@@ -144,7 +155,7 @@ Timed swim surveys in subsequent years after the collection of baseline data in 
 ## Post 2020 site selection ####
 
 # Specify assessment year
-assess_year <- 2023
+assess_year <- 2024
 
 # Import final timed swim dataframe from previous assessment year
 time.swim.dat.final <-
@@ -175,7 +186,7 @@ ts_sites_sampled <- time.swim.dat.final %>%
 
 # Create vector of blocks
 # blocknos <- c(16, 22, 23, 24, 27, 28)
-blocknos <- c(21)
+blocknos <- c(5, 6)
 
 # Create empty lists to populate with random hex cells for each block 
 ts_site_list <- list()
@@ -189,6 +200,33 @@ cellqt <- ts.hex %>%
   filter(!oid %in% ts_sites_sampled &
            cell.ntile > 2 &
            !subblockno %in% c('28B', '28C') &
+           blockno == i) %>%  
+  group_by(blockno, cell.ntile) %>%
+  # as_Spatial() %>% 
+  subsample.distance(size = 60, d = 300) %>% #change size = 45
+  st_as_sf() %>% 
+  ungroup()
+
+ts_site_list[[i]] <- cellqt
+}
+
+for (i in blocknos){
+cellqt <- ts.hex %>% 
+  filter(cell.ntile > 2 &
+           subblockno %in% c('29A', '29B') &
+           blockno == i) %>%  
+  group_by(blockno, cell.ntile) %>%
+  # as_Spatial() %>% 
+  subsample.distance(size = 60, d = 300) %>% #change size = 45
+  st_as_sf() %>% 
+  ungroup()
+
+ts_site_list[[i]] <- cellqt
+}
+
+for (i in blocknos){
+cellqt <- ts.hex %>% 
+  filter(cell.ntile > 2 &
            blockno == i) %>%  
   group_by(blockno, cell.ntile) %>%
   # as_Spatial() %>% 
@@ -232,7 +270,7 @@ ts_sites_df <- ts_sites_df %>%
 
 # Quick plot to examine sites for chosen block
 ts_sites_df %>% 
-  filter(blockno == 21) %>%
+  filter(blockno == 5) %>%
 ggplot(aes(x = longitude, y = latitude))+
   geom_point()+
   # geom_path(arrow = arrow(type = "closed", length = unit(0.05, "npc")), aes(longitude, latitude, color = angle))+
@@ -282,21 +320,31 @@ ts_sites_final_gpx <- ts_sites_final_df %>%
 ```{r export data}
 
 # Export geospatial package for GIS and KML for Google Earth
-outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
+# outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
 
-# outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Block21_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
+outname_point <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.gpkg", Sys.info()[["user"]])))
+
+# outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
+
+# outname_point <- sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block29_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
 
 st_write(ts_sites_final_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
 
 # Export KML for Google Earth
-outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".kml", sep = "")
+# outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".kml", sep = "")
+
+outname_point_kml <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.kml", Sys.info()[["user"]])))
+
 st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F) 
 
 # outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_Block21_Final', assess_year, ".kml", sep = "")
 # st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F)
+
+# outname_point_kml <- sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys", assess_year, "/TimedSwimSites_Block29_Final", assess_year, ".kml", sep = ""), Sys.info()[["user"]])
+# st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F)
  
 # Export Excel files 
- write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]), 
+write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]), 
             sheetName = "Sheet1", 
             colNames = TRUE, rowNames = TRUE, append = FALSE)
  
@@ -304,12 +352,16 @@ st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver =
   #           sheetName = "Sheet1", 
   #           colNames = TRUE, rowNames = TRUE, append = FALSE)
  
-write.xlsx(ts_sites_final_df, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".xlsx", sep = ""), 
-            sheetName = "Sheet1", 
-            colNames = TRUE, rowNames = TRUE, append = FALSE)
+# write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block29_Final", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]),
+#             sheetName = "Sheet1",
+#             colNames = TRUE, rowNames = TRUE, append = FALSE)
+ 
+# write.xlsx(ts_sites_final_df, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".xlsx", sep = ""), 
+#             sheetName = "Sheet1", 
+#             colNames = TRUE, rowNames = TRUE, append = FALSE)
 
 # Export Excel file for GPX conversion
-write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, '_GPX', ".xlsx", sep = ""), 
+write.xlsx(ts_sites_final_gpx, paste0('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_', assess_year, '_GPX', ".xlsx", sep = ""), 
             sheetName = "Sheet1", 
             colNames = TRUE, rowNames = FALSE, append = FALSE)
 
@@ -317,6 +369,10 @@ write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdat
 #             sheetName = "Sheet1", 
 #             colNames = TRUE, rowNames = FALSE, append = FALSE)
 
+# write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_Block21_Final', assess_year, '_GPX', ".xlsx", sep = ""), 
+#             sheetName = "Sheet1", 
+#             colNames = TRUE, rowNames = FALSE, append = FALSE)
 
+# write.xlsx(ts_sites_final_gpx, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys", assess_year, "/TimedSwimSites_Block29_Final", assess_year, '_GPX', ".xlsx", sep = ""), Sys.info()[["user"]]))
   
 ```

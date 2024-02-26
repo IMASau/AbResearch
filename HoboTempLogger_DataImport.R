@@ -76,3 +76,37 @@ ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Docum
 
 ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/HeatStressExperiment_LoggerTemperature', '.png', sep = ''), 
        plot = logger_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# Formulated feed experiment temperature data
+
+# read raw data
+logger_dat <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/AbStressTest_Capture-Harvest_Temperature_2021-12-10_clean.csv",
+                     header = T)
+
+logger_dat <- logger_dat %>%
+ dplyr::rename(temperature = 6) %>%   
+ mutate(date_time = as.POSIXct(date_time, format="%d-%m-%y %H:%M:%S", tz = 'Australia/Tasmania')) %>% 
+ select(date_time, temperature)
+
+logger_dat %>% 
+ filter(date_time > ymd_hms("2021-10-28 11:18:00") & date_time < ymd_hms("2021-12-08 12:00:00")) %>%    
+ ggplot(aes(x = date_time, y = temperature))+
+ geom_line()
+
+logger_dat %>% 
+ filter(date_time > ymd_hms("2021-10-28 11:18:00") & date_time < ymd_hms("2021-12-08 12:00:00")) %>%
+ summarise(across(where(is.numeric), .fns = 
+                   list(Median = median,
+                        Mean = mean,
+                        n = sum,
+                        SD = sd,
+                        SE = ~sd(.)/sqrt(n()),
+                        Min = min,
+                        Max = max,
+                        q25 = ~quantile(., 0.25), 
+                        q75 = ~quantile(., 0.75)
+                   ))) %>% 
+ pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value"))
+
+
