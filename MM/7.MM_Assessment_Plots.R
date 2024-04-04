@@ -325,10 +325,12 @@ fishyear.summary.df.formated <- fishyear.summary.df %>%
   ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 # save Excel and Latex tables
-setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+# setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                     Sys.info()[["user"]])), stock.assessment.year))
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_2022.pdf', sep = ''),
+  filename = paste('MM_Sampling_Summary_', stock.assessment.year, '.pdf', sep = ''),
   plot = fishyear.summary.df.formated,
   width = 200,
   height = 297,
@@ -336,16 +338,16 @@ ggsave(
 )
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_2022.png', sep = ''),
+  filename = paste('MM_Sampling_Summary_', stock.assessment.year, '.png', sep = ''),
   plot = fishyear.summary.df.formated,
   width = 200,
   height = 297,
   units = 'mm'
 )
 
-write.xlsx(fishyear.summary.df, 'MM_Sampling_Summary_2022.xlsx', sheetName = "Sheet1", 
+write.xlsx(fishyear.summary.df, paste0('MM_Sampling_Summary_', stock.assessment.year, '.xlsx'), sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(fishyear.summary.df, type = 'latex'), file = 'MM_Sampling_Summary_2022.tex', include.rownames = FALSE,
+print(xtable(fishyear.summary.df, type = 'latex'), file = paste0('MM_Sampling_Summary_', stock.assessment.year, '.tex'), include.rownames = FALSE,
       include.colnames = FALSE,
       only.contents = TRUE,
       hline.after = NULL)
@@ -408,10 +410,12 @@ fishyear.summary.LML.df.formated <- fishyear.summary.LML.df %>%
   ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
 
 # save Excel and Latex tables
-setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+# setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                           Sys.info()[["user"]])), stock.assessment.year))
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_LML_2022.pdf', sep = ''),
+  filename = paste('MM_Sampling_Summary_LML_', stock.assessment.year, '.pdf', sep = ''),
   plot = fishyear.summary.LML.df.formated,
   width = 200,
   height = 297,
@@ -419,16 +423,19 @@ ggsave(
 )
 
 ggsave(
-  filename = paste('MM_Sampling_Summary_LML_2022.png', sep = ''),
+  filename = paste('MM_Sampling_Summary_LML_', stock.assessment.year, '.png', sep = ''),
   plot = fishyear.summary.LML.df.formated,
   width = 200,
   height = 297,
   units = 'mm'
 )
 
-write.xlsx(fishyear.summary.LML.df, 'MM_Sampling_Summary_LML_2022.xlsx', sheetName = "Sheet1", 
+write.xlsx(fishyear.summary.LML.df, paste0('MM_Sampling_Summary_LML_', stock.assessment.year, '.xlsx'), sheetName = "Sheet1", 
            col.names = TRUE, row.names = TRUE, append = FALSE)
-print(xtable(fishyear.summary.LML.df, type = 'latex'), file = 'MM_Sampling_Summary_LML_2022.tex')
+print(xtable(fishyear.summary.LML.df, type = 'latex', 
+             digits = c(0,0,0,0,1,1,0,0,0,0,0,0)), 
+             only.contents = T, comment = F, hline.after = F, include.colnames = F, booktabs = F, include.rownames = F,
+      file = paste0('MM_Sampling_Summary_LML_', stock.assessment.year, '.tex'))
 
 ##---------------------------------------------------------------------------##
 # summary for proposed size limit changes post 2022
@@ -567,7 +574,7 @@ mm.east <- compiledMM.df.final %>%
 #           ">130mm\n(%)", ">132mm\n(%)"))
 
 
-setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries")
+# setwd("C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries")
 
 write.xlsx(mm.west,
            file = paste('WEST__Measureboard_ProposedSizeLimit_', Sys.Date(), '.xlsx'),
@@ -1084,23 +1091,26 @@ for (i in df.2019.unique.zones) {
       
       # print(mm.zone.boxplot)
       
-      setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+      # setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+      setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                                 Sys.info()[["user"]])), stock.assessment.year))
+      
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.pdf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_', stock.assessment.year, '.pdf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.wmf', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_', stock.assessment.year, '.wmf', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
         units = 'in'
       )
       ggsave(
-        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_2022', '.png', sep = ''),
+        filename = paste(i, '_BlockNo', j, '_MM_Boxplot_', stock.assessment.year, '.png', sep = ''),
         plot = mm.zone.boxplot,
         width = 7.4,
         height = 5.57,
@@ -1492,7 +1502,10 @@ for(i in processors.2019) {
 #                             , layer = 'Tas_Ab_Polyg_SubBlocks', verbose = F)
 
 # read in Subblock map as an sf::sfc polygon object
-sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+# sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
+sf.subblock.map <- st_read(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg',
+                      Sys.info()[["user"]])))
+
 
 # set CRS
 GDA2020 <- st_crs(7855)
@@ -1582,7 +1595,9 @@ catch.plot <- ab.subblockno.sf %>%
 
 print(catch.plot)
 
-setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+# setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                           Sys.info()[["user"]])), stock.assessment.year))
 
 ggsave(filename = paste('MM_SamplingMap', '_', stock.assessment.year, '_BlockSampled.pdf', sep = ''),
        plot = catch.plot, units = 'mm', width = 190, height = 300)
@@ -2117,6 +2132,8 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
 #                                                  dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large'))),
 #            whole.weight = replace(whole.weight, whole.weight == 0, NA))
   
+  compiledMM.df.final.grade <- compiledMM.df.final 
+  
 # vector of unique subblockno for summary and plot loops
   subblockno.fishyear <- compiledMM.df.final.grade %>% 
     filter(fishyear == stock.assessment.year &
@@ -2322,14 +2339,14 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   for (i in df.2019.unique.zones) {
     for (j in df.2019.unique.blocks) {
     # create length plot
-    plot.length.freq.dat <- compiledMM.df.final.grade %>%
+    plot.length.freq.dat <- compiledMM.df.final %>%
       filter(
         newzone == i
         & blocklist == j
         & fishyear == stock.assessment.year
         & between(shell.length, sizelimit - 5, 220))
     
-    plot.n.measured <- compiledMM.df.final.grade %>% 
+    plot.n.measured <- compiledMM.df.final %>% 
       filter(!is.na(shell.length) &
                newzone == i
              & blocklist == j
@@ -2338,7 +2355,7 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
       # distinct(abalonenum, rawutc, .keep_all = T) %>%  
       summarise(n = paste('n =', n()))
     
-    plot.weight.freq.dat <- compiledMM.df.final.grade %>%
+    plot.weight.freq.dat <- compiledMM.df.final %>%
       filter(
         newzone == i &
           blocklist == j &
@@ -2347,7 +2364,7 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
           whole.weight <= 2000 &
           between(shell.length, sizelimit - 5, 220))
     
-    plot.n.weighed <- compiledMM.df.final.grade %>% 
+    plot.n.weighed <- compiledMM.df.final %>% 
       filter(newzone == i
              & blocklist == j
              & fishyear == stock.assessment.year
@@ -2560,7 +2577,10 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
                                      ncol = 1), ncol = 1))
     
     #save plots
-    setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2023')
+    # setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2023')
+    setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                               Sys.info()[["user"]])), stock.assessment.year))
+    
     file.zone <- unique(plot.length.freq.dat$zone)
     file.block <- unique(plot.length.freq.dat$blocklist)
     
@@ -3006,7 +3026,8 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
         ymin = 0.3
       )
     
-    setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+    setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                               Sys.info()[["user"]])), stock.assessment.year))
 
     ggsave(
       filename = paste(i, '_', 'BlockNo', j, '_LENGTHSUMMARYPLOT_', stock.assessment.year, '.pdf', sep = ''),
@@ -3344,8 +3365,8 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   # Percent +5LMM ####  
   
   # identify block and zone for summary year
-  block <- 13
-  zone <- 'W'
+  block <- 6
+  zone <- 'N'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3362,34 +3383,35 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
                     blockno == block &
                     newzone == zone &
                     numblocks == 1 &
-                    between(shell.length, df.1 - 5, 220)) %>% 
+                    between(shell.length, df.1 - 5, 220) &
+                  !is.na(sizelimit)) %>% 
     mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
-    group_by(fishyear, sizelimit) %>% 
-    summarise(n = n()) %>%
+   group_by(fishyear, sizelimit) %>% 
+    summarise(n = n()) %>% 
     ungroup() %>% 
     mutate(lml.increase = cumsum(c(1, diff(sizelimit)) > 0),
-           lml.decrease = cumsum(c(1, diff(sizelimit)) < 0)) %>% 
-    group_by(lml.increase, lml.decrease) %>%
+           lml.decrease = cumsum(c(1, diff(sizelimit)) < 0)) %>%  
+    group_by(lml.increase, lml.decrease) %>% 
     slice(which.max(lml.increase)) %>% 
-    filter(fishyear < 2021)
+    filter(fishyear < stock.assessment.year + 1)
   
   # add sizelimit where it hasn't changed since inception of block 
   df.3 <- df.3 %>% 
     mutate(sizelimit = if_else(is.na(sizelimit), df.1, sizelimit))
   
   # identify size limit change
-  # df.3 <- df.3 %>% 
-  #   ungroup() %>% 
+  # df.3 <- df.3 %>%
+  #   ungroup() %>%
   #   top_n(n = 1, wt = fishyear)
   
-  # select data for summary year, block, zone and generate percentage of observations within x of lml
+  # select data for summary years, block, zone and generate percentage of observations within x of lml
   df.2 <- compiledMM.df.final %>% 
     dplyr::filter(fishyear <= stock.assessment.year &
                     blockno == block &
                     newzone == zone &
                     numblocks == 1 & 
                     between(shell.length, df.1 - 5, 220) & 
-                    sizelimit == as.numeric(df.1)) %>%
+                    sizelimit <= as.numeric(df.1)) %>% 
     mutate(shell.length = ifelse(shell.length < df.1, df.1, shell.length)) %>% #correct measurement errors <5mm below LML
     group_by(fishyear) %>% 
     summarise(catches = n_distinct(sample.id),
@@ -3420,9 +3442,9 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   df.7 <- expand.grid(fishyear = seq(min(df.6$fishyear), max(df.6$fishyear))) %>% 
     left_join(df.6)
   
-  # df.7 <- df.3 %>% 
-  #   ungroup() %>% 
-  #   filter(fishyear == max(fishyear)) %>% 
+  # df.7 <- df.3 %>%
+  #   ungroup() %>%
+  #   filter(fishyear == max(fishyear)) %>%
   #   mutate(y = 60)
     
   
@@ -3447,12 +3469,14 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
     # scale_x_continuous(expand = c(0.01, 0.01),
     #                    breaks = seq(2010, 2021, 2))
     scale_x_continuous(expand = c(0.01, 0.01),
-                       breaks = seq(df.5$fishyear, 2022, 2))
+                       breaks = seq(df.5$fishyear, 2023, 2))
   
   print(LML5.plot)
   
   # save plot
-  setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+  # setwd('C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+  setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                             Sys.info()[["user"]])), stock.assessment.year))
   
   ggsave(
     filename = paste(zone, '_BlockNo', block, '_PERCENT_LML5_', stock.assessment.year, '.pdf', sep = ''),
@@ -3607,8 +3631,8 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   # see Punt et al. 2001
   
   # identify block and zone for summary year
-  block <- 13
-  zone <- 'W'
+  block <- 38
+  zone <- 'BS'
   
   # determine maximum and last size limit changes
   df.1 <- compiledMM.df.final %>% 
@@ -3645,7 +3669,9 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   
   print(upperlengthplot)
   
-  setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+  # setwd('C:/CloudStor/DiveFisheries/Abalone/Assessment/Figures/MM/2022')
+  setwd(paste0(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM/',
+                             Sys.info()[["user"]])), stock.assessment.year))
   
   ggsave(
     filename = paste(zone, '_BlockNo', block, '_UPPER_LENGTH_', stock.assessment.year, '.pdf', sep = ''),

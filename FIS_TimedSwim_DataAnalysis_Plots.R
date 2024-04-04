@@ -144,8 +144,8 @@ ten.min.mean.year <- time.swim.dat.final %>%
 
 # Determine percentage change in abundance between current and previous year
 perc_change <- ten.min.mean.year %>% 
- select(-mean.ab.n) %>% 
- spread(sampyear, median.ab.n) %>%  
+ select(-median.ab.n) %>% 
+ spread(sampyear, mean.ab.n) %>%  
  dplyr::rename(FY2020 = '2020',
                FY2021 = '2021',
                FY2022 = '2022',
@@ -337,8 +337,9 @@ col_light <- c('#77AADD', '#99DDFF', '#44BB99', '#BBCC33',
 # Determine mean abalone abundance in each block, year and size class
 ten.min.mean.year <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('13', '14', '29', '30') &
-         !is.na(sizeclass_freq_10)) %>%
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp.year) %>%
  group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, sampyear, legal.size) %>% 
@@ -349,7 +350,8 @@ ten.min.mean.year <- time.swim.dat.final %>%
 # Determine number of sites surveyed in each block, year and size class
 time.swim.dat.n <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('13', '14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
  group_by(sampyear, blockno, legal.size) %>% 
  summarise(n = n_distinct(site))
 
@@ -357,12 +359,13 @@ time.swim.dat.n <- time.swim.dat.final %>%
 sub.legal.plot <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         legal.size == '<140 mm' &
-         !blockno %in% c('13', '14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, site, sampyear) %>% 
- summarise(mean.ab.n = mean(ab.n)) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>%  
  mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))) %>%  
  ggplot(aes(x = blockno, y = mean.ab.n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
@@ -387,7 +390,8 @@ sub.legal.plot <- time.swim.dat.final %>%
 legal.plot <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         legal.size == '>140 mm' &
-         !blockno %in% c('13', '14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
  # filter(midsize < 150) %>% 
  group_by(blockno, site, diver, sampyear) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
@@ -698,14 +702,14 @@ rm(top.ten.plot)
 block.ab.n <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C') &
          sampyear == samp.year &
-         !blockno %in% c('13', '14', '29', '30')) %>% 
+         !blockno %in% c('13', '14', '21', '29', '30')) %>% 
  group_by(blockno) %>% 
  summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C') &
          sampyear == samp.year &
-         !blockno %in% c('13', '14', '29', '30')) %>%
+         !blockno %in% c('13', '14', '21', '29', '30')) %>%
  group_by(blockno) %>% 
  summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
 
@@ -768,14 +772,16 @@ rm(lf.plot, block.ab.n, block.ab.site.n, block.site.n)
 block.ab.n <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(13, 14, 29, 30)) %>% 
+        !blockno %in% c(13, 14, 21, 29, 30),
+        sampyear <= samp.year) %>% 
  group_by(sampyear, blockno) %>% 
  summarise(ab.n = paste('n = ', n()))
 
 block.site.n <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(13, 14, 29, 30)) %>%
+        !blockno %in% c(13, 14, 21, 29, 30),
+        sampyear <= samp.year) %>%
  group_by(sampyear, blockno) %>% 
  summarise(site.n = paste('(', n_distinct(site), ')', sep = ''))
 
@@ -786,7 +792,8 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
 lf.df <- time.swim.dat.final %>%
  filter(!subblockno %in% c('28B', '28C'),
         # sampdate > as.Date('2021-01-01'),
-        !blockno %in% c(13, 14, 29, 30)) %>%
+        !blockno %in% c(13, 14, 21, 29, 30),
+        sampyear <= samp.year) %>%
  group_by(sampyear, blockno, sizeclass.2021) %>% 
  summarise(n = sum(sizeclass_freq)) %>% 
  mutate(freq = n / sum(n))

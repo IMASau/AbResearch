@@ -269,8 +269,15 @@ morana_gps_2023 <- bind_rows(morana_gps_2023_a,
  distinct(., name, gps_date, .keep_all = T)
 
 # vessel data for 2024 surveys
-morana_gps_2024 <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-02-07_download.gpx'), layer = 'waypoints')
+morana_gps_2024_a <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-02-07_download.gpx'), layer = 'waypoints')
+morana_gps_2024_b <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-03-07_download.gpx'), layer = 'waypoints')
+morana_gps_2024_c <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-03-21_download.gpx'), layer = 'waypoints')
 
+morana_gps_2024 <- bind_rows(morana_gps_2024_a, 
+                             morana_gps_2024_b, 
+                             morana_gps_2024_c) %>% 
+ mutate(gps_date = as.Date(time)) %>% 
+ distinct(., name, gps_date, .keep_all = T)
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
 # therefore DO NOT use this column to determine year. Waypoint numbers should 
@@ -1124,7 +1131,7 @@ ts_meta_dat_final_ref <- left_join(time.swim.meta.dat.final, ref_sites, by = c('
 
 # Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
 time.swim.dat.final <- ts_dat_final_ref %>% 
- mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
+ mutate(sizeclass_freq_10 = round((sizeclass_freq / (time.elapsed/60) * 10)))
 
 ##---------------------------------------------------------------------------##
 # 11. Save final dataframes ####

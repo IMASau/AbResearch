@@ -29,12 +29,19 @@ suppressPackageStartupMessages({
 source("C:/GitCode/AbResearch/codeBLnewzone.r")
 
 ##----------------------------------------------------------------------------##
+# identify data folder
+mm_data_folder <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/',
+                                Sys.info()[["user"]]))
+
 # Load most recent compile of historic data
-compiled.docket.pre.2020 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.pre.2020.RDS')
+# compiled.docket.pre.2020 <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.pre.2020.RDS')
+compiled.docket.pre.2020 <- readRDS(paste0(mm_data_folder,'compiled.docket.pre.2020.RDS'))
 
 # Load most recent compile of NextGen measuring board data
-compiled.docket.next.gen <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
-compiled.docket.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.non.modem.RDS')
+# compiled.docket.next.gen <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.next.gen.RDS')
+# compiled.docket.non.modem <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiled.docket.non.modem.RDS')
+compiled.docket.next.gen <- readRDS(paste0(mm_data_folder, 'compiled.docket.next.gen.RDS'))
+compiled.docket.non.modem <- readRDS(paste0(mm_data_folder, 'compiled.docket.non.modem.RDS'))
 
 
 # Combine historic and NextGen data
@@ -43,7 +50,8 @@ compiledMM.df <- bind_rows(compiled.docket.pre.2020,
                            compiled.docket.non.modem)
 
 ## Save compiledMM.df ####
-saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+# saveRDS(compiledMM.df, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.RDS')
+saveRDS(compiledMM.df, paste0(mm_data_folder, 'compiledMM.df.RDS'))
 
 ##----------------------------------------------------------------------------##
 # Final data cleaning of compiledMM.df
@@ -302,7 +310,8 @@ compiledMM.df.final <- compiledMM.df.final %>%
 # Add size limit data to filter out measurement errors and for reference points on plots.
 
 # load legal minimum length data
-size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+# size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
+size.limits <- read.csv(paste0(mm_data_folder, 'AbaloneSizeLimits2.csv'), fileEncoding="UTF-8-BOM")
 
 # # remove existing size limit data
 # compiledMM.df.final <- compiledMM.df.final %>% 
@@ -418,5 +427,8 @@ compiledMM.df.final <- compiledMM.df.final %>%
 ##----------------------------------------------------------------------------##
 # save RDS file
 
-saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# saveRDS(compiledMM.df.final, 'C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+saveRDS(compiledMM.df.final, paste0(mm_data_folder, 'compiledMM.df.final.RDS'))
+
+
 # compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')

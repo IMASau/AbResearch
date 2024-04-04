@@ -910,6 +910,11 @@ compiled.docket.non.modem <- docket.join %>%
 
 saveRDS(compiled.docket.non.modem, 'C:/CloudStor/R_Stuff/MMLF/compiled.docket.non.modem.RDS')
 
+# Re-write this line to save data to Dropbox
+
+# mm_data_folder <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/',
+#                                 Sys.info()[["user"]]))
+
 ##----------------------------------------------------------------------------##
 ## Step 12: Plot data ####
 
