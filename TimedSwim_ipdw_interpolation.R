@@ -32,6 +32,7 @@ sf_buffer_23 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Docum
 sf_buffer_24 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_24.gpkg')
 sf_buffer_27 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_27.gpkg')
 sf_buffer_28 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_28.gpkg')
+sf_buffer_29 <- st_read('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_GIS/TAS_Coastline_EastClosedBlocks_500m_buffer_29.gpkg')
 
 
 
@@ -48,12 +49,13 @@ sf_buffer_23 <- st_transform(sf_buffer_23, st_crs(7855))
 sf_buffer_24 <- st_transform(sf_buffer_24, st_crs(7855))
 sf_buffer_27 <- st_transform(sf_buffer_27, st_crs(7855))
 sf_buffer_28 <- st_transform(sf_buffer_28, st_crs(7855))
+sf_buffer_29 <- st_transform(sf_buffer_29, st_crs(7855))
 
 ##---------------------------------------------------------------------------##
 ## Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2024
+samp.year <- 2023
 
 # identify associated sampling year folder path to save dataframes
 # samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
@@ -397,7 +399,7 @@ urchin_data <- time.swim.meta.dat.final %>%
  filter(!is.na(starttime) &
          !is.na(percent.urchins)) %>% 
  mutate(sampyear = year(starttime)) %>%
- dplyr::select(c(site, blockno, sampyear, percent.urchins, urchin.deep, start_geom)) %>% 
+ dplyr::select(c(site, blockno, sampyear, max.depth, percent.urchins, urchin.deep, start_geom)) %>% 
  st_as_sf() %>% 
  filter(!st_is_empty(.))
 
@@ -424,11 +426,11 @@ st_write(urchin_data,
 ## Create function to interpolate abundance by each block and year ####
 
 # Create parameter dataframe of block, year and size class combinations
-blocknos <- c(16, 22, 23, 24, 27, 28)
-sampyears <- seq(2020, 2023, 1)
+blocknos <- c(16, 22, 23, 24, 27, 28, 29)
+sampyears <- seq(2020, 2024, 1)
 
-blocknos_21 <- c(21)
-sampyears_21 <- seq(2023, 2023, 1)
+blocknos_21 <- c(29)
+sampyears_21 <- seq(2024, 2024, 1)
 
 parameters_data <- expand.grid(blockno = blocknos,
                                sampyear = sampyears) %>% 
@@ -481,8 +483,10 @@ ts_ipdw <- function(i){
   sf_buffer_24
  } else if(ts.pnts.blockno == 27) {
   sf_buffer_27
- } else {
+ } else if(ts.pnts.blockno == 28) {
   sf_buffer_28
+ } else {
+  sf_buffer_29
  }
  
  buffer.coast <- st_crop(sf_buffer, ts.tas.subblockmap.crop)
@@ -652,7 +656,7 @@ mycolor_point <- c('5' = 'red',
              '0' = 'green4')
 
 # Create parameter dataframe of block combinations
-blocknos <- c(16, 21, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28, 29)
 
 plot_parameters_data <- expand.grid(blockno = blocknos) %>% 
  as_tibble()
@@ -990,7 +994,7 @@ mycolor <- c('5' = 'red',
              '0' = 'green4')
 
 # Create parameter dataframe of block combinations
-blocknos <- c(16, 21, 22, 23, 24, 27, 28)
+blocknos <- c(16, 21, 22, 23, 24, 27, 28, 29)
 
 plot_parameters_data <- expand.grid(blockno = blocknos) %>% 
  as_tibble()

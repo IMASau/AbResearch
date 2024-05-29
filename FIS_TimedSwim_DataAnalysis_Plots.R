@@ -67,7 +67,7 @@ ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/
 # 3. Load data ####
 
 # clear list
-rm(list = setdiff(ls(), c('samp.year', 'samp.year.folder', 'ts.plots.folder')))
+# rm(list = setdiff(ls(), c('samp.year', 'samp.year.folder', 'ts.plots.folder')))
 
 # Import final dataframes 
 time.swim.dat.final <-
@@ -1054,6 +1054,12 @@ ten.min.mean.site <- time.swim.dat.final %>%
 time.swim.count.site.loc <- left_join(ten.min.mean.site, time.swim.sites) %>% 
  st_as_sf() 
 
+# save geopackage for QGIS
+st_write(time.swim.count.site.loc,
+         dsn = paste(samp.year.folder, '/time_swim_count_data.gpkg', sep = ''),
+         layer = "ts_count_data", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+
 # Create parameter dataframe of block and size class combinations
 blocknos <- c(16, 21, 22, 23, 24, 27, 28)
 legal_sizes <- c('<140 mm', '>140 mm')
@@ -1281,26 +1287,56 @@ df_1 <- ten.min.mean.site %>%
         point_col_21_20 = ifelse(n_diff_21_20 < 1, 'red', 'darkgreen')) %>%
  gather(., n_diff, point_col, point_col_23_22, point_col_22_21, point_col_21_20)
 
-df_2 <- df_1 %>% 
- filter(!is.na(point_col)) %>% 
- group_by(n_diff, blockno, legal.size) %>% 
- mutate(improve = ifelse(point_col == 'darkgreen', 1, 0)) %>% 
- summarise(n = n(),
-           sites_improve = sum(improve),
-           perc_improve = round(((sites_improve / 15) * 100), 0),
-           crit_col = ifelse(perc_improve >= 75, 'darkgreen', 'red'))
+df_3 <- df_1 %>%
+ mutate(size_class = ifelse(legal.size == '<140 mm', 'A', 'B')) %>% 
+ pivot_wider(id_cols = c(site, blockno),
+             names_from = size_class, 
+             values_from = c(n_diff_23_22, n_diff_22_21, n_diff_21_20),
+             values_fn = max)
+
+df_5 <- df_3 %>% 
+ mutate(point_col_23_22 = case_when(
+  n_diff_23_22_A < 0 & n_diff_23_22_B < 0 ~ 'red',
+  n_diff_23_22_A < 0 & n_diff_23_22_B >= 0 ~ 'orange',
+  n_diff_23_22_A >= 0 & n_diff_23_22_B < 0 ~ 'gold',
+  n_diff_23_22_A >= 0 & n_diff_23_22_B >= 0 ~ 'darkgreen',
+  TRUE ~ 'black'),
+  point_col_22_21 = case_when(
+   n_diff_22_21_A < 0 & n_diff_22_21_B < 0 ~ 'red',
+   n_diff_22_21_A < 0 & n_diff_22_21_B >= 0 ~ 'orange',
+   n_diff_22_21_A >= 0 & n_diff_22_21_B < 0 ~ 'gold',
+   n_diff_22_21_A >= 0 & n_diff_22_21_B >= 0 ~ 'darkgreen',
+   TRUE ~ 'black'),
+  point_col_21_20 = case_when(
+   n_diff_21_20_A < 0 & n_diff_21_20_B < 0 ~ 'red',
+   n_diff_21_20_A < 0 & n_diff_21_20_B >= 0 ~ 'orange',
+   n_diff_21_20_A >= 0 & n_diff_21_20_B < 0 ~ 'gold',
+   n_diff_21_20_A >= 0 & n_diff_21_20_B >= 0 ~ 'darkgreen',
+   TRUE ~ 'black'),
+ ) %>% 
+ gather(., n_diff, point_col, point_col_23_22, point_col_22_21, point_col_21_20)
+
+# traffic light colours for number of sites meeting criteria of 75%
+# df_2 <- df_1 %>% 
+#  filter(!is.na(point_col)) %>% 
+#  group_by(n_diff, blockno, legal.size) %>% 
+#  mutate(improve = ifelse(point_col == 'darkgreen', 1, 0)) %>% 
+#  summarise(n = n(),
+#            sites_improve = sum(improve),
+#            perc_improve = round(((sites_improve / 15) * 100), 0),
+#            crit_col = ifelse(perc_improve >= 75, 'darkgreen', 'red'))
+# 
+# 
+# df_6 <- df_2 %>% 
+#  filter(n_diff == 'point_col_23_22') %>% 
+#  left_join(., df_3) %>% 
+#  mutate(trend_col = ifelse(perc_improve >= 75 &
+#                             mean_slope >= 0, 'green',
+#                            ifelse(perc_improve < 75 & 
+#                                    mean_slope >= 0, 'yellow', 'red')))
 
 
-df_5 <- df_2 %>% 
- filter(n_diff == 'point_col_23_22') %>% 
- left_join(., df_3) %>% 
- mutate(trend_col = ifelse(perc_improve >= 75 &
-                            mean_slope >= 0, 'green',
-                           ifelse(perc_improve < 75 & 
-                                   mean_slope >= 0, 'yellow', 'red')))
-
-
-time.swim.count.site.loc <- left_join(df_1, time.swim.sites) %>% 
+time.swim.count.site.loc <- left_join(df_5, time.swim.sites) %>% 
  st_as_sf() 
 
 # Create parameter dataframe of block and year combinations
@@ -1321,9 +1357,9 @@ plot_parameters_data <- plot_parameters_data %>%
 facet_labs <- c('2020 v 2021', '2021 vs 2022', '2022 vs 2023')
 names(facet_labs) <- c('point_col_21_20', 'point_col_22_21', 'point_col_23_22')
 
-ts_blockno_plot <- 16
+ts_blockno_plot <- 22
 ts_samp_year_plot <- 2023
-ts_legal_size_plot <- '>140 mm'
+# ts_legal_size_plot <- '>140 mm'
 
 # Create plot function
 ts_site_size_plot <- function(i){
@@ -1332,13 +1368,13 @@ ts_site_size_plot <- function(i){
  ts_blockno_plot <- plot_parameters_data[i, 'blockno'] %>% 
   pull()
  
- ts_samp_year_plot <- plot_parameters_data[i, 'samp_year'] %>% 
-  pull()
+ # ts_samp_year_plot <- plot_parameters_data[i, 'samp_year'] %>% 
+ #  pull()
  
- ts_legal_size_plot <- plot_parameters_data[i, 'legal_size'] %>% 
-  pull()
+ # ts_legal_size_plot <- plot_parameters_data[i, 'legal_size'] %>% 
+ #  pull()
  
- size_class <- ifelse(grepl('<140 mm',ts_legal_size_plot), 'SUB-LEGAL', 'LEGAL')
+ # size_class <- ifelse(grepl('<140 mm',ts_legal_size_plot), 'SUB-LEGAL', 'LEGAL')
  
  ts.tas.subblockmap.crop <- sf.subblock.map %>%  
   {if(ts_blockno_plot == 28) filter(., subblockno == '28A') else filter(., blockno == ts_blockno_plot)}
@@ -1350,10 +1386,14 @@ ts_site_size_plot <- function(i){
  count_site_size_map <- ggplot(data = st_geometry(ts.tas.coast.crop)) +
   geom_sf(fill = 'grey') +
   geom_sf(data = time.swim.count.site.loc %>% 
-           filter(blockno == ts_blockno_plot & 
-                   legal.size == ts_legal_size_plot), 
+           filter(blockno == ts_blockno_plot), 
           aes(col = point_col), shape = 19, size = 2)+
-  scale_color_identity()+
+  scale_color_identity('Stock Abundance', guide = 'legend',
+                       labels = c('darkgreen' = 'Sub-legal + Legal Increasing',
+                                  'gold' = 'Sub-legal Increasing + Legal Decreasing',
+                                  'orange' = 'Sub-legal Decreasing + Legal Increasing',
+                                  'red' = 'Sub-legal + Legal Decreasing',
+                                  'black' = 'Not surveyed'))+
   theme_bw() +
   annotation_scale(location = "bl", width_hint = 0.5) +
   annotation_north_arrow(location = if_else(ts_blockno_plot == 23, 'bl', "br"), which_north = "true", 
@@ -1361,23 +1401,25 @@ ts_site_size_plot <- function(i){
                          style = north_arrow_fancy_orienteering)+
   scale_x_continuous(breaks = seq(140, 149, by = 0.1))+
   ylab('Latitude')+
-  labs(title = size_class)+
+  # labs(title = size_class)+
+  theme(legend.position="right")+
   facet_wrap(. ~ n_diff, ncol = if_else(ts_blockno_plot %in% c(16, 22, 27, 28), 4, 2),
-             labeller = labeller(n_diff = facet_labs))+
-  geom_point(data = df_5 %>% filter(blockno == ts_blockno_plot & 
-                                    legal.size == ts_legal_size_plot), 
-            aes(col = trend_col, x = Inf, y = Inf), vjust = 1.5, hjust = 1.5)
+             labeller = labeller(n_diff = facet_labs))
+  # geom_point(data = df_5 %>% filter(blockno == ts_blockno_plot), 
+  #           aes(col = trend_col, x = Inf, y = Inf), vjust = 1.5, hjust = 1.5)
  
  # save plot
  setwd(ts.plots.folder)
  ggsave(filename = paste('TimedSwimSurvey_ReferenceSiteAbundance_Change_BlockNo_',
-                         ts_blockno_plot, '_', ts_samp_year_plot, '_', size_class, '.pdf', sep = ''),
+                         ts_blockno_plot, '_', ts_samp_year_plot, '.pdf', sep = ''),
         plot = count_site_size_map, units = 'mm', width = 250, height = 250)
  ggsave(filename = paste('TimedSwimSurvey_ReferenceSiteAbundance_Change_BlockNo_',
-                         ts_blockno_plot, '_', ts_samp_year_plot, '_', size_class, '.png', sep = ''),
+                         ts_blockno_plot, '_', ts_samp_year_plot, '_', '.png', sep = ''),
         plot = count_site_size_map, units = 'mm', width = 250, height = 250)
  
 }
+
+
 
 # Run function across all block, year and size class combinations
 ts_site_size_plots <- lapply(1:nrow(plot_parameters_data), ts_site_size_plot)

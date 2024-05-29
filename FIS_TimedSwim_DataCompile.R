@@ -676,6 +676,10 @@ st_write(ts.proposed.geom,
 # load compiled vessel GPS data
 vessel.gps.dat <- readRDS(paste(samp.year.folder, '/vessel.gps.dat.RDS', sep = ''))
 
+# add sampdate
+vessel.gps.dat <- vessel.gps.dat %>% 
+ mutate(sampdate = as.Date(samptime))
+
 # read in Subblock map as an sf::sfc polygon object
 # sf.subblock.map <- st_read("C:/CloudStor/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg")
 sf.subblock.map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/SubBlockMaps.gpkg", Sys.info()[["user"]])))
@@ -719,7 +723,7 @@ site.samp.finish.subblock.loc <- st_join(site.samp.start.loc, sf.subblock.map, j
 # re-combine start and finish data
 site.samp.start.finish <- left_join(as.data.frame(site.samp.start.subblock.loc), 
                 as.data.frame(site.samp.finish.subblock.loc),
-                by = c("sampyear", "site", 
+                by = c("sampyear", "sampdate", "site", 
                        "vesselname", "blockno", "zone",
                        "subblockno"))
 
@@ -1131,7 +1135,7 @@ ts_meta_dat_final_ref <- left_join(time.swim.meta.dat.final, ref_sites, by = c('
 
 # Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
 time.swim.dat.final <- ts_dat_final_ref %>% 
- mutate(sizeclass_freq_10 = round((sizeclass_freq / (time.elapsed/60) * 10)))
+ mutate(sizeclass_freq_10 = round((sizeclass_freq / (time.elapsed) * 10)))
 
 ##---------------------------------------------------------------------------##
 # 11. Save final dataframes ####
