@@ -43,30 +43,31 @@ source("C:/GitCode/AbResearch/StandardError_Functions.r")
 ## 1. Set sample year and file paths ####
 
 # identify sampling year of interest
-samp_year <- 2023
+samp_year <- 2024
 
 # identify associated sampling year folder path to save dataframes
-data_folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                              'Abalone', 'FISdata',
-                              paste('FIS_TimedSwimSurveys', samp_year, sep = ''), 'TimedSwim_NEGreens')
+data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, sep = ''),
+                         'TimedSwim_NEGreens')
 
 # identify associated sampling year folder path to save plots
-plots_folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-                             'Abalone', 'Assessment', 'Figures', 'FIS',
-                             paste('FIS_TimedSwimSurvey', samp_year, '_Plots', sep = ''), 'TimedSwim_NEGreens')
+plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
+                                           Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, '_Plots', sep = ''),
+                          'TimedSwim_NEGreens')
 
 # identify associated spatial layers folder
-spat_layer_folder <- paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/", Sys.info()[["user"]]))
+spat_layer_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers', 
+                        Sys.info()[["user"]])))
 ##---------------------------------------------------------------------------##
 ## 2. Load raw data ####
 
 # load timed swim length frequency raw data
-ts_dat <- read.xlsx(file.path(data_folder, 'FIS_TimedSwim_RawData_GL_2023-06-26.xlsx'),
-                       detectDates = T)
+ts_dat <- read.xlsx("R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2020/FIS_TimedswimsGreens_rawdata_2023.xlsx",
+                           detectDates = T)
 
 # load timed swim meta data
-ts_meta_dat <- read.xlsx(file.path(data_folder, 'FIS_TimedSwim_MetaData_GL_2023-06-26.xlsx'),
-                         detectDates = T)
+ts_meta_dat <- read.xlsx("R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2020/FIS_TimedSwimGreens_metadata_2023.xlsx",
+                                detectDates = T)
 ##---------------------------------------------------------------------------##
 # remove blank or additional rows from raw data where cells have been pre-filled
 # for data entry.This step can be deleted once data entry is complete.
@@ -95,9 +96,9 @@ ts_dat <- ts_dat %>%
                first_ab_time = strftime(first_ab_time, format="%H:%M:%S"),
                finish_time = strftime(finish_time, format="%H:%M:%S"))
 
-ts_dat$start_time <- as.POSIXct(paste(ts_dat$date, ts_dat$start_time), format = "%Y-%m-%d %H:%M:%S")
-ts_dat$first_ab_time <- as.POSIXct(paste(ts_dat$date, ts_dat$first_ab_time), format = "%Y-%m-%d %H:%M:%S")
-ts_dat$finish_time <- as.POSIXct(paste(ts_dat$date, ts_dat$finish_time), format = "%Y-%m-%d %H:%M:%S")
+ts_dat$start_time <- as.POSIXct(paste(ts_dat$samp_date, ts_dat$start_time), format = "%Y-%m-%d %H:%M:%S")
+ts_dat$first_ab_time <- as.POSIXct(paste(ts_dat$samp_date, ts_dat$first_ab_time), format = "%Y-%m-%d %H:%M:%S")
+ts_dat$finish_time <- as.POSIXct(paste(ts_dat$samp_date, ts_dat$finish_time), format = "%Y-%m-%d %H:%M:%S")
 
 # re-format Excel times for ts_meta_dat
 ts_meta_dat$time_in <- convertToDateTime(ts_meta_dat$time_in, origin = "1970-01-01", tz = "Australia/HOBART")
@@ -110,19 +111,21 @@ ts_meta_dat <- ts_meta_dat %>%
 ts_meta_dat$time_in <- as.POSIXct(paste(ts_meta_dat$date, ts_meta_dat$time_in), format = "%Y-%m-%d %H:%M:%S")
 ts_meta_dat$time_out <- as.POSIXct(paste(ts_meta_dat$date, ts_meta_dat$time_out), format = "%Y-%m-%d %H:%M:%S")
 
+# re-label meta data date and time labels to match raw data
 ts_meta_dat <- ts_meta_dat %>% 
-        dplyr::rename('sampdate' = date,
+        dplyr::rename('samp_date' = date,
                       'start_time' = time_in,
                       'finish_time' = time_out)
 
 # calculate elapsed dive time (seconds)
 ts_dat <- ts_dat %>% 
-        mutate(time_elapsed = ifelse(is.na(first_ab_time), finish_time - start_time, finish_time - first_ab_time))
+        mutate(time_elapsed = ifelse(!is.na(first_ab_time), finish_time - first_ab_time, finish_time - start_time))
 
 # add sample year
 ts_dat <- ts_dat %>% 
-        mutate(sampyear = year(date))
+        mutate(sampyear = year(samp_date))
 
+# extract blockno from site name
 ts_dat <- ts_dat %>% 
         mutate(nums = str_count(site, '\\d+')) %>% 
         # mutate(site2 = site) %>% 
@@ -139,18 +142,33 @@ ts_dat <- ts_dat %>%
 ts_dat <- ts_dat %>% 
         mutate(legal_size = ifelse(size_class %in% c("0-70", "70-90", "90-110", "110-130", "130-150"), '<150 mm', '>150 mm'))
 
-# add mid-point to 2020 size classes; add 2021 size classes and add midpoint
+# add mid-point to size classes
 ts_dat <- ts_dat %>% 
         separate(size_class, into = c('min_size', 'max_size'), sep = '-', convert = TRUE, remove = F) %>% 
         mutate(mid_size = (min_size + max_size)/2)
 
+# convert counts to numeric
+ts_dat <- ts_dat %>% 
+ mutate(size_class_freq = as.numeric(size_class_freq))
+
 # create data frame of individual abalone lengths
 ts_dat_df <- ts_dat %>% 
+ mutate(size_class_freq = as.numeric(size_class_freq)) %>% 
         uncount(size_class_freq, .remove = F) %>% 
         dplyr::rename('shell_length' = mid_size)
 
+##---------------------------------------------------------------------------##
+## 11. Standardise data #### 
+
+# Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
+std_ts_dat <- ts_dat %>% 
+ mutate(sizeclass_freq_10 = round((size_class_freq / time_elapsed) * 10),
+        sizeclass_freq_10 = replace(sizeclass_freq_10, is.na(sizeclass_freq_10), 0))
+
+##---------------------------------------------------------------------------##
 # save dataframes
 saveRDS(ts_dat, paste(data_folder, '/ts_dat.RDS', sep = ''))
+saveRDS(std_ts_dat, paste(data_folder, '/std_ts_dat.RDS', sep = ''))
 saveRDS(ts_dat_df, paste(data_folder, '/ts_dat_df.RDS', sep = ''))
 saveRDS(ts_meta_dat, paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
@@ -160,15 +178,15 @@ saveRDS(ts_meta_dat, paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
 # create summary data frames of sites sampled by date
 ts_dat_sites <- ts_dat %>% 
-        select(date, site) %>% 
+        select(samp_date, site) %>% 
         distinct_all()
 
 ts_meta_dat_sites <- ts_meta_dat %>% 
-        select(sampdate, site) %>% 
+        select(samp_date, site) %>% 
         distinct_all()
 
 # compare data frames to see if the site-date combinations match
-summary(arsenal::comparedf(ts_dat_sites, ts_meta_dat_sites, by.x = c('date', 'site'), by.y = c('sampdate', 'site')))
+summary(arsenal::comparedf(ts_dat_sites, ts_meta_dat_sites, by.x = c('samp_date', 'site'), by.y = c('samp_date', 'site')))
 
 ##---------------------------------------------------------------------------##
 ## 5. Vessel GPS data ####
@@ -179,8 +197,12 @@ GDA2020 <- st_crs(7855)
 
 # read GPX files from vessel plotter
 
+# identify gps downloads folder
+gps_downloads_folder <- paste(sprintf("C:/Users/%s/OneDrive - University of Tasmania/IMAS-DiveFisheries-FIS-Data/FIS_VesselGPS_Downloads", Sys.info()[["user"]]))
+
 # vessel data for surveys
-morana_gps_2023 <- st_read(file.path(data_folder, 'morana_2023-06-24.gpx'), layer = 'waypoints')
+morana_gps_2023 <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-06-24_download.gpx'), layer = 'waypoints')
+morana_gps_2024a <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-06-07_download.gpx'), layer = 'waypoints')
 
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
@@ -192,8 +214,13 @@ morana_gps_2023 <- morana_gps_2023 %>%
  mutate(sampyear = 2023,
         vesselname = 'MoranaII')
 
+morana_gps_2024a <- morana_gps_2024a %>%
+ mutate(sampyear = 2024,
+        vesselname = 'MoranaII')
+
 # join GPX files
-vessel_gps <- bind_rows(morana_gps_2023) %>%  
+vessel_gps <- bind_rows(morana_gps_2023,
+                        morana_gps_2024a) %>%  
         mutate(gpsdate = as.Date(time),
                gpstime = time) %>% 
         select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
@@ -202,32 +229,32 @@ ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
 # separate start positions
 ts_site_start <- ts_meta_dat %>%
-        select(-c(waypoint_finish, finish_time)) %>% 
-        dplyr::rename('waypoint' = waypoint_start,
+        select(-c(finish_waypoint, finish_time)) %>% 
+        dplyr::rename('waypoint' = start_waypoint,
                       'samptime' = start_time) %>% 
         mutate(sampperiod = 'start',
-               sampyear = year(sampdate))
+               sampyear = year(samp_date))
 
 # separate finish positions
 ts_site_finish <- ts_meta_dat %>%
-        select(-c(waypoint_start, start_time)) %>% 
-        dplyr::rename('waypoint' = waypoint_finish,
+        select(-c(start_waypoint, start_time)) %>% 
+        dplyr::rename('waypoint' = finish_waypoint,
                       'samptime' = finish_time) %>% 
         mutate(sampperiod = 'finish',
-               sampyear = year(sampdate))
+               sampyear = year(samp_date))
 
 # re-join start and finish positions and remove non-sampled sites        
 ts_site_start_finish <- bind_rows(ts_site_start, ts_site_finish) %>%
         mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
                                   if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
                                           as.character(waypoint)))) %>%  
-        select(c(sampdate, samptime, sampperiod, site, waypoint, sampyear))
+        select(c(samp_date, samptime, sampperiod, site, waypoint, sampyear))
 
 
 # join geometry where start and finish waypoints were recorded 
 ts_site_start_finish_wp <- ts_site_start_finish %>% 
         filter(!is.na(waypoint)) %>% 
-        left_join(., vessel_gps, by = c('waypoint' = 'name', 'sampdate' = 'gpsdate')) %>% 
+        left_join(., vessel_gps, by = c('waypoint' = 'name', 'samp_date' = 'gpsdate')) %>% 
         dplyr::rename('sampyear' = sampyear.x) %>% 
         select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry))
 
@@ -249,13 +276,13 @@ saveRDS(vessel_gps_dat, paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
 
 # save spatial layer for QGIS
 
-st_write(vessel_gps_dat,
-         dsn = paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/", Sys.info()[["user"]]), '/vessel_gps_dat_', Sys.Date(), '.gpkg', sep = ''),
-         layer = "vessel_gps_dat", driver = "GPKG", overwrite = T, delete_dsn = T)
+# st_write(vessel_gps_dat,
+#          dsn = paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/", Sys.info()[["user"]]), '/vessel_gps_dat_', Sys.Date(), '.gpkg', sep = ''),
+#          layer = "vessel_gps_dat", driver = "GPKG", overwrite = T, delete_dsn = T)
 
 ##---------------------------------------------------------------------------##
 
-## STOPPED HERE 2023-06-26 ##
+
 
 ##---------------------------------------------------------------------------##
 ## 6. Sites sampled - proposed ####
@@ -264,8 +291,10 @@ st_write(vessel_gps_dat,
 ## use these data for 'proposed geometry' when joining to raw data 
 
 # load final proposed sites
-ts_NE_GL_sites_2023 <- read.xlsx(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/", 
-              Sys.info()[["user"]]), 'TimedSwim_NE_GL_2023_50m', '.xlsx', sep = ''))
+# ts_NE_GL_sites_2023 <- read.xlsx(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/", 
+#               Sys.info()[["user"]]), 'TimedSwim_NE_GL_2023_50m', '.xlsx', sep = ''))
+
+ts_NE_GL_sites_2023 <- read.xlsx(file.path(spat_layer_folder, 'TimedSwim_NE_GL_2023_50m.xlsx'))
 
 # set CRS
 GDA2020 <- st_crs(7855)
@@ -277,7 +306,7 @@ ts_NE_GL_sites_sf <- ts_NE_GL_sites_2023 %>%
  st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>% 
  st_transform(., crs = GDA2020) %>% 
  select(c(site, geometry)) %>% 
- mutate(sampyear = 2023) 
+ mutate(sampyear = 2024) 
 
 # save final proposed sites up to sample year
 saveRDS(ts_NE_GL_sites_sf, paste(data_folder, '/ts_NE_GL_sites_sf.RDS', sep = ''))
@@ -287,8 +316,9 @@ ts_dat <- readRDS(file.path(data_folder, '/ts_dat.RDS'))
 
 # identify unique sites sampled from timed swim dataframe
 ts_dat_unique <- ts_dat %>%
+ filter(sampyear == samp_year) %>% 
  distinct(site, .keep_all = T) %>% 
- select(c(site, date, sampyear))
+ select(c(site, samp_date, sampyear))
 
 # join sites sampled to site file
 ts_sites_join <- ts_NE_GL_sites_sf %>%
@@ -296,7 +326,7 @@ ts_sites_join <- ts_NE_GL_sites_sf %>%
 
 # identity sites sampled 
 ts_sites_sampled <- ts_sites_join %>% 
- mutate(sampled = ifelse(is.na(date), 0, 1)) %>%  
+ mutate(sampled = ifelse(is.na(samp_date), 0, 1)) %>%  
  select(c(site, sampled, sampyear, geometry))
 
 # transform to GDA2020
@@ -305,8 +335,9 @@ ts_sites_sampled <- st_transform(ts_sites_sampled, GDA2020)
 
 # read in Subblock map as an sf::sfc polygon object
 # sf.subblock.map <- st_read("C:/Users/jaimem/Dropbox/AbaloneData/SpatialLayers/SubBlockMaps.gpkg")
-sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/", 
-                                         Sys.info()[["user"]]), 'IMAS_subblock_rev2022', '.gpkg', sep = ''))
+# sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/", 
+#                                          Sys.info()[["user"]]), 'IMAS_subblock_rev2022', '.gpkg', sep = ''))
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
 
 # transform map to GDA2020
@@ -361,8 +392,11 @@ st_write(ts_sites_sampled,
 vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
 
 # read in Subblock map as an sf::sfc polygon object
-sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/", 
-                                         Sys.info()[["user"]]), 'IMAS_subblock_rev2022', '.gpkg', sep = ''))
+# sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/", 
+#                                          Sys.info()[["user"]]), 'IMAS_subblock_rev2022', '.gpkg', sep = ''))
+
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
+
 
 # transform map to GDA2020
 sf_subblock_map <- st_transform(sf_subblock_map, GDA2020)
@@ -444,14 +478,16 @@ ts_dat_df <- readRDS(paste(data_folder, '/ts_dat_df.RDS', sep = ''))
 ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
-## 11. Standardise data #### 
+# ## 11. Standardise data #### 
+# 
+# # Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
+# std_ts_dat <- ts_dat %>% 
+#     mutate(sizeclass_freq_10 = round((size_class_freq / time_elapsed) * 10),
+#            sizeclass_freq_10 = replace(sizeclass_freq_10, is.na(sizeclass_freq_10), 0))
+# 
+# saveRDS(std_ts_dat, paste(data_folder, '/std_ts_dat_RDS', sep = ''))
 
-# Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
-std_ts_dat <- ts_dat %>% 
-    mutate(sizeclass_freq_10 = round((size_class_freq / time_elapsed) * 10),
-           sizeclass_freq_10 = replace(sizeclass_freq_10, is.na(sizeclass_freq_10), 0))
-
-saveRDS(std_ts_dat, paste(data_folder, '/std_ts_dat_RDS', sep = ''))
+std_ts_dat <- readRDS(paste(data_folder, '/std_ts_dat.RDS', sep = ''))
 
 # Summarise total count for blockno x site x sampyear x legal.size
 ts_count_sum <- std_ts_dat %>% 
@@ -472,11 +508,11 @@ ts_av_count <- std_ts_dat %>%
 ##---------------------------------------------------------------------------##
 std_ts_dat %>%
  group_by(blockno, sampyear) %>% 
- summarise(n = n_distinct(date),
+ summarise(days = n_distinct(samp_date),
            sites = n_distinct(site)) %>% 
  pivot_wider(id_cols = c(blockno),
              names_from = c(sampyear),
-             values_from = c('n', 'sites')) %>% 
+             values_from = c('days', 'sites')) %>% 
  adorn_totals()
 ##---------------------------------------------------------------------------##
 ## PLOT 1: COUNT PER TEN MIN YEARS ####
@@ -484,10 +520,10 @@ std_ts_dat %>%
 ## (i.e. the average count between paired divers for each site)
 
 # determine mean abalone abundance for block x sampyear x size class
-ten_min_mean<- std_ts_dat %>%
- group_by(site, diver, time_elapsed, legal_size) %>% 
+ten_min_mean <- std_ts_dat %>%
+ group_by(sampyear, site, diver, time_elapsed, legal_size) %>% 
  summarise(ab_n = sum(sizeclass_freq_10)) %>% 
- group_by(legal_size) %>% 
+ group_by(sampyear, legal_size) %>% 
  summarise(mean_ab_n = mean(ab_n),
            median_ab_n = median(ab_n),
            n = n_distinct(site))
@@ -516,64 +552,68 @@ ten_min_mean<- std_ts_dat %>%
 #        plot = df.1, units = 'mm', width = 190, height = 120)
 
 sub_legal_plot <- std_ts_dat %>% 
- filter(legal_size == '<150 mm')
- group_by(site, diver) %>% 
+ filter(legal_size == '<150 mm') %>% 
+ group_by(sampyear, site, diver) %>% 
  summarise(ab_n = sum(sizeclass_freq_10)) %>% 
- group_by(site) %>% 
+ group_by(sampyear, site) %>% 
  summarise(mean_ab_n = mean(ab_n)) %>% 
- # mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022'))) %>%  
- ggplot(aes(x = blockno, y = mean_ab_n))+
+ mutate(sampyear = factor(sampyear, levels = c('2023', '2024'))) %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD"))+
- geom_point(data = ten.min.mean.year %>% filter(legal.size == '<140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022'))), shape = 19,
-            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ scale_fill_manual(values = c('#44BB99', '#BBCC33'))+
+ # geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(group = factor(sampyear, levels = c('2023', '2024'))), shape = 19,
+ #            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+  geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(x = factor(sampyear)), shape = 19,
+             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Blockno')+
- ylim(0, 150)+
- geom_text(data = ts_dat.n %>% filter(legal.size == '<140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022'))), size = 3, 
+ ylim(0, 80)+
+ geom_text(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(y = 80, label = n, x = factor(sampyear)), size = 3, 
            position = position_dodge2(0.8))+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD"))+
+ scale_colour_manual(values = c('#44BB99', '#BBCC33'))+
  guides(size = 'legend', colour = 'none',
         fill = guide_legend(title = 'Year'))+
- ggtitle('Sub-legal <140 mm')+
+ ggtitle('Sub-legal <150 mm')+
  theme(plot.title = element_text(vjust = 0, hjust = 0))+
  theme(legend.position = 'none')
 
-legal.plot <- std.ts.dat %>% 
- filter(!subblockno %in% c('28B', '28C'),
-        legal.size == '>140 mm' &
-         !blockno %in% c('13', '14', '29', '30')) %>%
- # filter(midsize < 150) %>% 
- group_by(blockno, site, diver, sampyear) %>% 
- summarise(ab.n = sum(sizeclass_freq_10)) %>% 
- group_by(blockno, site, sampyear) %>% 
- summarise(mean.ab.n = mean(ab.n)) %>% 
- mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022'))) %>%  
- ggplot(aes(x = blockno, y = mean.ab.n))+
+legal_plot <- std_ts_dat %>% 
+ filter(legal_size == '>150 mm') %>% 
+ group_by(sampyear, site, diver) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, site) %>% 
+ summarise(mean_ab_n = mean(ab_n)) %>% 
+ mutate(sampyear = factor(sampyear, levels = c('2023', '2024'))) %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD"))+
- geom_point(data = ten.min.mean.year %>% filter(legal.size == '>140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022'))), shape = 19,
+ scale_fill_manual(values = c('#44BB99', '#BBCC33'))+
+ # geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(group = factor(sampyear, levels = c('2023', '2024'))), shape = 19,
+ #            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ geom_point(data = ten_min_mean %>% filter(legal_size == '>150 mm'), aes(x = factor(sampyear)), shape = 19,
             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Blockno')+
- ylim(0, 150)+
+ ylim(0, 80)+
+ geom_text(data = ten_min_mean %>% filter(legal_size == '>150 mm'), aes(y = 80, label = n, x = factor(sampyear)), size = 3, 
+           position = position_dodge2(0.8))+
+ scale_colour_manual(values = c('#44BB99', '#BBCC33'))+
  guides(size = 'legend', colour = 'none',
         fill = guide_legend(title = 'Year'))+
- ggtitle('Legal >140 mm')+
+ ggtitle('Legal >150 mm')+
  theme(plot.title = element_text(vjust = 0, hjust = 0))+
  theme(legend.title = element_blank(),
        legend.position = c(0.9, 0.7))
 
-count.plot.sizeclass <- grid.arrange(sub.legal.plot, legal.plot, nrow = 2)
+count.plot.sizeclass <- grid.arrange(sub_legal_plot, legal_plot, nrow = 2)
 
-setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal', '.pdf', sep = ''), 
+setwd(plots_folder)
+ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_LegalSubLegal', '.pdf', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##

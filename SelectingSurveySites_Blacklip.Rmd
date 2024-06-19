@@ -79,12 +79,12 @@ ts.hex <- filter(sf.ab.hex, zone == 'E' &
     cell.ntile <- ntile(blkgtotal, 5)
   })
 
-ts.hex <- filter(sf.ab.hex, zone == 'N' &
-                  blockno %in% c(5, 6)) %>%
-  mutate(subblockno = gsub(" ", "", subblockno)) %>%
-  within({
-    cell.ntile <- ntile(blkgtotal, 5)
-  })
+# ts.hex <- filter(sf.ab.hex, zone == 'N' &
+#                   blockno %in% c(5, 6)) %>%
+#   mutate(subblockno = gsub(" ", "", subblockno)) %>%
+#   within({
+#     cell.ntile <- ntile(blkgtotal, 5)
+#   })
 
 # # Hex layer and quartile for entire state
 # ts.hex <- sf.ab.hex %>%
@@ -138,14 +138,14 @@ sites.2020.keep <- time.swim.dat.final %>%
 # Therefore the resulting output gpkg file above has been re-imported to identify those reference sites
 # and stored as an RDS for future reference.
 
-sites.2020.kept.sf <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg')
+# sites.2020.kept.sf <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg')
 
 # convert to data frame
 sites.2020.kept.df <- sites.2020.kept.sf %>%
  sfheaders::sf_to_df(fill = T)
 
 # save file
-saveRDS(sites.2020.kept.df, 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+# saveRDS(sites.2020.kept.df, 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
 
 ```
 
@@ -158,11 +158,24 @@ Timed swim surveys in subsequent years after the collection of baseline data in 
 assess_year <- 2024
 
 # Import final timed swim dataframe from previous assessment year
-time.swim.dat.final <-
-        readRDS(paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year - 1, '/time.swim.dat.final.RDS'))
+
+time.swim.dat.final <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year - 1, sep = ''), 'time.swim.dat.final.RDS', sep = ''))                                  
+
+# outname_point <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.gpkg", Sys.info()[["user"]])))
+
+# outname_point <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021',
+#                                 Sys.info()[["user"]]))
+
+outname_point <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year, sep = ''))
 
 # Import reference sites
-time_swim_ref_sites <- readRDS('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
+time_swim_ref_sites <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys2021'), 'time.swim.2020.repeat.sites.RDS', sep = '')) 
+
+time_swim_ref_sites <- time_swim_ref_sites %>% 
+ mutate(ref_site = 'ref')
 
 # Create vector of OIDs for reference sites to be sampled in assessment year 
 # Note: 12 of the randomly selected reference sites are SAM historical research sites (i.e. n = 78) and
@@ -185,8 +198,8 @@ ts_sites_sampled <- time.swim.dat.final %>%
         pull(oid)
 
 # Create vector of blocks
-# blocknos <- c(16, 22, 23, 24, 27, 28)
-blocknos <- c(5, 6)
+blocknos <- c(16, 22, 23, 24, 27, 28)
+# blocknos <- c(5, 6)
 
 # Create empty lists to populate with random hex cells for each block 
 ts_site_list <- list()
@@ -210,32 +223,32 @@ cellqt <- ts.hex %>%
 ts_site_list[[i]] <- cellqt
 }
 
-for (i in blocknos){
-cellqt <- ts.hex %>% 
-  filter(cell.ntile > 2 &
-           subblockno %in% c('29A', '29B') &
-           blockno == i) %>%  
-  group_by(blockno, cell.ntile) %>%
-  # as_Spatial() %>% 
-  subsample.distance(size = 60, d = 300) %>% #change size = 45
-  st_as_sf() %>% 
-  ungroup()
-
-ts_site_list[[i]] <- cellqt
-}
-
-for (i in blocknos){
-cellqt <- ts.hex %>% 
-  filter(cell.ntile > 2 &
-           blockno == i) %>%  
-  group_by(blockno, cell.ntile) %>%
-  # as_Spatial() %>% 
-  subsample.distance(size = 60, d = 300) %>% #change size = 45
-  st_as_sf() %>% 
-  ungroup()
-
-ts_site_list[[i]] <- cellqt
-}
+# for (i in blocknos){
+# cellqt <- ts.hex %>% 
+#   filter(cell.ntile > 2 &
+#            subblockno %in% c('29A', '29B') &
+#            blockno == i) %>%  
+#   group_by(blockno, cell.ntile) %>%
+#   # as_Spatial() %>% 
+#   subsample.distance(size = 60, d = 300) %>% #change size = 45
+#   st_as_sf() %>% 
+#   ungroup()
+# 
+# ts_site_list[[i]] <- cellqt
+# }
+# 
+# for (i in blocknos){
+# cellqt <- ts.hex %>% 
+#   filter(cell.ntile > 2 &
+#            blockno == i) %>%  
+#   group_by(blockno, cell.ntile) %>%
+#   # as_Spatial() %>% 
+#   subsample.distance(size = 60, d = 300) %>% #change size = 45
+#   st_as_sf() %>% 
+#   ungroup()
+# 
+# ts_site_list[[i]] <- cellqt
+# }
 
 
 # Combine rows of each separate list to create single sf
@@ -291,7 +304,7 @@ ts_ref_sites_df <- time_swim_ref_sites %>%
   st_set_crs(st_crs(7855)) %>%
   st_transform(crs = st_crs(4326)) %>%
   sfheaders::sf_to_df(fill = T) %>%
-  select(site.new, blockno, subblockno, oid, cell.ntile, sam.count, x, y) %>% 
+  select(site.new, blockno, subblockno, oid, cell.ntile, sam.count, x, y, ref_site) %>% 
   dplyr::rename('latitude' = y,
                 'longitude' = x,
                 'site' = site.new) %>% 
@@ -302,7 +315,8 @@ ts_sites_df <- ts_sites_df %>%
   select(site, blockno, subblockno, oid, cell.ntile, longitude, latitude)
 
 ts_sites_final_df <- bind_rows(ts_ref_sites_df, ts_sites_df) %>% 
- arrange(blockno)
+ arrange(blockno) %>% 
+ mutate(ref_site = ifelse(is.na(ref_site), 'new', ref_site))
 
 # ts_sites_final_df <- ts_sites_df
 
@@ -319,60 +333,34 @@ ts_sites_final_gpx <- ts_sites_final_df %>%
 # Export data
 ```{r export data}
 
+# Export folder path
+
+gis_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers',
+Sys.info()[["user"]]), sep = '')))
+
+data_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/', Sys.info()[["user"]]), paste('FIS_TimedSwimSurveys', assess_year, sep = ''), sep = '')))
+
 # Export geospatial package for GIS and KML for Google Earth
-# outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_EastCoast_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
 
-outname_point <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.gpkg", Sys.info()[["user"]])))
-
-# outname_point <- sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
-
-# outname_point <- sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block29_Final_", assess_year, ".gpkg", sep = ""), Sys.info()[["user"]])
+outname_point <- paste(gis_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".gpkg", sep = ""), sep = '')
+outname_point <- paste(data_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".gpkg", sep = ""), sep = '')
 
 st_write(ts_sites_final_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
 
 # Export KML for Google Earth
-# outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".kml", sep = "")
 
-outname_point_kml <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.kml", Sys.info()[["user"]])))
+outname_point_kml <- paste(gis_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".kml", sep = ""), sep = '')
+outname_point_kml <- paste(data_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".kml", sep = ""), sep = '')
 
 st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F) 
-
-# outname_point_kml <- paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_Block21_Final', assess_year, ".kml", sep = "")
-# st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F)
-
-# outname_point_kml <- sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys", assess_year, "/TimedSwimSites_Block29_Final", assess_year, ".kml", sep = ""), Sys.info()[["user"]])
-# st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F)
  
 # Export Excel files 
-write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]), 
-            sheetName = "Sheet1", 
-            colNames = TRUE, rowNames = TRUE, append = FALSE)
- 
-  # write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Block21_Final", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]), 
-  #           sheetName = "Sheet1", 
-  #           colNames = TRUE, rowNames = TRUE, append = FALSE)
- 
-# write.xlsx(ts_sites_final_df, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block29_Final", assess_year, ".xlsx", sep = ""), Sys.info()[["user"]]),
-#             sheetName = "Sheet1",
-#             colNames = TRUE, rowNames = TRUE, append = FALSE)
- 
-# write.xlsx(ts_sites_final_df, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_EastCoast_Final', assess_year, ".xlsx", sep = ""), 
-#             sheetName = "Sheet1", 
-#             colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_df, paste(gis_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_df, paste(data_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+
 
 # Export Excel file for GPX conversion
-write.xlsx(ts_sites_final_gpx, paste0('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_', assess_year, '_GPX', ".xlsx", sep = ""), 
-            sheetName = "Sheet1", 
-            colNames = TRUE, rowNames = FALSE, append = FALSE)
-
-# write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_Block21_Final', assess_year, '_GPX', ".xlsx", sep = ""), 
-#             sheetName = "Sheet1", 
-#             colNames = TRUE, rowNames = FALSE, append = FALSE)
-
-# write.xlsx(ts_sites_final_gpx, paste0('C:/CloudStor/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys', assess_year, '/TimedSwim_EastCoast/TimedSwimSites_Block21_Final', assess_year, '_GPX', ".xlsx", sep = ""), 
-#             sheetName = "Sheet1", 
-#             colNames = TRUE, rowNames = FALSE, append = FALSE)
-
-# write.xlsx(ts_sites_final_gpx, sprintf(paste0("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys", assess_year, "/TimedSwimSites_Block29_Final", assess_year, '_GPX', ".xlsx", sep = ""), Sys.info()[["user"]]))
+write.xlsx(ts_sites_final_gpx, paste(gis_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_gpx, paste(data_folder_path, paste('/TimedSwimSites_EastCoast_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
   
 ```

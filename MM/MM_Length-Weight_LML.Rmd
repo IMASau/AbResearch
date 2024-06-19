@@ -1,0 +1,404 @@
+---
+title: " "
+output:
+  pdf_document:
+    number_sections: TRUE
+geometry: "left = 2.5cm, right = 2cm, top = 2cm, bottom = 2cm"
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \usepackage{sectsty}
+  - \usepackage{paralist}
+  - \usepackage{setspace}\spacing{1.0}
+  - \usepackage{fancyhdr}
+  - \usepackage{lastpage}
+  - \usepackage{dcolumn}
+  - \usepackage{natbib}\bibliographystyle{agsm}
+  - \usepackage[nottoc, numbib]{tocbibind}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+options(tinytex.verbose = TRUE)
+
+# Load libaries ####
+# load required libaries and custom functions for plotting
+suppressPackageStartupMessages({
+library(RODBC)
+library(R.utils)
+library(lubridate)
+# library(rgdal)
+library(sp)
+# library(maptools)
+library(tools)
+library(openxlsx)
+library(lubridate)
+library(gdata)
+library(doBy)
+library(tidyr)
+library(tidyverse)
+library(splitstackshape)
+library(readxl)
+library(data.table)
+library(scales)
+library(gridExtra)
+library(ggspatial)
+library(tmap)
+library(sf)
+library(janitor)
+library(xtable)
+library(gsubfn)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(ggpmisc)
+library(knitr)
+}) 
+
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+source("C:/GitCode/AbResearch/getSeason.r")
+
+```
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+
+\pagenumbering{gobble}
+
+\begin{centering}
+
+\vspace{3cm}
+
+```{r uni_logo, echo=F, out.width="80%"}
+knitr::include_graphics(paste(
+ sprintf(
+  'C:/Users/%s/University of Tasmania/IMAS - Documents/Approved Logos/UniTas_IMAS_P_Pos_Col_RGB_2021.png',
+  Sys.info()[["user"]]
+ )
+))
+```
+
+\vspace{4cm}
+
+\LARGE
+
+\doublespacing
+{\bf Examining the role of size limits in determining catch composition using length-weight commercial abalone catch sampling data}
+
+\vspace{4 cm}
+
+\Large
+{\bf Institute for Marine and Antarctic Studies}
+
+\Large
+{\bf Univeristy of Tasmania}
+
+\vspace{1cm}
+
+\normalsize
+\singlespacing
+By
+
+\vspace{0.5 cm}
+
+\large
+
+{\bf Jaime McAllister}
+
+\vspace{1.5 cm}
+
+\normalsize
+June 2024
+
+\end{centering}
+
+\newpage
+
+# Background
+Harvest Strategy and movement towards SAM + 3-years growth (3-year rule) - traditionally been 2-year rule.
+
+Scheduled LML increase - 138 to 140 mm in 2023, 140 to 142 in 2024, and 142 to 145 in 2025.
+
+Argument that some populations do not reach the sizes proposed in the scheduled, and LML increases will reduce CPUE and trigger catch reduction under MCDA settings of harvest strategy.
+
+Here we explore the effects of increasing size limits on the commercial abalone fishery harvest in Tasmania's Eastern Zone.
+
+
+```{r sample parameters, echo=FALSE}
+# Identify fishing or sampling year of interest
+fish_year <- 2024
+
+# Identify zone of interest
+fish_zone <- 'E'
+
+# Identify block of interest
+fish_blockno <- 13
+
+```
+
+
+```{r plots folder, echo=FALSE}
+# Create plot and data folder ####
+mm_plots_folder <- file.path(
+ paste(
+  sprintf(
+   'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+   Sys.info()[["user"]]
+  )
+ ),
+ paste(
+  fish_year,
+  '/',
+  'MM_Plots_',
+  fish_year,
+  sep = ''
+ )
+)
+```
+
+# Commercial catch sampling data
+
+```{r catch sampling data, echo=FALSE}
+# Load most recent compilation of Commercial Abalone Catch Sampling data.
+## Read in most recent commercial catch sampling compiled MM dataframe
+compiledMM_df_final <- readRDS(paste(
+ sprintf(
+  'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+  Sys.info()[["user"]]
+ )
+))
+
+```
+
+```{r lwplot check, echo=FALSE}
+# Clean catch sampling data
+## Quick plot checking for outliers
+compiledMM_df_final %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ ggtitle('Length-Weight All Data')+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+```
+
+```{r clean catch sampling data, echo=FALSE}
+## remove erroneous data
+  lw_dat <- compiledMM_df_final %>%
+    filter(
+      between(whole.weight, 200, 1500) & # abalone above or below these weights unlikely
+        between(shell.length, sizelimit, 220) & # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
+        !(shell.length > 175 & whole.weight < 600), # these appear to be erroneous weights
+        !(shell.length > 180 & whole.weight < 1000))# these appear to be erroneous weights
+
+## add season variable
+lw_dat <- lw_dat %>% 
+ mutate(season = getSeason(lw_dat$msr.date))
+
+```
+
+```{r lw clean plot, echo=FALSE}
+
+## Quick plot re-checking for outliers for eastern zone
+lw_dat %>%
+  filter(newzone == fish_zone &
+          numblocks <= 1) %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ ggtitle(paste('Length-Weight Cleaned ', fish_zone, 'Z ', 'Data', sep = ''))+
+  xlim(130, 200)+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+
+```
+
+```{r catch samples by block, echo=FALSE}
+## Quick summary of catches and numbers by block where the catch can be assigned to a specific block (i.e. only one block listed on docket)
+east_block_count <- lw_dat %>% 
+ filter(newzone == fish_zone & 
+         numblocks <= 1) %>% 
+ group_by(fishyear, blockno) %>% 
+ summarise(catches = n_distinct(docket.number),
+           n = n(),
+           mean_length = round(mean(shell.length), 0),
+           mean_weight = round(mean(whole.weight), 0)) %>% 
+ as_tibble()
+ 
+kable(east_block_count, caption = paste('Summary of catches measured from commerical abalone catch sampling data for ', fish_zone, 'Z Blocks collected between 2019-', fish_year, '.', sep = ''), col.names = c('FishingYear', 'BlockNo', 'Catches', 'n', 'Mean Length', 'Mean  Weight'))
+
+```
+
+# Estimate length-weight relationship 
+```{r length-weight zone relationship, echo=FALSE}
+
+# calculate log of length and weight
+lw_dat_log <- lw_dat %>% 
+  mutate(log_sl = log(shell.length),
+         log_wt = log(whole.weight))
+
+# calculate regression coefficient summary table for each zone and blockno
+lw_dat_coeff <- lw_dat_log %>%
+ filter(numblocks <= 1) %>% 
+  nest(data = -c(newzone, blockno)) %>% 
+  mutate(fit = map(data, ~ lm(log_wt ~ log_sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>% 
+  unnest(tidied) %>%   
+  filter(term %in% c('(Intercept)', 'log_sl')) %>% 
+  select(c(newzone, blockno, estimate, term)) %>% 
+  as.data.frame() %>% 
+  spread(., term, estimate) %>%  
+  dplyr::rename(b = 'log_sl',
+                intercept = "(Intercept)") %>%  
+  mutate(a = exp(intercept)) %>% 
+  select(-intercept)
+
+# determine sample size for each blockno and join to regression summaries
+lw_dat_n <- lw_dat_log %>% 
+  group_by(newzone, blockno) %>% 
+  summarise(n = n())
+
+lw_dat_coeff_blockno <- left_join(lw_dat_coeff, lw_dat_n)
+
+kable(lw_dat_coeff_blockno, caption = paste('Estimated length-weight model parameters from commerical abalone catch sampling data for all zones and blocks collected between 2019-', fish_year, ".", sep = ''), col.names = c('Zone', 'BlockNo', 'a', 'b', 'n'))
+```
+
+# Estimate percent contribution to weight and numbers 
+```{r weight number contribution, echo=FALSE}
+
+# select regression parameters for zone and block to use for estimating weight
+lw_coeff <- lw_dat_coeff_blockno %>% 
+  filter(blockno == fish_blockno &
+          newzone == fish_zone) %>% 
+  select(a, b) %>% 
+  mutate(join_id = 1)
+
+# create data frame of 1 mm shell lengths and estimate weight for chosen zone and block
+sl_est_wt_df <- data.frame(shell_length = seq(138, 220, 1)) %>% 
+ mutate(join_id = 1) %>% 
+ left_join(., lw_coeff) %>% 
+ mutate(est_weight = ((a * (shell_length ^ b))))
+
+# select shell lengths and determine number of individuals for chosen zone and block
+sl_block_df <- lw_dat %>% 
+ filter(blockno == fish_blockno &
+         newzone == fish_zone) %>%
+ mutate(size_class = floor(shell.length)) %>% 
+ group_by(size_class) %>% 
+ summarise(n = n()) %>% 
+ dplyr::rename('shell_length' = size_class)
+
+# determine percentage contribution of each size class by weight and numbers  
+perc_wt_n_df <- left_join(sl_est_wt_df, sl_block_df) %>% 
+ mutate(catch_wt = round(n * est_weight, 0)) %>% 
+ filter(!is.na(catch_wt)) %>% 
+ mutate(perc_wt = round((catch_wt/sum(catch_wt))*100, 3),
+        perc_n = round((n/sum(n))*100, 3)) %>% 
+ select(-join_id)
+
+kable(perc_wt_n_df, caption = paste('Estimated percentage contribution of each 1 mm size class by weight and numbers to ', fish_zone, 'Z Block ', fish_blockno, ' using length-weight model parameters from commerical abalone catch sampling data for collected between 2019-', fish_year, '.', sep = ''), col.names = c('Shell <br> Length (mm)', 'a', 'b', 'Estimated <br> weight (g)', 'n', 'Catch <br> Weight (g)', 'Percent <br> Weight', 'Percent <br> n'))
+
+write.xlsx(perc_wt_n_df, paste(mm_plots_folder, '/', fish_zone, 'ZBlockNo', fish_blockno, '_LENGTHWEIGHT_Percent', '.xlsx', sep = ''), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+```
+
+# Summaries
+```{r summaries, echo=FALSE}
+
+# determine total percentage of catch by weight and numbers below proposed max LML 
+perc_wt_n_df %>% 
+ filter(shell_length < 145) %>% 
+ summarise(catch_weight_perc = round(sum(perc_wt), 0),
+           catch_n_perc = round(sum(perc_n), 0))
+
+```
+
+# Plot percentage contribution of size classes to catch
+```{r size contribution plot, echo=FALSE}
+
+## Eastern zone LML increases ####
+
+ez_lw_dat <- compiledMM_df_final %>% 
+  filter(newzone == fish_zone &
+          blockno == fish_blockno &
+           fishyear >= 1989 &
+           numblocks <= 1 &
+          between(shell.length, sizelimit, 220)) %>%  
+  group_by(blockno, fishyear) %>% 
+  summarise(n = n(),
+            size.a = sum(between(shell.length, 138, 139)),
+            size.b = sum(between(shell.length, 140, 141)),
+            size.c = sum(between(shell.length, 142, 144)),
+            size.d = sum(shell.length >= 145),
+            perc.a = round((size.a/n)*100),
+            perc.b = round((size.b/n)*100),
+            perc.c = round((size.c/n)*100),
+            perc.d = round((size.d/n)*100)) %>% 
+  select(-c(size.a, size.b, size.c, size.d)) %>% 
+  gather(perc.size, perc, perc.a:perc.d) %>%  
+  mutate(blockno = factor(blockno))
+
+
+ez_lw_dat %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, width = 0.75)) + 
+  geom_bar(position = "fill", stat = "identity") +
+  # facet_wrap(blockno ~., ncol = 2)+
+  scale_y_continuous(labels = scales::percent_format())+
+  scale_fill_manual(values = c('#CD534CFF','#868686FF', '#EFC000FF', '#0073C2FF'), 
+                    name = 'Length (mm)',
+                    breaks = c("perc.a", "perc.b", "perc.c", "perc.d"),
+                      labels = c('138-139', '140-141', '142-144', '>145'))+
+  theme_bw()+
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8),
+        legend.key.size = unit(0.5, "cm"),
+        legend.key.width = unit(0.5,"cm"),
+        legend.position="top")+
+  xlab('Year')+
+  ylab('Percentage')+
+  geom_hline(aes(yintercept = 0.5),
+             colour = 'red',
+             linetype = 'dashed',
+             size = 0.5)
+
+# ggsave(
+#   filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.pdf', sep = ''),
+#   plot = LML.140.plot,
+#   height = 10,
+#   width = 8)
+# 
+# ggsave(
+#   filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.png', sep = ''),
+#   plot = LML.140.plot,
+#   height = 10,
+#   width = 8)
+```
+
+
+
+
+
+
+# Conclusions - these are just notes from various emails thus far
+Animals have mostly come from a fairly narrow band 138-150 mm; there are certainly not too many large cohorts remaining above 160 mm however there are evidence of large animals existing so if given a chance to grow they would attain larger max size.
+
+Exploitation rate is too high (still) in the Eastern Zone, so it remains something of a recruit based fishery. Thus, any external events (storms, MHW, crap year ), means that the harvest has to switch  to larger size classes  (> 145mm)   of which there is not much, and CPUE falls quickly.
+
+DOES NOT support the idea that the growth in these populations is limiting and that something like a 145mm size limit is to high.
+
+About 70% of catch is <150 mm and the data points to a reliance on very much a recruit-based fishery, where individuals are taken as soon as they enter the fishery, and larger cohorts have effectively been picked off gradually over the years to the point that when the fishery does need to shift to bigger fish (i.e. now) they simply aren’t there or have never had the chance to reach those larger sizes.   
+
+
+
+# References
+
+
+
+
+

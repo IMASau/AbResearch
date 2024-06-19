@@ -50,9 +50,10 @@ df.1 <- noaa_aus %>%
 
 sst_plot <- df.1 %>% ggplot(aes(x = samp_year, y = mean_sst, group = sau_name, colour = sau_name))+
  geom_line()+
+ geom_point()+
  geom_smooth(method = lm, se = F)+
  theme_bw()+
- geom_hline(yintercept = 12, linetype = 'dashed', colour = 'red')+
+ # geom_hline(yintercept = 12, linetype = 'dashed', colour = 'red')+
  xlab('Year')+
  ylab(expression("Temperature " ( degree~C)))+
  guides(colour = guide_legend(reverse = T))+
@@ -62,9 +63,10 @@ sst_plot <- df.1 %>% ggplot(aes(x = samp_year, y = mean_sst, group = sau_name, c
        legend.background = element_blank(),
        text = element_text(size = 20))
 
-ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/EastcoastMeanAnnual_SST_NEvsSE_1982-2022', '.pdf', sep = ''), 
+
+ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TACL/EastcoastMeanAnnual_SST_NEvsSE_1982-2022', '.pdf', sep = ''), 
        plot = sst_plot, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste('C:/cloudstor/R_Stuff/WEI/Results/EastcoastMeanAnnual_SST_NEvsSE_1982-2022', '.png', sep = ''), 
+ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_TACL/EastcoastMeanAnnual_SST_NEvsSE_1982-2022', '.png', sep = ''), 
        plot = sst_plot, units = 'mm', width = 190, height = 200)
 
 write.xlsx(df.1,

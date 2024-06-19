@@ -185,7 +185,7 @@ source("c:/GitCode/AbSpatial/AbTrack/MapNextgen_Queries_v1.R")
 conn <- DBI::dbConnect(odbc(), "AbTrack")
 
 # Set year
-year = 2023
+year = 2024
 
 # Import data
 tic("sql retrieve")
@@ -219,7 +219,14 @@ logged_data <- data_packet %>%
  filter(logname %in% c('07010050', 
                        '07010051', 
                        '07010052', 
-                       '07010053'))
+                       '07010053',
+                       '10010008',
+                       '10010012',
+                       '10010017',
+                       '10010018',
+                       '10010019',
+                       '10010020',
+                       '10010021'))
 
 ## Save logged_data
 
@@ -254,7 +261,9 @@ logged.data <- logged.data %>%
 ##---------------------------------------------------------------------------##
 ## Check LoggerName data ####
 
-logname <- filter(logged.data, identifier == 32962)
+# logname <- filter(logged.data, identifier == 32962)
+logname <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33217, identifier == 32962))
 
 logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
@@ -269,10 +278,17 @@ logname <- logname %>%
 ##---------------------------------------------------------------------------##
 ## Step 2: Extract Battery voltage  ####
 
-loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
+# loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
+#  separate(datapack, c("volts"), sep = ",", remove = FALSE,
+#           convert = FALSE) %>%
+#  arrange(logname,local_date) %>% 
+#  as.data.frame()
+
+loggerbattery <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33235, identifier == 32833)) %>% 
  separate(datapack, c("volts"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
- arrange(logname,local_date) %>%
+ arrange(logname,local_date) %>% 
  as.data.frame()
 
 # tail(loggerbattery)
@@ -309,7 +325,7 @@ gps.RMC <- left_join(gps.RMC_B, select(gps.RMC_A, logname, local_date, longitude
 
 # remove duplicate records resulting from upload failures or loggers going out of range 
 # and filter out measuring board records
-mb_lognames <- c('^07')
+mb_lognames <- c('^07', '^10')
 
 gps.RMC <- gps.RMC %>%
   distinct(logname, seqindex, identifier, .keep_all = T) %>% 
@@ -321,12 +337,43 @@ gps.RMC <- gps.RMC %>%
 
 ##---------------------------------------------------------------------------##
 ## Step 4: Extract Docket details ####
-docket <- filter(logged.data, identifier == 32963)
+# docket <- filter(logged.data, identifier == 32963) 
+docket <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33219, identifier == 32963))
 
-docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep = ",", remove = FALSE,
-                    convert = TRUE) %>%
- as.data.frame()
+# docket <-  separate(docket, datapack, c("abalonenum","zone", "docketnum"), sep = ",", remove = FALSE,
+#                     convert = TRUE) %>%
+#  as.data.frame()
 
+docket <-  docket %>% 
+ group_split(newdock = plaindate > as.Date('2024-01-01')) %>% 
+ map(function(d) {
+  into = if (d$newdock[1]) {
+   c("abalonenum", "docketnum")
+  } else {
+   c("abalonenum", "zone", "docketnum")
+  }
+  separate(d, datapack, into = into, sep = ",", remove = FALSE, convert = TRUE)
+ }) %>% 
+   bind_rows() %>% 
+   select(-newdock)
+
+# extract zone from new measuring board data post 2024
+zone <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33217, identifier == 32963))
+
+zone <-  zone %>% 
+ group_split(newzone = plaindate > as.Date('2024-01-01')) %>% 
+ map(function(d) {
+  into = if (d$newzone[1]) {
+   c("abalonenum", "zone")
+  } else {
+   c("abalonenum", "zone", "docketnum")
+  }
+  separate(d, datapack, into = into, sep = ",", remove = FALSE, convert = TRUE)
+ }) %>% 
+ bind_rows() %>% 
+ select(c(logname, rawutc, seqindex, zone))
 
 # remove duplicate records resulting from upload failures or loggers going out of range
 docket <- left_join(docket, zone, by = c("rawutc", 'logname', 'seqindex'))
@@ -334,13 +381,17 @@ docket <- left_join(docket, zone, by = c("rawutc", 'logname', 'seqindex'))
 docket <- docket %>% 
  distinct(logname, seqindex, identifier, .keep_all = T)
 
+docket <- docket %>% 
+ distinct(logname, rawutc, identifier, .keep_all = T)
+
 # tail(docket)
 
 
 ##---------------------------------------------------------------------------##
 ## Step 5: Extract length ####
-ablength <- filter(logged.data, identifier == 32964)
-
+# ablength <- filter(logged.data, identifier == 32964) 
+ablength <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33220, identifier == 32964))
 ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()
@@ -353,8 +404,9 @@ ablength <- ablength %>%
 
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
-abweight <- filter(logged.data, identifier == 32965)
-
+# abweight <- filter(logged.data, identifier == 32965) 
+abweight <- logged.data %>% 
+ filter(ifelse(plaindate > as.Date('2024-01-01'), identifier == 33221, identifier == 32965))
 abweight <-  separate(abweight, datapack, c("abalonenum","est.weight"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()

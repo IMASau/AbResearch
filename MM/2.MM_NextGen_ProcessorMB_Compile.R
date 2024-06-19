@@ -287,7 +287,9 @@ measure.board.df <- bind_rows(multi.board.abnum, measure.board.df.single.board)
 ## remove unknown but likely factory test samples
 measure.board.df <- measure.board.df %>% 
         filter(logname != 07020057 &
-                       !rawutc %in% c(1589771875, 1589771877))
+                       !rawutc %in% c(1589771875, 1589771877),
+               logname != 07020058 &
+                rawutc != 1717115863)
 
 ## remove duplicate samples (i.e. AW809078)
 measure.board.df <- measure.board.df %>% 

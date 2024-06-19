@@ -356,9 +356,10 @@ for (i in new.dockets) {
   geom_vline(
    aes(xintercept = ifelse(zone == 'AW', 145, 
                            ifelse(zone == 'AB', 114, 
-                                  ifelse(zone == 'AN', 127, 
+                                  ifelse(zone == 'AN', 132, 
                                          ifelse(zone == 'AG', 145, 
-                                                ifelse(zone == 'AE' & sampyear >= 2023, 140, 138)))))),
+                                                ifelse(zone == 'AE' & sampyear == 2023, 140, 
+                                                       ifelse(zone == 'AE' & sampyear == 2024, 142, 138))))))),
    linetype = 'dashed',
    colour = 'red',
    size = 0.5

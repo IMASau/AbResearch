@@ -50,6 +50,7 @@ compiledMM.df.final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research
                                             Sys.info()[["user"]])))
 
 ##-------------------------------------------------------------------------------------------------------##
+
 # # Data additions ####
 # 
 # # add quarter variable
@@ -60,9 +61,15 @@ compiledMM.df.final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2023
+stock.assessment.year <- 2024
 
-##-------------------------------------------------------------------------------------------------------##
+##----------------------------------------------------------------------------##
+# Plots folders ####
+mm_plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                           Sys.info()[["user"]])),
+                             paste(stock.assessment.year, '/', 'MM_Plots_', stock.assessment.year, sep = ''))
+##----------------------------------------------------------------------------##
+
 # Identify zone/blocks/processors ####
 
 # # identify stock assessment zone of interest
@@ -713,24 +720,26 @@ ggsave(
 ## Western zone % 140-145 mm pre LML increase ####
 
 df.1 <- compiledMM.df.final %>% 
-  filter(newzone == 'W' &
-           fishyear >= 1980 &
+  filter(newzone == 'E' &
+           fishyear >= 1989 &
            # subblockno %in% df.2019.unique.subblocks &
            numblocks <= 1 &
-           between(shell.length, sizelimit - 5, 220)) %>% 
+           between(shell.length, sizelimit, 220) &
+          blockno %in% c(13, 14, 20, 21)) %>%  
   group_by(blockno, fishyear) %>% 
   summarise(n = n(),
-            size.a = sum(between(shell.length, 140, 144)),
-            size.b = sum(between(shell.length, 145, 149)),
-            size.c = sum(between(shell.length, 150, 154)),
-            size.d = sum(shell.length >= 155),
+            size.a = sum(between(shell.length, 138, 139)),
+            size.b = sum(between(shell.length, 140, 141)),
+            size.c = sum(between(shell.length, 142, 144)),
+            size.d = sum(shell.length >= 145),
             perc.a = round((size.a/n)*100),
             perc.b = round((size.b/n)*100),
             perc.c = round((size.c/n)*100),
             perc.d = round((size.d/n)*100)) %>% 
   select(-c(size.a, size.b, size.c, size.d)) %>% 
-  gather(perc.size, perc, perc.a:perc.d) %>% 
-  mutate(blockno = factor(blockno, levels = c(6, 7, 8, 9, 10, 11, 12, 13)))
+  gather(perc.size, perc, perc.a:perc.d) %>%  
+  mutate(blockno = factor(blockno, levels = c(13, 14, 20, 21)))
+  # mutate(blockno = factor(blockno, levels = c(6, 7, 8, 9, 10, 11, 12, 13)))
 
 
 LML.140.plot <- df.1 %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, width = 0.75)) + 
@@ -740,7 +749,7 @@ LML.140.plot <- df.1 %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, wi
   scale_fill_manual(values = c('#CD534CFF','#868686FF', '#EFC000FF', '#0073C2FF'), 
                     name = 'Length (mm)',
                     breaks = c("perc.a", "perc.b", "perc.c", "perc.d"),
-                      labels = c('140-144', '145-149', '150-154', '>155'))+
+                      labels = c('138-139', '140-141', '142-144', '>145'))+
   theme_bw()+
   theme(legend.title = element_text(size = 10),
         legend.text = element_text(size = 8),
@@ -754,16 +763,14 @@ LML.140.plot <- df.1 %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, wi
              linetype = 'dashed',
              size = 0.5)
 
-setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
-
 ggsave(
-  filename = paste('MM_WZ_LML140.pdf', sep = ''),
+  filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.pdf', sep = ''),
   plot = LML.140.plot,
   height = 10,
   width = 8)
 
 ggsave(
-  filename = paste('MM_WZ_LML140.png', sep = ''),
+  filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.png', sep = ''),
   plot = LML.140.plot,
   height = 10,
   width = 8)
@@ -3783,14 +3790,14 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
 #### LW relationship ####
   
 # load most recent commercial catch sampling compiled MM dataframe
-compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
 
 # select length-weight data, removing obvious erroneous data or data collected 
 # from multiple blocks in a trip
-  lw.dat <- compiledMM.df.final %>%
+  lw_dat <- compiledMM.df.final %>%
     filter(
       between(whole.weight, 200, 1500) &
-        between(shell.length, sizelimit - 5, 220) &
+        between(shell.length, sizelimit, 220) &
         !(shell.length > 175 & whole.weight < 600),!(shell.length > 180 &
                                                        whole.weight < 1000),
       numblocks == 1
@@ -3823,12 +3830,12 @@ lw.dat.log <- lw.dat %>%
 
 # calculate regression coefficient summary table for each blockno
 lw.dat.coeff <- lw.dat.log %>%
-  nest(data = -blockno) %>% 
+  nest(data = -c(newzone, blockno)) %>% 
   mutate(fit = map(data, ~ lm(log.wt ~ log.sl, data = .x)),
          tidied = map(fit, broom::tidy)) %>% 
   unnest(tidied) %>%   
   filter(term %in% c('(Intercept)', 'log.sl')) %>% 
-  select(c(blockno, estimate, term)) %>% 
+  select(c(newzone, blockno, estimate, term)) %>% 
   as.data.frame() %>% 
   spread(., term, estimate) %>%  
   dplyr::rename(b = 'log.sl',
@@ -3853,7 +3860,7 @@ lw.dat.coeff.zone <- lw.dat.log %>%
 
 # determine sample size for each blockno and join to regression summaries
 lw.dat.n <- lw.dat.log %>% 
-  group_by(blockno) %>% 
+  group_by(newzone, blockno) %>% 
   summarise(n = n())
 
 lw.dat.n.zone <- lw.dat.log %>% 
@@ -3866,7 +3873,8 @@ lw.dat.coeff.zone <- left_join(lw.dat.coeff.zone, lw.dat.n.zone)
 
 # select regression parameters to use for estimating weight
 lw.coeff <- lw.dat.coeff.blockno %>% 
-  filter(blockno == 13) %>% 
+  filter(blockno == 13 &
+          newzone == 'E') %>% 
   select(a, b) %>% 
   mutate(join.id = 1)
 
@@ -3877,11 +3885,16 @@ lw.coeff.zone <- lw.dat.coeff.zone %>%
 
 est.weight <- lw.coeff.zone$a * (155 ^ lw.coeff.zone$b)
 
-lml.df <- data.frame('LML' = c(138, 140, 145, 150, 155, 160))
+lml.df <- data.frame('LML' = c(138, 140, 142, 145))
+
+catch_df <- data.frame(shell_length = seq(138, 220, 1)) %>% 
+ mutate(join.id = 1) %>% 
+ left_join(., lw.coeff) %>% 
+ mutate(est.weight = ((a * (shell_length ^ b))))
 
 lml.wt.df <- lml.df %>% 
   mutate(join.id = 1) %>% 
-  left_join(., lw.coeff.zone)
+  left_join(., lw.coeff)
 
 lml.wt.est.df <- lml.wt.df %>%
   mutate(est.weight = ((a * (LML ^ b))))
@@ -3899,6 +3912,32 @@ write.xlsx(lml.wt.est.df.final, paste('EAST_LENGTHWEIGHT_LML_RelativeChange', '.
            col.names = TRUE, row.names = TRUE, append = FALSE)
 
 ##----------------------------------------------------------------------------##
+df_1 <- lw_dat %>% 
+ filter(blockno == 13 &
+         newzone == 'E') %>%
+ mutate(size_class = floor(shell.length)) %>% 
+ group_by(size_class) %>% 
+ summarise(n = n()) %>% 
+ dplyr::rename('shell_length' = size_class)
+
+df_2 <- left_join(catch_df, df_1) %>% 
+ mutate(catch_weight = n * est.weight) %>% 
+ filter(!is.na(catch_weight)) %>% 
+ mutate(perc_weight = (catch_weight/sum(catch_weight))*100,
+        perc_num = (n/sum(n))*100)
+
+write.xlsx(df_2, paste(mm_plots_folder, '/Block13E_LENGTHWEIGHT_Percent', '.xlsx', sep = ''), 
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+
+df_2 %>% 
+ filter(shell_length < 145) %>% 
+ summarise(catch_weight_perc = sum(perc_weight),
+           catch_n_perc = sum(perc_num))
+
+##----------------------------------------------------------------------------##
+
+
 ## Seasonal changes in weight
 
 df_1 <- compiledMM.df.final %>% 

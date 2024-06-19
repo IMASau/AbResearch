@@ -1,0 +1,604 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  11pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[left = 2.5cm, right = 2cm, top = 2cm, bottom =
+2cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\usepackage{float}
+\usepackage{sectsty}
+\usepackage{paralist}
+\usepackage{setspace}\spacing{1.0}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{dcolumn}
+\usepackage{natbib}\bibliographystyle{agsm}
+\usepackage[nottoc, numbib]{tocbibind}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+
+\pagenumbering{gobble}
+
+\begin{centering}
+
+\vspace{3cm}
+
+
+\begin{center}\includegraphics[width=0.8\linewidth,height=0.8\textwidth]{../../../Users/jaimem/University of Tasmania/IMAS - Documents/Approved Logos/UniTas_IMAS_P_Pos_Col_RGB_2021} \end{center}
+
+\vspace{4cm}
+
+\LARGE
+
+\doublespacing
+{\bf Estimating Recreational Abalone Harvest Using Length-Weight Data from Commercial Catch Sampling}
+
+\vspace{4 cm}
+
+\Large
+{\bf Institute for Marine and Antarctic Studies}
+
+\Large
+{\bf Univeristy of Tasmania}
+
+\vspace{1cm}
+
+\normalsize
+\singlespacing
+By
+
+\vspace{0.5 cm}
+
+\large
+
+{\bf Jaime McAllister and Craig Mundy}
+
+\vspace{1.5 cm}
+
+\normalsize
+June 2022
+
+\end{centering}
+
+\newpage
+
+\section{Background}\label{background}
+
+Effort in the recreational abalone fishery is managed by daily limits,
+and until the 2019/2020 recreational fishing season the daily bag limit
+was set at a maximum of 10 abalone/licence/day, with a possession limit
+of 20 at any point in time. From 2010 to 2019 persistent declines in the
+commercial abalone fishery catch and catch rate were observed despite
+multiple decreases in the commercial TACC. Commercial CPUE is used as
+the sole proxy for biomass of the abalone resource, on the basis that
+the recreational catch is both small and difficult to accurately
+quantify. In 2019, a recommendation for closure of five key areas of the
+Tasmanian East Coast commercial blacklip abalone fishery was accepted.
+Similarly a reduction (but not closure) of the recreational bag limit to
+five abalone/licence/day was recommended and accepted to assist with
+recovery, and minimizing further risk of depletion of the abalone in key
+recreational fishing regions along the East Coast.
+
+In November 2021, the Tasmnaian Legislative Council rescinded the
+five-bag limit regulation, with an immediate return to the 2018/2019
+recreational abalone fishery regulations and limits. As part of the
+motivation for the reversal of the bag limit reduction, it was argued
+that size limits were the most important management lever available, and
+that no efforts had been made to consider and/or implement increases in
+the size limit governing the recreational abalone fishery.
+
+Here we explore the consequences of increases in the recreational
+abalone size limit on Tasmania's East Coast on the magnitude of the
+recreational abalone fishery harvest.
+
+\section{Estimate Recreational harvest for by mean
+weight}\label{estimate-recreational-harvest-for-by-mean-weight}
+
+Recreational abalone harvest has been routinely estimated by a
+phone-diary survey involving a random sample of license-holders since
+1996. Participants record details of their fishing activity including
+date, location, method used, target species, start and finish times, and
+the number of abalone kept (harvested) for the survey period 1st
+November to 30th April the following year and thus only provide a
+partial season estimate. Data from respondents are then expanded to
+estimate the catch (number of abalone harvested) and effort of the
+entire recreational licensed population using a `bootstraping' method to
+estimate 95\% confidence limits using the percentile method. Estimated
+harvest weight (kg) is then estimated by multiplying the harvest number
+by the average weight of an individual abalone for each area based on
+commercial catch sampling data collected prior to 2018 (area 1 = 522 g,
+area 2 = 517 g, area 3 = 520 g) (Lyle et al.~2021).
+
+The estimated combined east coast (areas 1-3) blacklip abalone
+recreational harvest number for 2020-21 was n = 22882 (95\% CI
+12774-34777) (area 1 = 11756, area 2 = 9919, area 3 = 1207) (Lyle et
+al.~2021). In 2020-21 this equates to 11916 kg (11.9 t) (see Table 6 in
+Lyle et al.~2021).
+
+The estimated combined east coast (areas 1-3) blacklip abalone
+recreational harvest number for 2018-19 was n = 25671 (95\% CI
+13728-37139) (area 1 = 20339, area 2 = 2365, area 3 = 2967) (Lyle et
+al.~2019). In 2018-19 this equates to 13167 kg (13.2 t) (see Table 6 in
+Lyle et al.~2019).
+
+The following code have been developed to utilise the most recent data
+collected from the commercial abalone catch sampling program between
+2019-2022.
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/lwplot check-1} 
+
+}
+
+\caption{Length-weight relationship of commercial abalone catch sampling data for all zones collected between 2019-2022.}\label{fig:lwplot check}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/east clean plot-1} 
+
+}
+
+\caption{Length-weight relationship of cleaned commercial abalone catch sampling data for the eastern zone collected between 2019-2022.}\label{fig:east clean plot}
+\end{figure}
+
+\begin{longtable}[]{@{}lrrr@{}}
+\caption{Average weight of individual abalone from commerical abalone
+catch sampling data for all zones collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+Zone & Av.weight(g) & n & Catches \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Zone & Av.weight(g) & n & Catches \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+BS & 387.7818 & 889 & 9 \\
+E & 562.3997 & 37438 & 386 \\
+G & 662.9899 & 296 & 3 \\
+N & 496.2601 & 1711 & 17 \\
+W & 693.8298 & 27212 & 280 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{Average weight of individual abalone from commerical abalone
+catch sampling data for all recreational harvest regions collected
+between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+RecRegion & Av.weight(g) & n & Catches \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+RecRegion & Av.weight(g) & n & Catches \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & 571.7411 & 39739 & 411 \\
+3 & 519.6595 & 1580 & 16 \\
+4 & 398.8881 & 563 & 6 \\
+5 & 441.2958 & 649 & 6 \\
+7 & 699.1372 & 1159 & 12 \\
+8 & 688.3725 & 20078 & 206 \\
+\end{longtable}
+
+\section{Estimate recreational harvest weight for east coast based on
+mean weight of individual abalone from commerical catch sampling for the
+eastern
+zone}\label{estimate-recreational-harvest-weight-for-east-coast-based-on-mean-weight-of-individual-abalone-from-commerical-catch-sampling-for-the-eastern-zone}
+
+\begin{longtable}[]{@{}rrr@{}}
+\caption{Estimated Recreational harvest based on average weight of
+individual abalone from commerical catch sampling for the eastern zone
+collected between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+Av.weight(g) & Harvest 18/19(kg) & Harvest 20/21(kg) \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Av.weight(g) & Harvest 18/19(kg) & Harvest 20/21(kg) \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+562.3997 & 14437.36 & 12868.83 \\
+\end{longtable}
+
+\section{Estimate Recreational harvest based on length-weight
+relationship}\label{estimate-recreational-harvest-based-on-length-weight-relationship}
+
+\begin{longtable}[]{@{}lrrr@{}}
+\caption{Estimated length-weight model parameters from commerical
+abalone catch sampling data for all zones collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+Zone & a & b & Length = 140 mm \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Zone & a & b & Length = 140 mm \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+BS & 0.0010634 & 2.617568 & 440.8935 \\
+E & 0.0040640 & 2.363466 & 480.0188 \\
+G & 0.0000692 & 3.162481 & 423.9968 \\
+N & 0.0028971 & 2.433554 & 483.8185 \\
+W & 0.0016766 & 2.551441 & 501.3590 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}lrr@{}}
+\caption{Estimated length-weight model parameters from commerical
+abalone catch sampling data for all zones collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+Zone & a & b \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Zone & a & b \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+BS & 0.0010634 & 2.617568 \\
+E & 0.0040640 & 2.363466 \\
+G & 0.0000692 & 3.162481 \\
+N & 0.0028971 & 2.433554 \\
+W & 0.0016766 & 2.551441 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.0506}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2405}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2025}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2532}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2532}}@{}}
+\caption{Estimated Recreational harvest for each LML based on estimated
+harvest for 2020-21 season and abalone length-weight relationship from
+commerical catch sampling for the eastern zone collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+LML
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Est. weight(g)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 95\%(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 90\%(kg)
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+LML
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Est. weight(g)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 95\%(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 90\%(kg)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 463.9691 & 10616.54 & 10085.71 & 9554.886 \\
+140 & 480.0188 & 10983.79 & 10434.60 & 9885.411 \\
+145 & 521.5277 & 11933.60 & 11336.92 & 10740.237 \\
+150 & 565.0349 & 12929.13 & 12282.67 & 11636.216 \\
+155 & 610.5652 & 13970.95 & 13272.41 & 12573.858 \\
+160 & 658.1429 & 15059.63 & 14306.64 & 13553.663 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.0506}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2405}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2025}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2532}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.2532}}@{}}
+\caption{Estimated Recreational harvest for each LML based on estimated
+harvest for 2018-19 season and abalone length-weight relationship from
+commerical catch sampling for the eastern zone collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+LML
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Est. weight(g)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 95\%(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 90\%(kg)
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+LML
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Est. weight(g)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 95\%(kg)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Harvest 90\%(kg)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 463.9691 & 11910.55 & 11315.02 & 10719.50 \\
+140 & 480.0188 & 12322.56 & 11706.43 & 11090.31 \\
+145 & 521.5277 & 13388.14 & 12718.73 & 12049.32 \\
+150 & 565.0349 & 14505.01 & 13779.76 & 13054.51 \\
+155 & 610.5652 & 15673.82 & 14890.13 & 14106.44 \\
+160 & 658.1429 & 16895.19 & 16050.43 & 15205.67 \\
+\end{longtable}
+
+\subsection{Determine relative change in Recreational harvest from
+initial
+LML}\label{determine-relative-change-in-recreational-harvest-from-initial-lml}
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{Relative change in estimated Recreational harvest for an
+increase in LML based on estimated harvest for 2020-21 season and
+abalone length-weight relationship from commerical catch sampling for
+the eastern zone collected between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Est. weight (g) & Harvest (kg) & Harvest Change \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Est. weight (g) & Harvest (kg) & Harvest Change \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 463.9691 & 10616.54 & 1.000000 \\
+140 & 480.0188 & 10983.79 & 1.034592 \\
+145 & 521.5277 & 11933.60 & 1.124057 \\
+150 & 565.0349 & 12929.13 & 1.217829 \\
+155 & 610.5652 & 13970.95 & 1.315961 \\
+160 & 658.1429 & 15059.63 & 1.418506 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{Relative change in estimated Recreational harvest for an
+increase in LML based on estimated harvest for 2018-19 season and
+abalone length-weight relationship from commerical catch sampling for
+the eastern zone collected between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Est. weight (g) & Harvest (kg) & Harvest Change \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Est. weight (g) & Harvest (kg) & Harvest Change \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 463.9691 & 11910.55 & 1.121886 \\
+140 & 480.0188 & 12322.56 & 1.160695 \\
+145 & 521.5277 & 13388.14 & 1.261064 \\
+150 & 565.0349 & 14505.01 & 1.366265 \\
+155 & 610.5652 & 15673.82 & 1.476358 \\
+160 & 658.1429 & 16895.19 & 1.591402 \\
+\end{longtable}
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/harvest relative change plot-1} \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/harvest relative change plot-2} 
+
+}
+
+\caption{Estimated Recreational harvest in 2020-21 and 2018-19 for each LML based on abalone length-weight relationship from commerical catch sampling for the eastern zone collected between 2019-2021.}\label{fig:harvest relative change plot}
+\end{figure}
+
+\section{Estimate Recreational harvest based on commercial catch
+sampling size
+frequencies}\label{estimate-recreational-harvest-based-on-commercial-catch-sampling-size-frequencies}
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{Estimated Recreational harvest for each LML based on estimated
+harvest for 2020-21 season and abalone length-weight relationship and
+size frequencies from commerical catch sampling for the eastern zone
+collected between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Est. Harvest(kg) & Harvest 95\%(kg) & Harvest 90\%(kg) \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Est. Harvest(kg) & Harvest 95\%(kg) & Harvest 90\%(kg) \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 12830.72 & 12189.19 & 11547.65 \\
+140 & 12987.04 & 12337.69 & 11688.33 \\
+145 & 13677.40 & 12993.53 & 12309.66 \\
+150 & 14504.68 & 13779.44 & 13054.21 \\
+155 & 15412.46 & 14641.84 & 13871.21 \\
+160 & 16380.69 & 15561.66 & 14742.62 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{Estimated Recreational harvest for each LML based on estimated
+harvest for 2018-19 season and abalone length-weight relationship and
+size frequencies from commerical catch sampling for the eastern zone
+collected between 2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Est. Harvest(kg) & Harvest 95\%(kg) & Harvest 90\%(kg) \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Est. Harvest(kg) & Harvest 95\%(kg) & Harvest 90\%(kg) \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 14394.61 & 13674.88 & 12955.15 \\
+140 & 14569.98 & 13841.48 & 13112.98 \\
+145 & 15344.48 & 14577.26 & 13810.03 \\
+150 & 16272.60 & 15458.97 & 14645.34 \\
+155 & 17291.02 & 16426.47 & 15561.92 \\
+160 & 18377.27 & 17458.41 & 16539.55 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}rrr@{}}
+\caption{Relative change in estimated Recreational harvest for an
+increase in LML based on estimated harvest for 2020-21 season and
+abalone length-weight relationship and size frequencies from commerical
+catch sampling for the eastern zone collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Harvest(kg) & HarvestChange \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Harvest(kg) & HarvestChange \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 12830.72 & 1.000000 \\
+140 & 12987.04 & 1.012183 \\
+145 & 13677.40 & 1.065988 \\
+150 & 14504.68 & 1.130465 \\
+155 & 15412.46 & 1.201215 \\
+160 & 16380.69 & 1.276677 \\
+\end{longtable}
+
+\begin{longtable}[]{@{}rrr@{}}
+\caption{Relative change in estimated Recreational harvest for an
+increase in LML based on estimated harvest for 2018-19 season and
+abalone length-weight relationship and size frequencies from commerical
+catch sampling for the eastern zone collected between
+2019-2022.}\tabularnewline
+\toprule\noalign{}
+LML & Harvest(kg) & HarvestChange \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+LML & Harvest(kg) & HarvestChange \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+138 & 14394.61 & 1.000000 \\
+140 & 14569.98 & 1.012183 \\
+145 & 15344.48 & 1.065988 \\
+150 & 16272.60 & 1.130465 \\
+155 & 17291.02 & 1.201215 \\
+160 & 18377.27 & 1.276677 \\
+\end{longtable}
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/lw harvest relative change plot-1} \includegraphics[width=0.8\textwidth,height=0.8\textwidth]{MM_Length-Weight_RecreationalHarvest_files/figure-latex/lw harvest relative change plot-2} 
+
+}
+
+\caption{Estimated Recreational harvest in 2020-21 and 2018-19 for each LML based on abalone length-weight relationship and size frequencies from commerical catch sampling for the eastern zone collected between 2019-2022.}\label{fig:lw harvest relative change plot}
+\end{figure}
+
+\section{References}\label{references}
+
+Lyle, J.M., Ewing, F., Ewing, G. and Tracey, S.R. (2021). Tasmanian
+recreational Rock Lobster and Abalone fisheries: 2020-21 fishing season.
+Institute for Marine and Antarctic Studies Report, 38p.
+
+Lyle, J.M., Ewing, F., Ewing, G. and Tracey, S.R. (2019). Tasmanian
+recreational Rock Lobster and Abalone fisheries: 2018-19 fishing season.
+Institute for Marine and Antarctic Studies Report, 36p.
+
+\end{document}
