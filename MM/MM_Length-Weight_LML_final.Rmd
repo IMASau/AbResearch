@@ -1,0 +1,706 @@
+---
+title: "Eastern Zone 2023-2025 Size-limit Changes"
+author: "Jaime McAllister"
+date: "`r Sys.Date()`"
+# output:
+#   pdf_document:
+#     fig_caption: yes
+#     fig_height: 8
+#     fig_width: 8
+#     # includes:
+#     #   in_header: "header.tex"
+#     toc: yes
+output:
+  bookdown::pdf_document2:
+    includes:
+     in_header: "preamble.tex"
+    number_sections: true
+    keep_tex: true
+    fig_caption: yes
+    latex_engine: pdflatex
+    extra_dependencies: ["flafter"]
+  word_document:
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+options(tinytex.verbose = TRUE)
+
+# clear console
+rm(list = ls())
+
+# Load required libraries and custom functions for plotting
+suppressPackageStartupMessages({
+library(RODBC)
+library(R.utils)
+library(lubridate)
+library(sp)
+library(tools)
+library(openxlsx)
+library(lubridate)
+library(gdata)
+library(doBy)
+library(tidyr)
+library(tidyverse)
+library(splitstackshape)
+library(readxl)
+library(data.table)
+library(scales)
+library(gridExtra)
+library(ggspatial)
+library(tmap)
+library(sf)
+library(janitor)
+library(xtable)
+library(gsubfn)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(ggpmisc)
+library(knitr)
+library(kableExtra) 
+}) 
+
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+source("C:/GitCode/AbResearch/getSeason.r")
+
+# Identify fishing year of interest
+fish_year <- 2024
+
+# Identify zone of interest
+fish_zone <- 'E'
+
+# Identify block of interest
+fish_blockno <- 13
+
+# Create plot and data export folder
+mm_plots_folder <- file.path(
+ paste(
+  sprintf(
+   'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+   Sys.info()[["user"]]
+  )
+ ),
+ paste(
+  fish_year,
+  '/',
+  'MM_Plots_',
+  fish_year,
+  sep = ''
+ )
+)
+
+# Load most recent compilation of commercial abalone catch sampling data
+compiledMM_df_final <- readRDS(paste(
+ sprintf(
+  'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+  Sys.info()[["user"]]
+ )
+))
+
+```
+# Background
+Since 2019 a series of Size Limit changes have gradually been introduced to the fishery with the aim of providing three years of protection post reproductive maturity of abalone populations around Tasmania. That required an increase in the Legal Minimum Length (LML) for the Tasmanian Eastern Zone blacklip fishery from 138 mm to 145 mm. This increase in LML was scheduled to occur in three steps, with the first step (138 mm to 140mm)implemented in 2023. The second step (140 mm to 142 mm) in 2024, and third (142 mm to 145 mm) is scheduled for 2025. 
+
+Changing size limits is likely to affect abalone stocks in multiple ways. Increasing the LML will initially reduce exploitable biomass which is expected to have short-term effects on catch and catch rates, as well as long-term benefits such as increased stock and stock biomass. There is often an argument put forward that some populations are 'stunted' and will never attain the sizes of an increased LML, consequently reducing available biomass and reduction in CPUE. As CPUE is a key component of the Harvest Control Rule (HCR) in the empirical Harvest Strategy (eHS), there is concern that this will result in a total allowable commercial catch (TACC) reduction in the year following the implementation of LML increase. This has been of particular concern in the Eastern Zone where it has been suggested the scheduled LML increase to 145 mm in Block 13 (Actaeon's Region) is too high and abalone will never attain these sizes.     
+
+Therefore the purpose of these analysis is to examine historical size structure trends in the Actaeon's region to assess the effect of LML increases on stock availability. The main objectives were to:
+
+1. Examine historical trends in size structure. 
+2. Examine recent length weight data to determine effect on abalone harvest numbers and biomass. 
+
+# Size structure compositions
+## Historical size stucture 1984-2024
+
+Size composition data collected since 1984 has varied markedly between years. Catch compositions were comprised of a broader size distribution up until the early 2000s, however, since then have become increasingly dominated by animals between the LML and 155 mm (Figure \@ref(fig:betweenyearsize)). In all years there is clearly evidence of large abalone >160 mm and in many cases animals in excess of 200 mm present in catches, and since 2010 the median size has regularly exceeded the the scheduled 145 mm LML increase.  
+
+```{r betweenyearsize, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Boxplot of length frequency distributions between 1984 and ', fish_year, '.', ' Red line under each boxplot indicates LML for that year. Red dotted line represents LML = 145 mm; green dotted line denotes a shell length = 160 mm;  oranges dots are individual abalone measurments (outliers). Number of abalone measured given above each boxplot.', sep = '')}
+
+## Eastern zone block data ####
+
+block_dat <- compiledMM_df_final %>%
+ filter(
+  newzone == fish_zone &
+   blockno == fish_blockno &
+   fishyear == fish_year &
+   numblocks <= 1 &
+   between(shell.length, sizelimit, 220)
+ )
+
+block_dat_historic <- compiledMM_df_final %>%
+ filter(
+  newzone == fish_zone &
+   blockno == fish_blockno &
+   between(fishyear, 1980, fish_year - 1) &
+   numblocks <= 1 &
+   between(shell.length, sizelimit, 220)
+ )
+
+plot_dat_block <- bind_rows(block_dat, block_dat_historic)
+
+# determine last sampling year
+last_fishyear <- max(block_dat_historic$fishyear)
+
+# determine number of sampling years
+n_fishyear <- length(unique(plot_dat_block$fishyear))
+
+
+# convert required grouping variable to factor for boxplot
+
+plot_dat_block$fishyear <- as.factor(plot_dat_block$fishyear)
+
+# generate a count of records for each year to add to boxplot
+
+plot_dat_n <- plot_dat_block %>%
+ group_by(fishyear, blockno) %>%
+ summarize(n = n())
+
+# generate table of size limits for each year to add to boxplot
+
+plot_size_limit <- plot_dat_block %>%
+ group_by(fishyear, blockno) %>%
+ summarise(legal_min_length = max(sizelimit))
+
+# generate boxplot of shell lengths for chosen grouping variable
+
+ggplot(plot_dat_block, aes(x = fishyear, y = shell.length)) +
+ geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+ geom_text(data = plot_dat_n,
+           aes(y = 220, label = n),
+           size = 3,
+           angle = 90) +
+ geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
+ geom_hline(aes(yintercept = 160), colour = 'darkgreen', linetype = 'dotted')+
+ geom_point(
+  data = plot_size_limit,
+  aes(x = fishyear, y = legal_min_length),
+  shape = 95,
+  size = 7,
+  colour = "red"
+ ) +
+ geom_vline(
+  aes(xintercept = ifelse(
+   fish_year - last_fishyear >= 2, n_fishyear - 0.5, ''
+  )),
+  linetype = 'dashed',
+  colour = 'red',
+  size = 0.5
+ ) +
+ xlab('Year') +
+ ylab(paste(fish_zone, 'Z ', 'BlockNo ', fish_blockno, ' Shell Length (mm)', sep = '')) +
+ coord_cartesian(ylim = c(120, 225)) +
+ theme_bw() +
+ theme(
+  plot.title = element_text(hjust = 0.5),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  axis.line = element_line(colour = "black"),
+  axis.text.x = element_text(angle = 45, vjust = 0.5)
+ )
+
+```
+
+
+## Percentage contribution of scheduled LML changes to catch
+A breakdown of historical catch compositions into the scheduled LML changes in the Eastern Zone demonstrates that catches have been dominated by at least 50% of abalone being >145 mm throughout time series (Figure \@ref(fig:betweenyearsize)). Cycles in recruitment are also apparent with a significant period of re-build and recruitment occurring during the mid 2000s demonstrated by a higher proportion of smaller individuals dominating catches (Figure \@ref(fig:sizecontribution)). A similar pattern of recruitment has also occurred in recent years with an apparent pulse of smaller individuals entering the fishery around 2019 which have since progressed to dominate catches as larger individuals in latter years (Figure \@ref(fig:sizecontribution)).
+
+```{r sizecontribution, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Percentage contribution of size classes to commercial abalone catches collected between 2019-', fish_year, '.', sep = '')}
+
+## Eastern zone LML increases ####
+
+ez_lw_dat <- compiledMM_df_final %>% 
+  filter(newzone == fish_zone &
+          blockno == fish_blockno &
+           fishyear >= 1989 &
+           numblocks <= 1 &
+          between(shell.length, sizelimit, 220)) %>%  
+  group_by(blockno, fishyear) %>% 
+  summarise(n = n(),
+            size.a = sum(between(shell.length, 138, 139)),
+            size.b = sum(between(shell.length, 140, 141)),
+            size.c = sum(between(shell.length, 142, 144)),
+            size.d = sum(between(shell.length, 145, 159)),
+            size.e = sum(shell.length >= 160),
+            # size.d = sum(shell.length >= 145),
+            perc.a = round((size.a/n)*100),
+            perc.b = round((size.b/n)*100),
+            perc.c = round((size.c/n)*100),
+            perc.d = round((size.d/n)*100),
+            perc.e = round((size.e/n)*100))%>% 
+  select(-c(size.a, size.b, size.c, size.d, size.e)) %>% 
+  gather(perc.size, perc, perc.a:perc.e) %>%  
+  mutate(blockno = factor(blockno))
+
+
+ez_lw_dat %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, width = 0.75)) + 
+  geom_bar(position = "fill", stat = "identity") +
+  # facet_wrap(blockno ~., ncol = 2)+
+  scale_y_continuous(labels = scales::percent_format())+
+  scale_fill_manual(values = c('#4A6990FF', '#CD534CFF','#868686FF', '#EFC000FF', '#0073C2FF'), 
+                    name = 'Length (mm)',
+                    breaks = c("perc.a", "perc.b", "perc.c", "perc.d", "perc.e"),
+                      labels = c('138-139', '140-141', '142-144', '145-159', '\u2265 160'))+
+  theme_bw()+
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8),
+        legend.key.size = unit(0.5, "cm"),
+        legend.key.width = unit(0.5,"cm"),
+        legend.position="top")+
+  xlab('Year')+
+  ylab('Percentage')+
+ # ggtitle(paste('Percentage contribution of size classes by year for ', fish_zone, 'Z ', 'Block ', fish_blockno, sep = ''))+
+  geom_hline(aes(yintercept = 0.5),
+             colour = 'red',
+             linetype = 'dashed',
+             size = 0.5)
+
+# ggsave(
+#   filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.pdf', sep = ''),
+#   plot = LML.140.plot,
+#   height = 10,
+#   width = 8)
+# 
+# ggsave(
+#   filename = paste(mm_plots_folder, '/MM_EZ_LML_Percentages.png', sep = ''),
+#   plot = LML.140.plot,
+#   height = 10,
+#   width = 8)
+
+
+  
+```
+
+# Size structure 2019-2024
+
+Further examination of more recent size composition data between 2019 and 2024 shows the majority of catches have been dominated by animals between the LML and 155 mm (Figure \@ref(fig:yearlengthfrequency)). Overall, 61% of animals measured have been >145 mm in each of the years between 2019-2024 and whilst there are clearly animals still reaching >160 mm, the fishery has largely become recruitment driven and catches dominated by animals <160 mm. However, these recent catches (2019-2024) appear to have been dominated by a single cohort from an initial recruitment pulse around 2019, evidenced by an increasing median size and absence of animals nearer to the LML. These trends suggest there has likely been a recruitment gap year sometime in fishery since around 2019 and has resulted in a higher dependence on animals that have attained larger sizes. Consequently, this is likely to contribute towards lower catch rates given there have generally been fewer animals reaching these larger sizes in more recent years.
+
+```{r yearlengthfrequency, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Length frequency distributions between 2019 and ', fish_year, '.', ' Green dashed line indicates LML for that year; red dotted line indicates LML = 145 mm. ',  'n = number of abalone measured.', sep = '')}
+
+block_dat <- compiledMM_df_final %>%
+ filter(
+  newzone == fish_zone &
+   blockno == fish_blockno &
+   between(fishyear, 2019, fish_year) &
+   numblocks <= 1 &
+   between(shell.length, sizelimit, 220)
+ )
+
+block_dat_n <- block_dat %>% 
+ group_by(fishyear) %>% 
+ summarise(block_n = n(),
+           n = paste('n =', n()))
+
+size_limits <- data.frame(
+    fishyear = c(2019, 2020, 2021, 2022, 2023, 2024),
+    size.limit = c(138, 138, 138, 138, 140, 142))
+
+year_block_lf_plot <- ggplot(block_dat, aes(shell.length)) +
+    geom_histogram(
+      aes(y = ..density.. * 1),
+      fill = 'white',
+      col = 'black',
+      binwidth = 1
+    ) +
+     theme_bw() +
+ coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.12)) +
+    ylab(paste(fish_zone, "Z", " BlockNo", fish_blockno, " Percentage (%)", sep = '')) +
+    xlab("Shell Length (mm)") +
+facet_grid(rows = vars(fishyear))+
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = '')) +
+    geom_text(
+      data = block_dat_n,
+      aes(x = 200, y = 0.08, label = n, hjust = 'right'),
+      colour = 'black',
+      inherit.aes = F,
+      parse = F,
+      size = 3.5
+    )+
+geom_vline(aes(xintercept = as.numeric(145)),
+           colour = 'red', linetype = 'dotted', size = 0.5)+
+ geom_boxplot(aes(y = 0.1), width = 0.01, fill = 'lightgrey', outlier.color = NA, coef = 1)+
+    geom_vline(data = size_limits, aes(xintercept = as.numeric(size.limit)),
+               colour = 'darkgreen', linetype = 'dashed', size = 0.5)
+
+ggsave(
+   filename = paste(mm_plots_folder, '/', fish_zone, 'Z', '_BlockNo', fish_blockno, 'LengthFrequency2019-', fish_year,'.pdf', sep = ''),
+   plot = year_block_lf_plot,
+   width = 7.4,
+   height = 5.57,
+   units = 'in')
+
+print(year_block_lf_plot)
+
+ggsave(
+   filename = paste(mm_plots_folder, '/', fish_zone, 'Z', '_BlockNo', fish_blockno, 'LengthFrequency2019-', fish_year,'.png', sep = ''),
+   plot = year_block_lf_plot,
+   width = 7.4,
+   height = 5.57,
+   units = 'in')
+
+# Summary of percentage above and below 145 mm
+summ_sub_legal <- compiledMM_df_final %>%
+  filter(newzone == fish_zone &
+          blockno == fish_blockno &
+           fishyear >= 2019 &
+           numblocks <= 1 &
+          between(shell.length, sizelimit, 220)) %>%
+ group_by(fishyear) %>%
+  summarise(n = n(),
+            size.a = sum(shell.length < 145),
+            size.b = sum(shell.length >= 145),
+            perc.a = round((size.a/n)*100),
+            perc.b = round((size.b/n)*100)) %>%
+  select(-c(size.a, size.b)) %>%
+ summarise(mean_subleg = mean(perc.a),
+           mean_leg = mean(perc.b))
+
+```
+## Within year size composition
+Abalone populations are spatially dynamic and can vary in size structure across small spatial distances (i.e. 10s to 100s metres). Productivity is therefore highly variable across reefs which in turn can determine the spatial distribution of fishing effort and rate of harvest. More productive, faster growing areas tend to be fished more regularly whereas less effort may be directed towards slower growing and less productive areas. Therefore it is not surprising that within a fishing year (2023) there is high variability in size structure between catches from the Actaeons (Figure \@ref(fig:fishyearsize)). Whilst the precise spatial locations of those catches measured has not been examined it is interesting to note that in 93% of catches, the median size of animals was >145 mm and in every catch there was at least one animal >158 mm. Whilst further examination of spatial fishing data is required to determine the distribution of catch measurement locations, there is a high probability that at least some of these catches were measured from areas considered to be of low productivity, highlighting that growth is not limited by their environment, rather likely constrained by excessive fishing pressure and limiting the time animals have to reach larger sizes before they are harvested.  
+
+```{r fishyearsize, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Range of size compositions between individual commercial abalone catches collected in 2023.', sep = '')}
+
+## Eastern zone block data ####
+
+ez_lw_dat <- compiledMM_df_final %>% 
+  filter(newzone == fish_zone &
+          blockno == fish_blockno &
+           fishyear == 2023 &
+           numblocks <= 1 &
+          between(shell.length, sizelimit, 220) &
+          !is.na(docket.number)) %>% 
+ mutate(catch_id = match(docket.number, unique(docket.number)))
+
+med_perc <- ez_lw_dat %>% 
+ group_by(docket.number) %>% 
+ summarise(med_size = median(shell.length),
+           max_size = max(shell.length)) %>% 
+ mutate(med_145 = case_when(med_size >= 145 ~ '>lml_145'))
+
+plotdat_n <- ez_lw_dat %>%
+        group_by(catch_id) %>%
+        summarize(n = n())
+
+ez_lw_dat %>% 
+        ggplot(aes(x = factor(catch_id), y = shell.length)) +
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+        geom_text(
+          data = plotdat_n,
+          aes(y = 200, label = n),
+          size = 3,
+          angle = 90
+        ) +
+        geom_hline(aes(yintercept = 140), colour = 'darkgreen', linetype = 'dotted')+
+ geom_hline(aes(yintercept = 142), colour = 'orange', linetype = 'dotted')+
+ geom_hline(aes(yintercept = 145), colour = 'red', linetype = 'dotted')+
+        xlab('Catch ID') +
+        ylab(paste(fish_zone, 'Z ', 'BlockNo ', fish_blockno, ' Shell Length (mm)', sep = '')) +
+ # ggtitle(paste('Size compositions of individual catches in 2023 for ', fish_zone, 'Z ', 'Block ', fish_blockno, sep = ''))+
+        coord_cartesian(ylim = c(140, 200)) +
+        theme_bw() +
+        theme(
+          plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(colour = "black"),
+          axis.text.x = element_text(angle = 0, vjust = 0.5)
+        )
+
+
+```
+
+# Length-weight relationship 2019-2024
+
+## Background
+Length and weight data have been collected concurrently since 2019 using Scielex NextGen measuring boards with integrated platform scales at various abalone processing factories around Tasmania. This is providing an improved understanding of stock performance and abalone condition across many parts of the fishery whilst also facilitating processors with grading and handling information on processed catches. Importantly these data have enabled a refinement of length-weight relationships for stock assessments which are used here for translating catch composition in terms of catch numbers to weight estimates in assessing the effects of size limit changes to landed biomass. Whilst it is evident from length composition data that 61% of abalone measured each year during the period 2019-2024 were on average >145 mm, in order to evaluate how the LML increases may affect harvested biomass and ultimately catch rates (kg/hr), a length-weight relationship was required.
+
+## Length-weight data prepartion
+
+### Length-weight data filtering
+An initial plot of all length and weight data collected since 2019 to look for any obvious data outliers (Figure \@ref(fig:lwdatacheck)). There are clearly several erroneous length and weight data collected in the initial plot and can be attributed to:
+
+1. Abalone weights <200 g or >1500 g are highly unlikely.
+2. Calibration and practice measurements taken at the default return position of
+the measuring gates (i.e. 100 mm).
+3. Measurement errors caused by operator error where animals are below the LML for a particular
+Zone especially where the measurement is >5 mm below the LML (e.g. animals being measured
+shell side down or passed through the gates at an angle).
+4. Failure to tare scales and abalone weights unlikely to correspond to appropriate 
+length depending on the Zone (e.g. EZ - shell length > 175 mm and whole weight <600 g; shell length > 180 mm and whole weight <1000 g).
+
+```{r lwdatacheck, echo=FALSE, fig.cap=paste('Length-weight relationship of all commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = '')}
+
+# Plot checking for outliers
+compiledMM_df_final %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ # ggtitle('Length-Weight All Data')+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+```
+
+
+```{r cleancatchsamplingdata, echo=FALSE}
+# Remove obvious erroneous length weight data
+  lw_dat <- compiledMM_df_final %>%
+    filter(fishyear >= 2019 &
+      between(whole.weight, 200, 1500) & # abalone above or below these weights unlikely
+        between(shell.length, sizelimit, 220)) # removes calibration measures around 100 mm and accounts for minor measuring error for abalone near the LML
+```
+
+### Summary of available length-weight data for Zone and Block
+Summary of catches measured in chosen Zone and Block where the catch can be assigned to a single Block (i.e. only a single Block listed on Docket) (Table \@ref(tab:catchsamplesbyblock)). 
+
+```{r catchsamplesbyblock, echo=FALSE}
+# Summary of catches measured in chosen Zone and Block where the catch can be assigned to a specific Block (i.e. only one Block listed on Docket)
+zone_block_count <- lw_dat %>%
+ filter(numblocks <= 1 &
+         between(fishyear, 2019, fish_year),
+        newzone == fish_zone &
+         blockno == fish_blockno) %>%
+ group_by(fishyear) %>%
+ summarise(catches = n_distinct(docket.number),
+           n = n(),
+           mean_length = round(mean(shell.length), 0),
+           mean_weight = round(mean(whole.weight), 0)) %>%
+ as_tibble()
+
+kable(zone_block_count, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Summary of catches measured from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Fishing\nYear', 'Catches', 'n', 'Mean\nLength\n(mm)', 'Mean\nWeight\n(g)'), align = 'c'), align = 'c', booktabs = TRUE, escape = F, linesep = '')
+
+```
+
+### Selected Zone and Block data filtering  
+Re-examining the length and weight data collected since 2019 to look for any remaining data outliers that may be specific to this region (Figure \@ref(fig:rechecklwdata)). For the Actaeon's there are specific erroneous data which are apparent based on known size and likely weights, shell length >175 mm and whole weight <600 g, or shell length >180 mm and whole weight <1000 g are likely to be measuring board operator errors and the failure to tare the platform scales. Removal of these data can be seen in cleaned length-weight relationship plot (Figure \@ref(fig:cleanlwdata)).
+
+
+```{r rechecklwdata, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Length-weight relationship of commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = '')}
+
+# Check for outliers for specific zone and block
+lw_dat %>%
+  filter(newzone == fish_zone &
+          blockno == fish_blockno &
+          numblocks <= 1) %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ # ggtitle(paste('Length-Weight ', fish_zone, 'Z Block ', fish_blockno, ' Data', sep = ''))+
+  xlim(130, 200)+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+```
+
+```{r zoneblockdata, echo=FALSE}
+# Filter erroneous data specific to zone and block
+zone_block_dat <- lw_dat %>% 
+  filter(if(fish_zone == 'E' & fish_blockno == 13){
+   newzone == fish_zone &
+    blockno == fish_blockno &
+    !(shell.length > 175 & whole.weight < 600) & # erroneous weight for length
+        !(shell.length > 180 & whole.weight < 1000) # erroneous weight for length
+  } else {
+   newzone == fish_zone &
+    blockno == fish_blockno
+   }
+  ) 
+```
+
+```{r cleanlwdata, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Length-weight relationship of cleaned commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = '')} 
+
+# Re-check for outliers for specific zone and block
+ zone_block_dat %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ # ggtitle(paste('Length-Weight cleaned ', fish_zone, 'Z ', 'Block ', fish_blockno, ' Data', sep = ''))+
+  xlim(130, 200)+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+
+```
+## Calculation of length-weight relationships for selected Zone and Block
+
+The length-weight relationship was calculated by fitting the data to a two-parameter power function of the form
+
+$W_{i} = aL_{i}^{b}$ (1)
+
+where _a_ and _b_ are constants. The length-weight model (1)can be transformed to a linear model by taking the natural logarithms of both sides and simplifying,
+
+$\log(W_{i}) = \log(a) + \log(L_{i})$ (2)
+
+Thus, with _y=log(W)_, _x=log(L)_, slope=_b_, and intercept=_log(a)_, (2) is in the form of a linear model. The transformed model is then fit with _lm()_ by submitting a formula of the form _y~x_ as the first argument followed by a _data=_ argument set equal to the data frame where the log-tranformed variables can be found.
+
+```{r lengthweightrelationship, echo=FALSE}
+
+# Calculate log of length and weight
+lw_dat_log <- zone_block_dat %>%
+  mutate(log_sl = log(shell.length),
+         log_wt = log(whole.weight))
+
+# calculate regression coefficients
+lw_dat_coeff <- lw_dat_log %>%
+ filter(numblocks <= 1) %>%
+  nest(data = -c(newzone, blockno)) %>%
+  mutate(fit = map(data, ~ lm(log_wt ~ log_sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>%
+  unnest(tidied) %>%
+  filter(term %in% c('(Intercept)', 'log_sl')) %>%
+  select(c(newzone, blockno, estimate, term)) %>%
+  as.data.frame() %>%
+  spread(., term, estimate) %>%
+  dplyr::rename(b = 'log_sl',
+                intercept = "(Intercept)") %>%
+  mutate(a = exp(intercept)) %>%
+ select(newzone, blockno, a, b)
+  # select(-intercept)
+
+# Determine sample size for each blockno and join to regression summaries
+lw_dat_n <- lw_dat_log %>%
+  group_by(newzone, blockno) %>%
+  summarise(n = n())
+
+lw_dat_coeff_blockno <- left_join(lw_dat_coeff, lw_dat_n)
+
+kable(lw_dat_coeff_blockno, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Zone', 'BlockNo', 'a', 'b', 'n')), booktabs = TRUE, escape = F, align = 'c', linesep = '')
+
+```
+
+## Calculate percent contribution of abalone by weight and numbers 
+
+The calculated length-weight model parameters for the Zone and Block were used to estimate the individual abalone weight for each 1 mm size class above the previous LML (i.e. 138 mm). The estimated size class weight was then multiplied by the total number of individuals measured to determine the total weight of that size class. The estimated total weight and numbers measured were then grouped into the LML incremental changes and summed to determine the percentage by weight and numbers of that size class to the overall size composition data.
+
+```{r weightnumbercontribution, echo=FALSE}
+
+# select regression parameters for zone and block to use for estimating weight
+lw_coeff <- lw_dat_coeff_blockno %>%
+  filter(blockno == fish_blockno &
+          newzone == fish_zone) %>%
+  select(a, b) %>%
+  mutate(join_id = 1)
+
+# create data frame of 1 mm shell lengths and estimate weight for chosen zone and block
+sl_est_wt_df <- data.frame(shell_length = seq(138, 220, 1)) %>%
+ mutate(join_id = 1) %>%
+ left_join(., lw_coeff) %>%
+ mutate(est_weight = round(((a * (shell_length ^ b))), 1))
+
+# select shell lengths and determine number of individuals for chosen zone and block
+sl_block_df <- lw_dat %>%
+ filter(blockno == fish_blockno &
+         newzone == fish_zone) %>%
+ mutate(size_class = floor(shell.length)) %>%
+ group_by(size_class) %>%
+ summarise(n = n()) %>%
+ dplyr::rename('shell_length' = size_class)
+
+# determine percentage contribution of each size class by weight and numbers
+perc_wt_n_df <- left_join(sl_est_wt_df, sl_block_df) %>%
+ mutate(catch_wt = round((n * est_weight) / 1000, 0)) %>%
+ filter(!is.na(catch_wt)) %>%
+ mutate(perc_n = round((n/sum(n))*100, 3),
+        perc_wt = round((catch_wt/sum(catch_wt))*100, 3)) %>%
+ select(-c(a, b, join_id))
+
+kable(
+ perc_wt_n_df,
+ caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of each 1 mm size class by weight and numbers using length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year,
+  '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''),
+ col.names = linebreak(c('Shell\nLength\n(mm)', 'Estimated\nWeight\n(g)', 'n', 'Catch\nWeight\n(kg)', 'Percent\nn', 'Percent\nWeight'), 
+  align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '', longtable = T)
+
+write.xlsx(perc_wt_n_df, paste(mm_plots_folder, '/', fish_zone, 'ZBlockNo', fish_blockno, '_LENGTHWEIGHT_Percent', '.xlsx', sep = ''),
+           sheetName = "Sheet1",
+           col.names = TRUE, row.names = TRUE, append = FALSE)
+```
+
+
+
+# Results
+## Percentage contribution of scheduled LML increases to catch
+
+Translating catch numbers to weight suggests the 61% of animals measured larger than maximum LML increase to 145 mm would equate to approximately 65% of the harvested biomass (Table \@ref(tab:lmlsumtab)). Whilst this may represent an initial 40% reduction in numbers and 35% reduction in harvested biomass it assumes a scenario where the LML increase occurs in a single step from 138 mm to 145 mm and therefore does not account for any growth or modal progression of animals likely to occur under the staged LML schedule.
+
+```{r lmlsumtab, echo=FALSE}
+
+# Determine total percentage of catch by weight and numbers below proposed max LML
+perc_wt_n_sum <- perc_wt_n_df %>%
+ mutate(lml_bin = cut(shell_length, breaks = c(138, 140, 142, 145, Inf),
+                      labels = c('138-139 mm', '140-141 mm', '142-144 mm', '$\\geq$ 145 mm'),
+                      right = F)) %>% 
+ group_by(lml_bin) %>%
+ summarise(catch_weight_perc = round(sum(perc_wt), 1),
+           catch_n_perc = round(sum(perc_n), 1)) %>% 
+ mutate(lml_year = c(2022, 2023, 2024, 2025),
+        lml = c(138, 140, 142, 145), .before = lml_bin)
+ # adorn_totals()
+
+kable(perc_wt_n_sum, caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of abalone by weight and numbers to size classes representing the scheduled LML increases using length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''), col.names = linebreak(c('LML Change\nYear', 'LML', 'Size Class\n(mm)', 'Percent\nWeight', 'Percent\nn'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '')
+
+```
+
+## Accounting for growth and modal progression
+Using a time series of sufficient length-weight data (2021-2023) we have examined a scenario where the scheduled LML increases were applied to those years and assumed modal progression of abalone from the previous year that were not harvested as they were protected by the LML increase of that year to determine the percentage contribution in numbers of what would have been legal and sub-legal size. This assumes individuals protected in the previous year have grown at a rate which has enabled them to attain the new LML and enter the fishery. We have then used the individual weights recorded for those animals to determine the estimated harvested biomass.
+
+Under this scenario 81% of abalone measured overall would have been larger than the new LML in each of the incremental years, equating to approximately 84% of harvested biomass (Table \@ref(tab:modalprogress)).
+
+```{r modalprogress, echo=FALSE}
+
+# Determine proportion of catch sub-legal and legal for first LML change (2021)
+lml_2021 <- lw_dat %>%
+ filter(numblocks <= 1 &
+         fishyear == 2021 &
+        newzone == fish_zone &
+         blockno == fish_blockno) %>%
+ mutate(lml_bin = case_when(shell.length < 140 ~ 'Sub-legal',
+                            shell.length >= 140 ~ 'Legal'))
+
+# Determine proportion of catch sub-legal and legal for second LML change (2022)
+lml_2022 <- lw_dat %>%
+ filter(numblocks <= 1 &
+         fishyear == 2022 &
+        newzone == fish_zone &
+         blockno == fish_blockno) %>%
+ mutate(lml_bin = case_when(shell.length < 142 ~ 'Sub-legal',
+                            shell.length >= 142 ~ 'Legal'))
+
+# Determine proportion of catch sub-legal and legal for third LML change (2023)
+lml_2023 <- lw_dat %>%
+ filter(numblocks <= 1 &
+         fishyear == 2023 &
+        newzone == fish_zone &
+         blockno == fish_blockno) %>%
+ mutate(lml_bin = case_when(shell.length < 145 ~ 'Sub-legal',
+                            shell.length >= 145 ~ 'Legal'))
+
+# Combine data
+lml_dat <- bind_rows(lml_2021, lml_2022, lml_2023)
+
+# Determine proportion of catch sub-legal and legal over time-series  
+lml_dat_summ <- lml_dat %>% 
+ group_by(lml_bin) %>% 
+  summarise(n_n = n(),
+            wt = round(sum(whole.weight)/1000, 0)) %>% 
+ mutate(perc_n = round((n_n/sum(n_n))*100, 0),
+        perc_wt = round((wt/sum(wt))*100, 0))
+
+kable(
+ lml_dat_summ,
+ caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of legal and sub-legal abalone by weight and numbers assuming modal progression of abalone from the previous year that were protected by the scheduled LML increase of that year using a scenario data seies from commercial abalone catch sampling collected between 2021-2023.', sep = ''), col.names = linebreak(c('Size Class', 'n', 'Weight\n(kg)', 'Percent\nn', 'Percent\nWeight'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '')
+
+```
+
+
+# Summary
+Abalone measured from the Actaeons have mostly come from a fairly narrow range of size classes between 138-150 mm particularity in more recent years (2019-2024), however, there is clear evidence of animals attaining sizes >160 mm throughout the time series. These size structures suggest the Acteaon's has become something of a recruit based fishery, where individuals are taken as soon as they attain the current LML and enter the fishery. However, the presence of large individuals >150 mm does not support the idea that growth in these populations is limiting and that something like a 145 mm LML is too high, rather it indicates that exploitation and harvest rates are likely still too high to allow animals time to reach these larger sizes in any great numbers. Consequently, any external events (e.g. MHW, storms) that affect recruitment, means that the harvest has to switch to larger size classes (>145mm) of which there is not much, and CPUE is likely to fall quickly.
+
+# References
+

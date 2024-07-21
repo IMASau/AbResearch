@@ -27,7 +27,6 @@ suppressPackageStartupMessages({
         library(tmap)
         library(sf)
         library(sp)
-        library(rgdal)
         library(RColorBrewer)
         library(viridis)
         library(ggpmisc)
@@ -203,6 +202,8 @@ gps_downloads_folder <- paste(sprintf("C:/Users/%s/OneDrive - University of Tasm
 # vessel data for surveys
 morana_gps_2023 <- st_read(file.path(gps_downloads_folder, 'MORANAII-2023-06-24_download.gpx'), layer = 'waypoints')
 morana_gps_2024a <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-06-07_download.gpx'), layer = 'waypoints')
+morana_gps_2024b <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-07-01_download.gpx'), layer = 'waypoints')
+morana_gps_2024c <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-07-08_download.gpx'), layer = 'waypoints')
 
 
 # add sample year (note: gps time refers to time waypoint was uploaded or taken,
@@ -218,9 +219,19 @@ morana_gps_2024a <- morana_gps_2024a %>%
  mutate(sampyear = 2024,
         vesselname = 'MoranaII')
 
+morana_gps_2024b <- morana_gps_2024b %>%
+ mutate(sampyear = 2024,
+        vesselname = 'MoranaII')
+
+morana_gps_2024c <- morana_gps_2024c %>%
+ mutate(sampyear = 2024,
+        vesselname = 'MoranaII')
+
 # join GPX files
 vessel_gps <- bind_rows(morana_gps_2023,
-                        morana_gps_2024a) %>%  
+                        morana_gps_2024a,
+                        morana_gps_2024b,
+                        morana_gps_2024c) %>%  
         mutate(gpsdate = as.Date(time),
                gpstime = time) %>% 
         select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
@@ -384,6 +395,19 @@ st_write(ts_sites_sampled,
          dsn = paste(spat_layer_folder, '/TimedSwim_NE_GL_2023_sites_sampled_', Sys.Date(), '.gpkg', sep = ''),
          layer = "TimedSwim_NE_GL_2023_sites_sampled.gpkg", driver = "GPKG", overwrite = T, delete_dsn = T)
 
+# GPX of sites sampled for repeat survey
+gl_resurvey_gpx <- ts_sites_sampled %>% 
+ filter(sampled == 1) %>% 
+ st_transform(., WGS84) %>% 
+ mutate(longitude = unlist(map(geometry, 1)),
+        latitude = unlist(map(geometry, 2))) %>% 
+ as.data.frame() %>% 
+ select(site, longitude, latitude)
+
+write.xlsx(gl_resurvey_gpx, paste(spat_layer_folder, '/TimedSwim_NE_GL_2024_GPX_POST-SURVEY-SITES.xlsx', sep = ''), 
+           sheetName = "Sheet1",
+           colNames = TRUE, rowNames = F, append = FALSE)
+
 ##---------------------------------------------------------------------------##
 ## 7. Sites sampled - actual ####
 ## create map of sites sampled within each Block with recorded GPS positions and 
@@ -495,6 +519,14 @@ ts_count_sum <- std_ts_dat %>%
     summarise(ab_n = sum(sizeclass_freq_10)) %>%  
     group_by(blockno, site, sampyear, legal_size) %>% 
     group_by(site)
+
+ts_count_order <- std_ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ group_by(blockno, site, sampyear) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>%  
+ group_by(blockno, site, sampyear) %>% 
+ group_by(site) %>% 
+ arrange(desc(ab_n))
 
 ts_av_count <- std_ts_dat %>%
   group_by(blockno, site, diver, sampyear, legal_size) %>% 
@@ -615,6 +647,103 @@ ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_Leg
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
 ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_LegalSubLegal', '.png', sep = ''), 
        plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
+##---------------------------------------------------------------------------##
+## PLOT 2: COUNT PER TEN MIN PRE POST ####
+## average count of all legal and sub-legal abalone per 10 min
+## (i.e. the average count between paired divers for each site)
+
+# determine mean abalone abundance for samp_period x size class
+
+df_1 <- std_ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+df_2 <- std_ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ left_join(., df_1) %>% 
+ filter(sampled_n >= 2)
+
+
+ten_min_mean <- df_2 %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>% 
+ group_by(samp_period, site, diver, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(samp_period, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           n = n_distinct(site))
+
+sub_legal_plot <- df_2 %>% 
+ filter(legal_size == '<150 mm') %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>%
+ group_by(samp_period, site, diver) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(samp_period, site) %>% 
+ summarise(mean_ab_n = mean(ab_n)) %>% 
+ mutate(samp_period = factor(samp_period, levels = c('pre', 'post'))) %>% 
+ ggplot(aes(x = samp_period, y = mean_ab_n))+
+ geom_boxplot(aes(fill = samp_period), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c('#44BB99', '#BBCC33'))+
+ # geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(group = factor(sampyear, levels = c('2023', '2024'))), shape = 19,
+ #            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(x = factor(samp_period)), shape = 19,
+            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Sampling Period')+
+ ylim(0, 80)+
+ geom_text(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(y = 80, label = n, x = factor(samp_period)), size = 3, 
+           position = position_dodge2(0.8))+
+ scale_colour_manual(values = c('#44BB99', '#BBCC33'))+
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Sub-legal <150 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ theme(legend.position = 'none')
+
+legal_plot <- df_2 %>% 
+ filter(legal_size == '>150 mm') %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>%
+ group_by(samp_period, site, diver) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(samp_period, site) %>% 
+ summarise(mean_ab_n = mean(ab_n)) %>% 
+ mutate(samp_period = factor(samp_period, levels = c('pre', 'post'))) %>% 
+ ggplot(aes(x = samp_period, y = mean_ab_n))+
+ geom_boxplot(aes(fill = samp_period), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c('#44BB99', '#BBCC33'))+
+ # geom_point(data = ten_min_mean %>% filter(legal_size == '<150 mm'), aes(group = factor(sampyear, levels = c('2023', '2024'))), shape = 19,
+ #            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ geom_point(data = ten_min_mean %>% filter(legal_size == '>150 mm'), aes(x = factor(samp_period)), shape = 19,
+            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Sampling Period')+
+ ylim(0, 80)+
+ geom_text(data = ten_min_mean %>% filter(legal_size == '>150 mm'), aes(y = 80, label = n, x = factor(samp_period)), size = 3, 
+           position = position_dodge2(0.8))+
+ scale_colour_manual(values = c('#44BB99', '#BBCC33'))+
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Sub-legal <150 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ ggtitle('Legal >150 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ theme(legend.title = element_blank(),
+       legend.position = c(0.9, 0.7))
+
+count.plot.sizeclass <- grid.arrange(sub_legal_plot, legal_plot, nrow = 2)
+
+setwd(plots_folder)
+ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_LegalSubLegal_PrePost', '.pdf', sep = ''), 
+       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_TenMinuteCount_LegalSubLegal_PrePost', '.png', sep = ''), 
+       plot = count.plot.sizeclass, units = 'mm', width = 190, height = 200)
+
+
 
 ##---------------------------------------------------------------------------##
 # Distance travelled per year 

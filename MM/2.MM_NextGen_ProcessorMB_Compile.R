@@ -89,9 +89,12 @@ logged.data <- logged.data %>%
 ## Check LoggerName data ####
 
 logname <- filter(logged.data, identifier == 32962) 
-logname <-  separate(logname, datapack, c("abalonenum","devicename"), sep = ",", remove = FALSE,
+logname <-  separate(logname, datapack, c("abalonenum", "devicename"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
- as.data.frame()
+ as.data.frame() %>% 
+ # distinct()
+ distinct(logname, identifier, rawutc, devicename,
+          crc_status, logger_date, local_date, plaindate, .keep_all = T)
 
 # tail(logname)
 
@@ -111,16 +114,23 @@ loggerbattery <- filter(logged.data, identifier %in% c(32833) ) %>%
 gps.RMC_A <- filter(logged.data, identifier == 220) %>%
  separate(datapack, c("longitude","latitude"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
- as.data.frame()
+ as.data.frame() %>% 
+ distinct(logname, identifier, rawutc, datapack, longitude, latitude, crc_status,
+          logger_date, local_date, plaindate, .keep_all = T)
+
 
 # tail(gps.RMC_A)
+
+
 
 ##---------------------------------------------------------------------------##
 ## Step 3B: Extract GPS RMC Part B ####
 gps.RMC_B <- filter(logged.data, identifier == 221) %>%
  separate(datapack, c("valid", "speed", "course", "variation"), sep = ",", remove = FALSE,
           convert = FALSE) %>%
- as.data.frame()
+ as.data.frame() %>%
+ distinct(logname, identifier, rawutc, datapack, valid, speed, course, variation, 
+          crc_status, logger_date, local_date, plaindate, .keep_all = T)
 
 # tail(gps.RMC_B)
 
@@ -135,6 +145,10 @@ gps.RMC <- left_join(gps.RMC_B, select(gps.RMC_A, logname, local_date, longitude
 gps.RMC <- gps.RMC %>%
         distinct(logname, seqindex, identifier, rawutc, .keep_all = T) %>% 
         filter(grepl('^07', logname))
+
+gps.RMC <- gps.RMC %>%
+ distinct(logname, identifier, rawutc, .keep_all = T) %>% 
+ filter(grepl('^07', logname))
 
 # Filter new measuring board data records
 # gps.RMC <- gps.RMC %>%
@@ -159,12 +173,18 @@ docket <-  separate(docket, datapack, c("abalonenum", "zone", "docketnum"), sep 
 docket <- docket %>% 
         distinct(logname, seqindex, identifier, rawutc, .keep_all = T)
 
+docket <- docket %>% 
+ distinct(logname, identifier, rawutc, .keep_all = T) %>% 
+ filter(!docketnum %in% c(45575, 111111, 123456, 222222, 323232, 333333, 454545, 
+                          474747, 555555, 565656, 616161, 654321, 666666, 811881, 
+                          369852, 785632, 0))
+
 # tail(docket)
 
 ##---------------------------------------------------------------------------##
 ## Step 5: Extract Weight length ####
 ablength <- filter(logged.data, identifier == 32964) 
-ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = ",", remove = FALSE,
+ablength <-  separate(ablength, datapack, c("abalonenum", "shelllength"), sep = ",", remove = FALSE,
                      convert = TRUE) %>%
  as.data.frame()
 
@@ -172,18 +192,28 @@ ablength <-  separate(ablength, datapack, c("abalonenum","shelllength"), sep = "
 ablength <- ablength %>% 
         distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
 
+ablength <- ablength %>% 
+ mutate(abalonenum = ifelse(logname == '07020058' &
+                             rawutc == 1620003665 &
+                             abalonenum == 34 &
+                             shelllength == 106, 35, abalonenum))
+
 # tail(ablength)
 
 ##---------------------------------------------------------------------------##
 ## Step 6: Extract Weight  ####
 abweight <- filter(logged.data, identifier == 32965) 
-abweight <-  separate(abweight, datapack, c("abalonenum","wholeweight"), sep = ",", remove = FALSE,
+abweight <-  separate(abweight, datapack, c("abalonenum", "wholeweight"), sep = ",", remove = FALSE,
                       convert = TRUE) %>%
  as.data.frame()
 
 # remove duplicate records resulting from upload failures or loggers going out of range
 abweight <- abweight %>% 
-        distinct(logname, seqindex, identifier, abalonenum, .keep_all = T)
+        distinct(logname, seqindex, identifier, abalonenum, .keep_all = T) %>% 
+ filter(!(logname == '07020058' &
+           rawutc == 1620003665 &
+           abalonenum == 35 &
+           wholeweight == 0))
 
 # tail(abweight)
 
@@ -191,9 +221,11 @@ abweight <- abweight %>%
 ## Step 7: Join components into a flat form ####
 
 lengthweight <- left_join(select(gps.RMC, logname, rawutc, logger_date, local_date, plaindate, latitude, longitude),
-                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>%       
- left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>%   
- left_join(select(ablength, logname, rawutc,shelllength), by = c('logname', "rawutc")) %>%  
+                          select(logname, logname, rawutc, abalonenum), by = c('logname', "rawutc")) %>% 
+ # filter(!is.na(abalonenum)) 
+ left_join(select(docket, logname, rawutc, zone, docketnum), by = c('logname', "rawutc")) %>% 
+ filter(!is.na(docketnum)) %>% 
+ left_join(select(ablength, logname, rawutc, shelllength), by = c('logname', "rawutc")) %>% 
  left_join(select(abweight, logname, rawutc, wholeweight), by = c('logname', "rawutc"))
 
 # tail(lengthweight)
@@ -296,22 +328,39 @@ measure.board.df <- measure.board.df %>%
         distinct()
 
 # adjust GPS dropout for 07-02-0056 on 2020-10-26 (Scielex suspect 4G antenna proximity to GPS) 
-measure.board.df <- measure.board.df %>% 
-        mutate(logger_date = if_else(docketnum == 521218 &
-                                           zone == 'AE' &
-                                           plaindate == as.Date('2027-07-05') &
-                                           logname == '07020056',
-                                   ymd_hms(gsub('2027-07-05', '2020-10-26', logger_date)), ymd_hms(logger_date)),
-               local_date = if_else(docketnum == 521218 &
-                                             zone == 'AE' &
-                                             plaindate == as.Date('2027-07-05') &
-                                             logname == '07020056',
-                                     ymd_hms(gsub('2027-07-05', '2020-10-26', local_date)), ymd_hms(local_date)),
-               plaindate = if_else(docketnum == 521218 &
-                                             zone == 'AE' &
-                                             plaindate == as.Date('2027-07-05') &
-                                             logname == '07020056',
-                                     ymd('2020-10-26'), plaindate))
+# measure.board.df <- measure.board.df %>%
+#         mutate(logger_date = if_else(docketnum == 521218 &
+#                                            zone == 'AE' &
+#                                            plaindate == as.Date('2027-07-05') &
+#                                            logname == '07020056',
+#                                    ymd_hms(gsub('2027-07-05', '2020-10-26', logger_date)), ymd_hms(logger_date)),
+#                local_date = if_else(docketnum == 521218 &
+#                                              zone == 'AE' &
+#                                              plaindate == as.Date('2027-07-05') &
+#                                              logname == '07020056',
+#                                      ymd_hms(gsub('2027-07-05', '2020-10-26', local_date)), ymd_hms(local_date)),
+#                plaindate = if_else(docketnum == 521218 &
+#                                              zone == 'AE' &
+#                                              plaindate == as.Date('2027-07-05') &
+#                                              logname == '07020056',
+#                                      ymd('2020-10-26'), plaindate))
+ 
+mb_df_2 <- measure.board.df %>% 
+ filter(docketnum == 521218 &
+         zone == 'AE' &
+         plaindate == as.Date('2027-07-05') &
+         logname == '07020056') %>% 
+ mutate(logger_date = ymd_hms(gsub('2027-07-05', '2020-10-26', logger_date)),
+        local_date =  ymd_hms(gsub('2027-07-05', '2020-10-26', local_date)),
+        plaindate = ymd('2020-10-26'), plaindate)
+
+mb_df_3 <- measure.board.df %>% 
+ filter(!(docketnum == 521218 &
+         zone == 'AE' &
+         plaindate == as.Date('2027-07-05') &
+         logname == '07020056'))
+
+measure.board.df <- bind_rows(mb_df_2, mb_df_3)
 
 # remove weights from Tas Seafoods measurements between 2020-07-03 and 2020-10-19 where the inferior scales were
 # used resulting in unreliable and erroneous weights being recorded.
@@ -327,8 +376,8 @@ docketnum.samp.day <- measure.board.df %>%
         group_by(docketnum, abalonenum, plaindate) %>% 
         summarise(n.day = n()) %>% 
         filter(abalonenum == 0) %>% 
-        ungroup() %>% 
-        select(docketnum, n.day) 
+        ungroup()
+        # select(docketnum, n.day)
 
 multi.samp.day <- left_join(measure.board.df, docketnum.samp.day) %>% 
         filter(!is.na(docketnum),
@@ -424,7 +473,10 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
                                          524904, 809423, 812647, 812932, 524621, 818662, 818659,
                                          818628, 818604, 818103, 817832, 817778, 817758, 817157,
                                          817139, 809297, 529002, 529001, 527880, 524091, 527383,
-                                         527780, 528529, 818687))  #remove samples where manual check of raw data found no refresh/or additional data
+                                         527780, 528529, 818687, 816311, 811308, 810743, 529658,
+                                         529485, 528231, 528168, 527358, 523743, 818704, 818564,
+                                         818683, 812809, 528238, 528158, 527397, 520017, 519891,
+                                         529658, 819128))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 # saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')

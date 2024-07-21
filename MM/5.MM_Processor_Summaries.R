@@ -5,6 +5,9 @@
 # Created by: Jaime McAllister
 
 ##----------------------------------------------------------------------------##
+# clear console ####
+rm(list = ls())
+
 # 1. load libaries ####
 suppressPackageStartupMessages({
 library(openxlsx)
@@ -72,7 +75,10 @@ mb.next.gen.grade.df <- measure.board.next.gen.df %>%
                wholeweight = replace(wholeweight, wholeweight == 0, NA))
 
 # list of unique processors for summary and plot loops
-processors <- unique(mb.next.gen.grade.df$processor)
+processors <- mb.next.gen.grade.df %>% 
+ filter(!is.na(processor))
+processors <- unique(processors$processor)
+
 
 # determine number of abalone measured per docket
 docknum.n.meas <- mb.next.gen.grade.df %>% 
@@ -283,7 +289,7 @@ existing.dockets <- as.data.frame(docket.summaries) %>%
         group_by_all() %>% 
         summarise(n = n()) %>%  
         mutate(summary.plot.exists = ifelse(!is.na(n), 1, 0),
-               docket.index = paste(docket.zone, docketnum.day, docket.date, docket.processor, sep = '-')) %>%        
+               docket.index = paste(docket.zone, docketnum.day, docket.date, docket.processor, sep = '-')) %>%         
         pull(docket.index)
 
 # Load vector of incomplete measureboard data for existing docket numbers determined in 

@@ -7,9 +7,7 @@ suppressPackageStartupMessages({
  library(RODBC)
  library(R.utils)
  library(lubridate)
- library(rgdal)
  library(sp)
- library(maptools)
  library(tools)
  library(openxlsx)
  library(lubridate)
@@ -323,7 +321,7 @@ names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
 
 # convert lml data to long format and create lml index variable
 size.limits.tab <- size.limits %>%
- gather(monthyear, sizelimit, `jan-1962`:`dec-2023`) %>% 
+ gather(monthyear, sizelimit, `jan-1962`:`dec-2024`) %>% 
  mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
  mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
  mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
