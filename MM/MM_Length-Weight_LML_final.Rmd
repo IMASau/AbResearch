@@ -111,12 +111,10 @@ compiledMM_df_final <- readRDS(paste(
 # Background
 Since 2019 a series of Size Limit changes have gradually been introduced to the fishery with the aim of providing three years of protection post reproductive maturity of abalone populations around Tasmania. That required an increase in the Legal Minimum Length (LML) for the Tasmanian Eastern Zone blacklip fishery from 138 mm to 145 mm. This increase in LML was scheduled to occur in three steps, with the first step (138 mm to 140mm)implemented in 2023. The second step (140 mm to 142 mm) in 2024, and third (142 mm to 145 mm) is scheduled for 2025. 
 
-Changing size limits is likely to affect abalone stocks in multiple ways. Increasing the LML will initially reduce exploitable biomass which is expected to have short-term effects on catch and catch rates, as well as long-term benefits such as increased stock and stock biomass. There is often an argument put forward that some populations are 'stunted' and will never attain the sizes of an increased LML, consequently reducing available biomass and reduction in CPUE. As CPUE is a key component of the Harvest Control Rule (HCR) in the empirical Harvest Strategy (eHS), there is concern that this will result in a total allowable commercial catch (TACC) reduction in the year following the implementation of LML increase. This has been of particular concern in the Eastern Zone where it has been suggested the scheduled LML increase to 145 mm in Block 13 (Actaeon's Region) is too high and abalone will never attain these sizes.     
+Altering size limits is anticipated to impact abalone stocks in various ways. An increase in the LML initially reduces the exploitable biomass, which is predicted to have short-term impacts on catch and catch rates, along with long-term advantages such as enhanced stock and stock biomass. However, there are diverse opinions within the industry regarding size limits. While most support the long-term benefits, there’s often a counterargument that some populations may never reach the sizes of an increased LML, thereby reducing available biomass and causing a decrease in CPUE. Given that CPUE is a crucial element of the Harvest Control Rule (HCR) in the empirical Harvest Strategy (eHS), there’s a worry that this might lead to a decrease in the total allowable commercial catch (TACC) in the year following the implementation of an LML increase. Abalone exhibit indeterministic growth that can be slower or faster, influenced by various biological and environmental factors. As a result, the time it takes for abalone to reach a certain size, such as the increased Legal Minimum Length (LML), may differ based on their location and the conditions they experience. This concern is particularly prevalent in the Eastern Zone, where it’s been suggested that the planned LML increase to 145 mm in Block 13 (Actaeon’s Region) is too high and abalone will never reach these sizes. The aim of these analyses is to offer a summary of the available size structure trends in Actaeon’s region to evaluate the impact of LML increases on stock availability and aid in making informed management decisions. The primary objectives were to:
 
-Therefore the purpose of these analysis is to examine historical size structure trends in the Actaeon's region to assess the effect of LML increases on stock availability. The main objectives were to:
-
-1. Examine historical trends in size structure. 
-2. Examine recent length weight data to determine effect on abalone harvest numbers and biomass. 
+1. Investigate historical trends in size structure.
+2. Analyze recent length-weight data to determine its effect on abalone harvest numbers and biomass.
 
 # Size structure compositions
 ## Historical size stucture 1984-2024
@@ -211,7 +209,7 @@ ggplot(plot_dat_block, aes(x = fishyear, y = shell.length)) +
 
 
 ## Percentage contribution of scheduled LML changes to catch
-A breakdown of historical catch compositions into the scheduled LML changes in the Eastern Zone demonstrates that catches have been dominated by at least 50% of abalone being >145 mm throughout time series (Figure \@ref(fig:betweenyearsize)). Cycles in recruitment are also apparent with a significant period of re-build and recruitment occurring during the mid 2000s demonstrated by a higher proportion of smaller individuals dominating catches (Figure \@ref(fig:sizecontribution)). A similar pattern of recruitment has also occurred in recent years with an apparent pulse of smaller individuals entering the fishery around 2019 which have since progressed to dominate catches as larger individuals in latter years (Figure \@ref(fig:sizecontribution)).
+A breakdown of historical catch compositions into the scheduled LML changes in the Eastern Zone demonstrates that catches have been dominated by abalone with a median around 145 mm throughout time series (Figure \@ref(fig:betweenyearsize)). Cycles in recruitment are also apparent with a significant period of re-build and recruitment occurring during the mid 2000s demonstrated by a higher proportion of smaller individuals dominating catches (Figure \@ref(fig:sizecontribution)). A similar pattern of recruitment has also occurred in recent years with an apparent pulse of smaller individuals entering the fishery around 2019 which have since progressed to dominate catches as larger individuals in latter years (Figure \@ref(fig:sizecontribution)).
 
 ```{r sizecontribution, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Percentage contribution of size classes to commercial abalone catches collected between 2019-', fish_year, '.', sep = '')}
 
@@ -281,7 +279,7 @@ ez_lw_dat %>% ggplot(aes(x = fishyear, y = perc, fill = perc.size, width = 0.75)
 
 # Size structure 2019-2024
 
-Further examination of more recent size composition data between 2019 and 2024 shows the majority of catches have been dominated by animals between the LML and 155 mm (Figure \@ref(fig:yearlengthfrequency)). Overall, 61% of animals measured have been >145 mm in each of the years between 2019-2024 and whilst there are clearly animals still reaching >160 mm, the fishery has largely become recruitment driven and catches dominated by animals <160 mm. However, these recent catches (2019-2024) appear to have been dominated by a single cohort from an initial recruitment pulse around 2019, evidenced by an increasing median size and absence of animals nearer to the LML. These trends suggest there has likely been a recruitment gap year sometime in fishery since around 2019 and has resulted in a higher dependence on animals that have attained larger sizes. Consequently, this is likely to contribute towards lower catch rates given there have generally been fewer animals reaching these larger sizes in more recent years.
+Further examination of more recent size composition data between 2019 and 2024 shows the majority of catches have been dominated by animals between the LML and 155 mm (Figure \@ref(fig:yearlengthfrequency)). There are clearly animals still reaching sizes >155 mm, however, the fishery has largely become recruitment driven and catches dominated by animals <155 mm. Off concern, is these recent catches (2019-2024) appear to have been dominated by a single cohort from an initial recruitment pulse around 2019, evidenced by an increasing median size and absence of animals nearer to the LML. These trends suggest there has likely been a suppression of recruitment sometime in fishery since around 2019 and has resulted in an increasing dependence on older cohorts animals that are gradually increasing in size. Consequently, as fishing depletes the older cohorts, their abundance decreases, and without new recruits, this is likely to result in declining CPUE.
 
 ```{r yearlengthfrequency, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Length frequency distributions between 2019 and ', fish_year, '.', ' Green dashed line indicates LML for that year; red dotted line indicates LML = 145 mm. ',  'n = number of abalone measured.', sep = '')}
 
@@ -365,7 +363,7 @@ summ_sub_legal <- compiledMM_df_final %>%
 
 ```
 ## Within year size composition
-Abalone populations are spatially dynamic and can vary in size structure across small spatial distances (i.e. 10s to 100s metres). Productivity is therefore highly variable across reefs which in turn can determine the spatial distribution of fishing effort and rate of harvest. More productive, faster growing areas tend to be fished more regularly whereas less effort may be directed towards slower growing and less productive areas. Therefore it is not surprising that within a fishing year (2023) there is high variability in size structure between catches from the Actaeons (Figure \@ref(fig:fishyearsize)). Whilst the precise spatial locations of those catches measured has not been examined it is interesting to note that in 93% of catches, the median size of animals was >145 mm and in every catch there was at least one animal >158 mm. Whilst further examination of spatial fishing data is required to determine the distribution of catch measurement locations, there is a high probability that at least some of these catches were measured from areas considered to be of low productivity, highlighting that growth is not limited by their environment, rather likely constrained by excessive fishing pressure and limiting the time animals have to reach larger sizes before they are harvested.  
+Productivity is therefore highly variable across reefs which in turn can determine the spatial distribution of fishing effort and rate of harvest. More productive, faster growing areas tend to be fished more regularly whereas less effort may be directed towards slower growing and less productive areas. Abalone populations are also spatially dynamic and can vary in size structure across small spatial distances (i.e. 10s to 100s metres). Therefore it is not surprising that within a fishing year (2023) there is high variability in size structure between catches from the Actaeons (Figure \@ref(fig:fishyearsize)). However, it is interesting to note that in 93% of catches, the median size of animals was >145 mm and in every catch there was at least one animal >158 mm. 
 
 ```{r fishyearsize, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Range of size compositions between individual commercial abalone catches collected in 2023.', sep = '')}
 
@@ -421,7 +419,7 @@ ez_lw_dat %>%
 # Length-weight relationship 2019-2024
 
 ## Background
-Length and weight data have been collected concurrently since 2019 using Scielex NextGen measuring boards with integrated platform scales at various abalone processing factories around Tasmania. This is providing an improved understanding of stock performance and abalone condition across many parts of the fishery whilst also facilitating processors with grading and handling information on processed catches. Importantly these data have enabled a refinement of length-weight relationships for stock assessments which are used here for translating catch composition in terms of catch numbers to weight estimates in assessing the effects of size limit changes to landed biomass. Whilst it is evident from length composition data that 61% of abalone measured each year during the period 2019-2024 were on average >145 mm, in order to evaluate how the LML increases may affect harvested biomass and ultimately catch rates (kg/hr), a length-weight relationship was required.
+Length and weight data have been collected concurrently since 2019 using Scielex NextGen measuring boards with integrated platform scales at various abalone processing factories around Tasmania. This is providing an improved understanding of stock performance across many parts of the fishery whilst also facilitating processors with grading and handling information on processed catches. Importantly these data have enabled a refinement of length-weight relationships for stock assessments which are used here for translating catch composition in terms of catch numbers to weight estimates in assessing the effects of size limit changes to landed biomass. Whilst it is evident from length composition data that 61% of abalone measured each year during the period 2019-2024 were on average >145 mm, in order to evaluate how the LML increases may affect harvested biomass and ultimately catch rates (kg/hr), a length-weight relationship was required.
 
 ## Length-weight data prepartion
 
@@ -475,7 +473,8 @@ zone_block_count <- lw_dat %>%
            mean_weight = round(mean(whole.weight), 0)) %>%
  as_tibble()
 
-kable(zone_block_count, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Summary of catches measured from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Fishing\nYear', 'Catches', 'n', 'Mean\nLength\n(mm)', 'Mean\nWeight\n(g)'), align = 'c'), align = 'c', booktabs = TRUE, escape = F, linesep = '')
+kable(zone_block_count, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Summary of catches measured from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Fishing\nYear', 'Catches', 'n', 'Mean\nLength\n(mm)', 'Mean\nWeight\n(g)'), align = 'c'), align = 'c', booktabs = TRUE, escape = F, linesep = '') %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
 
 ```
 
@@ -512,12 +511,29 @@ zone_block_dat <- lw_dat %>%
     blockno == fish_blockno
    }
   ) 
+
+# Filter erroneous data specific to zone and block for all data
+lw_dat_clean <- lw_dat %>% 
+ filter(!(newzone == 'E' & 
+           blockno == '13' & 
+           (shell.length > 175 & whole.weight < 600) &
+           (shell.length > 180 & whole.weight < 1000)))
+
 ```
 
 ```{r cleanlwdata, echo=FALSE, fig.cap=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Length-weight relationship of cleaned commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = '')} 
 
 # Re-check for outliers for specific zone and block
  zone_block_dat %>%
+  ggplot() +
+  geom_point(aes(x = shell.length, y = whole.weight))+
+ # ggtitle(paste('Length-Weight cleaned ', fish_zone, 'Z ', 'Block ', fish_blockno, ' Data', sep = ''))+
+  xlim(130, 200)+
+ xlab('Shell Length (mm)')+
+ ylab('Whole Weight (g)')+
+ theme_bw()
+
+ lw_dat_clean %>%
   ggplot() +
   geom_point(aes(x = shell.length, y = whole.weight))+
  # ggtitle(paste('Length-Weight cleaned ', fish_zone, 'Z ', 'Block ', fish_blockno, ' Data', sep = ''))+
@@ -546,8 +562,30 @@ lw_dat_log <- zone_block_dat %>%
   mutate(log_sl = log(shell.length),
          log_wt = log(whole.weight))
 
+# Calculate log of length and weight all data
+lw_dat_clean_log <- lw_dat_clean %>%
+  mutate(log_sl = log(shell.length),
+         log_wt = log(whole.weight))
+
 # calculate regression coefficients
 lw_dat_coeff <- lw_dat_log %>%
+ filter(numblocks <= 1) %>%
+  nest(data = -c(newzone, blockno)) %>%
+  mutate(fit = map(data, ~ lm(log_wt ~ log_sl, data = .x)),
+         tidied = map(fit, broom::tidy)) %>%
+  unnest(tidied) %>%
+  filter(term %in% c('(Intercept)', 'log_sl')) %>%
+  select(c(newzone, blockno, estimate, term)) %>%
+  as.data.frame() %>%
+  spread(., term, estimate) %>%
+  dplyr::rename(b = 'log_sl',
+                intercept = "(Intercept)") %>%
+  mutate(a = exp(intercept)) %>%
+ select(newzone, blockno, a, b)
+  # select(-intercept)
+
+# calculate regression coefficients all data
+lw_dat_clean_coeff <- lw_dat_clean_log %>%
  filter(numblocks <= 1) %>%
   nest(data = -c(newzone, blockno)) %>%
   mutate(fit = map(data, ~ lm(log_wt ~ log_sl, data = .x)),
@@ -570,7 +608,18 @@ lw_dat_n <- lw_dat_log %>%
 
 lw_dat_coeff_blockno <- left_join(lw_dat_coeff, lw_dat_n)
 
-kable(lw_dat_coeff_blockno, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Zone', 'BlockNo', 'a', 'b', 'n')), booktabs = TRUE, escape = F, align = 'c', linesep = '')
+# Determine sample size for each blockno and join to regression summaries all data
+lw_dat_clean_n <- lw_dat_clean_log %>%
+  group_by(newzone, blockno) %>%
+  summarise(n = n())
+
+lw_dat_clean_coeff_blockno <- left_join(lw_dat_clean_coeff, lw_dat_clean_n)
+
+kable(lw_dat_coeff_blockno, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Zone', 'BlockNo', 'a', 'b', 'n')), booktabs = TRUE, escape = F, align = 'c', linesep = '') %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
+
+kable(lw_dat_clean_coeff_blockno, caption=paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '.', sep = ''), col.names = linebreak(c('Zone', 'BlockNo', 'a', 'b', 'n')), booktabs = TRUE, escape = F, align = 'c', linesep = '') %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
 
 ```
 
@@ -615,7 +664,8 @@ kable(
  caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of each 1 mm size class by weight and numbers using length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year,
   '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''),
  col.names = linebreak(c('Shell\nLength\n(mm)', 'Estimated\nWeight\n(g)', 'n', 'Catch\nWeight\n(kg)', 'Percent\nn', 'Percent\nWeight'), 
-  align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '', longtable = T)
+  align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '', longtable = T) %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
 
 write.xlsx(perc_wt_n_df, paste(mm_plots_folder, '/', fish_zone, 'ZBlockNo', fish_blockno, '_LENGTHWEIGHT_Percent', '.xlsx', sep = ''),
            sheetName = "Sheet1",
@@ -625,9 +675,9 @@ write.xlsx(perc_wt_n_df, paste(mm_plots_folder, '/', fish_zone, 'ZBlockNo', fish
 
 
 # Results
-## Percentage contribution of scheduled LML increases to catch
+## Percentage contribution of scheduled LML increases to current catch
 
-Translating catch numbers to weight suggests the 61% of animals measured larger than maximum LML increase to 145 mm would equate to approximately 65% of the harvested biomass (Table \@ref(tab:lmlsumtab)). Whilst this may represent an initial 40% reduction in numbers and 35% reduction in harvested biomass it assumes a scenario where the LML increase occurs in a single step from 138 mm to 145 mm and therefore does not account for any growth or modal progression of animals likely to occur under the staged LML schedule.
+Translating catch numbers to weight suggests the 61% of animals measured larger than maximum LML increase to 145 mm would equate to approximately 65% of the harvested biomass (Table \@ref(tab:lmlsumtab)). Whilst this may represent an initial 40% and 35% reduction in harvested numbers and biomass, respectively, it assumes a scenario where the LML increase occurs in a single step from 138 mm to 145 mm and therefore does not account for any growth or modal progression of animals likely to occur under the staged LML schedule. Understanding the modal size progression of abalone from one year to the next requires estimated annual growth increments for each size class to determine, for example, what proportion of animals at the present LML at the beginning of one year would have been available at an increased LML later in that year or the year following.
 
 ```{r lmlsumtab, echo=FALSE}
 
@@ -638,69 +688,81 @@ perc_wt_n_sum <- perc_wt_n_df %>%
                       right = F)) %>% 
  group_by(lml_bin) %>%
  summarise(catch_weight_perc = round(sum(perc_wt), 1),
-           catch_n_perc = round(sum(perc_n), 1)) %>% 
- mutate(lml_year = c(2022, 2023, 2024, 2025),
-        lml = c(138, 140, 142, 145), .before = lml_bin)
+           catch_n_perc = round(sum(perc_n), 1))
  # adorn_totals()
 
-kable(perc_wt_n_sum, caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of abalone by weight and numbers to size classes representing the scheduled LML increases using length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''), col.names = linebreak(c('LML Change\nYear', 'LML', 'Size Class\n(mm)', 'Percent\nWeight', 'Percent\nn'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '')
+kable(perc_wt_n_sum, caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of abalone by weight and numbers to size classes representing the scheduled LML increases using length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''), col.names = linebreak(c('Size Class\n(mm)', 'Percent\nWeight', 'Percent\nn'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '') %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
 
 ```
+## Percentage change in catch numbers harvested with increased LML
+While incremental growth data could offer a more comprehensive understanding of animal availability year by year, we can infer potential changes in the number of animals harvested under increased Legal Minimum Lengths (LMLs) using length-weight data. This inference is made possible by considering the additional size and subsequently, the individual weight increase that an elevated LML would allow. In this scenario, we utilize the estimated weight of an individual abalone at various sizes to calculate the change in the number of abalone needed to harvest 100 kg. With an LML of 138 mm, it requires 214 abalone to be harvested. However, if the LML were increased to 145 mm, 10% fewer abalone (i.e., n = 191) would be needed (Table \@ref(tab:abcatchweight)).  
 
-## Accounting for growth and modal progression
-Using a time series of sufficient length-weight data (2021-2023) we have examined a scenario where the scheduled LML increases were applied to those years and assumed modal progression of abalone from the previous year that were not harvested as they were protected by the LML increase of that year to determine the percentage contribution in numbers of what would have been legal and sub-legal size. This assumes individuals protected in the previous year have grown at a rate which has enabled them to attain the new LML and enter the fishery. We have then used the individual weights recorded for those animals to determine the estimated harvested biomass.
+```{r abcatchweight, echo=FALSE}
 
-Under this scenario 81% of abalone measured overall would have been larger than the new LML in each of the incremental years, equating to approximately 84% of harvested biomass (Table \@ref(tab:modalprogress)).
+ab_num_wt <- perc_wt_n_df %>% 
+ filter(shell_length %in% c(138, 145)) %>%
+ mutate(num_wt = round(100000/est_weight, 0),
+        per_change = round((100 - (num_wt / lag(num_wt)) * 100), 0)) %>% 
+ select(c(shell_length, est_weight, num_wt, per_change))
 
-```{r modalprogress, echo=FALSE}
+kable(ab_num_wt, caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated number of animals in 100 kg of catch and percentage change in animals harvested to attain the same level of catch for the nominated LML increase based on length-weight model parameters from commercial abalone catch sampling data collected between 2019-', fish_year, '\\textit{ (a = ', round(unique(lw_coeff$a), 5), '; b = ', round(unique(lw_coeff$b), 3), ').}', sep = ''), col.names = linebreak(c('LML\n(mm)', 'Estimated\nWeight\n(g)', 'Estimated\nn', 'Percent\nChange'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '') %>% 
+ kableExtra::kable_styling(latex_options = "hold_position")
 
-# Determine proportion of catch sub-legal and legal for first LML change (2021)
-lml_2021 <- lw_dat %>%
- filter(numblocks <= 1 &
-         fishyear == 2021 &
-        newzone == fish_zone &
-         blockno == fish_blockno) %>%
- mutate(lml_bin = case_when(shell.length < 140 ~ 'Sub-legal',
-                            shell.length >= 140 ~ 'Legal'))
-
-# Determine proportion of catch sub-legal and legal for second LML change (2022)
-lml_2022 <- lw_dat %>%
- filter(numblocks <= 1 &
-         fishyear == 2022 &
-        newzone == fish_zone &
-         blockno == fish_blockno) %>%
- mutate(lml_bin = case_when(shell.length < 142 ~ 'Sub-legal',
-                            shell.length >= 142 ~ 'Legal'))
-
-# Determine proportion of catch sub-legal and legal for third LML change (2023)
-lml_2023 <- lw_dat %>%
- filter(numblocks <= 1 &
-         fishyear == 2023 &
-        newzone == fish_zone &
-         blockno == fish_blockno) %>%
- mutate(lml_bin = case_when(shell.length < 145 ~ 'Sub-legal',
-                            shell.length >= 145 ~ 'Legal'))
-
-# Combine data
-lml_dat <- bind_rows(lml_2021, lml_2022, lml_2023)
-
-# Determine proportion of catch sub-legal and legal over time-series  
-lml_dat_summ <- lml_dat %>% 
- group_by(lml_bin) %>% 
-  summarise(n_n = n(),
-            wt = round(sum(whole.weight)/1000, 0)) %>% 
- mutate(perc_n = round((n_n/sum(n_n))*100, 0),
-        perc_wt = round((wt/sum(wt))*100, 0))
-
-kable(
- lml_dat_summ,
- caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of legal and sub-legal abalone by weight and numbers assuming modal progression of abalone from the previous year that were protected by the scheduled LML increase of that year using a scenario data seies from commercial abalone catch sampling collected between 2021-2023.', sep = ''), col.names = linebreak(c('Size Class', 'n', 'Weight\n(kg)', 'Percent\nn', 'Percent\nWeight'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '')
 
 ```
+<!-- ```{r modalprogress, echo=FALSE} -->
+
+<!-- ## Accounting for growth and modal progression -->
+<!-- Using a time series of sufficient length-weight data (2021-2023) we have examined a scenario where the scheduled LML increases were applied to those years and assumed modal progression of abalone from the previous year that were not harvested as they were protected by the LML increase of that year to determine the percentage contribution in numbers of what would have been legal and sub-legal size. This assumes individuals protected in the previous year have grown at a rate which has enabled them to attain the new LML and enter the fishery. We have then used the individual weights recorded for those animals to determine the estimated harvested biomass. -->
+
+<!-- Under this scenario 81% of abalone measured overall would have been larger than the new LML in each of the incremental years, equating to approximately 84% of harvested biomass (Table \@ref(tab:modalprogress)). -->
+
+<!-- # Determine proportion of catch sub-legal and legal for first LML change (2021) -->
+<!-- lml_2021 <- lw_dat %>% -->
+<!--  filter(numblocks <= 1 & -->
+<!--          fishyear == 2021 & -->
+<!--         newzone == fish_zone & -->
+<!--          blockno == fish_blockno) %>% -->
+<!--  mutate(lml_bin = case_when(shell.length < 140 ~ 'Sub-legal', -->
+<!--                             shell.length >= 140 ~ 'Legal')) -->
+
+<!-- # Determine proportion of catch sub-legal and legal for second LML change (2022) -->
+<!-- lml_2022 <- lw_dat %>% -->
+<!--  filter(numblocks <= 1 & -->
+<!--          fishyear == 2022 & -->
+<!--         newzone == fish_zone & -->
+<!--          blockno == fish_blockno) %>% -->
+<!--  mutate(lml_bin = case_when(shell.length < 142 ~ 'Sub-legal', -->
+<!--                             shell.length >= 142 ~ 'Legal')) -->
+
+<!-- # Determine proportion of catch sub-legal and legal for third LML change (2023) -->
+<!-- lml_2023 <- lw_dat %>% -->
+<!--  filter(numblocks <= 1 & -->
+<!--          fishyear == 2023 & -->
+<!--         newzone == fish_zone & -->
+<!--          blockno == fish_blockno) %>% -->
+<!--  mutate(lml_bin = case_when(shell.length < 145 ~ 'Sub-legal', -->
+<!--                             shell.length >= 145 ~ 'Legal')) -->
+
+<!-- # Combine data -->
+<!-- lml_dat <- bind_rows(lml_2021, lml_2022, lml_2023) -->
+
+<!-- # Determine proportion of catch sub-legal and legal over time-series   -->
+<!-- lml_dat_summ <- lml_dat %>%  -->
+<!--  group_by(lml_bin) %>%  -->
+<!--   summarise(n_n = n(), -->
+<!--             wt = round(sum(whole.weight)/1000, 0)) %>%  -->
+<!--  mutate(perc_n = round((n_n/sum(n_n))*100, 0), -->
+<!--         perc_wt = round((wt/sum(wt))*100, 0)) -->
+
+<!-- kable( -->
+<!--  lml_dat_summ, -->
+<!--  caption = paste('Block ', fish_blockno, ' ', fish_zone, 'Z', ':', ' Estimated percentage contribution of legal and sub-legal abalone by weight and numbers assuming modal progression of abalone from the previous year that were protected by the scheduled LML increase of that year using a scenario data seies from commercial abalone catch sampling collected between 2021-2023.', sep = ''), col.names = linebreak(c('Size Class', 'n', 'Weight\n(kg)', 'Percent\nn', 'Percent\nWeight'), align = 'c'), booktabs = TRUE, escape = F, align = 'c', linesep = '') -->
+
+<!-- ``` -->
 
 
 # Summary
-Abalone measured from the Actaeons have mostly come from a fairly narrow range of size classes between 138-150 mm particularity in more recent years (2019-2024), however, there is clear evidence of animals attaining sizes >160 mm throughout the time series. These size structures suggest the Acteaon's has become something of a recruit based fishery, where individuals are taken as soon as they attain the current LML and enter the fishery. However, the presence of large individuals >150 mm does not support the idea that growth in these populations is limiting and that something like a 145 mm LML is too high, rather it indicates that exploitation and harvest rates are likely still too high to allow animals time to reach these larger sizes in any great numbers. Consequently, any external events (e.g. MHW, storms) that affect recruitment, means that the harvest has to switch to larger size classes (>145mm) of which there is not much, and CPUE is likely to fall quickly.
-
-# References
+Abalone catches from the Actaeons are currently dominated by animals from a small size range close to the (i.e. LML 138-155 mm) which has become increasingly skewed towards the upper limits of this range in more recent years (2019-2024). There is clear evidence of animals attaining sizes >155 mm throughout the time series. These size structures suggest the Acteaon's has become something of a recruit based fishery, where individuals are taken within a few years if reaching the LML and enter the fishery. However, the presence of large individuals >155 mm does not support the idea that growth in these populations is limiting and that something like a 145 mm LML is too high, rather it indicates that exploitation and harvest rates are likely still too high to allow animals time to reach these larger sizes in any great numbers. Consequently, any external events (e.g. MHW, storms) that affect recruitment, means that the harvest has to switch to larger size classes (>145mm) of which there is not much, and CPUE is likely to fall quickly.
 

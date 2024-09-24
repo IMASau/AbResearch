@@ -309,7 +309,15 @@ compiledMM.df.final <- compiledMM.df.final %>%
 
 # load legal minimum length data
 # size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
-size.limits <- read.csv(paste0(mm_data_folder, 'AbaloneSizeLimits2.csv'), fileEncoding="UTF-8-BOM")
+size.limits <- read.csv(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.csv'), fileEncoding="UTF-8-BOM")
+size_limits <- read.xlsx(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.xlsx'), detectDates = T)
+
+df_1 <- size_limits %>% 
+ gather(monthyear, sizelimit, `1962-01-01`:`2024-12-01`) %>% 
+ mutate(monthyear = str_remove(format(as.Date(monthyear), "%m-%Y"), "^0+"), 
+        sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
+ select(sizelimit.index, sizelimit)
+
 
 # # remove existing size limit data
 # compiledMM.df.final <- compiledMM.df.final %>% 
@@ -336,6 +344,8 @@ size.limits.tab <- size.limits %>%
  mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
  mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
  select(sizelimit.index, sizelimit)
+
+size.limits.tab <- df_1
 
 # add columns that count number of blocks and subblocks in compiledMM.df.final
 compiledMM.df.blockcount <- compiledMM.df.final %>%

@@ -365,7 +365,8 @@ for (i in new.dockets) {
                                   ifelse(zone == 'AN', 132, 
                                          ifelse(zone == 'AG', 145, 
                                                 ifelse(zone == 'AE' & sampyear == 2023, 140, 
-                                                       ifelse(zone == 'AE' & sampyear == 2024, 142, 138))))))),
+                                                       ifelse(zone == 'AE' & sampyear == 2024, 142, 
+                                                              ifelse(zone == 'AW' & plaindate >= as.Date('2024-07-01'), 150, 138)))))))),
    linetype = 'dashed',
    colour = 'red',
    size = 0.5

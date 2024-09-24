@@ -27,7 +27,6 @@ suppressPackageStartupMessages({
  library(tmap)
  library(sf)
  library(sp)
- library(rgdal)
  library(RColorBrewer)
  library(viridis)
  library(ggpmisc)
@@ -43,31 +42,15 @@ source("C:/GitCode/AbResearch/StandardError_Functions.r")
 ## 2. Set sample year and file paths ####
 
 # identify sampling year of interest
-samp.year <- 2023
-
-# identify associated sampling year folder path to save dataframes
-# samp.year.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-#                               'Abalone', 'FISdata',
-#                               paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
+samp.year <- 2024
 
 samp.year.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
                                             Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, sep = ''))
 
-# identify associated sampling year folder path to save plots
-# ts.plots.folder <- file.path('C:', 'CloudStor', 'DiveFisheries', 
-#                              'Abalone', 'Assessment', 'Figures', 'FIS',
-#                              paste('FIS_TimedSwimSurvey', samp.year, '_Plots', sep = ''))
-
 ts.plots.folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp.year, '_Plots', sep = ''))
-
-
-
 ##---------------------------------------------------------------------------##
 # 3. Load data ####
-
-# clear list
-# rm(list = setdiff(ls(), c('samp.year', 'samp.year.folder', 'ts.plots.folder')))
 
 # Import final dataframes 
 time.swim.dat.final <-
@@ -80,15 +63,7 @@ time.swim.dat.df.final <-
 time.swim.meta.dat.final <- readRDS(paste(samp.year.folder, '/time.swim.meta.dat.final.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
-## Standardise plot data #
-
-# # Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
-# time.swim.dat.final <- time.swim.dat.final %>% 
-#  mutate(sizeclass_freq_10 = round((sizeclass_freq / time.elapsed) * 10))
-# 
-# saveRDS(time.swim.dat.final, paste(samp.year.folder, '/time.swim.dat.final.RDS', sep = ''))
-
-# 4. Summarise count data ####
+# 4. Summaries ####
 
 # Summarise total count for blockno x site x sampyear x legal.size
 ts.count.sum <- time.swim.dat.final %>% 
@@ -108,7 +83,15 @@ ts.av.count <- time.swim.dat.final %>%
  pivot_wider(id_cols = c(blockno),
              names_from = c(legal.size, sampyear),
              values_from = c('av.count', 'sites'))
-##---------------------------------------------------------------------------##
+
+ts_block_mean <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>%
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>%  
+ group_by(blockno, sampyear, legal.size) %>%
+ summarise(av.count = mean(ab.n),
+           sites = n_distinct(site)) 
+
 time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C')) %>%
  group_by(blockno, sampyear) %>% 
@@ -118,15 +101,8 @@ time.swim.dat.final %>%
              names_from = c(sampyear),
              values_from = c('n', 'sites')) %>% 
  adorn_totals()
-
-time.swim.dat.final %>% 
- filter(blockno == 13 &
-         sampdate >= as.Date('2023-04-01')) %>% 
- summarise(n = n_distinct(sampdate),
-           sites = n_distinct(site))
-
 ##---------------------------------------------------------------------------##
-## TAB 1: Site Abundance % Change ####
+## TABLE 1: Site Abundance % Change ####
 
 # Summary table of sites surveyed in sample year and percentage change in abundance
 # of legal and sub-legal abalone between sample year and previous year.
@@ -149,10 +125,11 @@ perc_change <- ten.min.mean.year %>%
  dplyr::rename(FY2020 = '2020',
                FY2021 = '2021',
                FY2022 = '2022',
-               FY2023 = '2023') %>%  
- mutate(perc.change = round((1 - (FY2022 / FY2023)), 3) * 100) %>% 
+               FY2023 = '2023',
+               FY2024 = '2024') %>%  
+ mutate(perc.change = round((1 - (FY2023 / FY2024)), 3) * 100) %>% 
  spread(legal.size, perc.change) %>% 
- select(-c('FY2020', 'FY2021', 'FY2022', 'FY2023')) %>%
+ select(-c('FY2020', 'FY2021', 'FY2022', 'FY2023', 'FY2024')) %>%
  mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>%
  select(-`>140 mm`) %>%
  filter(!is.na(`<140 mm`)) %>%
@@ -174,7 +151,8 @@ year_tab <- left_join(sites_year, perc_change, by = c('blockno' = 'BlockNo')) %>
 
 # Create formatted summary table
 year_tab_format <- year_tab %>% 
- ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))
+ ggpubr::ggtexttable(rows = NULL, theme = ggpubr::ttheme('mOrange'))+
+ theme(plot.margin=grid::unit(c(0,0,0,0), "mm"))
 
 # Save summary tables
 setwd(ts.plots.folder)
@@ -187,7 +165,7 @@ ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_Per
 
 rm('perc_change', 'sites_year', 'year_tab', 'year_tab_format')
 ##---------------------------------------------------------------------------##
-## TAB 2: Repeat Site % Change ####
+## TABLE 2: Repeat Site % Change ####
 
 # Summary table of sites surveyed in sample year and percentage change in abundance
 # of legal and sub-legal abalone between sample year and previous year.
@@ -211,10 +189,11 @@ perc_change <- ten.min.mean.year %>%
  dplyr::rename(FY2020 = '2020',
                FY2021 = '2021',
                FY2022 = '2022',
-               FY2023 = '2023') %>%  
- mutate(perc.change = round((1 - (FY2022 / FY2023)), 3) * 100) %>% 
+               FY2023 = '2023',
+               FY2024 = '2024') %>%  
+ mutate(perc.change = round((1 - (FY2023 / FY2024)), 3) * 100) %>% 
  spread(legal.size, perc.change) %>% 
- select(-c('FY2020', 'FY2021', 'FY2022', 'FY2023')) %>%
+ select(-c('FY2020', 'FY2021', 'FY2022', 'FY2023', 'FY2024')) %>%
  mutate(`>140 mm2` = ifelse(is.na(`>140 mm`), lag(`>140 mm`), `>140 mm`)) %>%
  select(-`>140 mm`) %>%
  filter(!is.na(`<140 mm`)) %>%
@@ -250,7 +229,7 @@ ggsave(filename = paste('TimedSwimSurvey_',  samp.year-1, 'vs', samp.year, '_Per
 
 rm('perc_change', 'sites_year', 'year_tab', 'year_tab_format')
 ##---------------------------------------------------------------------------##
-## TAB 2: Site Abundance ####
+## TABLE 3: Site Abundance ####
 
 ## summary table of counts and CPUE by size class and block 
 ## (NOTE: run script for CPUE above)
@@ -289,7 +268,7 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.pdf', 
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SummaryTable', '.png', sep = ''), 
        plot = time.swim.summary.tab, units = 'mm', width = 190, height = 120)
 ##---------------------------------------------------------------------------##
-# TAB 3: Sites Completed ####
+# TABLE 4: Sites Completed ####
 
 ts.tab <- time.swim.dat.final %>% 
  filter(!subblockno %in% c('28B', '28C'),
@@ -328,8 +307,7 @@ col_light <- c('#77AADD', '#99DDFF', '#44BB99', '#BBCC33',
                '#DDDDDD')
 
 ##---------------------------------------------------------------------------##
-
-## PLOT 1: Abundance Years ####
+## PLOT 1: Abundance Boxplot ####
 
 # Average count of all legal and sub-legal abalone per 10 min by year for each 
 # site within each block (i.e. the average count between paired divers for each site).
@@ -366,20 +344,20 @@ sub.legal.plot <- time.swim.dat.final %>%
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, site, sampyear) %>% 
  summarise(mean.ab.n = mean(ab.n)) %>%  
- mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))) %>%  
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
  ggplot(aes(x = blockno, y = mean.ab.n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
- geom_point(data = ten.min.mean.year %>% filter(legal.size == '<140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022'))), shape = 19,
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ geom_point(data = ten.min.mean.year %>% filter(legal.size == '<140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8, preserve = 'single'))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Blockno')+
  coord_cartesian(ylim = c(0, 150))+
- geom_text(data = time.swim.dat.n %>% filter(legal.size == '<140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), size = 3, 
+ geom_text(data = time.swim.dat.n %>% filter(legal.size == '<140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
            position = position_dodge2(0.8))+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  guides(size = 'legend', colour = 'none',
         fill = guide_legend(title = 'Year'))+
  ggtitle('Sub-legal <140 mm')+
@@ -397,12 +375,12 @@ legal.plot <- time.swim.dat.final %>%
  summarise(ab.n = sum(sizeclass_freq_10)) %>% 
  group_by(blockno, site, sampyear) %>% 
  summarise(mean.ab.n = mean(ab.n)) %>% 
- mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))) %>%  
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
  ggplot(aes(x = blockno, y = mean.ab.n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
- geom_point(data = ten.min.mean.year %>% filter(legal.size == '>140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), shape = 19,
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ geom_point(data = ten.min.mean.year %>% filter(legal.size == '>140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8, preserve = 'single'))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
@@ -427,6 +405,602 @@ ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSub
 
 rm('count.plot.sizeclass', 'legal.plot', 'sub.legal.plot', 'time.swim.dat.n', 
    'ten.min.mean.year')
+
+##---------------------------------------------------------------------------##
+## PLOT 2: Abundance Lineplot ####
+
+act_dat <- time.swim.dat.final %>%
+ mutate(samp_period = ifelse(between(sampdate, as.Date('2021-01-01'), as.Date('2021-03-31'))|
+                              between(sampdate, as.Date('2023-01-01'), as.Date('2023-03-31')), 'Pre', 
+                             ifelse(between(sampdate, as.Date('2023-04-01'), as.Date('2023-12-31')), 'Mid', 'Post')))
+
+# Determine mean abalone abundance in each block, year and size class
+ten.min.mean.year <- act_dat %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp.year) |
+         (sampyear == 2021 & blockno == '13') |
+         (sampyear == 2023 & blockno == '13' & samp_period == 'Mid')) %>%
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n),
+           std_err = sd(ab.n)/sqrt(n())) 
+# mutate(sampyear = factor(sampyear))
+
+# Determine number of sites surveyed in each block, year and size class
+time.swim.dat.n <- act_dat %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+          !blockno %in% c('13', '14', '21', '29', '30') &
+          !is.na(sizeclass_freq_10) &
+          sampyear <= samp.year) |
+         (sampyear == 2021 & blockno == '13') |
+         (sampyear == 2023 & blockno == '13' & samp_period == 'Mid')) %>%
+ group_by(sampyear, blockno, legal.size) %>% 
+ summarise(n = n_distinct(site))
+
+abundance_plot <- ten.min.mean.year %>% 
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean.ab.n, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean.ab.n -  std_err, ymax = mean.ab.n + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+abundance_trend_plot <- ten.min.mean.year %>% 
+ # filter(legal.size == '>140 mm') %>%
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean.ab.n, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ theme(legend.position = c(0.85, 0.35)
+       ,legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.pdf', sep = ''), 
+       plot = abundance_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.png', sep = ''), 
+       plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_MeanTendPlot', '.pdf', sep = ''), 
+#        plot = abundance_trend_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_MeanTendPlot', '.png', sep = ''), 
+#        plot = abundance_trend_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+## PLOT 3: Relative-Absolute Abundance ####
+
+# Relative abundance to 2020 baselines and hypothetical percentage change.
+
+# Determine mean abalone abundance in each block, year and size class
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+          !blockno %in% c('13', '14', '21', '29', '30') &
+          !is.na(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n),
+           std_err = sd(ab.n)/sqrt(n())) 
+
+# Extract basline abudance 2020 values
+base_dat_2020 <- ten.min.mean.year %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>% 
+ ungroup() %>%
+ select(blockno, legal.size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year <- left_join(ten.min.mean.year, base_dat_2020)
+
+# Relative and absolute difference
+dat_diff <- dat_base_year %>% 
+ mutate(rel_diff = (mean.ab.n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = mean.ab.n - mean_ab_n_2020)
+
+# Hypothetical scenarios
+dat_hypo_rel <- data.frame(sampyear = c(2020, 2021, 2022, 2023, 2024),
+                          hypo_05 = format(c(0, 0.05, 0.05 * 1.05, 0.05 * 1.05^2, 0.05 * 1.05^3), scientific = F),
+                          hypo_10 = format(c(0, 0.10, 0.10 * 1.10, 0.10 * 1.10^2, 0.10 * 1.10^3), scientific = F),
+                          hypo_15 = format(c(0, 0.15, 0.15 * 1.15, 0.15 * 1.15^2, 0.15 * 1.15^3), scientific = F),
+                          hypo_20 = format(c(0, 0.20, 0.20 * 1.20, 0.20 * 1.20^2, 0.20 * 1.20^3), scientific = F),
+                          hypo_25 = format(c(0, 0.25, 0.25 * 1.25, 0.25 * 1.25^2, 0.25 * 1.25^3), scientific = F)) %>% 
+ pivot_longer(cols = starts_with('hypo_'),
+              names_to = c('hypo', 'rate'),
+              names_sep = '_',
+              values_to = 'hypo_val',
+              values_drop_na = T) %>% 
+ select(sampyear, rate, hypo_val)
+                          
+
+
+dat_hypo_abs <- dat_base_year %>% 
+ filter(sampyear == 2020) %>% 
+ mutate(hypo_05_2020 = 0,
+        hypo_05_2021 = (mean_ab_n_2020 * 1.05) - mean_ab_n_2020,
+        hypo_05_2022 = (mean_ab_n_2020 * 1.05^2) - mean_ab_n_2020,
+        hypo_05_2023 = (mean_ab_n_2020 * 1.05^3) - mean_ab_n_2020,
+        hypo_05_2024 = (mean_ab_n_2020 * 1.05^4) - mean_ab_n_2020,
+        hypo_10_2020 = 0,
+        hypo_10_2021 = (mean_ab_n_2020 * 1.10) - mean_ab_n_2020,
+        hypo_10_2022 = (mean_ab_n_2020 * 1.10^2) - mean_ab_n_2020,
+        hypo_10_2023 = (mean_ab_n_2020 * 1.10^3) - mean_ab_n_2020,
+        hypo_10_2024 = (mean_ab_n_2020 * 1.10^4) - mean_ab_n_2020,
+        hypo_15_2020 = 0,
+        hypo_15_2021 = (mean_ab_n_2020 * 1.15) - mean_ab_n_2020,
+        hypo_15_2022 = (mean_ab_n_2020 * 1.15^2) - mean_ab_n_2020,
+        hypo_15_2023 = (mean_ab_n_2020 * 1.15^3) - mean_ab_n_2020,
+        hypo_15_2024 = (mean_ab_n_2020 * 1.15^4) - mean_ab_n_2020,
+        hypo_20_2020 = 0,
+        hypo_20_2021 = (mean_ab_n_2020 * 1.20) - mean_ab_n_2020,
+        hypo_20_2022 = (mean_ab_n_2020 * 1.20^2) - mean_ab_n_2020,
+        hypo_20_2023 = (mean_ab_n_2020 * 1.20^3) - mean_ab_n_2020,
+        hypo_20_2024 = (mean_ab_n_2020 * 1.20^4) - mean_ab_n_2020,
+        hypo_25_2020 = 0,
+        hypo_25_2021 = (mean_ab_n_2020 * 1.25) - mean_ab_n_2020,
+        hypo_25_2022 = (mean_ab_n_2020 * 1.25^2) - mean_ab_n_2020,
+        hypo_25_2023 = (mean_ab_n_2020 * 1.25^3) - mean_ab_n_2020,
+        hypo_25_2024 = (mean_ab_n_2020 * 1.25^4) - mean_ab_n_2020) %>% 
+ pivot_longer(cols = starts_with('hypo_'),
+              names_to = c('hypo', 'rate', 'yr'),
+              names_sep = '_',
+              values_to = 'hypo_val',
+              values_drop_na = T) %>% 
+  select(hypo, legal.size, rate, yr, hypo_val)
+ 
+ #Relative plot
+rel_change_plot <- dat_diff %>%
+ ggplot()+
+ geom_point(aes(x = sampyear, y = rel_diff, group = legal.size, colour = legal.size), position = position_dodge(0.05))+
+ geom_line(aes(x = sampyear, y = rel_diff, group = legal.size, colour = legal.size))+
+ geom_hline(yintercept = 0, linetype = 'dotted', colour = 'red', size = 0.3)+
+ geom_line(data = dat_hypo_rel %>% filter(rate == '05'), aes(x = as.numeric(sampyear), y = as.numeric(hypo_val), colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_rel %>% filter(rate == '10'), aes(x = as.numeric(sampyear), y = as.numeric(hypo_val), colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_rel %>% filter(rate == '15'), aes(x = as.numeric(sampyear), y = as.numeric(hypo_val), colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_rel %>% filter(rate == '20'), aes(x = as.numeric(sampyear), y = as.numeric(hypo_val), colour = rate), linetype = 'dashed', size = 0.3)+
+ scale_colour_manual(values = c('red', 'blue', "#00AFBB", "#E7B800", "#FC4E07", "#52854C"),
+                     labels = c('<140 mm', '>140 mm', '5%', '10%', '15%', '20%'),
+                     name = '')+ 
+ theme_bw()+
+ ylab(bquote('Relative change in abundance'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(nrow =1))+
+ # ylim(-1, 1)+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+#Absolute plot
+abs_change_plot <- dat_diff %>%
+ ggplot()+
+ geom_point(aes(x = sampyear, y = abs_diff, group = legal.size, colour = legal.size), position = position_dodge(0.05))+
+ geom_line(aes(x = sampyear, y = abs_diff, group = legal.size, colour = legal.size))+
+ geom_hline(yintercept = 0, linetype = 'dotted', colour = 'red', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '05' & legal.size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '10' & legal.size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '15' & legal.size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '20' & legal.size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ scale_colour_manual(values = c('red', 'blue', "#00AFBB", "#E7B800", "#FC4E07", "#52854C"),
+                     labels = c('<140 mm', '>140 mm', '5%', '10%', '15%', '20%'),
+                     name = '')+
+ # scale_colour_manual(values = c('red', 'blue'),
+ #                     labels = c('<140 mm', '>140 mm'),
+ #                     name = 'Size Class')+
+ theme_bw()+
+ ylab(bquote('Absolute change in abundance'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(nrow =1))+
+ # ylim(-30, 100)+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot', '.pdf', sep = ''), 
+       plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot', '.png', sep = ''), 
+       plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+## PLOT 4: Reference Abundance ####
+
+# Reference site relative abundance to 2020 baselines
+
+# Determine mean abalone abundance in each block, year and size class
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n),
+           std_err = sd(ab.n)/sqrt(n())) 
+
+abundance_plot <- ten.min.mean.year %>% 
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean.ab.n, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean.ab.n -  std_err, ymax = mean.ab.n + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+# Extract basline 2020 values
+base_dat_2020 <- ten.min.mean.year %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>% 
+ ungroup() %>%
+ select(blockno, legal.size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year <- left_join(ten.min.mean.year, base_dat_2020)
+
+# Relative difference
+dat_diff <- dat_base_year %>% 
+ mutate(rel_diff = (mean.ab.n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = abs(mean.ab.n - mean_ab_n_2020))
+
+#Relative plot
+rel_change_plot <- dat_diff %>%
+ ggplot(aes(x = sampyear, y = rel_diff, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ scale_colour_manual(values = c('red', 'blue'))+
+ geom_hline(yintercept = 0, linetype = 'dashed', colour = 'red', size = 0.3)+
+ theme_bw()+
+ ylab(bquote('Relative change in abundance'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ ylim(-1, 4)+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
+       plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
+       plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# Reference Sites - ANOVA
+
+# Determine mean abalone abundance in each block, year and size class
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n),
+           std_err = sd(ab.n)/sqrt(n())) %>% 
+ filter(legal.size == '<140 mm' & blockno == '23')
+
+mean_aov <- aov(mean.ab.n ~ as.factor(sampyear), data = ten.min.mean.year)
+summary(mean_aov)
+TukeyHSD(mean_aov)
+plot(mean_aov, 1)
+car::leveneTest(mean.ab.n ~ as.factor(sampyear), data = ten.min.mean.year)
+kruskal.test(mean.ab.n ~ as.factor(sampyear), data = ten.min.mean.year)
+
+##---------------------------------------------------------------------------##
+# Reference Sites - Mean deviation
+
+# Determine mean abalone abundance in each block, year and size class
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n),
+           std_err = sd(ab.n)/sqrt(n())) 
+
+# Extract basline 2020 values
+base_dat_2020 <- ten.min.mean.year %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>% 
+ ungroup() %>%
+ select(blockno, site, legal.size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year <- left_join(ten.min.mean.year, base_dat_2020)
+
+# Relative difference
+dat_diff <- dat_base_year %>% 
+ mutate(rel_diff = (mean.ab.n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = abs(mean.ab.n - mean_ab_n_2020))
+
+
+# Reference site block plot
+dat_diff %>%
+ filter(blockno == '22') %>% 
+ ggplot(aes(x = sampyear, y = abs_diff, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ # geom_errorbar(aes(ymin = abs_diff -  std_err, ymax = abs_diff + std_err), width = 0.2,
+ #               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Abundance (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ # ylim(-1, 4)+
+ facet_wrap(. ~ site)
+
+# setwd(ts.plots.folder)
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
+#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
+#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+## PLOT 5: Reference Abundance Criteria ####
+
+# Relative change in abundance at referenc sites between 2020 and proceeding years
+# including a colour coding trend to determine if the majority (75%) of sites are
+# showing signs of improvement relative to 2020 (e.g. abundance increasing)
+# Criteria include:
+# 1. Green = two years of consecutive increases above 2020 baseline (current + previous year)
+# 2. Red   = two consecutive years of decline (current + previous year) 
+#          = current year decline but previous year increase or no change
+# 3. Amber = current year increase or no change but previous year decline
+
+# Determine mean abalone abundance in each block, year and size class
+site_mean_ref <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n))
+
+# Create long dataframe
+site_mean_ref_long <- site_mean_ref %>% 
+ spread(key = sampyear, value = mean.ab.n)
+
+# Classify abundance trends
+site_mean_dat <- site_mean_ref_long %>% 
+ mutate(rel_2021 = ((`2021` -`2020`)/ `2020`),
+        rel_2022 = ((`2022` -`2020`)/ `2020`),
+        rel_2023 = ((`2023` -`2020`)/ `2020`),
+        rel_2024 = ((`2024` -`2020`)/ `2020`),
+        plot_col = case_when(rel_2023 < 0 & rel_2024 < 0 ~ 'red',
+                             rel_2023 >= 0 & rel_2024 < 0 ~ 'red',
+                             rel_2023 <= 0 & rel_2024 >= 0 ~ 'orange',
+                             rel_2023 >= 0 & rel_2024 >= 0 ~ 'darkgreen',
+                             is.na(rel_2023) | rel_2023 == 0 & rel_2024 >= 0 ~ 'orange',
+                             is.na(rel_2023) | rel_2023 == 0 & rel_2024 < 0 ~ 'red'))
+
+# Determine overall if 75% of sites within block meet improving criteria (i.e. green)
+block_crit_dat <- site_mean_dat %>% 
+ group_by(blockno, legal.size, plot_col) %>%
+ summarise(n = n()) %>% 
+ ungroup() %>% 
+ complete(blockno, legal.size, plot_col, fill = list(n = 0)) %>% 
+ filter(plot_col == 'darkgreen') %>% 
+ mutate(status_val = n/15,
+        status_col = case_when(status_val >= 0.75 ~ 'darkgreen',
+                               status_val >= 0.5 & status_val < 0.75 ~ 'orange',
+                               status_val < 0.5 ~ 'red'),
+        status_condition = case_when(status_val >= 0.75 ~ 'PASS',
+                               status_val >= 0.5 & status_val < 0.75 ~ 'ASSESS',
+                               status_val < 0.5 ~ 'FAIL'),
+        x = 12, y = -0.8)
+
+
+ref_rel_plot <- site_mean_dat %>% 
+ filter(legal.size == '<140 mm' &
+         !is.na(rel_2023) & !is.na(rel_2024) &
+         !is.na(plot_col)) %>% 
+ ggplot()+
+ geom_bar(aes(x = site, y = rel_2023, group = blockno, fill = plot_col), stat='identity')+
+ scale_fill_manual(values = c('red' = 'red',
+                              'orange' = 'orange',
+                              'darkgreen' = 'darkgreen'),
+                   labels = c('2 yr Increase',
+                              '1 yr Increase',
+                              'Decline'))+
+ # geom_rect(data = df_4 %>% filter(legal.size == '>140 mm'), aes(fill = status_col),xmin = -Inf, xmax = Inf,
+ #           ymin = -Inf, ymax = Inf, alpha = 0.3) +
+ facet_wrap(~blockno, scales = 'free', drop = F)+
+ theme_bw()+
+ coord_cartesian(ylim = c(-1, 1))+
+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5))+
+ theme(legend.position = 'bottom',
+       legend.title = element_blank())+
+ xlab('Site')+
+ ylab(bquote('Relative change in abundance'))
+ # geom_point(data = df_4 %>% filter(legal.size == '>140 mm'), aes(x = x, y = y))+
+ # geom_text(data = df_4 %>% filter(legal.size == '>140 mm'), aes(x = x, y = y,
+           # label = status_condition))
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Sub-Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.pdf', sep = ''), 
+       plot = ref_rel_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Sub-Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.png', sep = ''), 
+       plot = ref_rel_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+## PLOT Abundance Years: Including mid-season 2023 Actaeons
+
+df_1 <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp.year) %>%
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n)) 
+
+df_2 <- time.swim.dat.final %>% 
+ filter(blockno == '13' &
+         between(sampdate, as.Date('2023-04-01'), as.Date('2023-12-31')) &
+         !is.na(sizeclass_freq_10) |
+         blockno == '13' & 
+         sampdate <= as.Date('2022-01-01') &
+         !is.na(sizeclass_freq_10)) %>%
+ group_by(blockno, site, diver, sampyear, time.elapsed, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n),
+           median.ab.n = median(ab.n))
+
+df_3 <- bind_rows(df_1, df_2)
+
+# Determine number of sites surveyed in each block, year and size class
+df_4 <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
+ group_by(sampyear, blockno, legal.size) %>% 
+ summarise(n = n_distinct(site))
+
+df_5 <- time.swim.dat.final %>% 
+ filter(blockno == '13' &
+         between(sampdate, as.Date('2023-04-01'), as.Date('2023-12-31')) &
+         !is.na(sizeclass_freq_10) |
+         blockno == '13' & 
+         sampdate <= as.Date('2022-01-01') &
+         !is.na(sizeclass_freq_10)) %>%
+ group_by(sampyear, blockno, legal.size) %>% 
+ summarise(n = n_distinct(site))
+
+df_6 <- bind_rows(df_4, df_5)
+
+# Plot for sub-legal abundance
+
+df_7 <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp.year)
+ 
+ df_8 <- time.swim.dat.final %>% 
+  filter(blockno == '13' &
+          between(sampdate, as.Date('2023-04-01'), as.Date('2023-12-31')) &
+          !is.na(sizeclass_freq_10) |
+          blockno == '13' & 
+          sampdate <= as.Date('2022-01-01') &
+          !is.na(sizeclass_freq_10))
+
+ df_9 <- bind_rows(df_7, df_8)
+
+
+sub.legal.plot <- df_9 %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        legal.size == '<140 mm' &
+         !blockno %in% c('14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
+ # filter(midsize < 150) %>% 
+ group_by(blockno, site, diver, sampyear) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>%  
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
+ ggplot(aes(x = blockno, y = mean.ab.n))+
+ geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ geom_point(data = df_3 %>% filter(legal.size == '<140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
+            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8, preserve = 'single'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Blockno')+
+ coord_cartesian(ylim = c(0, 150))+
+ geom_text(data = df_6 %>% filter(legal.size == '<140 mm'), aes(y = 150, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
+           position = position_dodge2(0.8))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Sub-legal <140 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ theme(legend.position = 'none')
+
+# Plot for legal abundance
+legal.plot <- df_9 %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        legal.size == '>140 mm' &
+         !blockno %in% c('14', '21', '29', '30') &
+         sampyear <= samp.year) %>%
+ # filter(midsize < 150) %>% 
+ group_by(blockno, site, diver, sampyear) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear) %>% 
+ summarise(mean.ab.n = mean(ab.n)) %>% 
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
+ ggplot(aes(x = blockno, y = mean.ab.n))+
+ geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ geom_point(data = df_3 %>% filter(legal.size == '>140 mm'), aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
+            size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8, preserve = 'single'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Blockno')+
+ coord_cartesian(ylim = c(0, 150))+
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Legal >140 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ theme(legend.title = element_blank(),
+       legend.position = c(0.9, 0.7))
+
+# Join plots
+actaeons_plot <- grid.arrange(sub.legal.plot, legal.plot, nrow = 2)
+
+# Save plots 
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_Actaeons', '.pdf', sep = ''), 
+       plot = actaeons_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_Actaeons', '.png', sep = ''), 
+       plot = actaeons_plot, units = 'mm', width = 190, height = 200)
+
 
 ##---------------------------------------------------------------------------##
 ## PLOT 2: Repeat Abundance Years ####
@@ -459,22 +1033,22 @@ count.plot.rep.mean <- time.swim.dat.final %>%
 
 sub.legal.plot.rep <- count.plot.rep.dat %>% 
  filter(legal.size == '<140 mm') %>%
- mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))) %>%  
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
  ggplot(aes(x = blockno, y = mean.ab.n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  geom_point(data = count.plot.rep.mean %>% filter(legal.size == '<140 mm'), 
-            aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), 
+            aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), 
             shape = 19, size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Blockno')+
  coord_cartesian(ylim = c(0, 100))+
  geom_text(data = ten.min.mean.rep.year.sites %>% filter(legal.size == '<140 mm'), 
-           aes(y = 100, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), size = 3, 
+           aes(y = 100, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
            position = position_dodge2(0.8))+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  guides(size = 'legend', colour = 'none',
         fill = guide_legend(title = 'Year'))+
  ggtitle('Sub-legal <140 mm Repeat Sites')+
@@ -483,13 +1057,13 @@ sub.legal.plot.rep <- count.plot.rep.dat %>%
 
 legal.plot.rep <- count.plot.rep.dat %>% 
  filter(legal.size == '>140 mm') %>%
- mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))) %>%  
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
  ggplot(aes(x = blockno, y = mean.ab.n))+
  geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
               outlier.colour = '#EE8866') +
- scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99'))+
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  geom_point(data = count.plot.rep.mean %>% filter(legal.size == '>140 mm'), 
-            aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), shape = 19,
+            aes(group = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
             size = 2, colour = 'red', fill = 'red', position = position_dodge2(0.8))+
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
@@ -584,11 +1158,11 @@ ref_sites <- time_swim_ref_sites %>%
  select(site.new, blockno)
 
 # Create vector of sample years and repeat for total expected reference sites (n = 90)
-years <- rep(c(2020, 2021, 2022, 2023), 90)
+years <- rep(c(2020, 2021, 2022, 2023, 2024), 90)
 
 # Create dataframe of expected reference sites for each sample year
 ref_sites_year <- ref_sites %>% 
- slice(rep(1:n(), each = 4)) %>% 
+ slice(rep(1:n(), each = 5)) %>% 
  mutate(sampyear = years) %>% 
  dplyr::rename(site = 'site.new')
 
@@ -633,16 +1207,16 @@ for (i in ts.rep.blocks){
   theme(legend.position = 'none')
  
 # Save plot
- setwd(ts.plots.folder)
- ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i,
-                         '_TotalCount_', min(ts_count_sum_ref_dat$sampyear), '-',
-                         max(ts_count_sum_ref_dat$sampyear), '.pdf', sep = ''),
-        plot = rep.plot, units = 'mm', width = 190, height = 120)
-
- ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i,
-                         '_TotalCount_', min(ts_count_sum_ref_dat$sampyear), '-',
-                         max(ts_count_sum_ref_dat$sampyear), '.png', sep = ''),
-        plot = rep.plot, units = 'mm', width = 190, height = 120)
+ # setwd(ts.plots.folder)
+ # ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i,
+ #                         '_TotalCount_', min(ts_count_sum_ref_dat$sampyear), '-',
+ #                         max(ts_count_sum_ref_dat$sampyear), '.pdf', sep = ''),
+ #        plot = rep.plot, units = 'mm', width = 190, height = 120)
+ # 
+ # ggsave(filename = paste('TimedSwimSurvey_RepeatSites_', 'BlockNo', i,
+ #                         '_TotalCount_', min(ts_count_sum_ref_dat$sampyear), '-',
+ #                         max(ts_count_sum_ref_dat$sampyear), '.png', sep = ''),
+ #        plot = rep.plot, units = 'mm', width = 190, height = 120)
  
 }
 
@@ -720,7 +1294,7 @@ block.ab.site.n <- left_join(block.ab.n, block.site.n) %>%
 lf.plot <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C')&
          sampyear == samp.year &
-         !blockno %in% c('13')) %>%
+         !blockno %in% c('13', '29')) %>%
  ggplot(aes(shelllength, group = blockno)) +
  geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
  geom_vline(aes(xintercept = ifelse(blockno %in% c('27', '28'), 145, 138)), 
@@ -736,7 +1310,7 @@ lf.plot <- time.swim.dat.df.final %>%
 lf_plot_abs <- time.swim.dat.df.final %>% 
  filter(!subblockno %in% c('28B', '28C')&
          sampyear == samp.year &
-         !blockno %in% c('13')) %>%
+         !blockno %in% c('13', '29')) %>%
  ggplot(aes(shelllength, group = blockno)) +
  # geom_bar(aes(y = ..prop.., stat = 'count'), width = 20, col = 'black', fill = '#EFC000FF')+
  geom_bar(width = 20, col = 'black', fill = '#EFC000FF')+
@@ -811,9 +1385,9 @@ lf.plot <- ggplot()+
  scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
  xlab("Shell Length (mm)")+
  ylab(paste("Percentage (%)"))+
- geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), size = 3, 
+ geom_text(data = block.ab.site.n, aes(x = 7, y = 10, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
            position = position_stack(vjust = 0.8), show.legend = F)+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866", '#44BB99'))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  guides(size = 'legend', 
         colour = guide_legend(title = 'Year'))
 
@@ -830,11 +1404,30 @@ lf_plot_abs <- ggplot()+
  # scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
  xlab("Shell Length (mm)")+
  ylab(paste("Count"))+
- geom_text(data = block.ab.site.n, aes(x = 7, y = 500, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023'))), size = 3, 
+ geom_text(data = block.ab.site.n, aes(x = 7, y = 500, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
            position = position_stack(vjust = 0.8), show.legend = F)+
- scale_colour_manual(values = c("#77AADD", "#BBCC33", "#EE8866", '#44BB99'))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
  guides(size = 'legend', 
         colour = guide_legend(title = 'Year'))
+
+ggplot(data = lf.df, aes(x = sizeclass.2021, y = n, 
+                                        group = factor(sampyear), 
+                                        colour = factor(sampyear)))+
+ stat_smooth(method = loess, formula = y ~ x, se = FALSE)+
+ geom_vline(data = lf.df, aes(xintercept = ifelse(blockno %in% c('27', '28'), 3.8, 3.5)),
+            linetype = 'dashed', colour = 'red', size = 0.5) +
+ theme_bw()+
+ facet_grid(blockno ~ .)+
+ # scale_y_continuous(breaks = seq(0, 50, 10), labels = seq(0, 50, 10))+
+ xlab("Shell Length (mm)")+
+ ylab(paste("Count"))+
+ geom_text(data = block.ab.site.n, aes(x = 7, y = 500, label = n, colour = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
+           position = position_stack(vjust = 0.8), show.legend = F)+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ guides(size = 'legend', 
+        colour = guide_legend(title = 'Year'))
+
+
 
 setwd(ts.plots.folder)
 ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_SizeFrequencyPlot_BLOCKS16-28', '.pdf', sep = ''),
@@ -1918,6 +2511,94 @@ ggsave(filename = paste('TimedSwimSurvey_TenMinuteCountvsGPS.CPUE.kg.hr', '.png'
        plot = ts.vs.cpue.plot, units = 'mm', width = 190, height = 120)
 
 ##---------------------------------------------------------------------------##
+# TS vs HEX OID
+
+ts_oid <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/TimedSwimSites_OID_CPUE.xlsx", Sys.info()[["user"]])),
+                    detectDates = T)
+
+ts_cpue_dat_12_19 <- left_join(time.swim.dat.final, ts_oid %>% select(-c(zone, blockno, subblockno)), by = 'oid')
+
+cpue_ts_year_plot <- ts_cpue_dat_12_19 %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        !blockno %in% c('13', '14', '29', '30')) %>%
+ group_by(sampyear, site, diver, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, site, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(mean.ab.n = mean(ab.n))%>%  
+ filter(!is.na(cell.ntile)) %>% 
+ ggplot(aes(x = cpue_kg_hr, y = mean.ab.n))+
+ # geom_point(aes(colour = as.factor(cell.ntile)), size = 3)+
+ geom_point(size = 1)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ xlab(bquote('Hex CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+ labs(colour = 'Rank')+
+ ylim(0, 160)+
+ theme(legend.position = c(0.95, 0.85))+
+ facet_grid(sampyear ~ legal.size)
+
+cpue_ts_block_plot <- ts_cpue_dat_12_19 %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        !blockno %in% c('13', '14', '29', '30')) %>%
+ group_by(blockno, site, diver, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(mean.ab.n = mean(ab.n))%>%  
+ filter(!is.na(cell.ntile)) %>% 
+ ggplot(aes(x = cpue_kg_hr, y = mean.ab.n))+
+ # geom_point(aes(colour = as.factor(cell.ntile)), size = 3)+
+ geom_point(size = 1)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ xlab(bquote('Hex CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+ labs(colour = 'Rank')+
+ ylim(0, 160)+
+ theme(legend.position = c(0.95, 0.85))+
+ facet_grid(blockno ~ legal.size)
+
+cpue_ts_plot <- ts_cpue_dat_12_19 %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        !blockno %in% c('13', '14', '29', '30')) %>%
+ group_by(site, diver, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(site, legal.size, cell.ntile, cpue_kg_hr) %>% 
+ summarise(mean.ab.n = mean(ab.n))%>%  
+ filter(!is.na(cell.ntile)) %>% 
+ ggplot(aes(x = cpue_kg_hr, y = mean.ab.n))+
+ # geom_point(aes(colour = as.factor(cell.ntile)), size = 3)+
+ geom_point(size = 1)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ xlab(bquote('Hex CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Timed Swim average count (abalone.10'*~min^-1*')'))+
+ labs(colour = 'Rank')+
+ ylim(0, 160)+
+ theme(legend.position = c(0.95, 0.85))+
+ facet_wrap(~legal.size, ncol = 2)+
+theme(strip.background = element_blank(),
+      strip.text.x = element_text(size = 12, face = 'bold'))
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TimedSwim_vs_HexCPUE_AllYears', '.pdf', sep = ''), 
+       plot = cpue_ts_year_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TimedSwim_vs_HexCPUE_AllYears', '.png', sep = ''), 
+       plot = cpue_ts_year_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TimedSwim_vs_HexCPUE_2012-2019', '.pdf', sep = ''), 
+       plot = cpue_ts_plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TimedSwim_vs_HexCPUE_2012-2019', '.png', sep = ''), 
+       plot = cpue_ts_plot, units = 'mm', width = 190, height = 120)
+
+##---------------------------------------------------------------------------##
+
 ##PLOT 10: SAM vs Timed count ####
 ## Boxplot comparing average counts from historical SAM data and recent
 ## time swim survey data as block x year

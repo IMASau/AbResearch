@@ -29,13 +29,13 @@ suppressPackageStartupMessages({
 library(tictoc)
 library(sf)
 library(nngeo)
-library(maptools)
-library(rgdal)
+# library(maptools)
+# library(rgdal)
 library(sp)
 library(spatialEco)  
-library(rgeos)
+# library(rgeos)
 library(lubridate)
-library(spdplyr)
+# library(spdplyr)
 library(tidyverse)
 library(tmap)
 library(tictoc)
@@ -72,7 +72,7 @@ THe input variable is the total catch in Kg for each cell from 2012 - 2019. We u
 ```{r add quartile var}
 # Filter hex layer to required block and add quartile
 ts.hex <- filter(sf.ab.hex, zone == 'E' &
-                  blockno %in% c(16, 21, 22, 23, 24, 27, 28, 29)|
+                  blockno %in% c(13, 16, 21, 22, 23, 24, 27, 28, 29)|
                   subblockno == '28A') %>%
   mutate(subblockno = gsub(" ", "", subblockno)) %>%
   within({
@@ -110,6 +110,25 @@ hex.cell.summary <- ts.hex %>%
     n = n()
   ) %>%
   print()
+
+# calculate mean cpue for each oid withing timed swim survey areas and create data frame for later analysis
+df_cpue <- ts.hex %>% 
+ mutate(cpue_kg_hr = blkgtotal / (minstotal / 60)) %>%
+ st_centroid(.) %>% 
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
+  st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(oid, zone, blockno, subblockno, cpue_kg_hr, cell.ntile, x, y) %>% 
+  dplyr::rename('latitude' = y,
+                'longitude' = x) %>%
+ select(-c(latitude, longitude)) %>% 
+ distinct()
+
+gis_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers',
+Sys.info()[["user"]]), sep = '')))
+
+write.xlsx(df_cpue, paste(gis_folder_path, paste('/TimedSwimSites_OID_CPUE.xlsx', sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
 
 ```
 # Reference Site Selection from 2020

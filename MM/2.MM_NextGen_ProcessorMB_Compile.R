@@ -279,7 +279,9 @@ measure.board.df <- measure.board.df %>%
                                                               if_else(docketnum == 524402, 'AE',
                                                                       if_else(docketnum == 520018, 'AE',
                                                                               if_else(docketnum == 714589, 'AN',
-                                                                                      if_else(docketnum == 713967, 'AN', zone))))))))))
+                                                                                      if_else(docketnum == 713967, 'AN',
+                                                                                              if_else(docketnum == 529608, 'AE', 
+                                                                                                      if_else(docketnum == 527234, 'AE', zone))))))))))))
 
 # Meahgan Dodd (RTS) informed me of an error with several lengths for docket number 809708
 measure.board.df <- measure.board.df %>% 
