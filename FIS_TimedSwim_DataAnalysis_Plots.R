@@ -452,6 +452,7 @@ abundance_plot <- ten.min.mean.year %>%
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Survey Year')+
+ ylim(0, 60)+
  theme(legend.position = 'bottom',
        legend.background = element_rect(fill = "white", colour = NA))+
  guides(colour = guide_legend(title = "Size Class"))+
@@ -517,7 +518,7 @@ dat_diff <- dat_base_year %>%
  mutate(rel_diff = (mean.ab.n - mean_ab_n_2020) / mean_ab_n_2020,
         abs_diff = mean.ab.n - mean_ab_n_2020)
 
-# Hypothetical scenarios
+# Create dataframe of hypothetical relative change scenarios
 dat_hypo_rel <- data.frame(sampyear = c(2020, 2021, 2022, 2023, 2024),
                           hypo_05 = format(c(0, 0.05, 0.05 * 1.05, 0.05 * 1.05^2, 0.05 * 1.05^3), scientific = F),
                           hypo_10 = format(c(0, 0.10, 0.10 * 1.10, 0.10 * 1.10^2, 0.10 * 1.10^3), scientific = F),
@@ -531,8 +532,7 @@ dat_hypo_rel <- data.frame(sampyear = c(2020, 2021, 2022, 2023, 2024),
               values_drop_na = T) %>% 
  select(sampyear, rate, hypo_val)
                           
-
-
+# Create dataframe of absolute change hypothetical scenarios.
 dat_hypo_abs <- dat_base_year %>% 
  filter(sampyear == 2020) %>% 
  mutate(hypo_05_2020 = 0,
@@ -567,7 +567,7 @@ dat_hypo_abs <- dat_base_year %>%
               values_drop_na = T) %>% 
   select(hypo, legal.size, rate, yr, hypo_val)
  
- #Relative plot
+ #Relative change plot
 rel_change_plot <- dat_diff %>%
  ggplot()+
  geom_point(aes(x = sampyear, y = rel_diff, group = legal.size, colour = legal.size), position = position_dodge(0.05))+
@@ -590,7 +590,7 @@ rel_change_plot <- dat_diff %>%
  # ylim(-1, 1)+
  facet_wrap(. ~ blockno, ncol = 3)
 
-#Absolute plot
+#Absolute change plot
 abs_change_plot <- dat_diff %>%
  ggplot()+
  geom_point(aes(x = sampyear, y = abs_diff, group = legal.size, colour = legal.size), position = position_dodge(0.05))+
@@ -617,10 +617,15 @@ abs_change_plot <- dat_diff %>%
  facet_wrap(. ~ blockno, ncol = 3)
 
 setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot', '.pdf', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_RelativeChangePlot', '.pdf', sep = ''), 
        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot', '.png', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_RelativeChangePlot', '.png', sep = ''), 
        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_AbsoluteChangePlot', '.pdf', sep = ''), 
+       plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_AbsoluteChangePlot', '.png', sep = ''), 
+       plot = abs_change_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 ## PLOT 4: Reference Abundance ####
@@ -651,6 +656,7 @@ abundance_plot <- ten.min.mean.year %>%
  theme_bw()+
  ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
  xlab('Survey Year')+
+ ylim(0, 60)+
  theme(legend.position = 'bottom',
        legend.background = element_rect(fill = "white", colour = NA))+
  guides(colour = guide_legend(title = "Size Class"))+
@@ -689,10 +695,15 @@ rel_change_plot <- dat_diff %>%
  facet_wrap(. ~ blockno, ncol = 3)
 
 setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot_ReferenceSites', '.pdf', sep = ''),
+       plot = abundance_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot_ReferenceSites', '.png', sep = ''),
+       plot = abundance_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 # Reference Sites - ANOVA
@@ -717,63 +728,6 @@ TukeyHSD(mean_aov)
 plot(mean_aov, 1)
 car::leveneTest(mean.ab.n ~ as.factor(sampyear), data = ten.min.mean.year)
 kruskal.test(mean.ab.n ~ as.factor(sampyear), data = ten.min.mean.year)
-
-##---------------------------------------------------------------------------##
-# Reference Sites - Mean deviation
-
-# Determine mean abalone abundance in each block, year and size class
-ten.min.mean.year <- time.swim.dat.final %>% 
- filter(!subblockno %in% c('28B', '28C') & 
-         !blockno %in% c('13', '14', '21', '29', '30') &
-         !is.na(sizeclass_freq_10) &
-         ref_site == 1) %>% 
- group_by(blockno, site, diver, sampyear, legal.size) %>% 
- summarise(ab.n = sum(sizeclass_freq_10)) %>% 
- group_by(blockno, site, sampyear, legal.size) %>% 
- summarise(mean.ab.n = mean(ab.n),
-           median.ab.n = median(ab.n),
-           std_err = sd(ab.n)/sqrt(n())) 
-
-# Extract basline 2020 values
-base_dat_2020 <- ten.min.mean.year %>% 
- filter(sampyear == 2020) %>% 
- dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>% 
- ungroup() %>%
- select(blockno, site, legal.size, mean_ab_n_2020)
-
-# Re-join baseline data to all data
-dat_base_year <- left_join(ten.min.mean.year, base_dat_2020)
-
-# Relative difference
-dat_diff <- dat_base_year %>% 
- mutate(rel_diff = (mean.ab.n - mean_ab_n_2020) / mean_ab_n_2020,
-        abs_diff = abs(mean.ab.n - mean_ab_n_2020))
-
-
-# Reference site block plot
-dat_diff %>%
- filter(blockno == '22') %>% 
- ggplot(aes(x = sampyear, y = abs_diff, group = legal.size, colour = legal.size))+
- geom_point(position = position_dodge(0.05))+
- geom_line()+
- # geom_errorbar(aes(ymin = abs_diff -  std_err, ymax = abs_diff + std_err), width = 0.2,
- #               position = position_dodge(0.05))+
- scale_colour_manual(values = c('red', 'blue'))+
- theme_bw()+
- ylab(bquote('Abundance (abalone.10'*~min^-1*')'))+
- xlab('Survey Year')+
- theme(legend.position = 'bottom')+
- # theme(legend.position = c(0.9, 0.3)
- #       ,legend.background = element_rect(fill = NA, colour = NA))+
- guides(colour = guide_legend(title = "Size Class"))+
- # ylim(-1, 4)+
- facet_wrap(. ~ site)
-
-# setwd(ts.plots.folder)
-# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
-#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
-# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
-#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 ## PLOT 5: Reference Abundance Criteria ####
@@ -833,7 +787,7 @@ block_crit_dat <- site_mean_dat %>%
 
 
 ref_rel_plot <- site_mean_dat %>% 
- filter(legal.size == '<140 mm' &
+ filter(legal.size == '>140 mm' &
          !is.na(rel_2023) & !is.na(rel_2024) &
          !is.na(plot_col)) %>% 
  ggplot()+
@@ -859,10 +813,143 @@ ref_rel_plot <- site_mean_dat %>%
            # label = status_condition))
 
 setwd(ts.plots.folder)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Sub-Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.pdf', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.pdf', sep = ''), 
        plot = ref_rel_plot, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Sub-Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.png', sep = ''), 
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites_2022_2023', '.png', sep = ''), 
        plot = ref_rel_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# PLOT 6: Reference site deviation ####
+
+# Determine mean abalone abundance for each site
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n)) 
+
+# Extract basline 2020 site values
+base_dat_2020 <- ten.min.mean.year %>%
+ filter(sampyear == 2020) %>%
+ dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>%
+ ungroup() %>%
+ select(blockno, site, legal.size, mean_ab_n_2020)
+
+# Re-join 2020 site baseline to original data
+dat_base_year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>%
+ left_join(base_dat_2020, .)
+
+# Calculate deviation between 2020 mean site baseline and original site counts 
+dat_dev <- dat_base_year %>% 
+ mutate(dist_mean = abs(ab.n - mean_ab_n_2020))
+
+# Calculate mean absolute deviation for site
+mean_dat_dev <- dat_dev %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean_dev = mean(dist_mean),
+           std_err = sd(dist_mean)/sqrt(n())) 
+
+# Reference site mean deviation plot by chosen block
+block_no <- '22'
+
+mean_dat_dev %>%
+ filter(blockno == block_no) %>% 
+ ggplot(aes(x = sampyear, y = mean_dev, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean_dev -  std_err, ymax = mean_dev + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Mean absolute deviation'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ # ylim(-1, 4)+
+ facet_wrap(. ~ site)
+
+# setwd(ts.plots.folder)
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.pdf', sep = ''),
+#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_Legal_RelativeChangePlot_ReferenceSites', '.png', sep = ''),
+#        plot = rel_change_plot, units = 'mm', width = 190, height = 200)
+
+##---------------------------------------------------------------------------##
+# PLOT 7: Reference block deviation ####
+
+# Determine mean abalone abundance for each site
+ten.min.mean.year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal.size) %>% 
+ summarise(mean.ab.n = mean(ab.n)) 
+
+# Extract basline 2020 site values
+base_dat_2020 <- ten.min.mean.year %>%
+ filter(sampyear == 2020) %>%
+ dplyr::rename(mean_ab_n_2020 = 'mean.ab.n') %>%
+ ungroup() %>%
+ select(blockno, site, legal.size, mean_ab_n_2020)
+
+# Re-join 2020 site baseline to original data
+dat_base_year <- time.swim.dat.final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal.size) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>%
+ left_join(base_dat_2020, .)
+
+# Calculate deviation between 2020 mean site baseline and original site counts 
+dat_dev <- dat_base_year %>% 
+ mutate(dist_mean = abs(ab.n - mean_ab_n_2020))
+
+# Calculate mean absolute deviation for site
+mean_dat_dev <- dat_dev %>% 
+ group_by(blockno, sampyear, legal.size) %>% 
+ summarise(mean_dev = mean(dist_mean),
+           std_err = sd(dist_mean)/sqrt(n())) 
+
+# Reference site mean deviation plot by chosen block
+mean_dev_block_plot <- mean_dat_dev %>%
+ ggplot(aes(x = sampyear, y = mean_dev, group = legal.size, colour = legal.size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean_dev -  std_err, ymax = mean_dev + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Mean absolute deviation'))+
+ xlab('Survey Year')+
+ theme(legend.position = 'bottom')+
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ # ylim(-1, 4)+
+ facet_wrap(. ~ blockno)
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_DeviationPlot_Block_ReferenceSites', '.pdf', sep = ''),
+       plot = mean_dev_block_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_TenMinuteCount_DeviationPlot_Block_ReferenceSites', '.png', sep = ''),
+       plot = mean_dev_block_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 ## PLOT Abundance Years: Including mid-season 2023 Actaeons
@@ -1266,6 +1353,54 @@ for (i in ts.blocks){
 }
 
 rm(top.ten.plot)
+
+##---------------------------------------------------------------------------##
+## PLOT: Size criteria ####
+
+# The median of the mean size per site above that observed in the baseline.
+
+# Determine mean shell length per site
+mean_site_length <- time.swim.dat.df.final %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        !blockno %in% c(13, 14, 21, 29, 30)) %>% 
+ group_by(sampyear, site, blockno) %>% 
+ summarise(mean_length = mean(shelllength))
+
+# Determine median of mean shell length by block and year
+med_length_block_year <- mean_site_length %>% 
+ group_by(sampyear, blockno) %>% 
+ summarise(med_length = median(mean_length))
+
+# Extract 2020 baseline median length
+med_2020_dat <- med_length_block_year %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(med_2020 = 'med_length') %>% 
+ ungroup() %>% 
+ select(-sampyear)
+
+# Re-join 2020 baseline median with block median lengths
+med_dat <- left_join(med_length_block_year, med_2020_dat)
+
+# Determine deviation/difference in median length to 2020 baseline
+med_dat_dev <- med_dat %>% 
+ mutate(length_dev = med_length - med_2020)
+
+# Create plot
+length_dev_plot <- med_dat_dev %>% 
+ ggplot()+
+ geom_line(aes(x = sampyear, y = length_dev))+
+ geom_point(aes(x = sampyear, y = length_dev))+
+ facet_wrap(.~ blockno)+
+ theme_bw()+
+ ylab('Shell length absolute deviation (mm)')+
+ xlab('Year')+
+ ylim(-5, 20)
+
+setwd(ts.plots.folder)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_ShellLengthDeviationPlot', '.pdf', sep = ''), 
+       plot = length_dev_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste('TimedSwimSurvey_', samp.year, '_ShellLengthDeviationPlot', '.png', sep = ''), 
+       plot = length_dev_plot, units = 'mm', width = 190, height = 200)
 
 ##---------------------------------------------------------------------------##
 ## PLOT 7: LF Block ####

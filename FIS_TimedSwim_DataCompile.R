@@ -142,7 +142,7 @@ time.swim.dat <- time.swim.dat %>%
 
 # determine legal and sub-legal abalone
 time.swim.dat <- time.swim.dat %>% 
-        mutate(legal.size = ifelse(sizeclass %in% c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120", "120-140"), '<140 mm', '>140 mm'))
+        mutate(legal.size = ifelse(sizeclass %in% c("0-60", "60-100", "0-100", "0-20", "20-40", "40-60", "60-80", "80-100", "100-120", "120-140"), '<140 mm', '>140 mm'))
 
 # add mid-point to 2020 size classes; add 2021 size classes and add midpoint
 time.swim.dat <- time.swim.dat %>% 
@@ -264,6 +264,8 @@ morana_gps_2024_e <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-08-0
 morana_gps_2024_f <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-08-24_download.gpx'), layer = 'waypoints')
 morana_gps_2024_g <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-09-10_download.gpx'), layer = 'waypoints')
 morana_gps_2024_h <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-09-14_download.gpx'), layer = 'waypoints')
+morana_gps_2024_i <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-09-27_download.gpx'), layer = 'waypoints')
+morana_gps_2024_j <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-03_download.gpx'), layer = 'waypoints')
 
 
 morana_gps_2024 <- bind_rows(morana_gps_2024_a, 
@@ -273,7 +275,9 @@ morana_gps_2024 <- bind_rows(morana_gps_2024_a,
                              morana_gps_2024_e,
                              morana_gps_2024_f,
                              morana_gps_2024_g,
-                             morana_gps_2024_h) %>% 
+                             morana_gps_2024_h,
+                             morana_gps_2024_i,
+                             morana_gps_2024_j) %>% 
  mutate(gps_date = as.Date(time)) %>% 
  distinct(., name, gps_date, .keep_all = T)
 
@@ -1173,17 +1177,29 @@ time.swim.dat.final <- ts_dat_final_ref %>%
  mutate(sizeclass_freq_10 = round((sizeclass_freq / (time.elapsed) * 10)))
 
 ##---------------------------------------------------------------------------##
-# 11. Save final dataframes ####
+# 12. Rename column names ####
 
-saveRDS(time.swim.dat.final, paste(samp.year.folder, '/time.swim.dat.final.RDS', sep = ''))
-saveRDS(ts_dat_df_final_ref, paste(samp.year.folder, '/time.swim.dat.df.final.RDS', sep = ''))
-saveRDS(ts_meta_dat_final_ref, paste(samp.year.folder, '/time.swim.meta.dat.final.RDS', sep = ''))
+time_swim_dat_final <- time.swim.dat.final %>% 
+ select_all(~gsub("\\s+|\\.", "_", .))
+
+ts_dat_final_ref <-ts_dat_final_ref %>% 
+ select_all(~gsub("\\s+|\\.", "_", .))
+
+ts_dat_df_final_ref <- ts_dat_df_final_ref %>% 
+ select_all(~gsub("\\s+|\\.", "_", .))
+
+##---------------------------------------------------------------------------##
+# 13. Save final dataframes ####
+
+saveRDS(time_swim_dat_final, paste(samp.year.folder, '/time_swim_dat_final.RDS', sep = ''))
+saveRDS(ts_dat_df_final_ref, paste(samp.year.folder, '/time_swim_dat_df_final.RDS', sep = ''))
+saveRDS(ts_meta_dat_final_ref, paste(samp.year.folder, '/time_swim_meta_dat_final.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
 
-rm(list = setdiff(ls(), c('time.swim.dat.final',
-                          'time.swim.dat.df.final',
-                          'time.swim.meta.dat.final',
+rm(list = setdiff(ls(), c('time_swim_dat_final',
+                          'time_swim_dat_df_final',
+                          'time_swim_meta_dat_final',
                           'samp.year',
                           'samp.year.folder',
                           'ts.plots.folder')))

@@ -994,3 +994,22 @@ ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Corr
 ggsave(filename = paste('TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Correlation_Marginal', '.png', sep = ''), 
        plot = pre_post_plot, units = 'mm', width = 190, height = 200)
 
+pre_post_plot_overall <- df_4 %>% 
+ filter(legal_size == size_class) %>% 
+ ggplot(aes(x = pre, y = post))+
+ geom_point(size = 3)+
+ theme_bw(base_size = 25)+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 125, y = 10, label = size_class), stat = 'unique', colour = 'black', size = 10)+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F, size = 2)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90), size = 10)+
+ xlim(0, 150)+
+ ylim(0, 150)
+
+ggsave(filename = paste(plots_folder, paste('/TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Correlation', '.pdf', sep = ''), sep = ''), plot = pre_post_plot_overall, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(plots_folder, paste('/TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Correlation', '.png', sep = ''), sep = ''), plot = pre_post_plot_overall, units = 'mm', width = 190, height = 200)

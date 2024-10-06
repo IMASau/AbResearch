@@ -70,13 +70,13 @@ spat_layer_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research
 
 # Import final dataframes 
 time.swim.dat.final <-
- readRDS(paste(act_data_input_folder, '/time.swim.dat.final.RDS', sep = ''))
+ readRDS(paste(act_data_input_folder, '/time_swim_dat_final.RDS', sep = ''))
 
 time.swim.dat.df.final <-
- readRDS(paste(act_data_input_folder, '/time.swim.dat.df.final.RDS', sep = ''))
+ readRDS(paste(act_data_input_folder, '/time_swim_dat_df_final.RDS', sep = ''))
 
 # Import metadata frame
-time.swim.meta.dat.final <- readRDS(paste(act_data_input_folder, '/time.swim.meta.dat.final.RDS', sep = ''))
+time.swim.meta.dat.final <- readRDS(paste(act_data_input_folder, '/time_swim_meta_dat_final.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
 # Filter Block 13 data and identify sample periods and size classes
@@ -89,7 +89,7 @@ act_ts_dat <- time.swim.dat.final %>%
 
 
 act_ts_dat <- act_ts_dat %>% 
- mutate(sizeclass_actaeons = ifelse(sizeclass %in% c("0-20", "20-40", "40-60", "60-80", "80-100", "100-120"), '0-120 mm',
+ mutate(sizeclass_actaeons = ifelse(sizeclass %in% c("0-60", "60-100", "0-100", "0-20", "20-40", "40-60", "60-80", "80-100", "100-120"), '0-120 mm',
                                    ifelse(sizeclass %in% c("120-140"), '120-140 mm', '>140 mm')))
 
 ##---------------------------------------------------------------------------##
@@ -564,7 +564,7 @@ act_site_dat <- act_ts_dat %>%
  left_join(., act_site_rep) %>% 
  filter(sampled_n >= 2)
 
-size_class <- '120-140 mm'
+size_class <- '0-120 mm'
 
 act_plot_dat <- act_site_dat %>% 
  filter(!is.na(sizeclass_freq_10),
@@ -642,9 +642,9 @@ act_marg_plot_3 <- ggMarginal(act_plot, type = 'density', groupColour = F, group
 
 act_marg_plot <- grid.arrange(act_marg_plot_1, act_marg_plot_2, act_marg_plot_3, ncol = 3)
 
-ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_', samp.year, '_CorrelationPlot_120-140mm', '.pdf', sep = ''),
+ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_', samp.year, '_CorrelationPlot_0-120mm', '.pdf', sep = ''),
        plot = act_marg_plot, units = 'mm', width = 300, height = 200)
-ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_', samp.year, '_CorrelationPlot_120-140mm', '.png', sep = ''),
+ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_', samp.year, '_CorrelationPlot_0-120mm', '.png', sep = ''),
        plot = act_marg_plot, units = 'mm', width = 300, height = 200)
 ##---------------------------------------------------------------------------##
 ## Relationship between pre, mid and post season surveys between sites - marginal histogram
@@ -662,16 +662,16 @@ act_site_dat <- act_ts_dat %>%
  left_join(., act_site_rep) %>% 
  filter(sampled_n >= 2)
 
-size_class <- '>140 mm'
+size_class <- '<140 mm'
 
 act_plot_dat <- act_site_dat %>% 
  filter(!is.na(sizeclass_freq_10),
         !is.infinite(sizeclass_freq_10),
         sizeclass_freq_10 >= 0,
         sampled_n == 3) %>%
- group_by(samp_period, legal.size, site) %>% 
+ group_by(samp_period, legal_size, site) %>% 
  summarise(ab.n = sum(sizeclass_freq_10)) %>%  
- filter(legal.size == size_class) %>% 
+ filter(legal_size == size_class) %>% 
  spread(key = samp_period, value = ab.n) %>% 
  select(site, Pre, Mid, Post)
 
@@ -744,6 +744,32 @@ ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_
        plot = act_marg_plot, units = 'mm', width = 300, height = 200)
 ggsave(path = act_ts_figures_folder, filename = paste('Actaeons_TimedSwimSurvey_', samp.year, '_CorrelationPlot_Legal', '.png', sep = ''),
        plot = act_marg_plot, units = 'mm', width = 300, height = 200)
+##---------------------------------------------------------------------------##
+# Pre vs Post correlation presentation plot
+
+x_axis <- 'Pre'
+y_axis <- 'Mid'
+
+act_plot <- act_plot_dat %>%  
+ ggplot(aes_string(x = x_axis, y = y_axis))+
+ geom_point(size = 3)+
+ theme_bw(base_size = 25)+
+ theme(legend.position = 'none')+
+ xlab(paste(x_axis, '-season Abalone Count', sep = ''))+
+ ylab(paste(y_axis, '-season Abalone Count', sep = ''))+
+ geom_text(aes(x = 400, y = 10, label = size_class), stat = 'unique', colour = 'black', size = 10)+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 500))+
+ geom_smooth(method = 'lm', formula = y~x, se = F, size = 2)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90), size = 10)+
+ xlim(0, 500)+
+ ylim(0, 500)
+
+ggsave(filename = paste(act_ts_figures_folder, paste('/TimedSwimSurvey_Actaeons', 2024, '_Sub-Legal_PreMid_Correlation', '.pdf', sep = ''), sep = ''), plot = act_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(act_ts_figures_folder, paste('/TimedSwimSurvey_Actaeons', 2024, '_Sub-Legal_PreMid_Correlation', '.png', sep = ''), sep = ''), plot = act_plot, units = 'mm', width = 190, height = 200)
+
+
 ##---------------------------------------------------------------------------##
 
 ## CPUE vs TS ####
