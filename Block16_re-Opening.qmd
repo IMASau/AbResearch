@@ -1,0 +1,1079 @@
+---
+title: "IMAS East Coast Timed Swim Surveys: Block 16 re-opening"
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+  pdf:
+    documentclass: scrreport
+    keep-tex:  true
+    dpi: 600
+    pdf-engine: lualatex
+    toc: true
+    toc-depth: 4
+    toc_float: true
+    number-sections: false
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    linestretch: 1.25
+    mainfont: Calibri
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# clear console
+rm(list = ls())
+
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+ library(dplyr)
+ library(ggplot2)
+ library(scales)
+ library(tidyr)
+ library(gdata)
+ library(openxlsx)
+ library(lubridate)
+ library(reshape)
+ library(gridExtra)
+ library(ggpubr)
+ library(readxl)
+ library(tibble)
+ library(data.table)
+ library(stringr)
+ library(broom)
+ library(purrr)
+ library(sf)
+ library(ggspatial)
+ library(tmap)
+ library(sf)
+ library(sp)
+ library(RColorBrewer)
+ library(viridis)
+ library(ggpmisc)
+})
+
+source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
+
+```
+# Background
+
+The Eastern Zone abalone fishery has experienced significant catch declines and fluctuating catch rates since the 1990s, and in 2020 five abalone fishing blocks (16, 22, 23, 24 and 27) and sub-block 28A were closed to commercial fishing. As part of the closure, it was agreed that these blocks would be surveyed by IMAS under a no-take plan, with assistance from industry on site selection and field work, to determine the geographic extent of depletion and monitor the temporal recovery in stocks.
+
+Since 2020 a fishery independent timed swim survey has been conducted by IMAS enabling rapid assay of stock status across the broad spatial extent of the east coast closure. In summary, the timed swim survey method involves paired divers conducting a 10-minute timed swim on SSBA, counting and measuring all emergent abalone on a measuring slate, at up to 60 sites in each closed block, derived from historical abalone fishery diver GPS logger data (2012-2019). Measured abalone are classified as legal (>140 mm) or sub-legal (<140 mm) and temporal changes in their abundance compared with baseline abundance determined in 2020.
+
+An assessment of trends in abundance since 2020 has been used to evaluate the effectiveness of recovery efforts and to determine when it is appropriate to re-open the fishery. The criteria for reopening the closed blocks are based on several key performance indicators from the timed swim surveys. Key criteria include: 
+
+- Increasing sub-legal and legal counts relative to the 2020 baseline. 
+- Evidence of multiple size classes particularly above the size limit. 
+- Evidence of a widespread trend of increasing sub-legal and legal counts across the Block.
+
+This report outlines findings from timed swim surveys conducted by IMAS in Block 16 since 2020. The findings are assessed in regard to meeting the the above criteria and a series of recommendations have been made to facilitate a re-opening strategy for Block 16 in 2025.
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Identify blockno
+block_no <- 16
+
+# Identify sampling year of interest
+samp_year <- 2024
+
+# Identify input and output folders
+samp_year_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, sep = ''))
+
+ts_plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/FIS', 
+                                           Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, '_Plots/Block_16_Re-opening_2024', sep = ''))
+
+# Import final dataframes 
+time_swim_dat_final <-
+ readRDS(paste(samp_year_folder, '/time_swim_dat_final.RDS', sep = ''))
+
+time_swim_dat_df_final <-
+ readRDS(paste(samp_year_folder, '/time_swim_dat_df_final.RDS', sep = ''))
+
+# Import metadata frame
+time_swim_meta_dat_final <- readRDS(paste(samp_year_folder, '/time_swim_meta_dat_final.RDS', sep = ''))
+
+# Site filter for AVG sample collection in Block 28 on 2024-08-11
+time_swim_dat_final <- time_swim_dat_final %>% 
+ filter(sampdate != as.Date('2024-08-11') & site != 'AB-21-28-36',
+        !site %in% c('DP1', 'DP2', 'DP3'))
+
+time_swim_dat_df_final <- time_swim_dat_df_final %>% 
+ filter(sampdate != as.Date('2024-08-11') & site != 'AB-21-28-36',
+        !site %in% c('DP1', 'DP2', 'DP3'))
+
+```
+
+# Sites Surveyed
+As of the 16th OCtober 2024 there have been 54 sites surveyed across Block 16 including 11 reference sites (@tbl-year-tab3).
+```{r}
+#| label: tbl-year-tab3
+#| tbl-cap: "Summary of sites surveyed and average count by sub-block in 2024. Sites = number of sites surveyed; Ref Sites = number of reference sites resurveyed; Average count = average number of abalone <140 mm or >140 mm sounted within 10 minutes between paired divers at each site within a sub-block."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+
+# Create summary table
+time_swim_count_subblockno <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        sampyear == samp_year & 
+         !blockno %in% c('13', '14', '29', '30'),
+        blockno == block_no) %>% 
+ group_by(subblockno, site, diver, sampyear, legal_size, time_elapsed) %>% 
+ summarise(ab_n = sum(sizeclass_freq)) %>% 
+ group_by(subblockno, legal_size) %>%
+ summarise(sites = n_distinct(site),
+           ab_min = round(mean(ab_n), digits = 1)) %>% 
+ spread(legal_size, ab_min) %>%
+ as.data.frame()
+
+# Determine number of reference sites surveyed in sample year
+sites_year_ref <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear == samp_year &
+         blockno == block_no &
+         ref_site == 1) %>%
+ group_by(subblockno) %>% 
+ summarise(Ref_Sites = n_distinct(site))
+
+# Join percentage changes and number of sites surveyed dataframes
+time_swim_count_subblockno_tab <- left_join(time_swim_count_subblockno, sites_year_ref, by = c('subblockno')) %>% 
+ select(subblockno, sites, Ref_Sites, '<140 mm', '>140 mm') %>% 
+ complete(subblockno, fill = list(Ref_Sites = 0)) %>% 
+ dplyr::rename('Ref Sites' = 'Ref_Sites',
+               'Sub-block' = subblockno,
+               'Sites' = sites,
+               'Average\ncount\n<140mm' = '<140 mm',
+               'Average\ncount\n>140mm' = '>140 mm') %>% 
+  add_row('Sub-block' = 'Total', Sites = sum(.$Sites), 'Ref Sites' = sum(.$'Ref Sites'))
+
+## Create flextable table
+flex_block_swim_count <- time_swim_count_subblockno_tab %>% 
+ flextable::flextable()
+
+flex_block_swim_count
+
+# ## Export table
+# flex_year_tab  %>% 
+#  flextable::save_as_docx(path = file.path(ts_plots_folder, paste('TimedSwimSurvey_', samp_year-1, 'vs', samp_year, '_SiteAverageAbundance_Table.docx')))
+
+# year_tab %>% 
+#  write.xlsx(file = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year-1, 'vs', samp_year, '_SiteAverageAbundance_Table.xlsx', sep = ''), sep = ''), sheetName = "Sheet1", col.names = TRUE, row.names = TRUE, append = FALSE)
+
+```
+# Abundance
+```{r abundance data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##---------------------------------------------------------------------------##
+## PLOT 1: Abundance Boxplot ####
+
+# Average count of all legal and sub-legal abalone per 10 min by year for each 
+# site within each block (i.e. the average count between paired divers for each site).
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year &
+         blockno == block_no) %>%
+ group_by(site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n)) 
+# mutate(sampyear = factor(sampyear))
+
+# Determine number of sites surveyed in each block, year and size class
+time_swim_dat_n <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp_year &
+         blockno == block_no) %>%
+ group_by(sampyear, legal_size) %>% 
+ summarise(n = n_distinct(site))
+
+# Plot for sub-legal abundance
+sub_legal_plot <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        legal_size == '<140 mm' &
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp_year &
+         blockno == block_no) %>%
+ # filter(midsize < 150) %>% 
+ group_by(site, diver, sampyear) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(site, sampyear) %>% 
+ summarise(mean_ab_n = mean(ab_n)) %>%   
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
+ ggplot(aes(x = sampyear, y = mean_ab_n))+
+ geom_boxplot()+
+ geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+ geom_point(data = ten_min_mean_year %>% filter(legal_size == '<140 mm'), aes(x = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
+            size = 2, colour = 'red', fill = 'red')+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')')) +
+ xlab('Blockno') +
+ coord_cartesian(ylim = c(0, 150))+
+ geom_text(data = time_swim_dat_n %>% filter(legal_size == '<140 mm'), aes(y = 150, label = n, x = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), size = 3, 
+           position = position_dodge2(0.8))+
+ scale_colour_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866')) +
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Sub-legal <140 mm') +
+ theme(plot.title = element_text(vjust = 0, hjust = 0)) +
+ theme(legend.position = 'none')
+
+# Plot for legal abundance
+legal_plot <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C'),
+        legal_size == '>140 mm' &
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         sampyear <= samp_year &
+         blockno == block_no) %>%
+ # filter(midsize < 150) %>% 
+ group_by(site, diver, sampyear) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(site, sampyear) %>% 
+ summarise(mean_ab_n = mean(ab_n)) %>% 
+ mutate(sampyear = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))) %>%  
+ ggplot(aes(x = sampyear, y = mean_ab_n))+
+ geom_boxplot(aes(fill = sampyear), position = position_dodge2(1, preserve = 'single'),
+              outlier.colour = '#EE8866') +
+ scale_fill_manual(values = c("#77AADD", "#BBCC33", "#DDDDDD", '#44BB99', '#EE8866'))+
+  geom_point(data = ten_min_mean_year %>% filter(legal_size == '>140 mm'), aes(x = factor(sampyear, levels = c('2020', '2021', '2022', '2023', '2024'))), shape = 19,
+            size = 2, colour = 'red', fill = 'red')+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Blockno')+
+ coord_cartesian(ylim = c(0, 75))+
+ guides(size = 'legend', colour = 'none',
+        fill = guide_legend(title = 'Year'))+
+ ggtitle('Legal >140 mm')+
+ theme(plot.title = element_text(vjust = 0, hjust = 0))+
+ theme(legend.title = element_blank(),
+       legend.position = c(0.9, 0.7))
+```
+
+```{r abundance boxplot}
+#| label: fig-count
+#| fig-cap: "Boxplot comparing the of the number of sub-legal (<140 mm) and legal (>140 mm) abalone counted within 10 minutes between paired divers at each site within Block 16 between years. Red circle indicates the overall average between paired divers for the corresponding size class within the year. Number of sites sampled given above each boxplot."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+library(patchwork)
+
+count_plots <- sub_legal_plot / legal_plot 
+
+count_plots
+
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_Boxplot_Block_16', '.pdf', sep = ''), sep = ''), plot = count_plots, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_Boxplot_Block_16', '.png', sep = ''), sep = ''), plot = count_plots, units = 'mm', width = 190, height = 200)
+
+```
+
+```{r abundance data lineplots}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+## PLOT 2: Abundance Lineplot data ####
+
+# Determine mean abalone abundance in each subblock, year and size class
+ten_min_mean_year_subblock <- time_swim_dat_final %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year) &
+         blockno == block_no) %>%
+ group_by(blockno, subblockno, site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(subblockno, blockno, sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n()))
+
+# Determine mean abalone abundance in each year and size class
+ten_min_mean_year_block <- time_swim_dat_final %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year) &
+         blockno == block_no) %>%
+ group_by(blockno, site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n()))
+
+# Determine mean abalone abundance in each year and size class for reference sites
+ten_min_mean_year_ref <- time_swim_dat_final %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year) &
+         blockno == block_no &
+         ref_site == 1) %>%
+ group_by(blockno, site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n()))
+
+```
+
+```{r block abundance lineplot}
+#| label: fig-count-lineplot
+#| fig-cap: "Average count of all legal (>140 mm) and sub-legal (<140 mm) abalone within 10 minutes between paired divers at each site within Block 16 by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+abundance_plot <- ten_min_mean_year_block %>% 
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = legal_size, colour = legal_size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(0, 50)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))
+
+abundance_plot
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+
+```{r subblock abundance lineplot}
+#| label: fig-count-subblock-lineplot
+#| fig-cap: "Average count of all legal (>140 mm) and sub-legal (<140 mm) abalone within 10 minutes between paired divers at each site within each Block 16 sub-block by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+abundance_plot <- ten_min_mean_year_subblock %>% 
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = legal_size, colour = legal_size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(0, 60)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ subblockno, ncol = 2)
+
+abundance_plot
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
+```{r block ref abundance lineplot}
+#| label: fig-count-ref-lineplot
+#| fig-cap: "Average count of all legal (>140 mm) and sub-legal (<140 mm) abalone within 10 minutes between paired divers at reference sites within Block 16 by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+abundance_plot_ref <- ten_min_mean_year_ref %>% 
+ filter(blockno != 13) %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = legal_size, colour = legal_size))+
+ geom_point(position = position_dodge(0.05))+
+ geom_line()+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_dodge(0.05))+
+ scale_colour_manual(values = c('red', 'blue'))+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(0, 50)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))
+
+abundance_plot_ref
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_MeanLinePlot', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+
+
+```{r relative abundance data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##---------------------------------------------------------------------------##
+## PLOT 3: Relative-Absolute Abundance ####
+
+# Relative abundance to 2020 baselines and hypothetical percentage change.
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year_rel <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+          !blockno %in% c('13', '14', '21', '29', '30') &
+          !is.na(sizeclass_freq_10),
+         blockno == block_no) %>% 
+ group_by(site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n())) 
+
+# Extract basline abudance 2020 values
+base_dat_2020 <- ten_min_mean_year_rel %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean_ab_n') %>% 
+ ungroup() %>%
+ select(legal_size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year <- left_join(ten_min_mean_year_rel, base_dat_2020)
+
+# Relative and absolute difference
+dat_diff <- dat_base_year %>% 
+ mutate(rel_diff = (mean_ab_n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = mean_ab_n - mean_ab_n_2020)
+
+# Hypothetical scenarios
+dat_hypo_abs <- dat_base_year %>% 
+ filter(sampyear == 2020) %>% 
+ mutate(hypo_05_2020 = 0,
+        hypo_05_2021 = (mean_ab_n_2020 * 1.05) - mean_ab_n_2020,
+        hypo_05_2022 = (mean_ab_n_2020 * 1.05^2) - mean_ab_n_2020,
+        hypo_05_2023 = (mean_ab_n_2020 * 1.05^3) - mean_ab_n_2020,
+        hypo_05_2024 = (mean_ab_n_2020 * 1.05^4) - mean_ab_n_2020,
+        hypo_10_2020 = 0,
+        hypo_10_2021 = (mean_ab_n_2020 * 1.10) - mean_ab_n_2020,
+        hypo_10_2022 = (mean_ab_n_2020 * 1.10^2) - mean_ab_n_2020,
+        hypo_10_2023 = (mean_ab_n_2020 * 1.10^3) - mean_ab_n_2020,
+        hypo_10_2024 = (mean_ab_n_2020 * 1.10^4) - mean_ab_n_2020,
+        hypo_15_2020 = 0,
+        hypo_15_2021 = (mean_ab_n_2020 * 1.15) - mean_ab_n_2020,
+        hypo_15_2022 = (mean_ab_n_2020 * 1.15^2) - mean_ab_n_2020,
+        hypo_15_2023 = (mean_ab_n_2020 * 1.15^3) - mean_ab_n_2020,
+        hypo_15_2024 = (mean_ab_n_2020 * 1.15^4) - mean_ab_n_2020,
+        hypo_20_2020 = 0,
+        hypo_20_2021 = (mean_ab_n_2020 * 1.20) - mean_ab_n_2020,
+        hypo_20_2022 = (mean_ab_n_2020 * 1.20^2) - mean_ab_n_2020,
+        hypo_20_2023 = (mean_ab_n_2020 * 1.20^3) - mean_ab_n_2020,
+        hypo_20_2024 = (mean_ab_n_2020 * 1.20^4) - mean_ab_n_2020,
+        hypo_25_2020 = 0,
+        hypo_25_2021 = (mean_ab_n_2020 * 1.25) - mean_ab_n_2020,
+        hypo_25_2022 = (mean_ab_n_2020 * 1.25^2) - mean_ab_n_2020,
+        hypo_25_2023 = (mean_ab_n_2020 * 1.25^3) - mean_ab_n_2020,
+        hypo_25_2024 = (mean_ab_n_2020 * 1.25^4) - mean_ab_n_2020) %>% 
+ pivot_longer(cols = starts_with('hypo_'),
+              names_to = c('hypo', 'rate', 'yr'),
+              names_sep = '_',
+              values_to = 'hypo_val',
+              values_drop_na = T) %>% 
+  select(hypo, legal_size, rate, yr, hypo_val)
+
+```
+
+```{r realtive abundance plot}
+#| label: fig-abs-change-2020
+#| fig-cap: "Asolute change in average abundance of all legal (>140 mm) and sub-legal (<140 mm) abalone counted within 10 minutes between paired divers at each site within Block 16 by year to 2020 baseline (red dotted line). Coloured dashed lines are hypothetical percentage change in abundance between consecutive years."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+
+#Absolute plot
+abs_change_plot <- dat_diff %>%
+ ggplot() +
+ geom_point(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size), position = position_dodge(0.05)) +
+ geom_line(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size)) +
+ geom_hline(yintercept = 0, linetype = 'dotted', colour = 'red', size = 0.3) +
+ geom_line(data = dat_hypo_abs %>% filter(rate == '05' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '10' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '15' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '20' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ scale_colour_manual(values = c('red', 'blue', "#00AFBB", "#E7B800", "#FC4E07", "#52854C"),
+                     labels = c('<140 mm', '>140 mm', '5%', '10%', '15%', '20%'),
+                     name = '') +
+ # scale_colour_manual(values = c('red', 'blue'),
+ #                     labels = c('<140 mm', '>140 mm'),
+ #                     name = 'Size Class') +
+ theme_bw() +
+ ylab(bquote('Absolute change in abundance')) +
+ xlab('Survey Year') +
+ theme(legend.position = 'bottom') +
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(nrow =1))
+ # ylim(-30, 100)+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+abs_change_plot
+
+
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.pdf', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.png', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+```{r relative abundance subblock data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##---------------------------------------------------------------------------##
+## PLOT 3: Relative-Absolute Abundance subblock ####
+
+
+# Relative abundance to 2020 baselines and hypothetical percentage change.
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year_rel_subblock <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+          !blockno %in% c('13', '14', '21', '29', '30') &
+          !is.na(sizeclass_freq_10),
+         blockno == block_no) %>% 
+ group_by(subblockno, site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(subblockno, sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n())) 
+
+# Extract basline abudance 2020 values
+base_dat_2020 <- ten_min_mean_year_rel_subblock %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean_ab_n') %>% 
+ ungroup() %>%
+ select(subblockno, legal_size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year_subblock <- left_join(ten_min_mean_year_rel_subblock, base_dat_2020)
+
+# Relative and absolute difference
+dat_diff_subblock <- dat_base_year_subblock %>% 
+ mutate(rel_diff = (mean_ab_n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = mean_ab_n - mean_ab_n_2020)
+
+# Hypothetical scenarios
+dat_hypo_abs_subblock <- dat_base_year_subblock %>% 
+ filter(sampyear == 2020) %>% 
+ mutate(hypo_05_2020 = 0,
+        hypo_05_2021 = (mean_ab_n_2020 * 1.05) - mean_ab_n_2020,
+        hypo_05_2022 = (mean_ab_n_2020 * 1.05^2) - mean_ab_n_2020,
+        hypo_05_2023 = (mean_ab_n_2020 * 1.05^3) - mean_ab_n_2020,
+        hypo_05_2024 = (mean_ab_n_2020 * 1.05^4) - mean_ab_n_2020,
+        hypo_10_2020 = 0,
+        hypo_10_2021 = (mean_ab_n_2020 * 1.10) - mean_ab_n_2020,
+        hypo_10_2022 = (mean_ab_n_2020 * 1.10^2) - mean_ab_n_2020,
+        hypo_10_2023 = (mean_ab_n_2020 * 1.10^3) - mean_ab_n_2020,
+        hypo_10_2024 = (mean_ab_n_2020 * 1.10^4) - mean_ab_n_2020,
+        hypo_15_2020 = 0,
+        hypo_15_2021 = (mean_ab_n_2020 * 1.15) - mean_ab_n_2020,
+        hypo_15_2022 = (mean_ab_n_2020 * 1.15^2) - mean_ab_n_2020,
+        hypo_15_2023 = (mean_ab_n_2020 * 1.15^3) - mean_ab_n_2020,
+        hypo_15_2024 = (mean_ab_n_2020 * 1.15^4) - mean_ab_n_2020,
+        hypo_20_2020 = 0,
+        hypo_20_2021 = (mean_ab_n_2020 * 1.20) - mean_ab_n_2020,
+        hypo_20_2022 = (mean_ab_n_2020 * 1.20^2) - mean_ab_n_2020,
+        hypo_20_2023 = (mean_ab_n_2020 * 1.20^3) - mean_ab_n_2020,
+        hypo_20_2024 = (mean_ab_n_2020 * 1.20^4) - mean_ab_n_2020,
+        hypo_25_2020 = 0,
+        hypo_25_2021 = (mean_ab_n_2020 * 1.25) - mean_ab_n_2020,
+        hypo_25_2022 = (mean_ab_n_2020 * 1.25^2) - mean_ab_n_2020,
+        hypo_25_2023 = (mean_ab_n_2020 * 1.25^3) - mean_ab_n_2020,
+        hypo_25_2024 = (mean_ab_n_2020 * 1.25^4) - mean_ab_n_2020) %>% 
+ pivot_longer(cols = starts_with('hypo_'),
+              names_to = c('hypo', 'rate', 'yr'),
+              names_sep = '_',
+              values_to = 'hypo_val',
+              values_drop_na = T) %>% 
+  select(hypo, legal_size, rate, yr, hypo_val)
+
+```
+
+```{r relative abundance subblock plot}
+#| label: fig-abs-change-2020-subblock
+#| fig-cap: "Asolute change in average abundance of all legal (>140 mm) and sub-legal (<140 mm) abalone counted within 10 minutes between paired divers at each site within Block 16 sub-blocks by year to 2020 baselines (red dotted lines). Coloured dashed lines are hypothetical percentage change in abundance between consecutive years for each sub-block."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+
+#Absolute plot
+abs_change_plot_subblock <- dat_diff_subblock %>%
+ ggplot() +
+ geom_point(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size), position = position_dodge(0.05)) +
+ geom_line(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size)) +
+ geom_hline(yintercept = 0, linetype = 'dotted', colour = 'red', size = 0.3) +
+ geom_line(data = dat_hypo_abs_subblock %>% filter(rate == '05' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs_subblock %>% filter(rate == '10' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs_subblock %>% filter(rate == '15' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs_subblock %>% filter(rate == '20' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ scale_colour_manual(values = c('red', 'blue', "#00AFBB", "#E7B800", "#FC4E07", "#52854C"),
+                     labels = c('<140 mm', '>140 mm', '5%', '10%', '15%', '20%'),
+                     name = '') +
+ # scale_colour_manual(values = c('red', 'blue'),
+ #                     labels = c('<140 mm', '>140 mm'),
+ #                     name = 'Size Class') +
+ theme_bw() +
+ ylab(bquote('Absolute change in abundance')) +
+ xlab('Survey Year') +
+ theme(legend.position = 'bottom') +
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(nrow =1))+
+ # ylim(-30, 100)+
+ facet_wrap(. ~ subblockno, ncol = 2)
+
+abs_change_plot_subblock
+
+
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.pdf', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.png', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+```{r relative ref abundance data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##---------------------------------------------------------------------------##
+## PLOT 3: Relative-Absolute Abundance ####
+
+# Relative abundance to 2020 baselines at reference sites and hypothetical percentage change.
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year_rel_ref <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+          !blockno %in% c('13', '14', '21', '29', '30') &
+          !is.na(sizeclass_freq_10),
+         blockno == block_no &
+         ref_site == 1) %>% 
+ group_by(site, diver, sampyear, time_elapsed, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n())) 
+
+# Extract basline abudance 2020 values
+base_dat_2020 <- ten_min_mean_year_rel_ref %>% 
+ filter(sampyear == 2020) %>% 
+ dplyr::rename(mean_ab_n_2020 = 'mean_ab_n') %>% 
+ ungroup() %>%
+ select(legal_size, mean_ab_n_2020)
+
+# Re-join baseline data to all data
+dat_base_year <- left_join(ten_min_mean_year_rel_ref, base_dat_2020)
+
+# Relative and absolute difference
+dat_diff <- dat_base_year %>% 
+ mutate(rel_diff = (mean_ab_n - mean_ab_n_2020) / mean_ab_n_2020,
+        abs_diff = mean_ab_n - mean_ab_n_2020)
+
+# Hypothetical scenarios
+dat_hypo_abs <- dat_base_year %>% 
+ filter(sampyear == 2020) %>% 
+ mutate(hypo_05_2020 = 0,
+        hypo_05_2021 = (mean_ab_n_2020 * 1.05) - mean_ab_n_2020,
+        hypo_05_2022 = (mean_ab_n_2020 * 1.05^2) - mean_ab_n_2020,
+        hypo_05_2023 = (mean_ab_n_2020 * 1.05^3) - mean_ab_n_2020,
+        hypo_05_2024 = (mean_ab_n_2020 * 1.05^4) - mean_ab_n_2020,
+        hypo_10_2020 = 0,
+        hypo_10_2021 = (mean_ab_n_2020 * 1.10) - mean_ab_n_2020,
+        hypo_10_2022 = (mean_ab_n_2020 * 1.10^2) - mean_ab_n_2020,
+        hypo_10_2023 = (mean_ab_n_2020 * 1.10^3) - mean_ab_n_2020,
+        hypo_10_2024 = (mean_ab_n_2020 * 1.10^4) - mean_ab_n_2020,
+        hypo_15_2020 = 0,
+        hypo_15_2021 = (mean_ab_n_2020 * 1.15) - mean_ab_n_2020,
+        hypo_15_2022 = (mean_ab_n_2020 * 1.15^2) - mean_ab_n_2020,
+        hypo_15_2023 = (mean_ab_n_2020 * 1.15^3) - mean_ab_n_2020,
+        hypo_15_2024 = (mean_ab_n_2020 * 1.15^4) - mean_ab_n_2020,
+        hypo_20_2020 = 0,
+        hypo_20_2021 = (mean_ab_n_2020 * 1.20) - mean_ab_n_2020,
+        hypo_20_2022 = (mean_ab_n_2020 * 1.20^2) - mean_ab_n_2020,
+        hypo_20_2023 = (mean_ab_n_2020 * 1.20^3) - mean_ab_n_2020,
+        hypo_20_2024 = (mean_ab_n_2020 * 1.20^4) - mean_ab_n_2020,
+        hypo_25_2020 = 0,
+        hypo_25_2021 = (mean_ab_n_2020 * 1.25) - mean_ab_n_2020,
+        hypo_25_2022 = (mean_ab_n_2020 * 1.25^2) - mean_ab_n_2020,
+        hypo_25_2023 = (mean_ab_n_2020 * 1.25^3) - mean_ab_n_2020,
+        hypo_25_2024 = (mean_ab_n_2020 * 1.25^4) - mean_ab_n_2020) %>% 
+ pivot_longer(cols = starts_with('hypo_'),
+              names_to = c('hypo', 'rate', 'yr'),
+              names_sep = '_',
+              values_to = 'hypo_val',
+              values_drop_na = T) %>% 
+  select(hypo, legal_size, rate, yr, hypo_val)
+
+```
+
+```{r realtive abundance ref plot}
+#| label: fig-abs-change-ref-2020
+#| fig-cap: "Asolute change in average abundance of all legal (>140 mm) and sub-legal (<140 mm) abalone counted within 10 minutes between paired divers at each site within Block 16 by year to 2020 baseline (red dotted line). Coloured dashed lines are hypothetical percentage change in abundance between consecutive years."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+
+#Absolute plot
+abs_change_plot <- dat_diff %>%
+ ggplot() +
+ geom_point(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size), position = position_dodge(0.05)) +
+ geom_line(aes(x = sampyear, y = abs_diff, group = legal_size, colour = legal_size)) +
+ geom_hline(yintercept = 0, linetype = 'dotted', colour = 'red', size = 0.3) +
+ geom_line(data = dat_hypo_abs %>% filter(rate == '05' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '10' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '15' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ geom_line(data = dat_hypo_abs %>% filter(rate == '20' & legal_size == '<140 mm'), aes(x = as.numeric(yr), y = hypo_val, colour = rate), linetype = 'dashed', size = 0.3)+
+ scale_colour_manual(values = c('red', 'blue', "#00AFBB", "#E7B800", "#FC4E07", "#52854C"),
+                     labels = c('<140 mm', '>140 mm', '5%', '10%', '15%', '20%'),
+                     name = '') +
+ # scale_colour_manual(values = c('red', 'blue'),
+ #                     labels = c('<140 mm', '>140 mm'),
+ #                     name = 'Size Class') +
+ theme_bw() +
+ ylab(bquote('Absolute change in abundance')) +
+ xlab('Survey Year') +
+ theme(legend.position = 'bottom') +
+ # theme(legend.position = c(0.9, 0.3)
+ #       ,legend.background = element_rect(fill = NA, colour = NA))+
+ guides(colour = guide_legend(nrow =1))
+ # ylim(-30, 100)+
+ facet_wrap(. ~ blockno, ncol = 3)
+
+abs_change_plot
+
+
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.pdf', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_AbsoluteChangePlot', '.png', sep = ''), sep = ''), plot = abs_change_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+```{r sizeclass abundance data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# Arrange size classes in order
+sizeclasses <- c("0-100", "100-120", "120-140", "140-160", "160-180", "180-200", "200-220")
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year_size <- time_swim_dat_final %>% 
+ mutate(sizeclass_2021 = factor(sizeclass_2021, levels = sizeclasses)) %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year) &
+         blockno == block_no) %>% 
+ group_by(site, diver, sampyear, time_elapsed, sizeclass_2021, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(sampyear, sizeclass_2021, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n())) 
+```
+
+```{r sub-legal sizeclass plot}
+#| label: fig-count-sublegal-sizeclass-lineplot
+#| fig-cap: "Average count of each sub-legal (<140 mm) abalone size class within 10 minutes between paired divers at each site within Block 16 by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 5
+#| fig-width: 3
+#| out-height: 90%
+#| fig-pos: "H"
+#| 
+abundance_plot_sublegal <- ten_min_mean_year_size %>% 
+ filter(legal_size == '<140 mm') %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
+ # geom_point(position = position_dodge(0.05))+
+ # geom_line(position = position_dodge(0.05))+
+ # geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+ #               position = position_dodge(0.05))+
+ geom_point(position = position_jitter(width = 0.05, seed = 1))+
+ geom_line(position = position_jitter(width = 0.05, seed = 1))+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_jitter(width = 0.05, seed = 1))+
+ # scale_colour_manual(values = cbp2)+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(-1, 20)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))
+ facet_wrap(. ~ blockno, ncol = 3)
+
+# abundance_plot_sublegal
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
+
+```{r legal sizeclass plot}
+#| label: fig-count-legal-sizeclass-lineplot
+#| fig-cap: "Average count of each legal (>140 mm) abalone size class within 10 minutes between paired divers at each site within Block 16 by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 5
+#| fig-width: 3
+#| out-height: 90%
+#| fig-pos: "H"
+#| 
+abundance_plot_legal <- ten_min_mean_year_size %>% 
+ filter(legal_size == '>140 mm') %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
+ # geom_point(position = position_dodge(0.05))+
+ # geom_line(position = position_dodge(0.05))+
+ # geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+ #               position = position_dodge(0.05))+
+ geom_point(position = position_jitter(width = 0.05, seed = 1))+
+ geom_line(position = position_jitter(width = 0.05, seed = 1))+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_jitter(width = 0.05, seed = 1))+
+ # scale_colour_manual(values = cbp2)+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(-1, 20)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))
+ facet_wrap(. ~ blockno, ncol = 3)
+
+# abundance_plot_legal
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
+```{r}
+#| label: fig-sizeclass-abundance-combined
+#| fig-cap: "Average count of each legal and sub-legal abalone size class within 10 minutes between paired divers at each site within Block 16 by year."
+#| fig-subcap: 
+#|   - "Legal (>140 mm)"
+#|   - "Sub-legal (<140 mm)"
+#| layout-ncol: 2
+
+abundance_plot_legal
+abundance_plot_sublegal
+
+```
+
+
+```{r combined sizeclass plot}
+#| label: fig-count-sizeclass-lineplot
+#| fig-cap: "Average count of each legal (>140 mm) sub-legal (<140 mm) abalone size class within 10 minutes between paired divers at each site within Block 16 by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+library(patchwork)
+
+count_plots <- abundance_plot_sublegal + abundance_plot_legal
+
+count_plots
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_Boxplot', '.pdf', sep = ''), sep = ''), plot = count_plots, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_LegalSubLegal_Boxplot', '.png', sep = ''), sep = ''), plot = count_plots, units = 'mm', width = 190, height = 200)
+
+```
+# Summary
+- Sub-legal and legal abundance has remained stable and showed steady increase across years.
+- Legal abundance has been increasing across all sub-blocks.
+- Sub-legal abundance has been more variable and overall increases appear primarily driven by increases in sub-block 16D (North Bruny). Overall, sub-legal abundance generally appears stable except in sub block 16B where abundance is below the 2020 baseline. 
+- Legal size class abundance has been increasing and there are evidence of at least some increase in larger 160-180 and 180-200 mm size classes.
+- Sub-legal sizes classes generally appear stable overall however there are limited signs of improvement in juvenile size classes (<120 mm) from the 2020 baseline.
+- Existing legal abundance and continuing to build legal size classes will be critical to re-building stocks.
+- Recreational take of abalone has continued and would remain - need to make some allowance for unknown recreational take.
+
+# Recommendations
+
+## Summary of re-opening strategies
+1.	TAC = 5-8 t
+2.	TAC to be redistributed from existing EZ TAC (e.g. Block 13E)
+3.	TAC 3-year rolling cap (i.e. max. 15 t TAC over 3 years) 
+4. July opening (same day as NE greenlip opening)
+5. 24-hour closure notice?
+6.	LML = 150 mm
+7.	All abalone to be measured with electronic measuring board at sea/catch location and/or factory (ideally both)
+8.	Timed swim re-survey post season or upon reaching cap
+
+## Rationale for each strategy
+1. TAC = 5-8 t
+- The Total Allowable Catch (TAC) must be carefully set to balance the goal of rebuilding stocks with the practicalities of effective management. Setting a high TAC could undermine the progress already made in stock recovery, while a low TAC might be difficult to manage due to the fleet’s capacity to harvest large volumes quickly.    
+- Previous catch cap in Block 16 set at around 13 t in 2019 but only 6 t caught.
+- Catch caps for 2016-2019 all under-caught despite CPUE remaining unchanged.
+- CPUE well below CPUE target at time of closure in 2019.
+- Catch in 2017 was ~16% of catch landed in 1998.
+
+```{r block-16-multi}
+#| label: fig-block-16-multi
+#| fig-cap: "Block 16 EZ: Catch per quarter (bars) standardised CPUE (black) and un-standardised CPUE (red) CPUETarget (55^th^ p\\% (blue)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+block_16_multi <- knitr::include_graphics(file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/CE/AssessFY2024/Blacklip_multi_E_blockno_16.wmf', 
+                                            Sys.info()[["user"]])))
+block_16_multi
+
+```
+2.	TAC to be redistributed from existing EZ TAC (e.g. Block 13E)
+- Industry stakeholders have proposed that instead of increasing the current EZ TAC, it should be redistributed. This approach aims to spread fishing effort more evenly and mitigate localised depletion, especially in sub block 13E. 
+- There is no redundancy or capacity at current stock levels to increase overall TAC in EZ.
+  
+3.	TAC 3-year rolling cap (i.e. max. 15 t TAC over 3 years)
+- Maintaining the catch at a constant level for several years would help in preventing overfishing by ensuring recovering stocks are not subjected to sudden increase in fishing pressure. Additionally, it allows management to evaluate the effectiveness of catch strategies and ensure compliance with regulations.
+- Catch overrun in year one subtracted from year two, etc (e.g. 5 t TAC in 2025 + 2 t overrun = 7 t taken in 2025 = 3 t TAC in 2026). 
+- Penalties for catch overrun (scaled by severity of over-run)?
+
+4. July opening
+- The Tasmanian commercial abalone fishery fleet can harvest large volumes of catch in a short time. Currently, management must give 48 hours’ notice to close a fishery, often leading to exceeded catch limits, such as with NE Greenlip.
+- Given the closure of Block 16 for the past five years, there is anticipated to be significant interest from the fleet in harvesting from this area. This could lead to a large number of fishers targeting the fishery in a short period, increasing the risk of exceeding a low TAC.   
+- Opening the fishery on the same day as NE greenlip fishery (i.e. Tuesday 1^st^ July 2025) is aimed at spreading the effort of the fleet and minimising the number of fishers that would target Block 16 on opening. 
+
+5. LML = 150 mm
+- The existing legal abundance and continuing to build legal size classes will be critical to re-building stocks in Block 16. Survey results indicate legal size class abundance has been improving since the closure with increasing trends of 160-180 and 180-200 mm size classes.
+- Implementing a larger minimum legal length (LML) increases the number of reproductive individuals, aiding in stock rebuilding and providing a buffer against localised depletion.
+
+6.	Abalone to be measured with electronic measuring board at sea/catch location and/or factory (ideally both).
+- Size composition data are crucial for monitoring stock status, especially during a period of rebuild. These data offer insights into the age structure, growth, and mortality rates of abalone populations, and are essential for tracking recruitment dynamics and assessing the impact of reintroducing fishing pressure in Block 16.
+- Currently we have ~20 electronic measuring boards that can be assigned to individual fishers to measure abalone at time of harvest on location. This may be a limitation if >20 fishers intend to fish on any given day and a period of notice would need to be given to IMAS to arrange configuration of units with allocated GPS dive loggers in order to receive length data. 
+- Ideally all abalone would be measured however there may be practical issues that prevent this and a minimum threshold may be more appropriate (e.g. 200 individuals). 
+- An alternative could involve compulsory catch measuring by processors that receive landed catch from Block 16, the onus placed on the unit holder to ensure a minimum catch sample is measured (e.g. 200 individuals), by providing personnel or payment for factory personnel.  
+- Measuring catch by the processor provides the additional benefit of obtaining weight data.
+  
+## Dependant on management instruments
+1.	Daily FLAD catch limit = 250 kg?
+- Limiting fishers to a daily trip limit of 250 kg is aimed at minimising the risk of catches exceeding a lower TAC.
+
+2.	Vessel to operate with NEMO VMS unit and depth logger?
+
+3. 24-hour closure notice?
+- Reducing the closure notice period to 24-hour could also help minimise the risk of catches exceeding a lower TAC.
+
+## Stewardship initiatives
+1.	Distribution of fishing effort throughout the Block.
+- Spreading effort throughout the block minimises the effect of localised depletion.
+- It also provides a broader distribution of CPUE to assess the performance of the fishery across it's entire geographic range.
+
+2. 100 kg catch move on rule.
+- Possibly a more formalised measure to distribute fishing effort?
+
+3.	Catch measuring.
+- Ideally every abalone would be mandatory measured. Fishers may find practical solutions to ensuring this could be achieved rather than just measuring a minimum threshold. 
+

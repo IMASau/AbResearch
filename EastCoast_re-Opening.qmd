@@ -418,7 +418,7 @@ ts_tab <- time_swim_dat_final %>%
                'Days' = field_days,
                'Sites_Day' = site_day) %>%
  add_row(Blockno = 'Total', Sites = sum(.$Sites), Days = sum(.$Days), 
-         Sites_Day = round(mean(.$Sites.Day), digits = 1)) %>% 
+         Sites_Day = round(mean(.$Sites_Day), digits = 1)) %>% 
  select(-sampyear)
 
 
@@ -628,6 +628,8 @@ ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '
 
 ```
 
+
+
 ```{r}
 #| label: fig-Count-site-lineplot-act
 #| fig-cap: "Average count of all legal (>140 mm) and sub-legal (<140 mm) abalone within 10 minutes between paired divers at each site within each block by year. Note: Block 13 (Actaeons region) in 2023 only includes data collected ‘mid-season’ (~October 2023)."
@@ -737,7 +739,7 @@ ten_min_mean_year <- time_swim_dat_final %>%
            std_err = sd(ab_n)/sqrt(n())) 
 
 abundance_plot <- ten_min_mean_year %>% 
- filter(blockno != 13 & legal_size == '<140 mm') %>% 
+ filter(blockno != 13 & legal_size == '>140 mm') %>% 
  ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
  # geom_point(position = position_dodge(0.05))+
  # geom_line(position = position_dodge(0.05))+
@@ -765,6 +767,72 @@ ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '
 ```
 Is the decline in sub-legal abundance being driven by the recruitment of animals into what would be the fishery (140 mm) particularly those in the 120-140 mm, or is this been driven by a decline in juvenile recruitment into the population/stock, or a combination of both?Declining sub-legal abundance particularity 0-100 mm and 100-120 mm suggesting a decline in juvenile recruitment. Increasing legal abundance - not unexpected given closure and sub-legal animals, particularity 120-140 mm attaining the LML (140 mm). Also increasing 160-180 mm and larger size classes >180 mm relatively stable.  
 
+```{r}
+#| label: fig-count-sizeclass-subblock-lineplot
+#| fig-cap: "Average count of each abalone size class within 10 minutes between paired divers at each site within each subblock by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+block_no <- 16
+
+# Arrange size classes in order
+sizeclasses <- c("0-100", "100-120", "120-140", "140-160", "160-180", "180-200", "200-220")
+
+# Colour palette
+
+
+cbp2 <- c("#D55E00", "#000000", "#009E73", "#0072B2", "#999999", "#CC79A7", "#E69F00")
+
+cbp2 <- c('#FF0000', '#FFA07A', '#F08080','#0000FF', '#4169E1', '#00BFFF', '#ADD8E6')
+
+
+# Determine mean abalone abundance in each block, year and size class
+ten_min_mean_year <- time_swim_dat_final %>% 
+ mutate(sizeclass_2021 = factor(sizeclass_2021, levels = sizeclasses)) %>% 
+ filter((!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         sampyear <= samp_year) &
+         blockno == block_no) %>% 
+ group_by(blockno, subblockno, site, diver, sampyear, time_elapsed, sizeclass_2021, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, subblockno, sampyear, sizeclass_2021, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n),
+           median_ab_n = median(ab_n),
+           std_err = sd(ab_n)/sqrt(n())) 
+
+abundance_plot <- ten_min_mean_year %>% 
+ filter(blockno != 13 & legal_size == '<140 mm') %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
+ # geom_point(position = position_dodge(0.05))+
+ # geom_line(position = position_dodge(0.05))+
+ # geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+ #               position = position_dodge(0.05))+
+ geom_point(position = position_jitter(width = 0.05, seed = 1))+
+ geom_line(position = position_jitter(width = 0.05, seed = 1))+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_jitter(width = 0.05, seed = 1))+
+ # scale_colour_manual(values = cbp2)+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(-1, 35)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ subblockno, ncol = 3)
+
+abundance_plot
+
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+# ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+
+```
 
 ```{r}
 #| label: fig-abs-change-2020
@@ -1314,7 +1382,7 @@ mean_dat_dev <- dat_dev %>%
            std_err = sd(dist_mean)/sqrt(n())) 
 
 # Reference site mean deviation plot by chosen block
-block_no <- '22'
+block_no <- '16'
 
 mean_dat_dev %>%
  filter(blockno == block_no) %>% 
@@ -1567,6 +1635,221 @@ length_dev_plot <- med_dat_dev %>%
  ylim(-5, 20)
 
 length_dev_plot
+
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Diver correlation in counts data preparation
+
+# Summarise total count for site x blockno x sampyear x sampdate x diver x legal_size
+ts_sum_count <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C')) %>%
+ group_by(site, blockno, sampyear, sampdate, diver, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>%
+ as.data.frame()
+
+# Identify divers one and two for each site
+divers_id <- ts_sum_count %>%
+ filter(legal_size == '>140 mm') %>% 
+ select(c(site, sampdate, diver)) %>% 
+ group_by(site, sampdate) %>% 
+ mutate(diver_no = 1:n())
+
+# Identify unique diver pair for each site
+diver_pair_id <- divers_id %>% 
+ spread(diver_no, diver) %>%  
+ filter(!is.na(`2`)) %>% 
+ mutate(dive_pair = paste(`1`, `2`, sep = '')) %>% 
+ group_by(dive_pair) %>% 
+ mutate(dive_pair_id = cur_group_id())
+
+# unique(diver_pair_id$dive_pair)
+
+# Join diver one and two identification to count summary
+divers_id_count <- left_join(ts_sum_count, divers_id, by = c('site', 'sampdate', 'diver'))
+
+# Join unique diver pair identification to count summary
+diver_pair_count <- left_join(ts_sum_count, diver_pair_id, by = c('site', 'sampdate'))
+
+# Join divers and diver pair summaries
+ts_count_divers <- left_join(diver_pair_count, divers_id_count) %>% 
+ dplyr::rename('diver_a' = '1',
+               'diver_b' = '2')
+
+```
+
+
+```{r}
+#| label: fig-diver-corr
+#| fig-cap: "Diver correlation in counts."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+# Select sample year
+samp_year <- c(2024)
+
+# Select legal_size
+legal_size_plot <- '<140 mm'
+
+# Identify diver pair IDs x chosen year
+diver_ids <- ts_count_divers %>% 
+ filter(sampyear == samp_year) %>%  
+ distinct(dive_pair_id) %>%  
+ pull()
+
+q <- list()
+
+for (i in diver_ids){
+ 
+ 
+ # Select data for dive pair and sample year
+ ts_diver_dev_dat <- ts_count_divers %>% 
+  filter(dive_pair_id == i, sampyear == samp_year, legal_size == legal_size_plot) %>% 
+  select(c(site, blockno, legal_size, sampyear, sampdate, diver, ab_n)) %>%  
+  spread(key = diver, value = ab_n) %>%  
+  mutate(dive_diff = abs(.[[6]] - .[[7]]))
+ 
+ # Identify diver names for plot title
+ dive_dev_divers <- ts_diver_dev_dat %>% 
+  select(c(6,7))
+ 
+ # determine number of sites surveyed by diver pair for plot
+ divers_site_n <- ts_diver_dev_dat %>%
+  filter(legal_size == legal_size_plot) %>% 
+  group_by(blockno) %>% 
+  summarise(site_n = paste(n_distinct(site), sep = ''))
+ 
+ q[[i]] <-
+  # create plot
+  dive_dev_plot <- ggplot(data = ts_diver_dev_dat, aes(x = ts_diver_dev_dat[[6]], y = ts_diver_dev_dat[[7]]))+
+  # geom_point(aes(x = ts_diver_dev_dat[[6]], y = ts_diver_dev_dat[[7]]))+
+  geom_point()+
+  xlab(names(dive_dev_divers[1]))+
+  ylab(names(dive_dev_divers[2]))+
+  xlim(0, 150)+
+  ylim(0, 150)+
+  theme_bw()+
+  geom_smooth(method = 'lm', formula = y~x, se = F)+
+  stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")),
+              parse = TRUE, label.y = c(0.95, 0.90))+
+  ggtitle(paste(names(dive_dev_divers[1]), 'vs', names(dive_dev_divers[2])))+
+  theme(legend.title = element_blank(),
+        legend.position = c(0.15, 0.8))
+}
+
+
+dive_dev_plot <- q %>%
+discard(is.null) %>%
+ggarrange(plotlist = .,
+          common.legend = TRUE,
+          legend = "bottom")
+
+dive_dev_plot
+
+```
+
+
+
+```{r}
+#| label: fig-diver-dev
+#| fig-cap: "Diver deviation in counts."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+#| 
+
+# Select sample year
+samp_year <- c(2024)
+
+# Identify diver pair IDs x chosen year (remove Jaime McAllister JM)
+diver_ids <- ts_count_divers %>% 
+ filter(sampyear == samp_year,
+        dive_pair_id != 4) %>%  
+ distinct(dive_pair_id) %>%  
+ pull()
+
+q <- list()
+
+for (i in diver_ids){
+ 
+ 
+ # Select data for dive pair and sample year
+ ts_diver_dev_dat <- ts_count_divers %>% 
+  filter(dive_pair_id == i, sampyear == samp_year) %>% 
+  select(c(site, blockno, legal_size, sampyear, sampdate, diver, ab_n)) %>%  
+  spread(key = diver, value = ab_n) %>%  
+  mutate(dive_diff = abs(.[[6]] - .[[7]]))
+ 
+ # Identify diver names for plot title
+ dive_dev_divers <- ts_diver_dev_dat %>% 
+  select(c(6,7))
+ 
+ # determine number of sites surveyed by diver pair for plot
+ divers_site_n <- ts_diver_dev_dat %>%
+  filter(legal_size == '<140 mm') %>% 
+  group_by(blockno) %>% 
+  summarise(site_n = paste(n_distinct(site), sep = ''))
+ 
+ q[[i]] <-
+  # create plot
+  dive_dev_plot <- ggplot(data = ts_diver_dev_dat, aes(x = blockno, y = dive_diff))+
+  geom_boxplot(aes(fill = factor(legal_size)))+
+  xlab('BlockNo')+
+  ylab('Count Difference')+
+  coord_cartesian(ylim = c(0, 90))+
+  theme_bw()+
+  ggtitle(paste(names(dive_dev_divers[1]), 'vs', names(dive_dev_divers[2])))+
+  geom_text(data = divers_site_n, aes(y = 90, label = site_n), size = 3)+
+  scale_fill_manual(values = c("#999999", "#56B4E9"))+
+  # theme(legend.position = "none")
+  theme(legend.title = element_blank(),
+        legend.position = c(0.15, 0.8))
+ 
+ # plot_legend <- get_legend(dive.dev.plot)+
+ #  theme(legend.position = "bottom")
+ 
+}
+
+# q %>%
+#  discard(is.null) %>%
+#  cowplot::plot_grid(plotlist = c(map(.x = .,
+#                            .f = function(x) x + 
+#                             theme(legend.position = 'none')), list(get_legend(.[[1]]))), nrow = 3)
+
+dive_dev_plot <- q %>%
+discard(is.null) %>%
+ggarrange(plotlist = .,
+          common.legend = TRUE,
+          legend = "bottom")
+
+
+# dive.dev.plot <- q %>% 
+#  discard(is.null) %>% 
+#  cowplot::plot_grid(plotlist = ., plot_legend)
+
+
+
+# save plot
+# setwd(ts.plots.folder)
+# ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.pdf', sep = ''),
+#        plot = dive.dev.plot, units = 'mm', width = 210, height = 250)
+# 
+# ggsave(filename = paste('TimedSwimSurvey_DiverDeviation_', samp.year, '.png', sep = ''),
+#        plot = dive.dev.plot, units = 'mm', width = 210, height =250)
 
 ```
 

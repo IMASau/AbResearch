@@ -29,13 +29,9 @@ suppressPackageStartupMessages({
 library(tictoc)
 library(sf)
 library(nngeo)
-# library(maptools)
-# library(rgdal)
 library(sp)
 library(spatialEco)  
-# library(rgeos)
 library(lubridate)
-# library(spdplyr)
 library(tidyverse)
 library(tmap)
 library(tictoc)
@@ -43,7 +39,7 @@ library(spdep)
 library(openxlsx)  
 })
 
-## set EPSG CRS
+## Set EPSG CRS
 
 GDA2020 <- st_crs(7855)
 GDA94 <- st_crs(28355)
@@ -55,11 +51,9 @@ Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer c
 
 ```{r prepare base layers}
 ## Read in abalone wide hex layer
-# ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]]))
-
 ab.hex <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]])))
 
-## convert to sf
+## Convert to sf
 sf.ab.hex <- st_as_sf(ab.hex)
 
 ## Transform from GDA94 to GDA2020
@@ -72,15 +66,15 @@ THe input variable is the total catch in Kg for each cell from 2012 - 2019. We u
 ```{r add quartile var}
 # Filter hex layer to required block and add quartile
 ts.hex <- filter(sf.ab.hex, zone == 'E' &
-                  blockno %in% c(13, 16, 21, 22, 23, 24, 27, 28, 29)|
+                  blockno %in% c(16, 21, 22, 23, 24, 27)|
                   subblockno == '28A') %>%
   mutate(subblockno = gsub(" ", "", subblockno)) %>%
   within({
     cell.ntile <- ntile(blkgtotal, 5)
   })
 
-# ts.hex <- filter(sf.ab.hex, zone == 'N' &
-#                   blockno %in% c(5, 6)) %>%
+# ts.hex <- filter(sf.ab.hex, zone == 'E' &
+#                   subblockno %in% c('13D', '13E')) %>%
 #   mutate(subblockno = gsub(" ", "", subblockno)) %>%
 #   within({
 #     cell.ntile <- ntile(blkgtotal, 5)
@@ -93,11 +87,7 @@ ts.hex <- filter(sf.ab.hex, zone == 'E' &
 #     cell.ntile <- ntile(blkgtotal, 5)
 #   })
 
-# outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])
-
-outname.ts.hex <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles.gpkg", Sys.info()[["user"]])))
-
-# outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/Blacklip_Hexcell_quantiles.gpkg", Sys.info()[["user"]])
+outname.ts.hex <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles_Block_16_28A_2020.gpkg", Sys.info()[["user"]])))
 
 st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
 
@@ -111,7 +101,7 @@ hex.cell.summary <- ts.hex %>%
   ) %>%
   print()
 
-# calculate mean cpue for each oid withing timed swim survey areas and create data frame for later analysis
+# calculate mean cpue for each oid within timed swim survey areas and create data frame for later analysis
 df_cpue <- ts.hex %>% 
  mutate(cpue_kg_hr = blkgtotal / (minstotal / 60)) %>%
  st_centroid(.) %>% 
@@ -128,13 +118,18 @@ df_cpue <- ts.hex %>%
 gis_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers',
 Sys.info()[["user"]]), sep = '')))
 
-write.xlsx(df_cpue, paste(gis_folder_path, paste('/TimedSwimSites_OID_CPUE.xlsx', sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(df_cpue, paste(gis_folder_path, paste('/TimedSwimSites_OID_CPUE_Block_16_28A_2020.xlsx', sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
 
 ```
 # Reference Site Selection from 2020
-Randomly select 15 sites from each block to keep as reference sites for 2021 survey and beyond.
+Randomly select 15 sites from each block to keep as reference sites for 2021 survey and beyond. These sites are selected from the compiled 2020 timed swim raw data and therefore contain a combination of sites originally derived from GPS diver logger data (herein) and historical size-at-maturity (SAM) research sites. In summary, 78 reference sites are derived from the GPS logger data and 12 sites from historical SAM research data. The coordinates are the adjusted position recorded at the time of baseline survey in 2020 and will differ slightly from the original proposed position. Generally the position remained within an OID however some sites may have required further repositioning (e.g. >75 m) and therefore may fall outide the original OID.
+
+NOTE: set.seed wasn't used when generating the selection of reference sites from 2020 to use in 2021. Therefore the original output gpkg file of reference sites has been re-imported to identify those reference sites and stored as an RDS for future site selection. Coding has been deactivated for saving the original selection of reference sites. Also note files were transferred to UTAS Research Dropbox in 2023 when Cloudstor was decommissioned.  
 
 ```{r reference site selection 2021}
+
+# Import timed swim compiled raw data from 2020 survey
+# time.swim.dat.final <- readRDS('C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.dat.final.RDS')
 
 # Set seed
 set.seed(123) 
@@ -151,53 +146,39 @@ sites.2020.keep <- time.swim.dat.final %>%
 
 # save GIS spatial layer
 # st_write(sites.2020.keep,
-#          dsn = "C:/Users/jaimem/Documents/Abalone_research/AB_TimedSwimFIS/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg", layer = "sites.2020.keep", driver = "GPKG", overwrite = T, delete_dsn = T)
+#          dsn = 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg', layer = 'sites.2020.keep', driver = 'GPKG', overwrite = T, delete_dsn = T)
 
-# NOTE: set.seed wasn't used when generating the selection of reference sites from 2020 to use in 2021.
-# Therefore the resulting output gpkg file above has been re-imported to identify those reference sites
-# and stored as an RDS for future reference.
-
-# sites.2020.kept.sf <- st_read('C:/CloudStor/R_Stuff/FIS/FIS_2021/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg')
-
-# convert to data frame
-sites.2020.kept.df <- sites.2020.kept.sf %>%
- sfheaders::sf_to_df(fill = T)
+# # convert to data frame
+# sites.2020.kept.df <- sites.2020.kept %>%
+#  sfheaders::sf_to_df(fill = T)
 
 # save file
 # saveRDS(sites.2020.kept.df, 'C:/CloudStor/Shared/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS')
 
+# Import original reference site selection 
+# sites.2020.kept.sf <- st_read(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/FIS_TIMEDSWIMSITES_2020REFERENCE_2021-05-17.gpkg', Sys.info()[["user"]])))
+#
+# # Convert to data frame
+# sites.2020.kept.df <- sites.2020.kept.sf %>%
+#  sfheaders::sf_to_df(fill = T)
+
+# Save file
+# saveRDS(sites.2020.kept.df, paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites.RDS', Sys.info()[["user"]])))
+#
+# saveRDS(sites.2020.kept.df, paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021/time.swim.2020.repeat.sites_COPY.RDS', Sys.info()[["user"]])))
+
 ```
-
-# Post 2020 Site Selection
-Timed swim surveys in subsequent years after the collection of baseline data in 2020 involve a semi-repeated measures experimental design where 15 sites from each block sampled in 2020 have been carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in 2020 (n = 229). 
-```{r post 2020 site selection}
-## Post 2020 site selection ####
-
-# Specify assessment year
-assess_year <- 2024
-
-# Import final timed swim dataframe from previous assessment year
-
-time.swim.dat.final <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
-Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year - 1, sep = ''), 'time.swim.dat.final.RDS', sep = ''))                                  
-
-# outname_point <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Block5-6_Final_2024.gpkg", Sys.info()[["user"]])))
-
-# outname_point <- paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2021',
-#                                 Sys.info()[["user"]]))
-
-outname_point <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
-Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year, sep = ''))
-
+```{r refsites}
 # Import reference sites
 time_swim_ref_sites <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
 Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys2021'), 'time.swim.2020.repeat.sites.RDS', sep = '')) 
 
+# Denote reference sites with 'ref'
 time_swim_ref_sites <- time_swim_ref_sites %>% 
  mutate(ref_site = 'ref')
 
 # Create vector of OIDs for reference sites to be sampled in assessment year 
-# Note: 12 of the randomly selected reference sites are SAM historical research sites (i.e. n = 78) and
+# Note: 12 of the randomly selected reference sites are historical SAM research sites (i.e. n = 78) and
 # have unallocated OIDs
 ref_sites <- time_swim_ref_sites
 
@@ -206,10 +187,53 @@ ref_sites_oid <- ref_sites %>%
         ungroup() %>% 
         pull(oid)
 
-# Create vector of all OIDs sampled in previous assessment years to filter from
+# Replace periods (e.g. '.') in column names
+names(time_swim_ref_sites) <- gsub(x = names(time_swim_ref_sites), pattern = '\\.', replacement = '_')
+
+# UPDATE: 2024-10-12 Create dataframe of reference sites to include in each assessment year folder.
+
+# ts_ref_site_dat <- time_swim_ref_sites %>% 
+#  select(c(site, site_new, blockno, subblockno, oid, cell_ntile, sam_count, x, y, ref_site)) %>% 
+#  dplyr::rename(site_old = 'site',
+#                longitude = 'x',
+#                latitude = 'y') %>% 
+#  st_as_sf(coords = c("longitude", "latitude"), crs = GDA2020) %>% 
+#  st_transform(crs = WGS84) %>% 
+#  sfheaders::sf_to_df(fill = T) %>% 
+#  dplyr::rename('latitude' = y,
+#                'longitude' = x) %>% 
+#  select(-c(sfg_id, point_id))
+# 
+# # Export Excel version of reference sites to survey year folder
+# data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+#                                             Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys2021', sep = ''))
+# 
+# ts_ref_site_dat %>% 
+#  write.xlsx(file = paste(data_folder, paste('/TimedSwimSites_EastCoast_ReferenceSites_Final.xlsx', sep = ''), sep = ''), sheetName = "Sheet1", col.names = TRUE, row.names = TRUE, append = FALSE)
+
+```
+
+# Post 2020 Site Selection
+Timed swim surveys in subsequent years after the collection of baseline data in 2020 involve a semi-repeated measures experimental design where 15 sites from each block sampled in 2020 have been carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in the previous year (e.g. in 2021 sites surveyed in 2020 (n = 229) were excluded from random selection). 
+
+```{r post 2020 site selection}
+## Post 2020 site selection ####
+
+# Specify assessment year
+assess_year <- 2024
+
+# Import final timed swim dataframe from previous assessment year
+time.swim.dat.final <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year - 1, sep = ''), 'time.swim.dat.final.RDS', sep = ''))                                  
+
+outname_point <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year, sep = ''))
+
+# Create vector of all OIDs sampled in previous assessment year to filter from
 # current assessment year random site selection
 ts_sites_sampled <- time.swim.dat.final %>%
-        filter(!subblockno %in% c('28B', '28C')) %>% 
+        filter(!subblockno %in% c('28B', '28C'),
+               sampyear == assess_year - 1) %>% 
         group_by(blockno) %>% 
         distinct(site, .keep_all = T) %>% 
         filter(!is.na(oid)) %>% 
@@ -218,7 +242,6 @@ ts_sites_sampled <- time.swim.dat.final %>%
 
 # Create vector of blocks
 blocknos <- c(16, 22, 23, 24, 27, 28)
-# blocknos <- c(5, 6)
 
 # Create empty lists to populate with random hex cells for each block 
 ts_site_list <- list()
@@ -235,44 +258,15 @@ cellqt <- ts.hex %>%
            blockno == i) %>%  
   group_by(blockno, cell.ntile) %>%
   # as_Spatial() %>% 
-  subsample.distance(size = 60, d = 300) %>% #change size = 45
+  subsample.distance(size = 45, d = 300) %>% #change size = 45
   st_as_sf() %>% 
   ungroup()
 
 ts_site_list[[i]] <- cellqt
 }
 
-# for (i in blocknos){
-# cellqt <- ts.hex %>% 
-#   filter(cell.ntile > 2 &
-#            subblockno %in% c('29A', '29B') &
-#            blockno == i) %>%  
-#   group_by(blockno, cell.ntile) %>%
-#   # as_Spatial() %>% 
-#   subsample.distance(size = 60, d = 300) %>% #change size = 45
-#   st_as_sf() %>% 
-#   ungroup()
-# 
-# ts_site_list[[i]] <- cellqt
-# }
-# 
-# for (i in blocknos){
-# cellqt <- ts.hex %>% 
-#   filter(cell.ntile > 2 &
-#            blockno == i) %>%  
-#   group_by(blockno, cell.ntile) %>%
-#   # as_Spatial() %>% 
-#   subsample.distance(size = 60, d = 300) %>% #change size = 45
-#   st_as_sf() %>% 
-#   ungroup()
-# 
-# ts_site_list[[i]] <- cellqt
-# }
-
-
 # Combine rows of each separate list to create single sf
 ts_sites_sf <- bind_rows(ts_site_list)
-
 
 # Find the centroid of each hex cell to create point/site location coordinates
 ts_sites_pointqt_sf <- st_centroid(ts_sites_sf)
@@ -286,11 +280,10 @@ ts_sites_df <- ts_sites_pointqt_sf %>%
                 'longitude' = x)
 
 # Quick summary check of random sites generate per block
-# Note: Block 28 had limited data to generate 45 sites.
+# Note: Block 28 has limited data to generate 45 sites.
 ts_sites_df %>%
   group_by(blockno) %>%
   summarise(n = n())
-
 
 # Add site names using naming convention 'AB-sampyear-blockno-site.order'
 ts_sites_df <- ts_sites_df %>% 
@@ -299,6 +292,12 @@ ts_sites_df <- ts_sites_df %>%
          site = paste('AB', assess_year, blockno, site_no, sep = '-')) %>% 
  ungroup()
 
+# Unset seed
+set.seed(NULL)
+
+```
+
+```{r site plot}
 
 # Quick plot to examine sites for chosen block
 ts_sites_df %>% 
@@ -308,9 +307,6 @@ ggplot(aes(x = longitude, y = latitude))+
   # geom_path(arrow = arrow(type = "closed", length = unit(0.05, "npc")), aes(longitude, latitude, color = angle))+
   geom_point(aes(x = max(longitude), y = median(latitude)), color = 'red')+
   geom_text(aes(label = site_no), size = 4, color = 'red')
-
-# Unset seed
-set.seed(NULL)
 
 ```
 
