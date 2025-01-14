@@ -1,0 +1,301 @@
+---
+title: "Selecting locations for Timed-swim surveys for Block 13 and 21"
+author: "Jaime McAllister and Craig Mundy"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_height: 8
+    fig_width: 8
+    includes:
+      in_header: header.tex
+    toc: yes
+  word_document:
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+
+
+suppressPackageStartupMessages({
+library(tictoc)
+library(sf)
+library(nngeo)
+library(sp)
+library(spatialEco)  
+library(lubridate)
+library(tidyverse)
+library(tmap)
+library(tictoc)
+library(spdep)
+library(openxlsx)  
+})
+
+## Set EPSG CRS
+
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+```
+# Read in hex layer
+Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer contains the majority of fishing activity in the closed blocks.
+
+```{r prepare base layers}
+## Read in abalone wide hex layer
+ab.hex <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]])))
+
+## Convert to sf
+sf.ab.hex <- st_as_sf(ab.hex)
+
+## Transform from GDA94 to GDA2020
+sf.ab.hex <- st_transform(sf.ab.hex, GDA2020)
+
+```
+# Add quartile to dataframe
+THe input variable is the total catch in Kg for each cell from 2012 - 2019. We use the dplyr ntile() function to calculate five quantiles (0-20, 20-40, etc) based on total catch. Given that there is negligible fishing in 2018 and 2019, we could sum catch across 2012-2017 and use an variation if we think the 2018/2019 fishing events are sufficiently unusual.
+
+Do this for each block separately?
+
+```{r add quartile var}
+# Filter hex layer to required block and add quartile
+ts.hex <- filter(sf.ab.hex, zone == 'E' &
+                  blockno %in% c(21)|
+                  subblockno == '13E') %>%
+  mutate(subblockno = gsub(" ", "", subblockno)) %>%
+  within({
+    cell.ntile <- ntile(blkgtotal, 5)
+  })
+
+outname.ts.hex <- sprintf(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimedSwimSites_Hexcell_BL_quantiles_Block_13E.gpkg", Sys.info()[["user"]])))
+
+st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
+
+hex.cell.summary <- ts.hex %>%
+  st_set_geometry(NULL) %>%
+  group_by(cell.ntile) %>%
+  summarise(
+    mncatch = mean(blkgtotal, na.rm = T),
+    catch = sum(blkgtotal, na.rm = T),
+    n = n()
+  ) %>%
+  print()
+
+```
+# Reference Site Selection from baseline
+Randomly select 15 sites from each block to keep as reference sites for 2023 baseline survey and beyond.  
+
+```{r reference site selection}
+
+# Import timed swim compiled raw data from 2020 survey
+
+time_swim_dat_final <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2024/time_swim_dat_final.rds", Sys.info()[["user"]])))
+
+# Set seed
+set.seed(123) 
+
+# Randomly select 15 sites for each block
+sites_ref <- time_swim_dat_final %>%
+ filter(sampyear >= 2023,
+        time_elapsed != 5,
+        !is.na(oid),
+        blockno %in% c(21)|
+                  subblockno == '13E') %>%  
+ group_by(blockno) %>% 
+ distinct(site, .keep_all = T) %>% 
+ sample_n(15) %>% 
+ select(-proposed_geom) %>% 
+ st_as_sf()
+
+# convert to data frame
+sites_ref_df <- sites_ref %>%
+ sfheaders::sf_to_df(fill = T)
+
+# save files
+data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2025', 
+                                            Sys.info()[["user"]])))
+
+sites_ref %>% 
+ st_write(dsn = paste(data_folder, paste('/time_swim_block13-21_ref_sites.gpkg', sep = ''), sep = ''), layer = 'sites_ref', driver = 'GPKG', overwrite = T, delete_dsn = T)
+ 
+sites_ref_df %>% 
+ saveRDS(paste(data_folder, '/time_swim_block13-21_ref_sites.rds', sep = ''))
+
+sites_ref_df %>%
+ write.xlsx(file = paste(data_folder, paste('/time_swim_block13-21_ref_sites.xlsx', sep = ''), sep = ''), sheetName = "Sheet1", col.names = TRUE, row.names = TRUE, append = FALSE)
+```
+
+```{r refsites}
+# Import reference sites
+time_swim_ref_sites <- readRDS(paste(data_folder, '/time_swim_block13-21_ref_sites.rds', sep = '')) 
+
+# Denote reference sites with 'ref'
+time_swim_ref_sites <- time_swim_ref_sites %>% 
+ mutate(ref_site = 'ref')
+
+# Create vector of OIDs for reference sites to be sampled in assessment year
+ref_sites <- time_swim_ref_sites
+
+ref_sites_oid <- ref_sites %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
+
+```
+
+# Post Baseline Site Selection
+Timed swim surveys in subsequent years after the collection of baseline data in 2023 involve a semi-repeated measures experimental design where 15 sites from each block sampled in 2023 have been carried over as 'reference' sites with the remaining 45 sites randomly selected from the GPS logger data after excluding all previous GPS logger sites sampled in the previous year. 
+
+```{r post 2023 site selection}
+## Post 2020 site selection ####
+
+# Specify assessment year
+assess_year <- 2025
+
+# Import final timed swim dataframe from previous assessment year
+time_swim_dat_final <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year - 1, sep = ''), 'time_swim_dat_final.RDS', sep = ''))                                  
+
+outname_point <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', assess_year, sep = ''))
+
+# Create vector of all OIDs sampled in previous assessment year to filter from
+# current assessment year random site selection
+ts_sites_sampled <- time_swim_dat_final %>%
+        filter(!subblockno %in% c('28B', '28C')) %>% 
+        group_by(blockno) %>% 
+        distinct(site, .keep_all = T) %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
+
+# Select blockno
+block_no <- 21
+
+# Create empty lists to populate with random hex cells for each block 
+ts_site_list <- list()
+
+# Set seed
+set.seed(1234)
+
+# Run loops to generate random hex cells for each closed and reference block
+for (i in block_no){
+cellqt <- ts.hex %>% 
+  filter(!oid %in% ts_sites_sampled &
+           cell.ntile > 2 &
+           !subblockno %in% c('28B', '28C') &
+           blockno == i) %>%  
+  group_by(blockno, cell.ntile) %>%
+  # as_Spatial() %>% 
+  subsample.distance(size = 45, d = 300) %>% #change size = 45
+  st_as_sf() %>% 
+  ungroup()
+
+ts_site_list[[i]] <- cellqt
+}
+
+# Combine rows of each separate list to create single sf
+ts_sites_sf <- bind_rows(ts_site_list)
+
+# Find the centroid of each hex cell to create point/site location coordinates
+ts_sites_pointqt_sf <- st_centroid(ts_sites_sf)
+
+# Convert geometry to latitude and longitude to create dataframe
+ts_sites_df <- ts_sites_pointqt_sf %>%
+        st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(c(zone, blockno, subblockno, cell.ntile, oid, x, y)) %>%
+  dplyr::rename('latitude' = y,
+                'longitude' = x)
+
+# Quick summary check of random sites generate per block
+ts_sites_df %>%
+  group_by(blockno) %>%
+  summarise(n = n())
+
+# Add site names using naming convention 'AB-sampyear-blockno-site.order'
+ts_sites_df <- ts_sites_df %>% 
+ group_by(blockno) %>% 
+  mutate(site_no = row_number(),
+         site = paste('AB', assess_year, blockno, site_no, sep = '-')) %>% 
+ ungroup()
+
+# Unset seed
+set.seed(NULL)
+
+```
+
+# Combine all new sites for assessment year with reference sites retained from 2020 in single dataframe
+
+```{r rejoin ts sites}
+# Create dataframe of reference sites
+ts_ref_sites_df <- time_swim_ref_sites %>%
+ filter(blockno == block_no) %>% 
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
+  st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(site, blockno, subblockno, oid, x, y, ref_site) %>% 
+  dplyr::rename('latitude' = y,
+                'longitude' = x) %>% 
+  mutate(blockno = as.integer(blockno))
+
+ts_sites_df <- ts_sites_df %>% 
+  select(site, blockno, subblockno, oid, longitude, latitude)
+
+ts_sites_final_df <- bind_rows(ts_ref_sites_df, ts_sites_df) %>% 
+ arrange(blockno) %>% 
+ mutate(ref_site = ifelse(is.na(ref_site), 'new', ref_site))
+
+# ts_sites_final_df <- ts_sites_df
+
+ts_sites_final_sf  <-  ts_sites_final_df %>% 
+  st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
+
+ts_sites_final_gpx <- ts_sites_final_df %>% 
+ dplyr::rename('name' = 'site') %>% 
+ select(c(name, longitude, latitude)) %>% 
+ add_column(description = NA, 
+            comment = NA)
+
+```
+# Export data
+```{r export data}
+
+# Export folder path
+
+data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2025', 
+                                            Sys.info()[["user"]])))
+
+# Export geospatial package for GIS and KML for Google Earth
+
+outname_point <- paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".gpkg", sep = ""), sep = '')
+outname_point <- paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".gpkg", sep = ""), sep = '')
+
+st_write(ts_sites_final_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
+
+# Export KML for Google Earth
+
+outname_point_kml <- paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".kml", sep = ""), sep = '')
+outname_point_kml <- paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".kml", sep = ""), sep = '')
+
+st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F) 
+ 
+# Export Excel files 
+write.xlsx(ts_sites_final_df, paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_df, paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+
+
+# Export Excel file for GPX conversion
+write.xlsx(ts_sites_final_gpx, paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_gpx, paste(data_folder, paste('/TimedSwimSites_Block', block_no, '_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+  
+```

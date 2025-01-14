@@ -101,51 +101,17 @@ col_light <- c('#77AADD', '#99DDFF', '#44BB99', '#BBCC33',
 
 # Background
 
-The following re-opening criteria have been extracted from various
-documents pertaining to the closure of the Tasmanian East coast
-commercial Abalone Fishery: From: IMAS East coast blacklip abalone
-recovery plan 2020 Version 1.docx
+The Eastern Zone abalone fishery has experienced significant catch declines and fluctuating catch rates since the 1990s, and in 2020 five abalone fishing blocks (16, 22, 23, 24 and 27) and sub-block 28A were closed to commercial fishing. As part of the closure, it was agreed that these blocks would be surveyed by IMAS under a no-take plan, with assistance from industry on site selection and field work, to determine the geographic extent of depletion and monitor the temporal recovery in stocks.
 
-**Density**
+Since 2020 a fishery independent timed swim survey has been conducted by IMAS enabling rapid assay of stock status across the broad spatial extent of the east coast closure. In summary, the timed swim survey method involves paired divers conducting a 10-minute timed swim on SSBA, counting and measuring all emergent abalone on a measuring slate, at up to 60 sites in each closed block, derived from historical abalone fishery diver GPS logger data (2012-2019). Measured abalone are classified as legal (>140 mm) or sub-legal (<140 mm) and temporal changes in their abundance compared with baseline abundance determined in 2020.
 
--   Abalone populations match or exceed the baseline abalone/10 minutes
-    levels observed in the early 2000s baseline.
+An assessment of trends in abundance since 2020 has been used to evaluate the effectiveness of recovery efforts and to determine when it is appropriate to re-open the fishery. The criteria for reopening the closed blocks are based on several key performance indicators from the timed swim surveys. Key criteria include: 
 
-**Size Structure**
+1. Increasing sub-legal and legal counts relative to the 2020 baseline. 
+2. Evidence of a widespread trend of increasing sub-legal and legal counts across the Block.
+3. Evidence of multiple size classes particularly above the size limit.
 
--   The population is represented by substantial numbers in at least
-    four age classes above the legal minimum length.
-
--   The mean size exceeds the median of the mean size/site observed in
-    the early 2000s baseline.
-
-**Distribution**
-
--   and patchiness Abalone populations meet density and size structure
-    criteria in a high proportion (\>75%) of survey sites.
-
-# Re-opening after closure: DRAFT Tasmanian Abalone Fishery Sustainable Harvest Strategy 2024
-
-If a fishery closure occurs, the closure will be for a minimum of eight
-years in the absence of fisheries independent data, or for a period less
-than eight years, if fisheries independent data and associated
-scientific advice supports re-opening. Criteria considered in re-opening
-a closed fishery includes:
-
-Population density
-
--   Evidence of abundance densities above a minimum threshold.
-
-Size structure
-
--   Evidence of multiple age classes above the LML and the median of the
-    mean size per site above that observed in the baseline.
-
-Distribution and patchiness
-
--   Evidence of SAU-wide recovery. Abalone populations meet density and
-    size structure criteria in a high proportion of survey sites (i.e.
-    not driven by a small number of sites showing high abundance).
+This report outlines findings from timed swim surveys conducted by IMAS in 2024 and are assessed in regard to meeting the criteria for re-opening.
 
 ```{r}
 #| echo: false
@@ -653,7 +619,7 @@ ten_min_mean_year <- act_dat %>%
          !blockno %in% c('13', '14', '21', '29', '30') &
          !is.na(sizeclass_freq_10) &
          sampyear <= samp_year) |
-         (sampyear == 2021 & blockno == '13') |
+         (sampyear == 2021 & blockno == '13' & sampdate >= as.Date('2021-04-01')) |
          (sampyear == 2023 & blockno == '13' & samp_period == 'Mid')) %>%
  group_by(blockno, site, diver, sampyear, time_elapsed, legal_size) %>% 
  summarise(ab_n = sum(sizeclass_freq_10)) %>% 
@@ -738,7 +704,7 @@ ten_min_mean_year <- time_swim_dat_final %>%
            median_ab_n = median(ab_n),
            std_err = sd(ab_n)/sqrt(n())) 
 
-abundance_plot <- ten_min_mean_year %>% 
+abundance_plot_legal <- ten_min_mean_year %>% 
  filter(blockno != 13 & legal_size == '>140 mm') %>% 
  ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
  # geom_point(position = position_dodge(0.05))+
@@ -759,10 +725,35 @@ abundance_plot <- ten_min_mean_year %>%
  guides(colour = guide_legend(title = "Size Class"))+
  facet_wrap(. ~ blockno, ncol = 3)
 
-abundance_plot
+abundance_plot_sub <- ten_min_mean_year %>% 
+ filter(blockno != 13 & legal_size == '<140 mm') %>% 
+ ggplot(aes(x = sampyear, y = mean_ab_n, group = sizeclass_2021, colour = sizeclass_2021))+
+ # geom_point(position = position_dodge(0.05))+
+ # geom_line(position = position_dodge(0.05))+
+ # geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+ #               position = position_dodge(0.05))+
+ geom_point(position = position_jitter(width = 0.05, seed = 1))+
+ geom_line(position = position_jitter(width = 0.05, seed = 1))+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 0.2,
+               position = position_jitter(width = 0.05, seed = 1))+
+ # scale_colour_manual(values = cbp2)+
+ theme_bw()+
+ ylab(bquote('Average count (abalone.10'*~min^-1*')'))+
+ xlab('Survey Year')+
+ ylim(-1, 35)+
+ theme(legend.position = 'bottom',
+       legend.background = element_rect(fill = "white", colour = NA))+
+ guides(colour = guide_legend(title = "Size Class"))+
+ facet_wrap(. ~ blockno, ncol = 3)
 
-ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
-ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.png', sep = ''), sep = ''), plot = abundance_plot, units = 'mm', width = 190, height = 200)
+abundance_plot_legal
+abundance_plot_sub
+
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Sub-Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot_sub, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Sub-Legal', '.png', sep = ''), sep = ''), plot = abundance_plot_sub, units = 'mm', width = 190, height = 200)
+
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.pdf', sep = ''), sep = ''), plot = abundance_plot_legal, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_SizeClasses_MeanLinePlot_Legal', '.png', sep = ''), sep = ''), plot = abundance_plot_legal, units = 'mm', width = 190, height = 200)
 
 ```
 Is the decline in sub-legal abundance being driven by the recruitment of animals into what would be the fishery (140 mm) particularly those in the 120-140 mm, or is this been driven by a decline in juvenile recruitment into the population/stock, or a combination of both?Declining sub-legal abundance particularity 0-100 mm and 100-120 mm suggesting a decline in juvenile recruitment. Increasing legal abundance - not unexpected given closure and sub-legal animals, particularity 120-140 mm attaining the LML (140 mm). Also increasing 160-180 mm and larger size classes >180 mm relatively stable.  
@@ -1403,6 +1394,50 @@ mean_dat_dev %>%
  facet_wrap(. ~ site)
 
 ```
+```{r}
+#| label: fig-bubble-ref-sites
+#| fig-cap: "Bubble plot of mean abundance at reference sites by year."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 7
+#| out-height: 90%
+#| fig-pos: "H"
+
+# Determine mean abalone abundance for each site
+ten_min_mean_year <- time_swim_dat_final %>% 
+ filter(!subblockno %in% c('28B', '28C') & 
+         !blockno %in% c('13', '14', '21', '29', '30') &
+         !is.na(sizeclass_freq_10) &
+         ref_site == 1) %>% 
+ group_by(blockno, site, diver, sampyear, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ group_by(blockno, site, sampyear, legal_size) %>% 
+ summarise(mean_ab_n = mean(ab_n)) 
+
+# Reference site mean deviation plot by chosen block
+block_no <- '16'
+
+size_bubble_plot <- ten_min_mean_year %>%
+ filter(blockno == block_no) %>%
+ ggplot(aes(x = sampyear, y = site, size = mean_ab_n))+
+ geom_point(aes(size = mean_ab_n, fill = mean_ab_n), alpha = 0.75, shape = 21) +
+ scale_size(range = c(0.5, 20), name = bquote('Average count\n(abalone.10'*~min^-1*')'))+
+ theme_bw()+
+ scale_color_gradientn(colours = c("blue", "yellow", "red"), aesthetics=c("fill", "color"),
+                       name = bquote('Average count\n(abalone.10'*~min^-1*')'))+
+ ylab('Site')+
+ xlab('Year')+
+ facet_grid(. ~ legal_size)
+
+size_bubble_plot
+
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_ReferenceSiteBubblePlot', '.pdf', sep = ''), sep = ''), plot = size_bubble_plot, units = 'mm', width = 190, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/TimedSwimSurvey_', samp_year, '_TenMinuteCount_ReferenceSiteBubblePlot', '.png', sep = ''), sep = ''), plot = size_bubble_plot, units = 'mm', width = 190, height = 200)
+
+```
+
 
 ```{r}
 #| echo: false

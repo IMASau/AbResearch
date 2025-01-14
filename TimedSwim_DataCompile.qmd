@@ -371,6 +371,9 @@ morana_gps_2024_h <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-09-1
 morana_gps_2024_i <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-09-27_download.gpx'), layer = 'waypoints')
 morana_gps_2024_j <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-03_download.gpx'), layer = 'waypoints')
 morana_gps_2024_k <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-10_download.gpx'), layer = 'waypoints')
+morana_gps_2024_l <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-21_download.gpx'), layer = 'waypoints')
+morana_gps_2024_m <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-23_download.gpx'), layer = 'waypoints')
+morana_gps_2024_n <- st_read(file.path(gps_downloads_folder, 'MORANAII-2024-10-31_download.gpx'), layer = 'waypoints')
 
 morana_gps_2024 <- bind_rows(morana_gps_2024_a, 
                              morana_gps_2024_b, 
@@ -382,7 +385,10 @@ morana_gps_2024 <- bind_rows(morana_gps_2024_a,
                              morana_gps_2024_h,
                              morana_gps_2024_i,
                              morana_gps_2024_j,
-                             morana_gps_2024_k) %>% 
+                             morana_gps_2024_k,
+                             morana_gps_2024_l,
+                             morana_gps_2024_m,
+                             morana_gps_2024_n) %>% 
  mutate(gps_date = as.Date(time)) %>% 
  distinct(., name, gps_date, .keep_all = T)
 

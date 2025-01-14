@@ -1008,8 +1008,8 @@ pre_post_plot_overall <- df_4 %>%
  geom_smooth(method = 'lm', formula = y~x, se = F, size = 2)+
  stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
               parse = TRUE, label.y = c(0.95, 0.90), size = 10)+
- xlim(0, 150)+
- ylim(0, 150)
+ xlim(0, 160)+
+ ylim(0, 160)
 
 ggsave(filename = paste(plots_folder, paste('/TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Correlation', '.pdf', sep = ''), sep = ''), plot = pre_post_plot_overall, units = 'mm', width = 190, height = 200)
 ggsave(filename = paste(plots_folder, paste('/TimedSwimSurvey_NE_GL', samp_year, '_Legal_PrePost_Correlation', '.png', sep = ''), sep = ''), plot = pre_post_plot_overall, units = 'mm', width = 190, height = 200)

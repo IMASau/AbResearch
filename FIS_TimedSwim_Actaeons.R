@@ -102,6 +102,19 @@ act_ts_dat %>%
            end_date = max(sampdate),
            sites = n_distinct(site))
 
+
+# diver summary table
+ts_tab <- act_ts_dat %>% 
+ filter(sampyear >= 2024) %>%
+ group_by(samp_period, diver) %>%
+ summarise(sites = n_distinct(site),
+           blocks = n_distinct(blockno),
+           field_days = n_distinct(sampdate)) %>% 
+ as.data.frame() %>% 
+ dplyr::rename('Sites' = sites,
+               'Blocks' = blocks,
+               'Days' = field_days)
+
 ##---------------------------------------------------------------------------##
 # plot abundance by site for each sample period
 

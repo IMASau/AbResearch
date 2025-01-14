@@ -109,4 +109,55 @@ logger_dat %>%
                    ))) %>% 
  pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value"))
 
+##---------------------------------------------------------------------------##
+# Live transport experiment
 
+live_temp_dat <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/AbStressTest_TemperatureRH_2021-12-08_clean.csv",
+                       header = T)
+
+live_temp_dat_clean <- live_temp_dat %>%
+ dplyr::rename(temperature = 3,
+               humidity = 4,
+               date_time = 2) %>% 
+ mutate(date_time = as.POSIXct(date_time, format="%m-%d-%Y %H:%M:%S", tz = 'Australia/Tasmania')) %>% 
+ select(date_time, temperature, humidity)
+
+trans_exp_dat <- live_temp_dat_clean %>% 
+ filter(date_time > ymd_hms("2021-12-07 12:15:00", tz = 'Australia/Tasmania') & 
+         date_time < ymd_hms("2021-12-08 12:15:00", tz = 'Australia/Tasmania'))
+
+trans_exp_plot <- trans_exp_dat %>% 
+ ggplot(aes(x = date_time))+
+ geom_line(aes(y = temperature), colour = 'red')+
+ geom_line(aes(y = humidity / 6), colour = 'blue')+
+ scale_y_continuous(name = "Temperature (\u00B0C)", sec.axis = sec_axis(~.*6, name = "Humidity (rH%)"))+
+ geom_vline(aes(xintercept = ymd_hms("2021-12-07 13:30:00", tz = 'Australia/Tasmania')), colour = 'black', linetype = 'dashed')+
+ geom_vline(aes(xintercept = ymd_hms("2021-12-08 11:30:00", tz = 'Australia/Tasmania')), colour = 'black', linetype = 'dashed')+
+ theme_bw()+
+ xlab('Date Time')+
+ # ylab('Temperature (\u00B0C)')+
+ geom_text(label = 'Packing', x = ymd_hms("2021-12-07 12:15:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity')+
+ geom_text(label = 'Live Transport', x = ymd_hms("2021-12-08 00:00:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity')+
+ geom_text(label = 'Processing', x = ymd_hms("2021-12-08 12:25:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity', angle = 90)
+
+ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/TransportExperiment_LoggerTemperature', '.pdf', sep = ''), 
+       plot = trans_exp_plot, units = 'mm', width = 190, height = 150)
+
+ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/TransportExperiment_LoggerTemperature', '.png', sep = ''), 
+       plot = trans_exp_plot, units = 'mm', width = 190, height = 150)
+
+trans_exp_dat %>% 
+ filter(date_time > ymd_hms("2021-12-07 13:30:00", tz = 'Australia/Tasmania') & 
+         date_time < ymd_hms("2021-12-08 11:30:00", tz = 'Australia/Tasmania')) %>% 
+ summarise(across(where(is.numeric), .fns = 
+                   list(Median = median,
+                        Mean = mean,
+                        n = sum,
+                        SD = sd,
+                        SE = ~sd(.)/sqrt(n()),
+                        Min = min,
+                        Max = max,
+                        q25 = ~quantile(., 0.25), 
+                        q75 = ~quantile(., 0.75)
+                   ))) %>% 
+ pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value"))

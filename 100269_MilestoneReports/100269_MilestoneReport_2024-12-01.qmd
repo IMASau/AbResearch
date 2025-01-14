@@ -1,0 +1,1032 @@
+---
+title: "Project 100269 Progress Report Fishery Data: Processor Sampling"
+subtitle: "13.4 Progress report due: PS activity in Dive Fisheries). "
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+    fig-format: png
+    fig-dpi: 600
+  pdf:
+    documentclass: scrreport
+    keep-tex:  true
+    dpi: 600
+    pdf-engine: lualatex
+    toc: true
+    toc-depth: 4
+    toc_float: true
+    number-sections: false
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    linestretch: 1.25
+    mainfont: Calibri
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+editor: 
+  markdown: 
+    wrap: 72
+link-citations: true
+---
+\newpage
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# clear console
+rm(list = ls())
+
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+library(RODBC)
+library(R.utils)
+library(lubridate)
+library(sp)
+library(tools)
+library(openxlsx)
+library(lubridate)
+library(gdata)
+library(doBy)
+library(tidyr)
+library(tidyverse)
+library(splitstackshape)
+library(readxl)
+library(data.table)
+library(scales)
+library(gridExtra)
+library(ggspatial)
+library(tmap)
+library(sf)
+library(janitor)
+library(xtable)
+library(gsubfn)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(ggpmisc)
+}) 
+
+source("C:/GitCode/AbResearch/codeBLnewzone.r")
+
+```
+
+```{r load data}
+#| echo: false
+#| warning: false
+#| message: false
+
+##----------------------------------------------------------------------------##
+# Load data abalone catch sampling data
+
+ab_dat <- readRDS(paste(
+ sprintf(
+  'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+  Sys.info()[["user"]])))
+
+# Load data urchin catch sampling data
+
+##----------------------------------------------------------------------------##
+# Identify fish year 
+
+target_year <- 2024
+
+##----------------------------------------------------------------------------##
+# Create plots folder for abalone
+
+ab_mm_plots_folder <- file.path(paste(
+ sprintf(
+  'C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+  Sys.info()[["user"]])), paste(target_year, '/', 'MM_Plots_', target_year, sep = ''))
+##----------------------------------------------------------------------------##
+
+# Identify zone/blocks/processors ####
+
+# Identify unique zones and blocks sampled in stock assessment year
+ab_blocks <- ab_dat %>%
+  filter(fishyear == target_year
+         & numblocks <= 1)
+
+ab_blocks <- sort(unique(ab_blocks$blocklist))
+
+ab_subblocks <- ab_dat %>%
+  filter(fishyear == target_year
+         & numsubblocks <= 1)
+
+ab_subblocks <- sort(unique(ab_subblocks$subblocklist))
+
+ab_zones <- ab_dat %>%
+  filter(fishyear == target_year
+         & numblocks <= 1)
+
+ab_zones <- sort(unique(ab_zones$newzone))
+
+# identify unique processors for stock assessment year
+ab_processors <- ab_dat %>%
+  filter(fishyear == target_year) %>%
+  distinct(processorname) %>%
+  pull()
+
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# Milestone Processor Report Summary ####
+
+proc_summ <- ab_dat %>% 
+ filter(fishyear == target_year &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+ group_by(processorname) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ as.data.frame() %>%
+ arrange(desc(processorname)) %>% 
+ adorn_totals(fill = '')
+
+diver_summ <- ab_dat %>% 
+ filter(fishyear == target_year &
+         between(shell.length, sizelimit - 5, 220),
+        processorname %in% c('Stuart Anning', 
+                             'Sean Larby',
+                             'Greg Woodham',
+                             'Bryan Denny')) %>% 
+ group_by(processorname) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ as.data.frame() %>%
+ arrange(desc(processorname)) %>% 
+ adorn_totals(fill = '')
+
+proc_summ_zone <- ab_dat %>% 
+ filter(fishyear == target_year &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+ group_by(processorname, newzone) %>% 
+ summarise(catches = n_distinct(sample.id),
+           n = n()) %>% 
+ mutate('%' = round((catches / sum(catches)) * 100)) %>% 
+ as.data.frame() %>%
+ arrange(desc(newzone)) %>% 
+ adorn_totals(fill = '') %>% 
+ dplyr::rename(Processor = 'processorname',
+               Zone = 'newzone',
+               Catches = 'catches')
+
+```
+
+```{r}
+#| label: tbl-summary-flex
+#| tbl-cap: "Summary of commercial abalone catches measured in 2024 by processors across Zones."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+
+## Create flextable table
+proc_summ_zone_flex <- proc_summ_zone %>% 
+ flextable::flextable()
+
+proc_summ_zone_flex
+
+```
+
+# Abalone
+Commercial abalone catch sampling has continued through the third quarter of 2024. Catch samples have continued to come from a single large processor. YTD there have been 15,828 individual abalone measured from 161 catches (@tbl-summary-flex). Initial data continues to show larger abalone >160 mm continue to dominate catches in the Western Zone (@fig-WZ-summary). In the Eastern Zone catches continue to shift towards larger individuals >150 mm with fewer animals nearer to the LML (142 mm) suggesting there are limited recruits entering the fishery (@fig-EZ-summary). There have been a small number of catches measured from the Northern Zone with most dominated by larger animals around 145 mm (@fig-NZ-summary).
+
+Summary statistics for each catch measured continue to be provided to factories participating in the program. These data summaries are enabling more accurate size grading and efficiency in live-export shipments.
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# Create a dataframe of weight grading threshold for plotting reference lines
+grades <- data.frame(y = 0.35, x = c(500, 700, 900), 
+                       lab = c('Small', 'Medium', 'Large'))
+
+# Summarise number of abalone weighed and measured
+blockno_n_weighed <- ab_dat %>% 
+ filter(!is.na(whole.weight) &
+         fishyear == target_year) %>%
+ group_by(newzone) %>% 
+ summarise(ab.weighed = n())
+  
+blockno_grade_meas <- ab_dat %>% 
+ filter(!is.na(whole.weight) &
+         fishyear == target_year &
+         numblocks == 1 &
+         whole.weight != 0 &
+         whole.weight <= 2000 &
+         between(shell.length, sizelimit - 5, 220)) %>% 
+ group_by(newzone, grade) %>% 
+ summarise(grade.meas = n()) %>% 
+ mutate(zone.blockno = paste(newzone, sep = '-'))
+
+```
+
+```{r EZ summary plot}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-EZ-summary
+#| fig-cap: "Eastern Zone weight (top) and length (bottom) frequency distributions recorded at processing factories in 2024. Horizontal boxplots represent summary weight and length distributions. Pie plot represents percentage composition of weight grading (vertical dashed red lines) for abalone weighed. Size limit presented as vertical dashed red line in length frequecny plot."
+#| fig-height: 10
+#| fig-width: 7.5
+#| out-height: 90%
+#| fig-pos: "H"
+
+ab_zone <- 'E'
+
+ # LF plot data
+  plot_length_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone
+      & fishyear == target_year
+      & between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_measured <- ab_dat %>% 
+    filter(!is.na(shell.length) &
+             newzone == ab_zone
+           & fishyear == target_year
+           & between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+# WF plot data
+  plot_weight_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone &
+        fishyear == target_year &
+        whole.weight != 0 &
+        whole.weight <= 2000 &
+        between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_weighed <- ab_dat %>% 
+    filter(newzone == ab_zone
+           & fishyear == target_year
+           & whole.weight != 0 
+           & whole.weight <= 2000 &
+             between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+  if (nrow(plot_weight_freq_dat) == 0) next
+  
+  plot_zone <- unique(plot_length_freq_dat$newzone)
+  
+  length_freq_plot <- ggplot(plot_length_freq_dat, aes(shell.length)) +
+    geom_histogram(
+      aes(y = ..density.. * 5),
+      fill = '#EFC000FF',
+      col = 'black',
+      binwidth = 5,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+    theme_bw() +
+    xlab("Shell Length (mm)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = case_when((newzone == 'W' & msr.date <= as.Date('2024-06-30')) ~ 145,
+                                       (newzone == 'W' & msr.date >= as.Date('2024-07-01')) ~ 150,
+                                       (newzone == 'E' & fishyear < 2023) ~ 138,
+                                       (newzone == 'E' & fishyear == 2023) ~ 140,
+                                       (newzone == 'E' & fishyear == 2024) ~ 142,
+                                       (newzone == 'E' & fishyear == 2025) ~ 145,
+                                       (newzone == 'G' & fishyear < 2023) ~ 145,
+                                       (newzone == 'G' & fishyear >= 2023) ~ 150,
+                                       (newzone == 'N') ~ 132,
+                                       (newzone == 'B' ~ 114))),
+           linetype = 'dashed',
+           colour = 'red',
+           size = 0.5)+
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+  
+  # print(length_freq_plot)
+  
+  xbp_len <- ggplot(plot_length_freq_dat,
+                    aes(
+                      x = factor(newzone),
+                      y = shell.length,
+                      group = newzone
+                    )) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.5
+    ) +
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp_len)
+  
+  xbp_grob <- ggplotGrob(xbp_len)
+  xmin_len <- min(plot_length_freq_dat$shell.length)
+  xmax_len <- max(plot_length_freq_dat$shell.length)
+  
+  length_plot <- length_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_len,
+      xmax = xmax_len,
+      ymin = 0.3
+    )
+  
+  # create weight plot
+  weight_freq_plot <- ggplot(plot_weight_freq_dat, aes(whole.weight)) +
+    geom_histogram(
+      aes(y = ..density.. * 50),
+      fill = '#0073C2FF',
+      col = 'black',
+      binwidth = 50,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 1300),
+                    ylim = c(0, 0.35)) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    xlab("Whole weight (g)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = 400),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 600),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 800),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_text(
+      data = grades,
+      aes(
+        x = x,
+        y = y,
+        label = lab
+      ),
+      inherit.aes = FALSE,
+      vjust = 0.5,
+      hjust = 0.5,
+      size = 4,
+      angle = 0,
+      colour = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+  
+  # print(weight_freq_plot)
+  
+  xbp.wt <- ggplot(
+    plot_weight_freq_dat,
+    aes(
+      x = factor(newzone),
+      y = whole.weight,
+      group = newzone
+    )
+  ) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.3
+    ) +
+    stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp.wt)
+  
+  xbp_grob <- ggplotGrob(xbp.wt)
+  xmin_wt <- min(plot_weight_freq_dat$whole.weight)
+  xmax_wt <- max(plot_weight_freq_dat$whole.weight)
+  
+  # add pie chart to weight frequency plot
+  
+  blockno_grade_summary <-
+    left_join(blockno_n_weighed, blockno_grade_meas, by = c('newzone')) %>%
+    mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+  
+  pie_plot_dat <- blockno_grade_summary %>%
+    filter(newzone == ab_zone) %>%
+    mutate(
+      lab.position = cumsum(grade.perc),
+      lab.y.position = lab.position - grade.perc / 2,
+      lab = paste0(grade.perc, "%")
+    )
+  
+  docket_pie_plot <-
+    ggplot(data = pie_plot_dat, aes(
+      x = "",
+      y = grade.perc,
+      fill = grade
+    )) +
+    geom_bar(stat = "identity", colour = 'white') +
+    coord_polar(theta = "y") +
+    geom_text(
+      aes(label = lab),
+      position = position_stack(vjust = 0.5),
+      colour = 'white',
+      size = 5
+    ) +
+    theme_void() +
+    theme(legend.position = 'none') +
+    scale_fill_manual(
+      values = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    )
+  
+  # print(docket_pie_plot)
+  
+  pp_grob <- ggplotGrob(docket_pie_plot)
+  
+  wt_plot <- weight_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_wt,
+      xmax = xmax_wt,
+      ymin = 0.25
+    ) +
+    annotation_custom(
+      grob = pp_grob,
+      xmin = 900,
+      xmax = 1200,
+      ymax = 0.4
+    )
+  
+  #combine length and weight plots
+  
+  plot_a <- grid.arrange(
+    arrangeGrob(cowplot::plot_grid(wt_plot, length_plot, align = 'v', 
+                                   ncol = 1), ncol = 1))
+
+```
+```{r WZ summary plot}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-WZ-summary
+#| fig-cap: "Western Zone weight (top) and length (bottom) frequency distributions recorded at processing factories in 2024. Horizontal boxplots represent summary weight and length distributions. Pie plot represents percentage composition of weight grading (vertical dashed red lines) for abalone weighed. Size limit presented as vertical dashed red lines in length frequecny plot. Note: Size limit increase from 145 mm to 150 mm in Western Zone on 1st July 2024."
+#| fig-height: 10
+#| fig-width: 7.5
+#| out-height: 90%
+#| fig-pos: "H"  
+
+ab_zone <- 'W'
+
+ # LF plot data
+  plot_length_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone
+      & fishyear == target_year
+      & between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_measured <- ab_dat %>% 
+    filter(!is.na(shell.length) &
+             newzone == ab_zone
+           & fishyear == target_year
+           & between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+# WF plot data
+  plot_weight_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone &
+        fishyear == target_year &
+        whole.weight != 0 &
+        whole.weight <= 2000 &
+        between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_weighed <- ab_dat %>% 
+    filter(newzone == ab_zone
+           & fishyear == target_year
+           & whole.weight != 0 
+           & whole.weight <= 2000 &
+             between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+  if (nrow(plot_weight_freq_dat) == 0) next
+  
+  plot_zone <- unique(plot_length_freq_dat$newzone)
+  
+  length_freq_plot <- ggplot(plot_length_freq_dat, aes(shell.length)) +
+    geom_histogram(
+      aes(y = ..density.. * 5),
+      fill = '#EFC000FF',
+      col = 'black',
+      binwidth = 5,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+    theme_bw() +
+    xlab("Shell Length (mm)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = case_when((newzone == 'W' & msr.date <= as.Date('2024-06-30')) ~ 145,
+                                       (newzone == 'W' & msr.date >= as.Date('2024-07-01')) ~ 150,
+                                       (newzone == 'E' & fishyear < 2023) ~ 138,
+                                       (newzone == 'E' & fishyear == 2023) ~ 140,
+                                       (newzone == 'E' & fishyear == 2024) ~ 142,
+                                       (newzone == 'E' & fishyear == 2025) ~ 145,
+                                       (newzone == 'G' & fishyear < 2023) ~ 145,
+                                       (newzone == 'G' & fishyear >= 2023) ~ 150,
+                                       (newzone == 'N') ~ 132,
+                                       (newzone == 'B' ~ 114))),
+           linetype = 'dashed',
+           colour = 'red',
+           size = 0.5)+
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+  
+  # print(length_freq_plot)
+  
+  xbp_len <- ggplot(plot_length_freq_dat,
+                    aes(
+                      x = factor(newzone),
+                      y = shell.length,
+                      group = newzone
+                    )) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.5
+    ) +
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp_len)
+  
+  xbp_grob <- ggplotGrob(xbp_len)
+  xmin_len <- min(plot_length_freq_dat$shell.length)
+  xmax_len <- max(plot_length_freq_dat$shell.length)
+  
+  length_plot <- length_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_len,
+      xmax = xmax_len,
+      ymin = 0.3
+    )
+  
+  # create weight plot
+  weight_freq_plot <- ggplot(plot_weight_freq_dat, aes(whole.weight)) +
+    geom_histogram(
+      aes(y = ..density.. * 50),
+      fill = '#0073C2FF',
+      col = 'black',
+      binwidth = 50,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 1300),
+                    ylim = c(0, 0.35)) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    xlab("Whole weight (g)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = 400),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 600),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 800),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_text(
+      data = grades,
+      aes(
+        x = x,
+        y = y,
+        label = lab
+      ),
+      inherit.aes = FALSE,
+      vjust = 0.5,
+      hjust = 0.5,
+      size = 4,
+      angle = 0,
+      colour = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+  
+  # print(weight_freq_plot)
+  
+  xbp.wt <- ggplot(
+    plot_weight_freq_dat,
+    aes(
+      x = factor(newzone),
+      y = whole.weight,
+      group = newzone
+    )
+  ) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.3
+    ) +
+    stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp.wt)
+  
+  xbp_grob <- ggplotGrob(xbp.wt)
+  xmin_wt <- min(plot_weight_freq_dat$whole.weight)
+  xmax_wt <- max(plot_weight_freq_dat$whole.weight)
+  
+  # add pie chart to weight frequency plot
+  
+  blockno_grade_summary <-
+    left_join(blockno_n_weighed, blockno_grade_meas, by = c('newzone')) %>%
+    mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+  
+  pie_plot_dat <- blockno_grade_summary %>%
+    filter(newzone == ab_zone) %>%
+    mutate(
+      lab.position = cumsum(grade.perc),
+      lab.y.position = lab.position - grade.perc / 2,
+      lab = paste0(grade.perc, "%")
+    )
+  
+  docket_pie_plot <-
+    ggplot(data = pie_plot_dat, aes(
+      x = "",
+      y = grade.perc,
+      fill = grade
+    )) +
+    geom_bar(stat = "identity", colour = 'white') +
+    coord_polar(theta = "y") +
+    geom_text(
+      aes(label = lab),
+      position = position_stack(vjust = 0.5),
+      colour = 'white',
+      size = 5
+    ) +
+    theme_void() +
+    theme(legend.position = 'none') +
+    scale_fill_manual(
+      values = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    )
+  
+  # print(docket_pie_plot)
+  
+  pp_grob <- ggplotGrob(docket_pie_plot)
+  
+  wt_plot <- weight_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_wt,
+      xmax = xmax_wt,
+      ymin = 0.25
+    ) +
+    annotation_custom(
+      grob = pp_grob,
+      xmin = 900,
+      xmax = 1200,
+      ymax = 0.4
+    )
+  
+  #combine length and weight plots
+  
+  plot_a <- grid.arrange(
+    arrangeGrob(cowplot::plot_grid(wt_plot, length_plot, align = 'v', 
+                                   ncol = 1), ncol = 1))
+
+```
+
+```{r NZ summary plot}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-NZ-summary
+#| fig-cap: "Northern Zone weight (top) and length (bottom) frequency distributions recorded at processing factories in 2024. Horizontal boxplots represent summary weight and length distributions. Pie plot represents percentage composition of weight grading (vertical dashed red lines) for abalone weighed. Size limit presented as vertical dashed red line in length frequecny plot."
+#| fig-height: 10
+#| fig-width: 7.5
+#| out-height: 90%
+#| fig-pos: "H"
+
+ab_zone <- 'N'
+
+ # LF plot data
+  plot_length_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone
+      & fishyear == target_year
+      & between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_measured <- ab_dat %>% 
+    filter(!is.na(shell.length) &
+             newzone == ab_zone
+           & fishyear == target_year
+           & between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+# WF plot data
+  plot_weight_freq_dat <- ab_dat %>%
+    filter(
+      newzone == ab_zone &
+        fishyear == target_year &
+        whole.weight != 0 &
+        whole.weight <= 2000 &
+        between(shell.length, sizelimit - 5, 220))
+  
+  plot_n_weighed <- ab_dat %>% 
+    filter(newzone == ab_zone
+           & fishyear == target_year
+           & whole.weight != 0 
+           & whole.weight <= 2000 &
+             between(shell.length, sizelimit - 5, 220)) %>%
+    summarise(n = paste('n =', n()))
+  
+  if (nrow(plot_weight_freq_dat) == 0) next
+  
+  plot_zone <- unique(plot_length_freq_dat$newzone)
+  
+  length_freq_plot <- ggplot(plot_length_freq_dat, aes(shell.length)) +
+    geom_histogram(
+      aes(y = ..density.. * 5),
+      fill = '#EFC000FF',
+      col = 'black',
+      binwidth = 5,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 200), ylim = c(0, 0.45)) +
+    theme_bw() +
+    xlab("Shell Length (mm)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = case_when((newzone == 'W' & msr.date <= as.Date('2024-06-30')) ~ 145,
+                                       (newzone == 'W' & msr.date >= as.Date('2024-07-01')) ~ 150,
+                                       (newzone == 'E' & fishyear < 2023) ~ 138,
+                                       (newzone == 'E' & fishyear == 2023) ~ 140,
+                                       (newzone == 'E' & fishyear == 2024) ~ 142,
+                                       (newzone == 'E' & fishyear == 2025) ~ 145,
+                                       (newzone == 'G' & fishyear < 2023) ~ 145,
+                                       (newzone == 'G' & fishyear >= 2023) ~ 150,
+                                       (newzone == 'N') ~ 132,
+                                       (newzone == 'B' ~ 114))),
+           linetype = 'dashed',
+           colour = 'red',
+           size = 0.5)+
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
+  
+  # print(length_freq_plot)
+  
+  xbp_len <- ggplot(plot_length_freq_dat,
+                    aes(
+                      x = factor(newzone),
+                      y = shell.length,
+                      group = newzone
+                    )) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.5
+    ) +
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp_len)
+  
+  xbp_grob <- ggplotGrob(xbp_len)
+  xmin_len <- min(plot_length_freq_dat$shell.length)
+  xmax_len <- max(plot_length_freq_dat$shell.length)
+  
+  length_plot <- length_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_len,
+      xmax = xmax_len,
+      ymin = 0.3
+    )
+  
+  # create weight plot
+  weight_freq_plot <- ggplot(plot_weight_freq_dat, aes(whole.weight)) +
+    geom_histogram(
+      aes(y = ..density.. * 50),
+      fill = '#0073C2FF',
+      col = 'black',
+      binwidth = 50,
+      alpha = 0.6
+    ) +
+    coord_cartesian(xlim = c(100, 1300),
+                    ylim = c(0, 0.35)) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    xlab("Whole weight (g)") +
+    ylab(paste(ab_zone, "Z", " Percentage (%)", sep = '')) +
+    geom_vline(aes(xintercept = 400),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 600),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_vline(aes(xintercept = 800),
+               colour = 'red',
+               linetype = 'dotted') +
+    geom_text(
+      data = grades,
+      aes(
+        x = x,
+        y = y,
+        label = lab
+      ),
+      inherit.aes = FALSE,
+      vjust = 0.5,
+      hjust = 0.5,
+      size = 4,
+      angle = 0,
+      colour = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
+    geom_text(data = plot_n_weighed, aes(x = 850, y = 0.25, label = n), color = 'black', size = 3)
+  
+  # print(weight_freq_plot)
+  
+  xbp.wt <- ggplot(
+    plot_weight_freq_dat,
+    aes(
+      x = factor(newzone),
+      y = whole.weight,
+      group = newzone
+    )
+  ) +
+    geom_boxplot(
+      fill = 'lightgray',
+      outlier.colour = "black",
+      outlier.size = 1.5,
+      position = position_dodge(0.85),
+      width = 0.3
+    ) +
+    stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
+    rotate() +
+    theme_transparent()
+  
+  # print(xbp.wt)
+  
+  xbp_grob <- ggplotGrob(xbp.wt)
+  xmin_wt <- min(plot_weight_freq_dat$whole.weight)
+  xmax_wt <- max(plot_weight_freq_dat$whole.weight)
+  
+  # add pie chart to weight frequency plot
+  
+  blockno_grade_summary <-
+    left_join(blockno_n_weighed, blockno_grade_meas, by = c('newzone')) %>%
+    mutate(grade.perc = round((grade.meas / ab.weighed) * 100))
+  
+  pie_plot_dat <- blockno_grade_summary %>%
+    filter(newzone == ab_zone) %>%
+    mutate(
+      lab.position = cumsum(grade.perc),
+      lab.y.position = lab.position - grade.perc / 2,
+      lab = paste0(grade.perc, "%")
+    )
+  
+  docket_pie_plot <-
+    ggplot(data = pie_plot_dat, aes(
+      x = "",
+      y = grade.perc,
+      fill = grade
+    )) +
+    geom_bar(stat = "identity", colour = 'white') +
+    coord_polar(theta = "y") +
+    geom_text(
+      aes(label = lab),
+      position = position_stack(vjust = 0.5),
+      colour = 'white',
+      size = 5
+    ) +
+    theme_void() +
+    theme(legend.position = 'none') +
+    scale_fill_manual(
+      values = c(
+        'small' = '#EFC000FF',
+        'medium' = '#0073C2FF',
+        'large' = '#CD534CFF'
+      )
+    )
+  
+  # print(docket_pie_plot)
+  
+  pp_grob <- ggplotGrob(docket_pie_plot)
+  
+  wt_plot <- weight_freq_plot +
+    annotation_custom(
+      grob = xbp_grob,
+      xmin = xmin_wt,
+      xmax = xmax_wt,
+      ymin = 0.25
+    ) +
+    annotation_custom(
+      grob = pp_grob,
+      xmin = 900,
+      xmax = 1200,
+      ymax = 0.4
+    )
+  
+  #combine length and weight plots
+  
+  plot_a <- grid.arrange(
+    arrangeGrob(cowplot::plot_grid(wt_plot, length_plot, align = 'v', 
+                                   ncol = 1), ncol = 1))
+
+```
+
+# Urchins
+
+There has been no change in the number of urchin measured since the previous milestone report 13.3. A total of 11,763 individual long-spined urchins (Centrostephanus rodgersii) from 38 catches have been measured by IMAS staff since the beginning of 2024 season (@tbl-urchin-summary-flex). The Centrostephanus fishery stopped harvesting towards the end of June with the onset of spawning. The closure of the major processor of urchins, True South Seafoods, in May 2024 has disrupted much of the industry harvest and the measuring program has now shifted to sampling catches from smaller processing facilities that are currently being established (e.g. Hai Loong Seafoods, Margate and Tasmanian Blue Seafoods, Huonville).
+
+A total of 614 short-spined urchin (Heliocidaris erythrogramma) have also been measured from three catches with the beginning of the main harvest season for this species (October 2024) (@tbl-urchin-summary-flex). 
+
+```{r}
+#| label: tbl-urchin-summary-flex
+#| tbl-cap: "Summary of commercial urchin catches measured in 2024 by IMAS staff at processing factories."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+
+
+## load latest measuring data-----------------------------------------------####
+
+urchin_dat_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/CommDive/Urchins/UrchinData/', 
+                                             Sys.info()[["user"]])))
+
+urchin_dat_raw <- readRDS(paste(urchin_dat_folder, '/urchin_dat_raw.RDS', sep = ''))
+
+
+urch_sum <- urchin_dat_raw %>%
+ mutate(sampyear = ifelse(is.na(sampyear), 2024, sampyear)) %>% 
+ filter(sampyear == 2024) %>% 
+ group_by(sampyear, samp_species) %>% 
+ summarise(catches = n_distinct(id),
+           urchins = n()) %>% 
+ janitor::adorn_totals() %>% 
+ rename(Year = 'sampyear',
+        Species = 'samp_species',
+        Catches = 'catches',
+        n = 'urchins')
+
+
+## Create flextable table
+proc_summ_zone_flex <- urch_sum %>% 
+ flextable::flextable()
+
+proc_summ_zone_flex
+
+```
+
+
+
+

@@ -1,0 +1,656 @@
+---
+title: "Quantifying potential of the IMAS Timed-Swim program to detect change in stock levels: AIRF Milestone Report"
+subtitle: "AIRF Milestone #3 (1/09/2024): Completion of greenlip surveys post north-east region greenlip closure."
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+    fig-format: png
+    fig-dpi: 600
+  pdf:
+    documentclass: scrreport
+    keep-tex:  true
+    dpi: 600
+    pdf-engine: lualatex
+    toc: true
+    toc-depth: 4
+    toc_float: true
+    number-sections: false
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    linestretch: 1.25
+    mainfont: Calibri
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+editor: 
+  markdown: 
+    wrap: 72
+link-citations: true
+---
+\newpage
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# clear console
+rm(list = ls())
+
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+ library(dplyr)
+ library(ggplot2)
+ library(ggrepel)
+ library(scales)
+ library(tidyr)
+ library(fs)
+ library(gdata)
+ library(openxlsx)
+ library(lubridate)
+ library(reshape)
+ library(gridExtra)
+ library(ggpubr)
+ library(readxl)
+ library(tibble)
+ library(data.table)
+ library(stringr)
+ library(broom)
+ library(purrr)
+ library(sf)
+ library(ggspatial)
+ library(tmap)
+  library(sp)
+ library(RColorBrewer)
+ library(viridis)
+ library(ggpmisc)
+ library(patchwork)
+ library(ggExtra)
+ library(flextable)
+})
+
+source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+## 1. Set sample year and file paths ####
+
+# Identify sampling year of interest
+samp_year <- 2024
+
+# Identify associated sampling year folder path to save dataframes
+data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, sep = ''),
+                         'TimedSwim_NEGreens')
+
+# Identify associated sampling year folder path to save plots
+plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2022_53/DataAnalysis/Figures',
+                                        Sys.info()[["user"]])), sep = '')
+
+# Identify associated spatial layers folder
+spat_layer_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers', 
+                        Sys.info()[["user"]])))
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# 2. Import data ####
+
+# Import final dataframes 
+# ts_dat <- readRDS(file.path(data_folder, '/ts_dat.RDS'))
+ts_dat <- readRDS(paste(data_folder, '/std_ts_dat.RDS', sep = ''))
+ts_dat_df <- readRDS(paste(data_folder, '/ts_dat_df.RDS', sep = ''))
+
+# Import metadata frame
+ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
+
+# Load vessel gps data
+vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
+
+```
+## Overall Progress
+
+Milestone 3 (Due: 1/09/2024): Completion of greenlip surveys post north-east region greenlip closure 
+
+(Status: COMPLETED).
+
+Post season re-surveys commenced the day after the greenlip fishery closed within the North-East Greenlip fishing region on Wednesday, 3rd July. Due to poor weather conditions the re-survey of all 86 pre-season sites was not possible. However, the IMAS Dive Fisheries Team managed to re-survey 62 sites over five suitable days between July and September 2024 (@fig-site-map). Despite efforts to re-survey the remaining 24 sites, suitable conditions had not eventuated by October 1st (90 days post-closure). Given that the aim of this experiment was to minimise the duration between pre- and post-season surveys, it was decided that extending the survey period beyond this timeframe could introduce additional sources of variance or bias in the count numbers. 
+
+A preliminary examination of post-season counts indicated no significant difference in the count variation between pre- and post-surveys conducted up to 85 days apart (@fig-count-diff). Many of the remaining sites had low to zero pre-season counts for both size classes (@tbl-pre-post-count) therefore extending the re-survey period to include these sites may have introduced increased bias from an already low base count, particularly due to the movement of abalone into these areas and possible natural mortality with increased time. 
+
+```{r}
+#| label: tbl-diver-tab4
+#| tbl-cap: "Summary of IMAS staff dive statistics in 2024. Sites = number of sites surveyed; Days = number of sampling days; Sites_Day = average number of sites surveyed for each sampling day. "
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+
+
+unique(ts_dat$diver)
+
+# Create summary table
+ts_tab <- ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post'),
+        diver = str_trim(diver)) %>% 
+ group_by(samp_period, diver) %>%
+ summarise(sites = n_distinct(site),
+           blocks = n_distinct(blockno),
+           field_days = n_distinct(samp_date)) %>% 
+ as.data.frame() %>% 
+ dplyr::rename('Sites' = sites,
+               'Blocks' = blocks,
+               'Days' = field_days)
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-site-map
+#| fig-cap: "Map of pre-season survey sites (red) and those re-surveyed post-season (blue) in the north-east greenlip fishery region."
+##---------------------------------------------------------------------------##
+# Map of pre and post sites 
+# Create map of sites sampled pre-season vs post season
+
+# Read in sub-block map
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Establish CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+# Transform sub-block map to GDA2020
+sf_subblock_map <- st_transform(sf_subblock_map, GDA2020)
+
+# Identify pre and post season survey sites
+pre_post_sites <- ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Select sites surveyed in pre-season from gps vessel data
+pre_gps_site <- vessel_gps_dat %>% 
+ sfheaders::sf_to_df(fill = T) %>%
+ mutate(samp_date = as.Date(samptime),
+        samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>% 
+ dplyr::rename('latitude' = y,
+               'longitude' = x) %>% 
+ select(sampyear, sampperiod, site, waypoint, samp_date, samp_period, longitude, latitude) %>%  
+ filter((sampyear == 2024 & sampperiod == 'start' & samp_period == 'pre') &
+         !(sampyear == 2024 & site == 'GL-2023-39-142' & waypoint == '250')) %>% 
+ distinct(waypoint, .keep_all = T)
+
+# Join dataframes to identify those pre-season sites re-surveyed post season
+re_survey_dat <- left_join(pre_gps_site, pre_post_sites) %>% 
+  st_as_sf(coords = c("longitude", "latitude")) %>% 
+  st_set_crs(st_crs(7855))
+
+
+# create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
+ne_gl_bbox <- st_bbox(c(xmin = 577919.4788533378,
+                        ymin = 5482577.2994562695,
+                        xmax = 596143.3918643385,
+                        ymax = 5497344.001926334),
+                      crs = GDA2020)
+
+# crop subblock map and sites sampled to maximise zoom                           
+site_sampled_crop <- st_crop(re_survey_dat, ne_gl_bbox)
+sf_subblock_map_crop <- st_crop(sf_subblock_map, ne_gl_bbox)
+
+# Create map of pre-season sites (red) and those sampled post season (blue)
+ggplot(data = st_geometry(sf_subblock_map_crop)) +
+                geom_sf(fill = NA) +
+                geom_sf_text(data = sf_subblock_map_crop %>% filter(SubBlockNo %in% c('39A', '31B')), aes(label = SubBlockNo))+
+                geom_sf(data = site_sampled_crop, aes(colour = as.factor(sampled_n)))+
+                scale_colour_manual(values = c('red', 'blue'))+
+                theme_bw() +
+                annotation_scale(location = "bl", width_hint = 0.5) +
+                annotation_north_arrow(location = "br", which_north = "true", 
+                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                                       style = north_arrow_fancy_orienteering)+
+                theme(legend.position="none")+
+ theme(axis.text.y = element_text(angle = 90, vjust = 0, hjust=0.5))+
+                xlab('Longitude')+
+                ylab('Latitude')
+
+
+```
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# Pre vs Post site count deviation over time
+
+# Determine count difference between pre and post for each sampling trip
+pre_post_site_count <- ts_dat %>%
+ filter(sampyear == 2024) %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>% 
+ group_by(samp_period, site, samp_date) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ pivot_wider(id_cols = c(site),
+             names_from = c(samp_period),
+             values_from = c('ab_n')) %>% 
+ mutate(count_diff = pre - post,
+        rel_diff = ((post - pre) / pre)) %>% 
+ dplyr::rename(pre_count = 'pre',
+               post_count = 'post')
+
+# Determine duration between pre and post sampling trips
+pre_post_site_date <- ts_dat %>%
+ filter(sampyear == 2024) %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>% 
+ group_by(samp_period, site, samp_date) %>% 
+ summarise(max_date = max(samp_date)) %>% 
+ pivot_wider(id_cols = c(site),
+             names_from = c(samp_period),
+             values_from = c('max_date')) %>%
+ mutate(days_diff = as.numeric(difftime(post, pre, units = 'days'))) %>% 
+ dplyr::rename(pre_date = 'pre',
+               post_date = 'post')
+
+# Join count and duration difference dataframes 
+pre_post_site_dev <- left_join(pre_post_site_date, pre_post_site_count) %>% 
+ select(site, pre_date, post_date, pre_count, post_count, days_diff, count_diff, rel_diff)
+
+# Determine mean count difference for each sampling trip
+days_diff_mean <- pre_post_site_dev %>% 
+ filter(!is.infinite(count_diff)) %>% 
+ group_by(days_diff) %>% 
+ summarise(mean_ab_n = mean(count_diff),
+          median_ab_n = median(count_diff),
+          std_err = sd(count_diff)/sqrt(n())) %>% 
+ filter(!is.na(days_diff))
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+# Boxplot of count difference for each sampling trip
+dev_plot_box <- pre_post_site_dev %>% 
+ filter(!is.na(days_diff)) %>% 
+ mutate(post_days = case_when(between(days_diff, 0,  20) ~ '10',
+                              between(days_diff, 21, 50) ~ '45',
+                              between(days_diff, 51, 90) ~ '85')) %>% 
+ ggplot(aes(x = post_days, y = count_diff))+
+ geom_boxplot(outlier.colour = 'orange', outlier.size = 2)+
+ theme_bw()+
+ ylim(-120, 120)+
+ ylab('Count Difference')+
+ xlab('Post-survey Days Difference')
+
+# dev_plot_box
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+# Plot count difference raw data and average for sampling durations
+mean_diff_plot <- days_diff_mean %>% 
+ filter(!is.na(days_diff)) %>% 
+ ggplot(aes(x = days_diff, y = mean_ab_n))+
+ geom_point(size = 2)+
+ geom_point(data = pre_post_site_dev, aes(x = days_diff, y = count_diff), colour = 'blue', alpha = 0.3, size = 2)+
+ geom_errorbar(aes(ymin = mean_ab_n -  std_err, ymax = mean_ab_n + std_err), width = 1,
+               position = position_dodge(0.05), size = 1)+
+ theme_bw()+
+ ylim(-120, 120)+
+ ylab('Mean Count Difference')+
+ xlab('Days Difference')
+
+# mean_diff_plot
+
+```
+
+```{r abundance boxplot}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-count-diff
+#| fig-cap: "A) Mean count difference between pre- and post-season greenlip abalone counts for sites on each re-survey trip, and B) Boxplot of the count differences grouped into the approximate mid-point of each post-season sampling trip conducted over a duration of 3-4 days after 4th July 2024 (season closed) (i.e. 10, 45 and 85 days post-season) in the north-east greenlip fishery region. Note: All pre-season sampling occurred prior to 1st July 2024."
+#| fig-height: 8
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+count_diff_plots <- mean_diff_plot / dev_plot_box+
+ plot_annotation(tag_levels = 'A')
+
+count_diff_plots
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# Pre vs Post site counts and order of post site survey priority
+
+pre_post_sites_dat <- ts_dat %>%
+ filter(sampyear == 2024) %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post')) %>% 
+ group_by(samp_period, site) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ pivot_wider(id_cols = c(site),
+             names_from = c(samp_period),
+             values_from = c('ab_n')) %>%
+ select(site, pre, post) %>% 
+ arrange(-pre)
+
+```
+
+
+
+## Preliminary analysis
+The primary aim of this project is to define the potential for the Timed Swim method to reliably assess changes in stock status in key areas of the fishery. We want to know if the Timed Swim method gives a reliable estimate of abundance at a particular point in time. In the absence of knowing what the true stock abundance is the best way to determine the reliability of a method is to compare repeatability over time. In other words how repeatable are counts and does the abundance at time A equal that of time B? 
+
+Over the short term we expect the correlation in sub-legal abundance between surveys to be high as they are not subject to fishing and there should be limited natural effects on their abundance (e.g. natural mortality and movement). As the duration between surveys increases we expect the correlation to weaken due factors such as movement and recruitment over the longer term. Similarly, this relationship is expected to breakdown when fishing pressure is applied to legals.  
+
+Preliminary analysis indicates a strong overall correlation between pre- and post-season counts for sub-legal greenlip at each site (@fig-corr), and among blocks (@fig-corr_block). This consistency in counts implies that natural mortality, growth in size classes (modal progression), and local movement cause minimal changes in sub-legal abundance between sampling periods. Therefore, in the absence of fishing mortality and significant natural mortality or movement, the Timed Swim method appears reliable for monitoring abundance over the short term (2-3 months).
+
+In contrast, the relationship between pre- and post-season legal counts at each site was minimal to non-existent (@fig-corr; @fig-corr_block). The overall trend shows a general decline in post-season counts, indicating that fishing pressure disrupts the relationship, which is consistent with expectation. Assuming limited natural mortality, modal progression of sub-legal abalone, and movement, the breakdown in the relationship appears primarily due to fishing mortality. This is particularly evident at sites with high pre-season counts in Block 39 (@fig-corr_block), further supporting the reliability of the Timed Swim method in detecting changes in abundance as a result of short-term fishing depletion.
+
+These results are a strong indicator the Timed Swim method provides a reliable estimate of abundance at a particular point in time.
+
+
+## Summary and Future directions
+The project is progressing well and all fieldwork is now complete. Preliminary analysis has demonstrated the reliability of the Timed Swim method for detecting change in abundance. Further analysis will now start explore the use of Type III regression and other standardisation modelling approachs to examine the influence of survey methodology on the relationships in more detail (e.g. the effect of diver ID, spatial overlap in re-survey habitat, etc). This may be of particular importance for legal abundance counts where there are some weak correlations that may not be explained by the effects of fishing or other sources of natural mortality/movement.
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# Pre vs Post count correlation data
+
+# Identify sites that were re-surveyed in post season
+post_sites <- ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre and post season and add sample period
+pre_post_dat <- ts_dat %>% 
+ filter(sampyear == 2024) %>% 
+ left_join(., post_sites) %>% 
+ filter(sampled_n >= 2) %>% 
+ mutate(samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post'))
+
+# Determine legal and sub-legal counts pre and post season
+pre_post_size_dat <- pre_post_dat %>% 
+ filter(sampyear >= 2024,
+        !is.na(sizeclass_freq_10),
+        !is.infinite(sizeclass_freq_10),
+        sizeclass_freq_10 >= 0) %>%
+ group_by(samp_period, legal_size, site, blockno) %>% 
+ summarise(ab.n = sum(sizeclass_freq_10)) %>%
+ spread(key = samp_period, value = ab.n) %>% 
+ select(site, blockno, pre, post)
+
+```
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create legal pre vs post correlation overall plot
+# Note: test removing possible post-season outliers
+legal_overall_out_plot <- pre_post_size_dat %>% 
+ filter(legal_size == '>150 mm' &
+         post < 100) %>%
+ ggplot(aes(x = pre, y = post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 125, y = 10, label = '>150 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 100)+
+ ylim(0, 100)
+
+legal_overall_out_plot <- ggMarginal(legal_overall_out_plot)
+
+# Create legal pre vs post correlation overall plot
+# Note: outliers included
+legal_overall_plot <- pre_post_size_dat %>% 
+ filter(legal_size == '>150 mm') %>%
+ ggplot(aes(x = pre, y = post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 125, y = 10, label = '>150 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 160)+
+ ylim(0, 160)
+
+legal_overall_plot <- ggMarginal(legal_overall_plot)
+
+sub_legal_overall_plot <- pre_post_size_dat %>% 
+ filter(legal_size == '<150 mm') %>%
+ ggplot(aes(x = pre, y = post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 175, y = 10, label = '<150 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 220)+
+ ylim(0, 220)
+
+sub_legal_overall_plot <- ggMarginal(sub_legal_overall_plot)
+
+# sub_legal_overall_plot
+
+```
+
+```{r correlation plot}
+#| label: fig-corr
+#| fig-cap: "Relationship between pre-season and post-season legal (>150 mm) and sub-legal (<150 mm) greenlip abalone counts at each site surveyed in the north-east greenlip fishery region as of 1st September 2024 (n = 62)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots <- wrap_plots(legal_overall_plot, sub_legal_overall_plot, nrow = 2)
+
+corr_plots
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create legal pre vs post correlation plot by block
+legal_plot <- pre_post_size_dat %>% 
+ filter(legal_size == '>150 mm') %>%
+ ggplot(aes(x = pre, y = post, colour = blockno))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 125, y = 10, label = '>150 mm'), stat = 'unique', colour = 'black', size = 5)+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 160))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 160)+
+ ylim(0, 160)
+
+legal_plot <- ggMarginal(legal_plot, groupColour = T, groupFill = T)
+
+# legal_plot
+ 
+# Create sub-legal pre vs post correlation plot by block
+sub_legal_plot <- pre_post_size_dat %>% 
+ filter(legal_size == '<150 mm') %>%
+ ggplot(aes(x = pre, y = post, colour = blockno))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-season Abalone Count')+
+ ylab('Post-season Abalone Count')+
+ geom_text(aes(x = 175, y = 10, label = '<150 mm'), stat = 'unique', colour = 'black', size = 5)+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 160))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 220)+
+ ylim(0, 220)
+
+sub_legal_plot <- ggMarginal(sub_legal_plot, groupColour = T, groupFill = T)
+
+# sub_legal_plot
+
+```
+```{r correlation plot block}
+#| label: fig-corr_block
+#| fig-cap: "Relationship between pre-season and post-season (A) legal (>150 mm) and (B) sub-legal (<150 mm) greenlip abalone counts at each site surveyed in the north-east greenlip fishery region as of 1st September 2024 (n = 62). Blue = Block 31; Red = Block 39."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_block <- wrap_plots(legal_plot, sub_legal_plot)
+
+corr_plots_block
+
+```
+\newpage
+
+## Appendicies
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: tbl-pre-post-count
+#| tbl-cap: "Total count of sub-legal (<150 mm) and legal (>150 mm) greenlip abalone counted at each site in the north-east greenlip fishery region, pre- and post-season within Block. Pre-rank = order of sites from highest to lowest counts in pre-season survey. NS = not re-surveyed."
+##---------------------------------------------------------------------------##
+# Create flextable table
+pre_post_sites_tab <- pre_post_sites_dat %>% 
+ mutate(post = case_when(is.na(post) ~ 'NS', .default = as.character(post))) %>% 
+ separate(col = site, into = c('ab', 'fishyear', 'blockno', 'siteno'), sep = '-', remove = F) %>% 
+ mutate(block_no = paste('Block', blockno, sep = ' ')) %>% 
+        # group = cut(seq_len(n()), 2, labels = paste("Set", 1:2))) %>%
+  group_by(blockno) %>%
+  mutate('Pre-rank' = seq_len(n())) %>% 
+ ungroup() %>% 
+ select(site, pre, post, block_no, 'Pre-rank')
+ 
+ 
+flex_tab_dat <- tabulator(
+  x = pre_post_sites_tab,
+  rows = "Pre-rank",
+  columns = "block_no",
+  `Site` = as_paragraph(site),
+  `Pre` = as_paragraph(pre),
+  `Post` = as_paragraph(post),
+)
+
+pre_post_sites_flex_tab <- as_flextable(flex_tab_dat) %>% 
+ set_table_properties(layout = "autofit") %>% 
+ paginate(init = F, hdr_ftr = TRUE) %>% 
+ fontsize(size = 8, part = 'all') %>% 
+ height(height = 0.5) %>% 
+ line_spacing(space = 0.25, part = "all")
+ # autofit() %>% 
+ # fit_to_width(7.5)
+
+pre_post_sites_flex_tab
+
+# # Function to have tables autofit to page
+# FitFlextableToPage <- function(ft, pgwidth = 6){
+# # set as autofit to make width parameters adjustable
+# ft_out <- ft %>% autofit()
+# # set width as function of page width
+# ft_out <- width(ft_out, width = dim(ft_out)$widths*pgwidth /(flextable_dim(ft_out)$widths))
+# return(ft_out)
+# }
+
+# table <- FitFlextableToPage(pre_post_sites_flex_tab)
+# append table to doc
+# doc <- body_add_flextable(doc, value = table)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

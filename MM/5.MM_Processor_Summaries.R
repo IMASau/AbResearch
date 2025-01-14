@@ -357,23 +357,37 @@ for (i in new.dockets) {
   theme_bw() +
   xlab("Shell Length (mm)") +
   ylab(paste("Docket no.", plot.zone, docketnum.day, " Percentage (%)")) +
+  geom_vline(aes(xintercept = case_when((zone == 'AW' & plaindate <= as.Date('2024-06-30')) ~ 145,
+                                         (zone == 'AW' & plaindate >= as.Date('2024-07-01')) ~ 150,
+                                         (zone == 'AE' & sampyear < 2023) ~ 138,
+                                         (zone == 'AE' & sampyear == 2023) ~ 140,
+                                         (zone == 'AE' & sampyear == 2024) ~ 142,
+                                         (zone == 'AE' & sampyear == 2025) ~ 145,
+                                         (zone == 'AG' & sampyear < 2023) ~ 145,
+                                         (zone == 'AG' & sampyear >= 2023) ~ 150,
+                                         (zone == 'AN') ~ 132,
+                                         (zone == 'AB' ~ 114))),
+             linetype = 'dashed',
+             colour = 'red',
+             size = 0.5)+
   # geom_vline(aes(xintercept = 138), colour = 'red',
   #            linetype = 'dashed', size = 0.5)+
-  geom_vline(
-   aes(xintercept = ifelse(zone == 'AW', 145, 
-                           ifelse(zone == 'AB', 114, 
-                                  ifelse(zone == 'AN', 132, 
-                                         ifelse(zone == 'AG', 145, 
-                                                ifelse(zone == 'AE' & sampyear == 2023, 140, 
-                                                       ifelse(zone == 'AE' & sampyear == 2024, 142, 
-                                                              ifelse(zone == 'AW' & plaindate >= as.Date('2024-07-01'), 150, 138)))))))),
-   linetype = 'dashed',
-   colour = 'red',
-   size = 0.5
-  ) +
+  # geom_vline(
+  #  aes(xintercept = ifelse(zone == 'AW', 145, 
+  #                          ifelse(zone == 'AB', 114, 
+  #                                 ifelse(zone == 'AN', 132, 
+  #                                        ifelse(zone == 'AG', 145, 
+  #                                               ifelse(zone == 'AE' & sampyear == 2023, 140, 
+  #                                                      ifelse(zone == 'AE' & sampyear == 2024, 142, 
+  #                                                             ifelse(zone == 'AW' & plaindate >= as.Date('2024-07-01'), 150, 138)))))))),
+  #  linetype = 'dashed',
+  #  colour = 'red',
+  #  size = 0.5
+  # ) +
   scale_y_continuous(labels = percent_format(accuracy = 1, suffix = ''))+
   geom_text(data = plot.n.measured, aes(x = 180, y = 0.3, label = n), color = 'black', size = 3)
  
+
  # print(length.freq.plot)
  
  xbp.len <- ggplot(plot.length.freq.dat,
@@ -389,7 +403,7 @@ for (i in new.dockets) {
    position = position_dodge(0.85),
    width = 0.5
   ) +
-  rotate() +
+  ggpubr::rotate() +
   theme_transparent()
  
  # print(xbp.len)
@@ -482,7 +496,7 @@ for (i in new.dockets) {
     width = 0.3
    ) +
    stat_summary(fun.y = mean, geom = 'point', shape = 20, size = 3, colour = 'red', fill = 'red')+
-   rotate() +
+   ggpubr::rotate() +
    theme_transparent()
   
   # print(xbp.wt)
