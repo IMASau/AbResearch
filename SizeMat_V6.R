@@ -1,4 +1,5 @@
-setwd('C:/CloudStor/R_Stuff/Logistic')
+logistic_dir <- "C:/Users/cmundy/UTAS Research Dropbox/Craig Mundy/R_Stuff/Logistic"
+
 library(tidyverse)
 library(MASS)
 library(gdata)
@@ -32,7 +33,7 @@ setwd <- resdir
 
 ## load new raw csv file. SAMExport2016.csv is an export from Access, where
 ## SEX = I, T, M, or F
-infileNew <- "C:/CloudStor/R_Stuff/Logistic/SAMExport2016.csv"
+infileNew <- file.path(logistic_dir, "SAMExport2016.csv")
 BlckPopNew <- read.csv(infileNew, header=TRUE, sep=',', dec='.', as.is=TRUE)
 BlckPopNew$SAM_Date <- as.Date(strptime(as.character(BlckPopNew$SAM_Date), "%d/%m/%Y", tz='AUSTRALIA/HOBART'))
 BlckPopNew$SiteCode <- paste(BlckPopNew$SIT_Id,'_',year(BlckPopNew$SAM_Date),'_',month(BlckPopNew$SAM_Date), sep="")
@@ -129,8 +130,9 @@ NumSites
 
 #samdataT<-subset(samdata, SiteCode %in% KeepSits)
 #setwd('D:/Fisheries Research/Abalone/SAM/SAM_Biplots')
-#i <- 577
-#i<- "10_1988_8"
+# i <- 577
+# i <- 5
+# i <- "10_1988_8"
 #Loop through unique DiveId's
 for (i in 1:NumSites) {
   subdat <- droplevels(subset(samdata, samdata$SiteCode == SamList$SiteCode[i]))
