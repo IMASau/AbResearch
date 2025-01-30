@@ -1,0 +1,274 @@
+---
+title: "Assessing growth dynamics and connectivity of blacklip abalone (Haliotis rubra) populations"
+subtitle: "Size-at-maturity (SAM)"
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+  pdf:
+    documentclass: scrreport
+    keep-tex:  true
+    dpi: 600
+    pdf-engine: lualatex
+    toc: true
+    toc-depth: 4
+    toc_float: true
+    number-sections: false
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    linestretch: 1.25
+    mainfont: Calibri
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# Clear console
+rm(list = ls())
+
+##---------------------------------------------------------------------------##
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+        library(dplyr)
+        library(ggplot2)
+        library(scales)
+        library(tidyr)
+        library(gdata)
+        library(openxlsx)
+        library(lubridate)
+        library(reshape)
+        library(gridExtra)
+        library(ggpubr)
+        library(readxl)
+        library(tibble)
+        library(data.table)
+        library(janitor)
+        library(anytime)
+        library(stringr)
+        library(broom)
+        library(purrr)
+        library(sf)
+        library(ggspatial)
+        library(tmap)
+        library(sf)
+        library(sp)
+        library(RColorBrewer)
+        library(viridis)
+        library(ggpmisc)
+        library(arsenal)
+  library(fuzzyjoin)
+ library(tidytext)
+})
+
+source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
+
+##---------------------------------------------------------------------------##
+## 2. Set file paths ####
+
+# Identify folder containing data
+data_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_JMcAllister/Data', 
+                                            Sys.info()[["user"]]))
+
+# Identify folder to save outputs 
+output_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_JMcAllister/Data Analysis/SAM_Analysis', 
+                                            Sys.info()[["user"]]))
+##---------------------------------------------------------------------------##
+
+```
+
+```{r rawdata}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+## 3. Load raw data ####
+
+# Load SAM raw data
+sam_dat <- read.xlsx(paste(data_folder, "/SAM_data/SAM_Database.xlsx", sep = ''), detectDates = T)
+
+# Load site raw data
+meta_dat <- read.xlsx(paste(data_folder, "/Field_MetaData/Field_MetaDatabase.xlsx", sep = ''), detectDates = T)
+
+```
+
+```{r formatdata}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+## 4. Re-format data ####
+
+# Re-format Excel times for SAM data
+sam_dat$process_start <- convertToDateTime(sam_dat$process_start, origin = "1970-01-01", tz = "Australia/HOBART")
+sam_dat$process_finish <- convertToDateTime(sam_dat$process_finish, origin = "1970-01-01", tz = "Australia/HOBART")
+
+sam_dat <- sam_dat %>% 
+        mutate(process_start = strftime(process_start, format="%H:%M:%S"),
+               process_finish = strftime(process_finish, format="%H:%M:%S"))
+
+sam_dat$process_start_date_time <- as.POSIXct(paste(sam_dat$process_date, sam_dat$process_start), format = "%Y-%m-%d %H:%M:%S")
+sam_dat$process_finish_date_time <- as.POSIXct(paste(sam_dat$process_date, sam_dat$process_finish), format = "%Y-%m-%d %H:%M:%S")
+
+
+# Add size bin from sampling
+sam_dat <- sam_dat %>% 
+ mutate(size_bin = case_when(shell_length <= 59 ~ '0-60',
+                             between(shell_length, 60, 79) ~ '60-80',
+                             between(shell_length, 80, 99) ~ '80-100',
+                             between(shell_length, 100, 119) ~ '100-120',
+                             between(shell_length, 120, 139) ~ '120-140',
+                             between(shell_length, 140, 159) ~ '140-160',
+                             shell_length >= 160 ~ '160-180'))
+
+```
+# Data checks and summaries
+Quick summary plots to look for outliers in length data. Summary counts for each of the target size classes from dive collections.
+```{r datachecks}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+## 5. Data checks ####
+
+# summary(sam_dat)
+
+
+sam_dat %>% 
+ ggplot()+
+ geom_point(aes(x = shell_length, y = shell_width))+
+ theme_bw()
+
+sam_dat %>% 
+ ggplot()+
+ geom_point(aes(x = shell_length, y = shell_height))+
+ theme_bw()
+
+sam_dat %>% 
+ ggplot()+
+ geom_point(aes(x = shell_width, y = shell_height))+
+ theme_bw()
+
+sam_dat %>% 
+ ggplot()+
+ geom_histogram(aes(shell_length), binwidth = 20)+
+ theme_bw()
+
+sam_dat %>% 
+ mutate(size_bin = factor(size_bin, levels =c('0-60', '60-80', '80-100', '100-120', '120-140', '140-160', '160-180'))) %>% 
+ ggplot()+
+ geom_histogram(aes(size_bin), stat = 'count')+
+ facet_wrap(. ~ site, nrow = 2)+
+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5))+
+ theme_bw()
+
+```
+# Size-at-maturity estimation
+Size at maturity (SAM) estimation using 'biology' package developed by Malcom Haddon.
+
+Maturity status was determined following Jones et al. 2009:
+-Stage 0, has no apparent development of gonad (immature).
+-Stage 1, gonad development has started, such that it is possible to determine sex of animal, although the gonad at this stage is very slight, at its most developed form it is translucent so that the digestive gland is still visible underneath (immature).
+-Stage 2, gonad is obvious at the extremities of the digestive gland, it is opaque but not yet fully formed. The eggs in females are visible at low magnification while males are viscous creamy yellow (mature).
+-Stage 3, fully formed gonad (mature). Stages 1 to 3 can be grouped by sex but only stages 2 and 3 are considered mature as although in stage 1 sex may be determined, that individual is unlikely to be reproductive and so is categorised as immature male or female (mature).
+
+A dataframe has been created to run the 'fitmaturity' function where maturity has been classified as 
+-M = stages 0-1
+-I = stages 2-3.
+
+
+```{r maturity regression}
+#| echo: true
+#| warning: false
+#| message: false
+
+library(biology)
+library(hplot)
+library(codeutils)
+
+# Convert lowercase to uppercase sex.
+sam_dat <- sam_dat %>% 
+ mutate(sex = toupper(sex))
+
+# Classify gonad stage 1 abalone as immature.
+sam_dat <- sam_dat %>% 
+ mutate(sex_adj = case_when(gonad_score %in% c(0, 1) ~ 'I',
+                            gonad_score >= 2 ~ sex),
+        mature = case_when(gonad_score >= 2 ~ 1,
+                           gonad_score <= 1 ~ 0))
+
+# Create dataframe for fitmaturity function (site, sex, length, maturity)
+tas_ab <- sam_dat %>%
+ select(site, sex_adj, shell_length, mature) %>%
+ dplyr::rename(sex = 'sex_adj',
+               length = 'shell_length') %>%
+ filter(sex != 'T') #filter any trematodes
+
+# Re-classify sex as mature or immature
+tas_ab <- tas_ab %>% 
+ mutate(sex = case_when(sex %in% c('M', 'F') ~ 'M',
+                        sex == 'I' ~ 'I'))
+
+# Quick summary of samples by site and matuirty status(sex)
+table(tas_ab$site, tas_ab$sex)
+
+# Create parameters for loop and plots
+sites <- sort(unique(tas_ab$site))
+nsite <- length(sites)
+scenes <- c("AB-NW-SAM-2024-5-1", "AB-NW-SAM-2024-5-2", "AB-NW-SAM-2024-5-4", "AB-NW-SAM-2024-5-9")
+models <- makelist(scenes)
+count <- 0
+
+# Run model across each site for sexes combined
+for (i in 1:nsite) { #  i = 1
+    count <- count + 1
+    picksite <- which(tas_ab$site == sites[i])
+    models[[count]] <- fitmaturity(tas_ab[picksite,],
+                                   length="length",mature="mature",lower=50,upper=160)
+  }
+
+str1(models)
+str1(models[["Site1"]])
+
+# Create matuirty plots for each site
+plotprep(width=10, height=8)
+parset(plots=c(2,2))
+for (i in 1:length(models)) {
+  plotmaturity(models[[i]],label=scenes[i],col=2,xmin=0,xmax=0,CI=FALSE,
+                           setpar=FALSE,lwd=2)  
+}
+
+
+```
