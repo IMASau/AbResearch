@@ -199,14 +199,16 @@ sam_dat %>%
 Size at maturity (SAM) estimation using 'biology' package developed by Malcom Haddon.
 
 Maturity status was determined following Jones et al. 2009:
--Stage 0, has no apparent development of gonad (immature).
--Stage 1, gonad development has started, such that it is possible to determine sex of animal, although the gonad at this stage is very slight, at its most developed form it is translucent so that the digestive gland is still visible underneath (immature).
--Stage 2, gonad is obvious at the extremities of the digestive gland, it is opaque but not yet fully formed. The eggs in females are visible at low magnification while males are viscous creamy yellow (mature).
--Stage 3, fully formed gonad (mature). Stages 1 to 3 can be grouped by sex but only stages 2 and 3 are considered mature as although in stage 1 sex may be determined, that individual is unlikely to be reproductive and so is categorised as immature male or female (mature).
 
-A dataframe has been created to run the 'fitmaturity' function where maturity has been classified as 
--M = stages 0-1
--I = stages 2-3.
+* Stage 0, has no apparent development of gonad (immature).
+* Stage 1, gonad development has started, such that it is possible to determine sex of animal, although the gonad at this stage is very slight, at its most developed form it is translucent so that the digestive gland is still visible underneath (immature).
+* Stage 2, gonad is obvious at the extremities of the digestive gland, it is opaque but not yet fully formed. The eggs in females are visible at low magnification while males are viscous creamy yellow (mature).
+* Stage 3, fully formed gonad (mature). Stages 1 to 3 can be grouped by sex but only stages 2 and 3 are considered mature as although in stage 1 sex may be determined, that individual is unlikely to be reproductive and so is categorised as immature male or female (mature).
+
+A dataframe has been created to run the 'fitmaturity' function where maturity has been classified as:
+
+* I = stages 0-1
+* M = stages 2-3.
 
 
 ```{r maturity regression}
