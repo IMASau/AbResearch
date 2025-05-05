@@ -3372,8 +3372,8 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   # Percent +5LMM ####  
   
   # identify block and zone for summary year
-  block <- 6
-  zone <- 'N'
+  block <- 9
+  zone <- 'W'
   
   # determine sizelimit for fishyear
   df.1 <- compiledMM.df.final %>% 
@@ -3476,7 +3476,7 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
     # scale_x_continuous(expand = c(0.01, 0.01),
     #                    breaks = seq(2010, 2021, 2))
     scale_x_continuous(expand = c(0.01, 0.01),
-                       breaks = seq(df.5$fishyear, 2023, 2))
+                       breaks = seq(df.5$fishyear, 2024, 2))
   
   print(LML5.plot)
   
@@ -3638,20 +3638,22 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   # see Punt et al. 2001
   
   # identify block and zone for summary year
-  block <- 38
-  zone <- 'BS'
+  block <- 3
+  zone <- 'N'
   
   # determine maximum and last size limit changes
   df.1 <- compiledMM.df.final %>% 
+   mutate(blockno = str_remove(blockno, "^0+")) %>%  
     dplyr::filter(fishyear <= stock.assessment.year & 
                     blockno == block &
                     newzone == zone &
-                    numblocks == 1) %>% 
+                    numblocks == 1) %>%  
     summarise(max.lml = max(sizelimit)) %>% 
     pull()
   
   # select data for summary year, block and zone and generate percentage of observations within x of lml
   df.10 <- compiledMM.df.final %>% 
+   mutate(blockno = str_remove(blockno, "^0+")) %>%
     dplyr::filter(fishyear <= stock.assessment.year &
                     blockno == block &
                     newzone == zone &

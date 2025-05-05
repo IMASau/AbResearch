@@ -309,7 +309,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 
 # load legal minimum length data
 # size.limits <- read.csv("C:/CloudStor/R_Stuff/MMLF/AbaloneSizeLimits2.csv", fileEncoding="UTF-8-BOM")
-size.limits <- read.csv(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.csv'), fileEncoding="UTF-8-BOM")
+# size.limits <- read.csv(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.csv'), fileEncoding="UTF-8-BOM")
 size_limits <- read.xlsx(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.xlsx'), detectDates = T)
 
 df_1 <- size_limits %>% 
@@ -319,33 +319,39 @@ df_1 <- size_limits %>%
  select(sizelimit.index, sizelimit)
 
 
-# # remove existing size limit data
-# compiledMM.df.final <- compiledMM.df.final %>% 
-#  select(-c(sizelimit, sizelimit.index))
-
-# clean lml data
-colnames(size.limits) <- tolower(colnames(size.limits))
-names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
-
-# convert lml data to long format and create lml index variable
-size.limits.tab <- size.limits %>%
- gather(monthyear, sizelimit, `jan-1962`:`dec-2024`) %>% 
- mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
- mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
- mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
- mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
- mutate(monthyear = gsub('may', 5, monthyear)) %>% 
- mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
- mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
- mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
- mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
- mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
- mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
- mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
- mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
- select(sizelimit.index, sizelimit)
+# # # remove existing size limit data
+# # compiledMM.df.final <- compiledMM.df.final %>% 
+# #  select(-c(sizelimit, sizelimit.index))
+# 
+# # clean lml data
+# colnames(size.limits) <- tolower(colnames(size.limits))
+# names(size.limits) <- gsub('.', '-', names(size.limits), fixed = T)
+# 
+# # convert lml data to long format and create lml index variable
+# size.limits.tab <- size.limits %>%
+#  gather(monthyear, sizelimit, `jan-1962`:`dec-2024`) %>% 
+#  mutate(monthyear = gsub('jan', 1, monthyear)) %>% 
+#  mutate(monthyear = gsub('feb', 2, monthyear)) %>% 
+#  mutate(monthyear = gsub('mar', 3, monthyear)) %>% 
+#  mutate(monthyear = gsub('apr', 4, monthyear)) %>% 
+#  mutate(monthyear = gsub('may', 5, monthyear)) %>% 
+#  mutate(monthyear = gsub('jun', 6, monthyear)) %>% 
+#  mutate(monthyear = gsub('jul', 7, monthyear)) %>% 
+#  mutate(monthyear = gsub('aug', 8, monthyear)) %>% 
+#  mutate(monthyear = gsub('sep', 9, monthyear)) %>% 
+#  mutate(monthyear = gsub('oct', 10, monthyear)) %>% 
+#  mutate(monthyear = gsub('nov', 11, monthyear)) %>% 
+#  mutate(monthyear = gsub('dec', 12, monthyear)) %>% 
+#  mutate(sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
+#  select(sizelimit.index, sizelimit)
 
 size.limits.tab <- df_1
+
+# remove leading zero from blockno
+compiledMM.df.final <- compiledMM.df.final %>% 
+ mutate(blockno = str_remove(blockno, "^0+"),
+        subblockno = gsub("^0+", "", subblockno),
+        subblockno = gsub(", 0", ",", subblockno))
 
 # add columns that count number of blocks and subblocks in compiledMM.df.final
 compiledMM.df.blockcount <- compiledMM.df.final %>%
@@ -361,6 +367,8 @@ compiledMM.df.same.blockcount <- compiledMM.df.blockcount %>%
                                      if_else(is.na(blocklist_5) & is.na(blocklist_4) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3, 1,
                                              if_else(is.na(blocklist_5) & blocklist_1 == blocklist_2 & blocklist_2 == blocklist_3 & blocklist_3 == blocklist_4, 1,
                                                      if_else(!is.na(blocklist_5) & blocklist_5 == blocklist_1, 1, 0))))))
+
+
 
 # create lml index variable in compiledMM.df.same.blockcount
 compiledMM.df.lml.index <- compiledMM.df.same.blockcount %>%
@@ -431,6 +439,16 @@ compiledMM.df.final <- compiledMM.df.final %>%
                                               dplyr::if_else(between(whole.weight, 401, 600), 'small',
                                                              dplyr::if_else(between(whole.weight, 601, 800), 'medium', 'large')))),
         whole.weight = replace(whole.weight, whole.weight == 0, NA))
+
+
+
+
+df_2 <- compiledMM.df.final %>% 
+ filter(fishyear == 2024 &
+         newzone == 'N') %>% 
+ mutate(subblockno = gsub("^0+", "", subblockno),
+        subblockno = gsub(", 0", ",", subblockno))
+
 
 ##----------------------------------------------------------------------------##
 # save RDS file

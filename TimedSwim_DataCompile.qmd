@@ -1251,4 +1251,30 @@ ts_dat_df_final_ref <- ts_dat_df_final_ref %>%
 saveRDS(time_swim_dat_final, paste(samp_year_folder, '/time_swim_dat_final.RDS', sep = ''))
 saveRDS(ts_dat_df_final_ref, paste(samp_year_folder, '/time_swim_dat_df_final.RDS', sep = ''))
 saveRDS(ts_meta_dat_final_ref, paste(samp_year_folder, '/time_swim_meta_dat_final.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+# 14. Convert metadata to gpkg
+
+# Import metadata frame
+time_swim_meta_dat_final <- readRDS(paste(samp_year_folder, '/time_swim_meta_dat_final.RDS', sep = ''))
+
+# Set CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+ts_meta_dat <- time_swim_meta_dat_final %>% 
+ select(-c(finish_geom)) %>% 
+ st_as_sf() %>% 
+ dplyr::rename(geometry = 'start_geom')
+ # st_transform(WGS84) %>% 
+ # extract(geometry, into = c('lattitude', 'longitude'), '\\((.*),(.*)\\)', conv = T)
+
+# Save spatial layer for QGIS
+st_write(ts_meta_dat,
+         dsn = paste(samp_year_folder, '/ts_meta_dat_', Sys.Date(), '.gpkg', sep = ''),
+         layer = "ts_meta_dat", driver = "GPKG", overwrite = T, delete_dsn = T)
+
+
+
 ```

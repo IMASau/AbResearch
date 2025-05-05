@@ -26,7 +26,7 @@ library(hms)
 # 2. Set sample year and file paths ####
 
 # identify target year of interest
-target_year <- 2024
+target_year <- 2025
 
 target_year_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
                                               Sys.info()[["user"]])),
@@ -240,7 +240,7 @@ else{
 ## measuring board data frame for which to create summaries
 
 # identify local working folder containing existing docket summaries
-processor_summaries_2024 <- target_year_folder
+processor_summaries_2025 <- target_year_folder
 # processor.summaries.2023 <- 'C:/cloudstor/DiveFisheries/Abalone/Assessment/Figures/MM/2023/MM_Plots_2023ProcessorSummaries'
 # processor.summaries.2022 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2022ProcessorSummaries'
 # processor.summaries.2021 <- 'C:/CloudStor/R_Stuff/MMLF/MM_Plots/MM_Plots_2021ProcessorSummaries'
@@ -258,6 +258,9 @@ processor.summaries.2022 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS R
 processor.summaries.2023 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
                                                     Sys.info()[["user"]])),
                                       paste(2023, '/', 'MM_Plots_', 2023, 'ProcessorSummaries//', sep = ''))
+processor_summaries_2024 <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                                    Sys.info()[["user"]])),
+                                      paste(2024, '/', 'MM_Plots_', 2024, 'ProcessorSummaries//', sep = ''))
 
 # list filenames of existing docket summaries in each folder
 docket.summaries.2020 <- list.files(processor.summaries.2020,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
@@ -265,6 +268,7 @@ docket.summaries.2021 <- list.files(processor.summaries.2021,  pattern = "^AW.*p
 docket.summaries.2022 <- list.files(processor.summaries.2022,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket.summaries.2023 <- list.files(processor.summaries.2023,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 docket_summaries_2024 <- list.files(processor_summaries_2024,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
+docket_summaries_2025 <- list.files(processor_summaries_2025,  pattern = "^AW.*pdf|^AE.*pdf|^AB.*pdf|^AN.*pdf|^AG.*pdf", full.names = F)
 
 
 # combine filenames
@@ -272,7 +276,8 @@ docket.summaries <- c(docket.summaries.2020,
                       docket.summaries.2021, 
                       docket.summaries.2022,
                       docket.summaries.2023,
-                      docket_summaries_2024)
+                      docket_summaries_2024,
+                      docket_summaries_2025)
 
 # create a vector of existing docket numbers from filenames 
 existing.dockets <- as.data.frame(docket.summaries) %>%

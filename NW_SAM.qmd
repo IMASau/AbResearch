@@ -167,11 +167,13 @@ Quick summary plots to look for outliers in length data. Summary counts for each
 
 
 sam_dat %>% 
+ filter(!is.na(shell_length)) %>% 
  ggplot()+
  geom_point(aes(x = shell_length, y = shell_width))+
  theme_bw()
 
 sam_dat %>% 
+ filter(!is.na(shell_length)) %>%
  ggplot()+
  geom_point(aes(x = shell_length, y = shell_height))+
  theme_bw()
@@ -182,19 +184,19 @@ sam_dat %>%
  theme_bw()
 
 sam_dat %>% 
+ filter(!is.na(shell_length)) %>%
  ggplot()+
  geom_histogram(aes(shell_length), binwidth = 20)+
  theme_bw()
 
 sam_dat %>% 
+ filter(!is.na(shell_length)) %>%
  mutate(size_bin = factor(size_bin, levels =c('0-60', '60-80', '80-100', '100-120', '120-140', '140-160', '160-180'))) %>% 
  ggplot()+
  geom_histogram(aes(size_bin), stat = 'count')+
  theme_bw()+
  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5))+
- facet_wrap(. ~ site, nrow = 2)
-
-test
+ facet_wrap(. ~ site, nrow = 3)
 
 ```
 # Size-at-maturity estimation
@@ -212,11 +214,13 @@ A dataframe has been created to run the 'fitmaturity' function where maturity ha
 * I = stages 0-1
 * M = stages 2-3.
 
-
+## Size-at-maturity by site
 ```{r maturity regression}
 #| echo: true
 #| warning: false
 #| message: false
+#| label: fig-prop-mature
+#| fig-cap: "Proportion mature at length for blacklip abalone maturity data at each surveyed site in Block 5 (NW Tasmania) in 2025. Length at 50% maturity is indicated by the green vertical line, and sample size is presented in the top-left corner of the plot."
 
 library(biology)
 library(hplot)
@@ -245,13 +249,15 @@ tas_ab <- tas_ab %>%
  mutate(sex = case_when(sex %in% c('M', 'F') ~ 'M',
                         sex == 'I' ~ 'I'))
 
-# Quick summary of samples by site and matuirty status(sex)
+# Quick summary of samples by site and maturity status(sex)
 table(tas_ab$site, tas_ab$sex)
 
 # Create parameters for loop and plots
 sites <- sort(unique(tas_ab$site))
 nsite <- length(sites)
-scenes <- c("AB-NW-SAM-2024-5-1", "AB-NW-SAM-2024-5-2", "AB-NW-SAM-2024-5-4", "AB-NW-SAM-2024-5-9")
+scenes <- c("AB-NW-SAM-2024-5-1", "AB-NW-SAM-2024-5-2", "AB-NW-SAM-2024-5-3", "AB-NW-SAM-2024-5-4",
+            "AB-NW-SAM-2024-5-7", "AB-NW-SAM-2024-5-8", "AB-NW-SAM-2024-5-9", "AB-NW-SAM-2024-5-10",
+            "AB-NW-SAM-2024-5-18")
 models <- makelist(scenes)
 count <- 0
 
@@ -266,7 +272,7 @@ for (i in 1:nsite) { #  i = 1
 str1(models)
 str1(models[["Site1"]])
 
-# Create matuirty plots for each site
+# Create maturity plots for each site
 plotprep(width=10, height=8)
 parset(plots=c(2,2))
 for (i in 1:length(models)) {
@@ -276,20 +282,42 @@ for (i in 1:length(models)) {
 
 
 ```
+## Size-at-maturity across block
+
+```{r maturity regression block}
+#| echo: true
+#| warning: false
+#| message: false
+#| label: fig-prop-mature-block
+#| fig-cap: "Proportion mature at length for blacklip abalone maturity data for Block 5 (NW Tasmania) in 2025. Length at 50% maturity is indicated by the green vertical line, and sample size is presented in the top-left corner of the plot."
+
+# Run model across block for sexes combined
+models <- fitmaturity(tas_ab, length = "length", mature = "mature", lower = 50,upper = 160)
+
+# Create maturity plots for entire Block 5
+plotprep(width=10, height=8)
+# parset(plots=c(2,2))
+plotmaturity(models, label = 'AB-NW-SAM-2024-Block-5', col = 2, xmax = 0, CI = F, setpar = F, lwd = 2)
+
+```
 # Shellology maturity status
+
+## Internal shell scaring vs maturity
 A quick summary plot comparing Prince 'shellology' classification of internal shell scaring and maturity status determined from macroscopic examination of gonads. A summary of the Shell_internal_score:
 
 1. No scar formation.
 2. Some pitting.
 3. Quite pitted.
 4. Secondary deposition forming.
-5. Seconadry deposition covers most of muscle attachment site.
-6. Seconadry deposition covers all of muscle attachment site.
+5. Secondary deposition covers most of muscle attachment site.
+6. Secondary deposition covers all of muscle attachment site.
 
-```{r maturty scars}
+```{r maturity scars}
 #| echo: false
 #| warning: false
 #| message: false
+#| label: fig-int-shell-count
+#| fig-cap: "Total count of abalone for each internal shell classification from specimens sampled in Block 5 (NW Tasmania) in 2025."
 
 # Convert lowercase to uppercase sex.
 sam_dat <- sam_dat %>% 
@@ -311,6 +339,47 @@ sam_dat %>%
  geom_histogram(aes(factor(shell_internal)), stat = 'count')+
  theme_bw()+
  xlab('shell_internal_score')+
+ facet_wrap(. ~ mature, labeller = labeller(mature = mat_labs))
+
+```
+## External shell appearance vs maturity
+A quick summary plot comparing Prince 'shellology' classification of external shell appearance and maturity status determined from external appearance and fouling of shell. A summary of the Shell_external_score:
+
+1. Clean shell; no epiphytic growth.
+2. Some epiphytic fouling but not advanced.
+3. Hard fouling commenced around spire.
+4. Fleshy fouling and coraline covering spire but ripple texture of shell apparent.
+5. Fleshy fouling and coraline covering most of shell and ripple texture of shell non-apparent
+6. Shell completely overgrown with hard fouling to growing edge.
+7. Very thick fouling and shell completely overgrown.
+
+```{r external score}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-ext-shell-count
+#| fig-cap: "Total count of abalone for each external shell classification from specimens sampled in Block 5 (NW Tasmania) in 2025."
+
+# Convert lowercase to uppercase sex.
+sam_dat <- sam_dat %>% 
+ mutate(sex = toupper(sex))
+
+# Classify gonad stage 1 abalone as immature.
+sam_dat <- sam_dat %>% 
+ mutate(sex_adj = case_when(gonad_score %in% c(0, 1) ~ 'I',
+                            gonad_score >= 2 ~ sex),
+        mature = case_when(gonad_score >= 2 ~ 1,
+                           gonad_score <= 1 ~ 0))
+
+mat_labs <- c('immature', 'mature')
+names(mat_labs) <- c('0', '1')
+
+sam_dat %>% 
+ filter(!is.na(shell_external)) %>% 
+ ggplot()+
+ geom_histogram(aes(factor(shell_external)), stat = 'count')+
+ theme_bw()+
+ xlab('shell_external_score')+
  facet_wrap(. ~ mature, labeller = labeller(mature = mat_labs))
 
 ```
