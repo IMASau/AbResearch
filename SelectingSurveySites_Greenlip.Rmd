@@ -29,13 +29,13 @@ suppressPackageStartupMessages({
 library(tictoc)
 library(sf)
 library(nngeo)
-library(maptools)
-library(rgdal)
+# library(maptools)
+# library(rgdal)
 library(sp)
 library(spatialEco)  
-library(rgeos)
+# library(rgeos)
 library(lubridate)
-library(spdplyr)
+# library(spdplyr)
 library(tidyverse)
 library(tmap)
 library(tictoc)
@@ -58,8 +58,7 @@ Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer c
 ```{r prepare base layers}
 ## Read in greenlip abalone wide hex layer
 
-ab.hex <- readRDS(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.rds",
-        Sys.info()[["user"]])) 
+ab.hex <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.rds", Sys.info()[["user"]])))
 
 
 ## convert to sf
@@ -76,12 +75,12 @@ THe input variable is the total catch in Kg for each cell from 2012 - 2019. We u
 # Filter hex layer to required block and add quartile
 ts.hex <- sf.ab.hex %>% 
   mutate(subblockno = gsub(" ", "", subblockno)) %>% 
-  filter(subblockno %in%  c('31A', '31B', '39A','39B')) %>% 
+  filter(subblockno %in%  c('31A', '31B', '39A', '39B')) %>% 
   within({
     cell.ntile <- ntile(GLhexcatch, 5)
   })
 
-outname.ts.hex <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/grid1HA_greenlip.gpkg", Sys.info()[["user"]])
+outname.ts.hex <- sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.gpkg", Sys.info()[["user"]])
 st_write(ts.hex, dsn = outname.ts.hex, layer = "pointqt", driver = "GPKG", append = F)
 
 hex.cell.summary <- ts.hex %>%
@@ -99,6 +98,8 @@ hex.cell.summary <- ts.hex %>%
 # randomly sample cells within strata.
 We want to randomly select 150 hex cells across the top three quantile strata. The two lower quantile strata contribute `r sum(hex.cell.summary$catch[1:2])/sum(hex.cell.summary$catch)`  of a total catch of `r sum(hex.cell.summary$catch) `. The top three quantile groups contribute `r sum(hex.cell.summary$catch[3])/sum(hex.cell.summary$catch)`, `r sum(hex.cell.summary$catch[4])/sum(hex.cell.summary$catch)`  and `r sum(hex.cell.summary$catch[5])/sum(hex.cell.summary$catch)`  of the catch, respectively.
 ```{r random sample of cells}
+
+# This code was originally used for site selection in the 2023-2024 timed swim validation research experiment for the NE greenlip and Actaeons.
 
 set.seed(123) 
 
@@ -125,6 +126,7 @@ table(cellqt_NE_GL$blockno, cellqt_NE_GL$cell.ntile)
 ```
 # Examine Nearest Neighbour distances
 We find the  k=1 Nearest Neighbour and then calculate the distance between a cell and its closest neighbor. Centroids of hex cells are ~ 107m apart.
+
 ```{r examine nnb}
 knear <- knearneigh(st_centroid(cellqt_NE_GL), k = 1, longlat = FALSE, use_kd_tree = TRUE)
 neighbors <- knn2nb(knear)
@@ -175,6 +177,8 @@ It is much easier to explore the data in QGIS. We export the selected cells as a
 
 ```{r export to gpkg}
 
+# These are the original sites chosen for the 2023-2024 timed swim validation research experiment for the NE greenlip and Actaeons.
+
 ## Export cells to gpkg ####
 pointqt <- st_centroid(cellqt_NE_GL)
 outname.point <- sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2023_50m.gpkg", Sys.info()[["user"]])
@@ -215,4 +219,181 @@ write.xlsx(pointqt_gpx, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFis
            sheetName = "Sheet1",
            col.names = TRUE, row.names = F, append = FALSE)
  
+```
+```{r reference site selection 2025}
+
+# In 2025, following the successful trial of the timed swim methodology in the validation research experiment, it was decided to continue monitoring the status of the NE greenlip fishery. Data from the 2023–2024 experiments would serve as the baseline abundance data. To maintain consistency with the methodology used in East Coast blacklip timed swim surveys, a random selection of 15 reference sites was chosen from these baseline sites. A 50 m buffer was then applied to these sites, and 45 new sites were randomly selected from the remaining locations outside this buffer for surveys in subsequent years.
+
+# Read GL layer of sites surveyed in 2023/24 timed swim validation survey
+gl_sites_surveyed <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2024_sites_sampled_2024-10-24.gpkg", Sys.info()[["user"]])))
+
+# Read in original sites selected for the 2023/24 survey
+gl_sites_proposed <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]])), detectDates = T) %>% 
+ select(-1)
+
+# Join sites sureyed with their original OID and cell.ntile value
+gl_sites <- left_join(gl_sites_surveyed, gl_sites_proposed %>% select(site, oid, cell.ntile, blockno, subblockno))
+
+# Set seed
+set.seed(123)
+
+# Randomly select 15 reference sites from survey data
+gl_ref_sites_sf <- gl_sites %>%
+ distinct(site, .keep_all = T) %>% 
+ sample_n(15) %>% 
+ mutate(ref_site = 'ref')
+
+# Unset seed
+set.seed(NULL)
+
+# Create dataframe of reference sites
+gl_ref_sites_df <- gl_ref_sites_sf %>%
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
+  st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(site, blockno, subblockno, oid, cell.ntile, x, y, ref_site) %>% 
+  dplyr::rename('latitude' = y,
+                'longitude' = x) %>% 
+  mutate(blockno = as.integer(blockno),
+         cell_ntile = as.integer(cell.ntile)) %>% 
+ select(-cell.ntile)
+
+# Export Excel version of reference sites to survey year folder
+data_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys2025', sep = ''))
+
+outname_point <- paste(data_folder, paste('/TimedSwimSites_NEGreenlip_ReferenceSites_Final_2025', ".gpkg", sep = ""), sep = '')
+st_write(gl_ref_sites_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
+
+gl_ref_sites_df %>%
+ write.xlsx(file = paste(data_folder, paste('/TimedSwimSites_NEGreenlip_ReferenceSites_Final_2025.xlsx', sep = ''), sep = ''), sheetName = "Sheet1", col.names = TRUE, row.names = TRUE, append = FALSE)
+
+saveRDS(gl_ref_sites_df,paste(data_folder, paste('/TimedSwimSites_NEGreenlip_ReferenceSites_Final_2025.RDS', sep = ''), sep = ''))
+
+```
+
+```{r site selection post 2024}
+
+# Specify assessment year
+assess_year <- 2025
+
+# Create buffer around reference sites to exclude new sites within 50 m for proceeding year site selections.
+gl_ref_sites_buff <- st_buffer(gl_ref_sites, dist = 50) %>% 
+ st_transform(crs = st_crs(4326))
+
+# Remove sites within 50 m of reference sites
+gl_ts_hex_sf <- ts.hex %>%
+ st_centroid() %>% 
+ st_transform(crs = st_crs(4326)) %>% 
+ erase.point(., gl_ref_sites_buff)
+
+# Create vector of all OIDs sampled to filter from next assessment year random site selection
+oid_samp <- gl_sites %>% 
+        distinct(site, .keep_all = T) %>% 
+        filter(!is.na(oid)) %>% 
+        ungroup() %>% 
+        pull(oid)
+
+# Sites to exclude (oid) where a gps was left on while transiting on a motherboat.
+oid_exc <- c(1062044, 1062045, 1062604, 1062605, 1062606, 1062607, 1062608, 1062609, 1062610, 1062611, 1062614, 1062632, 1062633, 1062634, 1062635, 1063208, 1063209, 1063210, 1063211, 1063212, 1063213, 1063214, 1063215, 1063216, 1063217, 1063218, 1063219, 1063220, 1063221, 1063222, 1063223, 1063224, 1063225, 1063226, 1063227, 1063228)
+
+set.seed(123) 
+
+# set sample size required (i.e. n = 45)
+samp.size <- 45
+
+# randomly select sites (NOTE: manually change dataframe name for each block)
+cellqt_NE_GL <- gl_ts_hex_sf %>% 
+  filter(!oid %in% c(oid_exc, oid_samp)  &
+           cell.ntile > 2) %>%
+  group_by(blockno, cell.ntile)  %>% 
+  st_as_sf() %>%
+  subsample.distance(size = samp.size, d = 50) %>% #50 m distance between sites
+  st_as_sf() %>% 
+  ungroup()
+
+  # quick summary of sites x block x strata
+table(cellqt_NE_GL$blockno, cellqt_NE_GL$cell.ntile)
+
+# Find the centroid of each hex cell to create point/site location coordinates
+ts_sites_pointqt_sf <- st_centroid(cellqt_NE_GL)
+
+# Convert geometry to latitude and longitude to create dataframe
+ts_sites_df <- ts_sites_pointqt_sf %>%
+        st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(c(zone, blockno, subblockno, cell.ntile, oid, x, y)) %>%
+  dplyr::rename('latitude' = y,
+                'longitude' = x,
+                'cell_ntile' = cell.ntile)
+
+# Add site names using naming convention 'AB-sampyear-blockno-site.order'
+ts_sites_df <- ts_sites_df %>% 
+ group_by(blockno) %>% 
+  mutate(site_no = row_number(),
+         site = paste('GL', assess_year, blockno, site_no, sep = '-')) %>% 
+ ungroup()
+
+# Denote as new sites
+ts_sites_df <- ts_sites_df %>% 
+ mutate(ref_site = 'new')
+
+# Unset seed
+set.seed(NULL)
+
+# Select data 
+ts_sites_df <- ts_sites_df %>% 
+  select(site, blockno, subblockno, oid, cell_ntile, longitude, latitude, ref_site)
+
+# Join new sites with original reference sites
+ts_sites_final_df <- bind_rows(gl_ref_sites_df, ts_sites_df) %>% 
+ arrange(blockno)
+
+# Convert df to SF for export
+ts_sites_final_sf  <-  ts_sites_final_df %>% 
+  st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
+
+# Create GPX file for export
+ts_sites_final_gpx <- ts_sites_final_df %>% 
+ dplyr::rename('name' = 'site') %>% 
+ select(c(name, longitude, latitude)) %>% 
+ add_column(description = NA, 
+            comment = NA)
+
+```
+
+# Export data
+```{r export data}
+
+# Export folder path
+
+gis_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers',
+Sys.info()[["user"]]), sep = '')))
+
+data_folder_path <- paste(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/', Sys.info()[["user"]]), paste('FIS_TimedSwimSurveys', assess_year, sep = ''), sep = '')))
+
+# Export geospatial package for GIS and KML for Google Earth
+
+outname_point <- paste(gis_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".gpkg", sep = ""), sep = '')
+outname_point <- paste(data_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".gpkg", sep = ""), sep = '')
+
+st_write(ts_sites_final_sf, dsn = outname_point, layer = "pointqt", driver = "GPKG", append = F)
+
+# Export KML for Google Earth
+
+outname_point_kml <- paste(gis_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".kml", sep = ""), sep = '')
+outname_point_kml <- paste(data_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".kml", sep = ""), sep = '')
+
+st_write(ts_sites_final_sf, dsn = outname_point_kml, layer = "pointqt", driver = "kml", append = F) 
+ 
+# Export Excel files 
+write.xlsx(ts_sites_final_df, paste(gis_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_df, paste(data_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+
+
+# Export Excel file for GPX conversion
+write.xlsx(ts_sites_final_gpx, paste(gis_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+write.xlsx(ts_sites_final_gpx, paste(data_folder_path, paste('/TimedSwimSites_NEGreenlip_Final_', assess_year, '_GPX', ".xlsx", sep = ""), sep = ''), sheetName = "Sheet1", colNames = TRUE, rowNames = TRUE, append = FALSE)
+  
 ```

@@ -190,6 +190,30 @@ ref_sites_oid <- ref_sites %>%
 # Replace periods (e.g. '.') in column names
 names(time_swim_ref_sites) <- gsub(x = names(time_swim_ref_sites), pattern = '\\.', replacement = '_')
 
+# Denote reference sites with 'ref'
+time_swim_ref_sites <- time_swim_ref_sites %>% 
+ mutate(ref_site = 'ref')
+
+# Create dataframe of reference sites
+ts_ref_sites_df <- time_swim_ref_sites %>%
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
+  st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(site_new, blockno, subblockno, oid, cell_ntile, sam_count, x, y, ref_site) %>% 
+  dplyr::rename('latitude' = y,
+                'longitude' = x,
+                'site' = site_new) %>% 
+  mutate(blockno = as.integer(blockno),
+         cell_ntile = as.integer(cell_ntile))
+
+# Convert ref sites to sf
+ts_ref_sites_sf  <-  ts_ref_sites_df %>% 
+  st_as_sf(coords = c('longitude', 'latitude'), crs = st_crs(4326))
+
+# Create buffer around reference sites to exclude new sites within 300 m for proceeding year site selections.
+ts_ref_sites_buff <- st_buffer(ts_ref_sites_sf, dist = 300)
+
 # UPDATE: 2024-10-12 Create dataframe of reference sites to include in each assessment year folder.
 
 # ts_ref_site_dat <- time_swim_ref_sites %>% 
@@ -220,7 +244,7 @@ Timed swim surveys in subsequent years after the collection of baseline data in 
 ## Post 2020 site selection ####
 
 # Specify assessment year
-assess_year <- 2024
+assess_year <- 2025
 
 # Import final timed swim dataframe from previous assessment year
 time.swim.dat.final <- readRDS(file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata',
@@ -240,6 +264,21 @@ ts_sites_sampled <- time.swim.dat.final %>%
         ungroup() %>% 
         pull(oid)
 
+# Remove sites within 300 m of reference sites
+ts_hex_sf <- ts.hex %>%
+ st_centroid() %>% 
+ st_transform(crs = st_crs(4326)) %>% 
+ erase.point(., ts_ref_sites_buff)
+
+# Quick summary of sites available by block based on not surveying sites in year-1 and top three percentile.
+block_hex_count <- ts_hex_sf %>% 
+ filter(!oid %in% ts_sites_sampled &
+           cell.ntile > 2 &
+           !subblockno %in% c('28B', '28C')) %>% 
+ group_by(blockno) %>% 
+ summarise(n = n())
+# Note: Sub-block 28A only has 15 sites available given relative size and concentration of fishing around one main reef.
+
 # Create vector of blocks
 blocknos <- c(16, 22, 23, 24, 27, 28)
 
@@ -251,14 +290,14 @@ set.seed(1234)
 
 # Run loops to generate random hex cells for each closed and reference block
 for (i in blocknos){
-cellqt <- ts.hex %>% 
+cellqt <- ts_hex_sf %>% 
   filter(!oid %in% ts_sites_sampled &
            cell.ntile > 2 &
            !subblockno %in% c('28B', '28C') &
            blockno == i) %>%  
-  group_by(blockno, cell.ntile) %>%
-  # as_Spatial() %>% 
-  subsample.distance(size = 45, d = 300) %>% #change size = 45
+  group_by(blockno, cell.ntile) %>% 
+  # as_Spatial() %>%
+  subsample.distance(size = dplyr::case_when(i == '28' ~ 14, TRUE ~ 45), d = 300) %>% #change size = 45
   st_as_sf() %>% 
   ungroup()
 
@@ -319,12 +358,12 @@ ts_ref_sites_df <- time_swim_ref_sites %>%
   st_set_crs(st_crs(7855)) %>%
   st_transform(crs = st_crs(4326)) %>%
   sfheaders::sf_to_df(fill = T) %>%
-  select(site.new, blockno, subblockno, oid, cell.ntile, sam.count, x, y, ref_site) %>% 
+  select(site_new, blockno, subblockno, oid, cell_ntile, sam_count, x, y, ref_site) %>% 
   dplyr::rename('latitude' = y,
                 'longitude' = x,
-                'site' = site.new) %>% 
+                'site' = site_new) %>% 
   mutate(blockno = as.integer(blockno),
-         cell.ntile = as.integer(cell.ntile))
+         cell_ntile = as.integer(cell_ntile))
 
 ts_sites_df <- ts_sites_df %>% 
   select(site, blockno, subblockno, oid, cell.ntile, longitude, latitude)

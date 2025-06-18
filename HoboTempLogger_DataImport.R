@@ -5,7 +5,7 @@ library(ggplot2)
 library(lubridate)
 
 # read raw data
-logger.a <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/1_abalone_physiology_Control_13degrees.csv",
+logger.a <- read.csv("C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Data/HeatStress_Data/1_abalone_physiology_Control_13degrees.csv",
                            header = T)
 
 logger.a <- logger.a %>%
@@ -14,7 +14,7 @@ logger.a <- logger.a %>%
         treatment = 'control') %>% 
  select(date.time, temperature, treatment)
 
-logger.b <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/1_abalone_physiology_TreatmentA_16degrees.csv",
+logger.b <- read.csv("C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Data/HeatStress_Data/1_abalone_physiology_TreatmentA_16degrees.csv",
                      header = T)
 
 logger.b <- logger.b %>%
@@ -23,7 +23,7 @@ logger.b <- logger.b %>%
         treatment = 'medium') %>% 
  select(date.time, temperature, treatment)
         
-logger.c <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/1_abalone_physiology_TreatmentB_19degrees.csv",
+logger.c <- read.csv("C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Data/HeatStress_Data/1_abalone_physiology_TreatmentB_19degrees.csv",
                      header = T)
 
 logger.c <- logger.c %>%
@@ -81,7 +81,7 @@ ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Docum
 # Formulated feed experiment temperature data
 
 # read raw data
-logger_dat <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/AbStressTest_Capture-Harvest_Temperature_2021-12-10_clean.csv",
+logger_dat <- read.csv("C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Data/HeatStress_Data/AbStressTest_Capture-Harvest_Temperature_2021-12-10_clean.csv",
                      header = T)
 
 logger_dat <- logger_dat %>%
@@ -112,7 +112,7 @@ logger_dat %>%
 ##---------------------------------------------------------------------------##
 # Live transport experiment
 
-live_temp_dat <- read.csv("C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/AbStressTest_TemperatureRH_2021-12-08_clean.csv",
+live_temp_dat <- read.csv("C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Data/HeatStress_Data/AbStressTest_TemperatureRH_2021-12-08_clean.csv",
                        header = T)
 
 live_temp_dat_clean <- live_temp_dat %>%
@@ -126,24 +126,34 @@ trans_exp_dat <- live_temp_dat_clean %>%
  filter(date_time > ymd_hms("2021-12-07 12:15:00", tz = 'Australia/Tasmania') & 
          date_time < ymd_hms("2021-12-08 12:15:00", tz = 'Australia/Tasmania'))
 
+min_date <- min(trans_exp_dat$date_time)
+transport_start_date <- as.numeric(difftime((ymd_hms("2021-12-07 13:30:00", tz = 'Australia/Tasmania')), min_date, units = 'hours'))
+transport_end_date <- as.numeric(difftime((ymd_hms("2021-12-08 11:30:00", tz = 'Australia/Tasmania')), min_date, units = 'hours'))
+packing_date_lab <- as.numeric(difftime((ymd_hms("2021-12-07 12:15:00", tz = 'Australia/Tasmania')), min_date, units = 'hours'))
+transport_date_lab <- as.numeric(difftime((ymd_hms("2021-12-08 00:00:00", tz = 'Australia/Tasmania')), min_date, units = 'hours'))
+processing_date_lab <- as.numeric(difftime((ymd_hms("2021-12-08 12:25:00", tz = 'Australia/Tasmania')), min_date, units = 'hours'))  
+
+trans_exp_dat <- trans_exp_dat %>% 
+ mutate(hours = as.numeric(difftime(date_time, min_date, units = 'hours')))
+
 trans_exp_plot <- trans_exp_dat %>% 
- ggplot(aes(x = date_time))+
+ ggplot(aes(x = hours))+
  geom_line(aes(y = temperature), colour = 'red')+
  geom_line(aes(y = humidity / 6), colour = 'blue')+
  scale_y_continuous(name = "Temperature (\u00B0C)", sec.axis = sec_axis(~.*6, name = "Humidity (rH%)"))+
- geom_vline(aes(xintercept = ymd_hms("2021-12-07 13:30:00", tz = 'Australia/Tasmania')), colour = 'black', linetype = 'dashed')+
- geom_vline(aes(xintercept = ymd_hms("2021-12-08 11:30:00", tz = 'Australia/Tasmania')), colour = 'black', linetype = 'dashed')+
+ geom_vline(aes(xintercept = transport_start_date), colour = 'black', linetype = 'dashed')+
+ geom_vline(aes(xintercept = transport_end_date), colour = 'black', linetype = 'dashed')+
  theme_bw()+
- xlab('Date Time')+
+ xlab('Hours')+
  # ylab('Temperature (\u00B0C)')+
- geom_text(label = 'Packing', x = ymd_hms("2021-12-07 12:15:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity')+
- geom_text(label = 'Live Transport', x = ymd_hms("2021-12-08 00:00:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity')+
- geom_text(label = 'Processing', x = ymd_hms("2021-12-08 12:25:00", tz = 'Australia/Tasmania'), y = 12.5, size = 3, stat = 'identity', angle = 90)
+ geom_text(label = 'Packing', x = packing_date_lab, y = 12.5, size = 3, stat = 'identity')+
+ geom_text(label = 'Live Transport', x = transport_date_lab, y = 12.5, size = 3, stat = 'identity')+
+ geom_text(label = 'Processing', x = processing_date_lab, y = 12.5, size = 3, stat = 'identity', angle = 90)
 
-ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/TransportExperiment_LoggerTemperature', '.pdf', sep = ''), 
+ggsave(filename = paste('C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Figures/Transport/TransportExperiment_LoggerTemperature', '.pdf', sep = ''), 
        plot = trans_exp_plot, units = 'mm', width = 190, height = 150)
 
-ggsave(filename = paste('C:/Users/jaimem/OneDrive - University of Tasmania/Documents/AB_proteomics/TransportExperiment_LoggerTemperature', '.png', sep = ''), 
+ggsave(filename = paste('C:/Users/jaimem/UTAS Research Dropbox/Jaime McAllister/DiveFisheries/Projects/AIRF_2020_43/2020_43_Figures/Transport/TransportExperiment_LoggerTemperature', '.png', sep = ''), 
        plot = trans_exp_plot, units = 'mm', width = 190, height = 150)
 
 trans_exp_dat %>% 

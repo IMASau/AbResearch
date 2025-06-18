@@ -96,11 +96,11 @@ source("C:/GitCode/AbResearch/StandardError_Functions.r")
 ## 2. Set file paths ####
 
 # Identify folder containing data
-data_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_JMcAllister/Data', 
+data_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_64/Data', 
                                             Sys.info()[["user"]]))
 
 # Identify folder to save outputs 
-output_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_JMcAllister/Data Analysis/SAM_Analysis', 
+output_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_64/Data Analysis/SAM_Analysis', 
                                             Sys.info()[["user"]]))
 ##---------------------------------------------------------------------------##
 
@@ -256,8 +256,8 @@ table(tas_ab$site, tas_ab$sex)
 sites <- sort(unique(tas_ab$site))
 nsite <- length(sites)
 scenes <- c("AB-NW-SAM-2024-5-1", "AB-NW-SAM-2024-5-2", "AB-NW-SAM-2024-5-3", "AB-NW-SAM-2024-5-4",
-            "AB-NW-SAM-2024-5-7", "AB-NW-SAM-2024-5-8", "AB-NW-SAM-2024-5-9", "AB-NW-SAM-2024-5-10",
-            "AB-NW-SAM-2024-5-18")
+            "AB-NW-SAM-2024-5-5", "AB-NW-SAM-2024-5-6", "AB-NW-SAM-2024-5-7", "AB-NW-SAM-2024-5-8",
+            "AB-NW-SAM-2024-5-9", "AB-NW-SAM-2024-5-10","AB-NW-SAM-2024-5-13", "AB-NW-SAM-2024-5-18")
 models <- makelist(scenes)
 count <- 0
 
@@ -375,7 +375,7 @@ mat_labs <- c('immature', 'mature')
 names(mat_labs) <- c('0', '1')
 
 sam_dat %>% 
- filter(!is.na(shell_external)) %>% 
+ filter(!is.na(shell_external) & !is.na(mature)) %>% 
  ggplot()+
  geom_histogram(aes(factor(shell_external)), stat = 'count')+
  theme_bw()+

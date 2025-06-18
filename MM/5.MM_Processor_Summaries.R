@@ -70,8 +70,8 @@ measure.board.next.gen.df %>%
 mb.next.gen.grade.df <- measure.board.next.gen.df %>% 
         mutate(grade = dplyr::if_else(wholeweight == 0, NA_character_,
                                       dplyr::if_else(processor == 'RALPHS TASMANIAN SEAFOODS PTY LTD' & between(wholeweight, 1, 400), 'xsmall', #0-400g can also be labelled xsmall requested by RTS
-                                      dplyr::if_else(between(wholeweight, 1, 600), 'small', 
-                                                     dplyr::if_else(between(wholeweight, 601, 800), 'medium', 'large')))),
+                                      dplyr::if_else(between(wholeweight, 1, 650), 'small', 
+                                                     dplyr::if_else(between(wholeweight, 651, 850), 'medium', 'large')))),
                wholeweight = replace(wholeweight, wholeweight == 0, NA))
 
 # list of unique processors for summary and plot loops
