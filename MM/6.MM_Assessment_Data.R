@@ -313,7 +313,7 @@ compiledMM.df.final <- compiledMM.df.final %>%
 size_limits <- read.xlsx(paste0(mm_data_folder, 'AbaloneSizeLimits_Dec2024.xlsx'), detectDates = T)
 
 df_1 <- size_limits %>% 
- gather(monthyear, sizelimit, `1962-01-01`:`2024-12-01`) %>% 
+ gather(monthyear, sizelimit, `1962-01-01`:`2025-12-01`) %>% 
  mutate(monthyear = str_remove(format(as.Date(monthyear), "%m-%Y"), "^0+"), 
         sizelimit.index = paste(abzone, subblockno, monthyear, sep = '-')) %>% 
  select(sizelimit.index, sizelimit)

@@ -1,6 +1,6 @@
 ---
-title: "Assessing growth dynamics and connectivity of blacklip abalone (Haliotis rubra) populations"
-subtitle: "Size-at-maturity (SAM)"
+title: "Assessing growth dynamics and connectivity of blacklip abalone (Haliotis rubra) populations in NW Tasmania"
+subtitle: "AOTF Progress Report: Size-at-maturity (SAM)"
 author:
   - name: Jaime McAllister
     affiliations:
@@ -23,24 +23,51 @@ format:
     margin-top: 1in
     margin-bottom: 1in
   pdf:
-    documentclass: scrreport
+    documentclass: scrreprt
     keep-tex:  true
     dpi: 600
-    pdf-engine: lualatex
-    toc: true
+    latex-auto-mk: true
+    latex-auto-install: true
+    # pdf-engine: pdflatex
+    mainfont: Arial
+    latex-tinytex: false
+    toc: false
     toc-depth: 4
     toc_float: true
-    number-sections: false
+    number-sections: true
     number-depth: 4
     highlight-style: github
     papersize: "A4paper"
-    linestretch: 1.25
-    mainfont: Calibri
+    #linestretch: 1.25
+    fig_caption: yes
     geometry:
       - left = 20mm
       - right = 20mm
       - top = 20mm
       - bottom = 10mm
+    header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
+    include-in-header: |
+      \usepackage{amsmath}
+      \usepackage{fontspec}
+      \setmainfont{Arial}
+      \usepackage{fancyhdr}
+      \pagestyle{fancy}
+      \fancyhf{} % clear header and footer
+      \cfoot{\thepage} % center footer page number
+      \renewcommand{\headrulewidth}{0pt}
+      \renewcommand{\footrulewidth}{0pt}
+      \AtBeginDocument{\thispagestyle{fancy}} % force page number on title page
+      \renewcommand{\maketitle}{%
+        {\centering
+          \normalfont\Huge\bfseries\textsf{\title}\par\vskip 1.5em
+          \LARGE\textsf{\subtitle}\par\vskip 1.2em
+          \large\textsf{\author}\par\vskip 1em
+          \textsf{\date}\par}
+      }
+
+
 editor: 
   markdown: 
     wrap: 72
@@ -87,6 +114,7 @@ suppressPackageStartupMessages({
         library(arsenal)
   library(fuzzyjoin)
  library(tidytext)
+ library(ggrepel)
 })
 
 source("C:/GitCode/AbResearch/getLegend.r")
@@ -95,8 +123,12 @@ source("C:/GitCode/AbResearch/StandardError_Functions.r")
 ##---------------------------------------------------------------------------##
 ## 2. Set file paths ####
 
-# Identify folder containing data
+# Identify folder containing SAM data
 data_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_64/Data', 
+                                            Sys.info()[["user"]]))
+
+# Identify folder containing GIS data
+gis_data_folder <- file.path(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2023_64/GIS', 
                                             Sys.info()[["user"]]))
 
 # Identify folder to save outputs 
@@ -119,6 +151,9 @@ sam_dat <- read.xlsx(paste(data_folder, "/SAM_data/SAM_Database.xlsx", sep = '')
 
 # Load site raw data
 meta_dat <- read.xlsx(paste(data_folder, "/Field_MetaData/Field_MetaDatabase.xlsx", sep = ''), detectDates = T)
+
+# Load gis data
+gis_dat <- read.csv(paste(gis_data_folder, "/IMAS_NW_AbaloneSAM_ProposedSites_2024-01-23.csv", sep = ''))
 
 ```
 
@@ -153,8 +188,113 @@ sam_dat <- sam_dat %>%
                              shell_length >= 160 ~ '160-180'))
 
 ```
-# Data checks and summaries
+# Overview
+
+This milestone report provides an overview of progress to date in collecting new data to assess the reproductive condition of blacklip abalone in North West Tasmania, as part of the Abalone Industry Development Fund (AIDF) project Assessing Growth Dynamics and Connectivity of Blacklip Abalone (Haliotis rubra) Populations in NW Tasmania.
+
+# Methods
+
+## Abalone Collection and Handling Procedures
+
+As of 14 November 2025, abalone have been collected from 12 sites within Block 5 (see @fig-map), with support from industry contractors who provided charter vessels and contributed local knowledge and logistical expertise.
+
+At each site, 200 abalone were sampled by targeting between 20–40 individuals within each 20 mm size class increment from 60 mm to 140 mm. Collected abalone were placed in plastic fish bins, covered with hessian sacks, and kept moist and exposed to air until landing.
+
+Upon landing, abalone were transferred to a refrigerated vehicle and transported to Tasmanian Seafoods. There, they were either held overnight in a refrigerated room (4 °C) or in live holding tanks prior to processing the following day.
+
+During processing, abalone were removed from their shells and assessed for maturity status was determined following Jones et al. 2009:
+
+* Stage 0, has no apparent development of gonad (immature).
+* Stage 1, gonad development has started, such that it is possible to determine sex of animal, although the gonad at this stage is very slight, at its most developed form it is translucent so that the digestive gland is still visible underneath (immature).
+* Stage 2, gonad is obvious at the extremities of the digestive gland, it is opaque but not yet fully formed. The eggs in females are visible at low magnification while males are viscous creamy yellow (mature).
+* Stage 3, fully formed gonad (mature). Stages 1 to 3 can be grouped by sex but only stages 2 and 3 are considered mature as although in stage 1 sex may be determined, that individual is unlikely to be reproductive and so is categorised as immature male or female (mature).
+
+```{r sam sites}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-map
+#| fig-cap: "Map of size-at-maturity sites sampled in North West Tasmania (Block 5) as of 14 November 2025."
+
+# Read in sub-block map
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Read in Tas land map
+tas_land <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Establish CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+# Transform sub-block map to GDA2020
+sf_subblock_map <- st_transform(sf_subblock_map, GDA2020)
+
+# Transform Tas land map to GDA2020
+tas_land <- st_transform(tas_land, GDA2020)
+
+# Join meta and gis data
+site_dat <- left_join(meta_dat, gis_dat, by = c('site' = 'Site')) %>% 
+ select(site, SiteNumber, xcoord, ycoord)
+
+# Create sf of sites
+site_dat_sf <- site_dat %>% 
+ st_as_sf(coords = c("xcoord", "ycoord"), crs = WGS84) %>% 
+ st_transform(., crs = GDA2020)
+
+# create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
+bbox <- st_bbox(site_dat_sf)
+bbox_poly <- st_as_sfc(bbox)
+bbox_buffered <- st_buffer(bbox_poly, dist = 5000)
+bbox_sf <- st_sf(geometry = bbox_buffered)
+
+# crop subblock map and sites sampled to maximise zoom                           
+site_sampled_crop <- st_crop(site_dat_sf, bbox_sf)
+sf_subblock_map_crop <- st_crop(sf_subblock_map, bbox_sf)
+sf_tas_land_crop <- st_crop(tas_land, bbox_sf)
+
+# Create map
+ggplot(data = st_geometry(sf_subblock_map_crop)) +
+                geom_sf(fill = NA) +
+ geom_sf(data = sf_tas_land_crop, fill = "#d9ead3")+
+                geom_sf(data = site_sampled_crop)+
+                scale_colour_manual(values = c('black'))+
+ geom_text_repel(data = site_sampled_crop,
+    aes(label = SiteNumber, geometry = geometry),
+    stat = "sf_coordinates", # extracts coordinates from sf object
+    size = 4,
+    max.overlaps = Inf # ensures all labels are attempted
+  )+
+                theme_bw() +
+                annotation_scale(location = "bl", width_hint = 0.5) +
+                annotation_north_arrow(location = "br", which_north = "true", 
+                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                                       style = north_arrow_fancy_orienteering)+
+                theme(legend.position="none")+
+ theme(axis.text.y = element_text(angle = 90, vjust = 0, hjust=0.5))+
+                xlab('Longitude')+
+                ylab('Latitude')
+
+```
+
+
+## Data analysis
+
+Size at maturity (SAM) estimation and analysis has been performed using the 'biology' package in R developed by Malcom Haddon (Haddon 2025).
+
+A dataframe has been created to run the 'fitmaturity' function where maturity has been classified as:
+
+* I = stages 0-1
+* M = stages 2-3.
+
+# Results
+
+## Data checks and summaries
+
 Quick summary plots to look for outliers in length data. Summary counts for each of the target size classes from dive collections.
+
+An initial examination of the raw data revealed no obvious outliers that warranted exclusion from further analysis.
+
 ```{r datachecks}
 #| echo: false
 #| warning: false
@@ -195,28 +335,18 @@ sam_dat %>%
  ggplot()+
  geom_histogram(aes(size_bin), stat = 'count')+
  theme_bw()+
- theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5))+
+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5),
+       strip.text = element_text(size = 6))+
  facet_wrap(. ~ site, nrow = 3)
 
 ```
-# Size-at-maturity estimation
-Size at maturity (SAM) estimation using 'biology' package developed by Malcom Haddon.
-
-Maturity status was determined following Jones et al. 2009:
-
-* Stage 0, has no apparent development of gonad (immature).
-* Stage 1, gonad development has started, such that it is possible to determine sex of animal, although the gonad at this stage is very slight, at its most developed form it is translucent so that the digestive gland is still visible underneath (immature).
-* Stage 2, gonad is obvious at the extremities of the digestive gland, it is opaque but not yet fully formed. The eggs in females are visible at low magnification while males are viscous creamy yellow (mature).
-* Stage 3, fully formed gonad (mature). Stages 1 to 3 can be grouped by sex but only stages 2 and 3 are considered mature as although in stage 1 sex may be determined, that individual is unlikely to be reproductive and so is categorised as immature male or female (mature).
-
-A dataframe has been created to run the 'fitmaturity' function where maturity has been classified as:
-
-* I = stages 0-1
-* M = stages 2-3.
 
 ## Size-at-maturity by site
+
+There was a broad range in size-at-maturity across the 12 sampled sites, ranging from 96.6 mm at Site 10 to 122.2 mm at Site 6 (Figures 3.1 to 3.3). This variation is consistent with our understanding of the spatial complexity and distinct population characteristics of abalone in this region of the fishery.
+
 ```{r maturity regression}
-#| echo: true
+#| echo: false
 #| warning: false
 #| message: false
 #| label: fig-prop-mature
@@ -247,17 +377,41 @@ tas_ab <- sam_dat %>%
 # Re-classify sex as mature or immature
 tas_ab <- tas_ab %>% 
  mutate(sex = case_when(sex %in% c('M', 'F') ~ 'M',
-                        sex == 'I' ~ 'I'))
+                        sex == 'I' ~ 'I'),
+        site = str_replace(site, "AB-NW-SAM-2024-5-", "Site-"))
 
 # Quick summary of samples by site and maturity status(sex)
-table(tas_ab$site, tas_ab$sex)
+# table(tas_ab$site, tas_ab$sex)
 
 # Create parameters for loop and plots
 sites <- sort(unique(tas_ab$site))
 nsite <- length(sites)
-scenes <- c("AB-NW-SAM-2024-5-1", "AB-NW-SAM-2024-5-2", "AB-NW-SAM-2024-5-3", "AB-NW-SAM-2024-5-4",
-            "AB-NW-SAM-2024-5-5", "AB-NW-SAM-2024-5-6", "AB-NW-SAM-2024-5-7", "AB-NW-SAM-2024-5-8",
-            "AB-NW-SAM-2024-5-9", "AB-NW-SAM-2024-5-10","AB-NW-SAM-2024-5-13", "AB-NW-SAM-2024-5-18")
+# scenes <- c(
+#  "AB-NW-SAM-2024-5-1",
+#  "AB-NW-SAM-2024-5-2",
+#  "AB-NW-SAM-2024-5-3",
+#  "AB-NW-SAM-2024-5-4",
+#  "AB-NW-SAM-2024-5-5",
+#  "AB-NW-SAM-2024-5-6",
+#  "AB-NW-SAM-2024-5-7",
+#  "AB-NW-SAM-2024-5-8",
+#  "AB-NW-SAM-2024-5-9",
+#  "AB-NW-SAM-2024-5-10",
+#  "AB-NW-SAM-2024-5-13",
+#  "AB-NW-SAM-2024-5-17")
+scenes <- c(
+ "Site-1",
+ "Site-2",
+ "Site-3",
+ "Site-4",
+ "Site-5",
+ "Site-6",
+ "Site-7",
+ "Site-8",
+ "Site-9",
+ "Site-10",
+ "Site-13",
+ "Site-17")
 models <- makelist(scenes)
 count <- 0
 
@@ -269,11 +423,11 @@ for (i in 1:nsite) { #  i = 1
                                    length="length",mature="mature",lower=50,upper=160)
   }
 
-str1(models)
-str1(models[["Site1"]])
+# str1(models)
+# str1(models[["Site1"]])
 
 # Create maturity plots for each site
-plotprep(width=10, height=8)
+plotprep(width=15, height=15)
 parset(plots=c(2,2))
 for (i in 1:length(models)) {
   plotmaturity(models[[i]],label=scenes[i],col=2,xmin=0,xmax=0,CI=FALSE,
@@ -282,10 +436,12 @@ for (i in 1:length(models)) {
 
 
 ```
-## Size-at-maturity across block
+## Size-at-maturity across Block 5
+
+Preliminary analysis combining all sites sampled to data suggests that the overall size-at-maturity for Block 5 is approximately 109.3 mm (@fig-prop-mature-block).
 
 ```{r maturity regression block}
-#| echo: true
+#| echo: false
 #| warning: false
 #| message: false
 #| label: fig-prop-mature-block
@@ -301,6 +457,8 @@ plotmaturity(models, label = 'AB-NW-SAM-2024-Block-5', col = 2, xmax = 0, CI = F
 
 ```
 # Shellology maturity status
+
+The following analyses were conducted as part of the collaborative AIDF project, 'Assessing the Potential of SPR Methods to Improve Fishery Assessments and Management Decisions', sub-contracted to Dr Jeremy Prince.
 
 ## Internal shell scaring vs maturity
 A quick summary plot comparing Prince 'shellology' classification of internal shell scaring and maturity status determined from macroscopic examination of gonads. A summary of the Shell_internal_score:
@@ -334,7 +492,7 @@ mat_labs <- c('immature', 'mature')
 names(mat_labs) <- c('0', '1')
 
 sam_dat %>% 
- filter(!is.na(shell_internal)) %>% 
+ filter(!is.na(shell_internal) & sex != 'T') %>%
  ggplot()+
  geom_histogram(aes(factor(shell_internal)), stat = 'count')+
  theme_bw()+
@@ -342,6 +500,8 @@ sam_dat %>%
  facet_wrap(. ~ mature, labeller = labeller(mature = mat_labs))
 
 ```
+Preliminary observations of internal shell condition suggest that scarring and secondary deposition become increasingly evident with maturation, supporting its potential use as an indicator of reproductive status (@fig-int-shell-count). However, it is important to note that this remains a destructive sampling method, requiring animals to be removed from their shells to assess internal shell features.
+
 ## External shell appearance vs maturity
 A quick summary plot comparing Prince 'shellology' classification of external shell appearance and maturity status determined from external appearance and fouling of shell. A summary of the Shell_external_score:
 
@@ -383,3 +543,11 @@ sam_dat %>%
  facet_wrap(. ~ mature, labeller = labeller(mature = mat_labs))
 
 ```
+Preliminary observations align with our understanding of emergence patterns, with immature juvenile abalone typically exhibiting clean external shells and minimal coralline growth or other fouling (@fig-ext-shell-count). As animals mature, external fouling becomes increasingly apparent, supporting its potential use as a non-destructive macroscopic indicator of reproductive condition.
+
+# Summary
+Preliminary analysis of data from the 12 sampled sites revealed clear variation in size-at-maturity across the block, consistent with our initial understanding of abalone population dynamics in the region. The inclusion of additional shell classification metrics has provided a complementary means of validating reproductive condition, which will be further explored as the project progresses.
+
+This work has now been incorporated into the broader AIRF 2023-64 project, which aims to examine abalone population dynamics across the region. The expanded scope includes additional size-at-maturity sampling, tagging and growth experiments, genetic and physiological assessments, and continued development of shell condition metrics to support SPR-based assessment approaches.
+
+Estimates of legal minimum length, defined as size-at-maturity plus three years of post-maturity growth, have not yet been updated, pending further data from ongoing tagging studies. These updates will form part of the broader project, which is currently underway and scheduled for completion by late 2026.

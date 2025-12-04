@@ -428,6 +428,7 @@ pre_post_size_dat <- pre_post_dat %>%
  select(site, blockno, pre, post)
 
 ```
+
 ```{r}
 #| echo: false
 #| warning: false

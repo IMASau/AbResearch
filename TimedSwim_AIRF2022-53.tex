@@ -1,0 +1,1604 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  A4paperpaper,
+  DIV=11,
+  numbers=noendperiod]{scrreprt}
+
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else  
+    % xetex/luatex font selection
+  \setmainfont[]{Arial}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[left = 20mm,right = 20mm,top = 20mm,bottom = 10mm]{geometry}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{4}
+% Make \paragraph and \subparagraph free-standing
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.33,0.33}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.36,0.77}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.01,0.18,0.38}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.36,0.77}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.36,0.77}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.33,0.33}{\underline{#1}}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{\textbf{#1}}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.36,0.77}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.44,0.26,0.76}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.01,0.18,0.38}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.14,0.16,0.18}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.14,0.16,0.18}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.44,0.26,0.76}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.84,0.23,0.29}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.42,0.45,0.49}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.36,0.77}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.01,0.18,0.38}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.01,0.18,0.38}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.89,0.38,0.04}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.01,0.18,0.38}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{1.00,0.33,0.33}{#1}}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+\usepackage{fontspec}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{colortbl}
+\usepackage{hhline}
+\newlength\Oldarrayrulewidth
+\newlength\Oldtabcolsep
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{wrapfig}
+\KOMAoption{captions}{tableheading}
+\usepackage{float}
+\floatplacement{table}{H}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={Quantifying potential of the IMAS Timed-Swim program to detect change in stock levels},
+  pdfauthor={Jaime McAllister},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Quantifying potential of the IMAS Timed-Swim program to detect
+change in stock levels}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{AIRF Project 2022/53}
+\author{Jaime McAllister}
+\date{Last Updated on 17 November, 2025}
+
+\begin{document}
+\maketitle
+
+\newpage
+
+\chapter{Introduction}\label{introduction}
+
+Fishery-independent surveys are essential for robust stock assessment
+and management, offering data that underpin informed decision-making.
+Ensuring accuracy and appropriate spatial-temporal coverage is vital for
+their effectiveness. These surveys are critical for estimating stock
+abundance, distribution, recruitment, and biomass, especially in
+contexts where fishery-dependent data may be absent. As Jardim and
+Ribeiro (2007) emphasised, the integrity of stock assessments hinges on
+the quality and consistency of fishery-independent data, which serve as
+a benchmark for validating models and informing harvest strategies.
+
+In Tasmania, timed swim surveys have been implemented as the primary
+method for fishery-independent assessment of abalone stocks. This
+approach is designed to evaluate the spatial extent of recovery and
+monitor progress toward established rebuilding benchmarks. The method
+provides rapid estimates of both abundance and population size structure
+across a large number of sites, offering practical advantages over more
+detailed transect-based techniques that require greater time and
+logistical effort.
+
+Timed swim survey results from East Coast blocks closed to commercial
+fishing since 2020 have exceeded expectations. Observed trends show a
+stable to increasing abundance of larger abalone (\textgreater140 mm),
+consistent with the cessation of commercial harvest. In contrast, stable
+or declining numbers of sub-legal animals (\textless140 mm) align with
+expectations of reduced recruitment following the 2016 marine heatwave.
+However, due to the cryptic nature of abalone, particularly their
+tendency to occupy concealed habitats, estimate of true population
+abundance are nonsensical and largely unknown. This behavioural trait
+introduces uncertainty when interpreting changes in observed timed swim
+abundance relative to actual stock levels.
+
+In the absence of a known baseline for true abundance, the most robust
+way to assess the reliability of a survey method is through evaluating
+its repeatability over time. Consistent patterns across repeated surveys
+can provide confidence in the method's ability to detect relative
+changes in abundance, even if absolute population size remains unknown.
+In the context of timed swim surveys, a key question is how repeatable
+the counts are, specifically, whether observed abundance at time A is
+comparable to that at time B, and whether the method reliably reflects
+underlying population dynamics. Over short timeframes, we expect a high
+correlation in sub-legal abalone counts between surveys. These
+individuals are not subject to fishing pressure and are less likely to
+be influenced by short-term environmental variability, making their
+abundance relatively stable. However, as the interval between surveys
+increases or if fishing pressure is reintroduced, the correlation is
+expected to weaken. This is particularly true for legal-sized animals,
+whose abundance may be affected by harvest, natural mortality, movement,
+and recruitment. These processes introduce variability that can obscure
+the relationship between survey counts and true abundance over longer
+periods. Ultimately, while timed swim surveys may not provide precise
+estimates of absolute abundance due to the cryptic nature of abalone,
+their value lies in detecting relative changes and trends, especially
+when applied consistently and interpreted within the appropriate
+ecological and management context.
+
+This report presents the outcomes of two natural experiments conducted
+within the Tasmanian abalone fishery, designed to evaluate the
+sensitivity of Timed Swim surveys to changes in stock abundance. The
+first case study focuses on the north-east greenlip fishery, which
+operates as a pulse fishery, typically harvesting 15--20 tonnes over a
+concentrated period of 4--6 days. The second examines the Actaeons
+blacklip fishery, Tasmania's largest, which exhibits clear signs of
+within-season depletion, as evidenced by progressive declines in catch
+per unit effort (CPUE) over the course of the fishing season. Timed Swim
+surveys were conducted before, during, and after these intense fishing
+events to assess whether the method could reliably detect changes in
+abalone abundance associated with fishing pressure.
+
+The project was guided by two primary objectives:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Determine the potential effect size that Timed Swim surveys can detect
+  at block level.
+\item
+  Examine the relationship between fishing pressure and reduction in
+  abalone abundance.
+\end{enumerate}
+
+\chapter{Load Data}\label{load-data}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load Actaeons blacklip data}
+\CommentTok{\# Note: this data includes all blacklip data standardised for fishyear.}
+
+\NormalTok{myFile }\OtherTok{\textless{}{-}} \FunctionTok{dir\_info}\NormalTok{(infolder, }\AttributeTok{recurse =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{glob =} \StringTok{"*.RData"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(type }\SpecialCharTok{==} \StringTok{"file"}\NormalTok{,  size }\SpecialCharTok{\textgreater{}} \StringTok{"10KB"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(modification\_time)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}\FunctionTok{str\_detect}\NormalTok{(path, }\StringTok{"TimedSwimData\_Stnd\_202"}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%} 
+  \FunctionTok{filter}\NormalTok{(modification\_time }\SpecialCharTok{==} \FunctionTok{max}\NormalTok{(modification\_time))}
+
+\FunctionTok{print}\NormalTok{(myFile}\SpecialCharTok{$}\NormalTok{path)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+C:/Users/jaimem/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2025/TimedSwimData_Stnd_2025_10_19.RData
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{load}\NormalTok{(myFile}\SpecialCharTok{$}\NormalTok{path)}
+
+\CommentTok{\# Load North{-}east greenlip data}
+
+\NormalTok{greenlip\_dat\_folder }\OtherTok{\textless{}{-}} \FunctionTok{file.path}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{\textquotesingle{}C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata\textquotesingle{}}\NormalTok{, }
+                                            \FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])), }\FunctionTok{paste}\NormalTok{(}\StringTok{\textquotesingle{}FIS\_TimedSwimSurveys2024/TimedSwim\_NEGreens\textquotesingle{}}\NormalTok{, }\AttributeTok{sep =} \StringTok{\textquotesingle{}\textquotesingle{}}\NormalTok{))}
+
+\NormalTok{ts\_dat\_gl }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\FunctionTok{paste}\NormalTok{(greenlip\_dat\_folder, }\StringTok{\textquotesingle{}/ts\_gl\_dat.RDS\textquotesingle{}}\NormalTok{, }\AttributeTok{sep =} \StringTok{\textquotesingle{}\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\chapter{Data prepartation}\label{data-prepartation}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Function to convert continuous swim direction (i.e. compass direction) into a }
+\CommentTok{\# categorical direction for standardisation by dividing the 360 degree compass into }
+\CommentTok{\# segments that represent the cardinal and intercardinal directions. }
+
+\NormalTok{get\_compass\_direction }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(degrees) \{}
+  \CommentTok{\# Normalize degrees to [0, 360)}
+\NormalTok{  degrees }\OtherTok{\textless{}{-}}\NormalTok{ degrees }\SpecialCharTok{\%\%} \DecValTok{360}
+  
+  \CommentTok{\# Define compass labels}
+\NormalTok{  directions }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"N"}\NormalTok{, }\StringTok{"NNE"}\NormalTok{, }\StringTok{"NE"}\NormalTok{, }\StringTok{"ENE"}\NormalTok{, }\StringTok{"E"}\NormalTok{, }\StringTok{"ESE"}\NormalTok{, }\StringTok{"SE"}\NormalTok{, }\StringTok{"SSE"}\NormalTok{,}
+                  \StringTok{"S"}\NormalTok{, }\StringTok{"SSW"}\NormalTok{, }\StringTok{"SW"}\NormalTok{, }\StringTok{"WSW"}\NormalTok{, }\StringTok{"W"}\NormalTok{, }\StringTok{"WNW"}\NormalTok{, }\StringTok{"NW"}\NormalTok{, }\StringTok{"NNW"}\NormalTok{)}
+  
+  \CommentTok{\# Each sector spans 22.5 degrees}
+\NormalTok{  sector }\OtherTok{\textless{}{-}} \FunctionTok{floor}\NormalTok{((degrees }\SpecialCharTok{+} \FloatTok{11.25}\NormalTok{) }\SpecialCharTok{/} \FloatTok{22.5}\NormalTok{) }\SpecialCharTok{\%\%} \DecValTok{16}
+  
+  \FunctionTok{return}\NormalTok{(directions[sector }\SpecialCharTok{+} \DecValTok{1}\NormalTok{])}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Actaeons blacklip data}\label{actaeons-blacklip-data}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Filter Actaeons blacklip data(Block 13) data and identify sample periods}
+\CommentTok{\# Include only records in experimental period 2023{-}01{-}01 to 2024{-}12{-}31 (records outside this period we collected as part of a pilot study (2021) and ongoing population monitoring (2025)).}
+
+\NormalTok{act\_ts\_dat }\OtherTok{\textless{}{-}}\NormalTok{ ts\_dat }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{samp\_date =} \StringTok{\textquotesingle{}sampdate\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{filter}\NormalTok{(blockno }\SpecialCharTok{==} \DecValTok{13} \SpecialCharTok{\&}
+         \FunctionTok{between}\NormalTok{(samp\_date, }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}01{-}01\textquotesingle{}}\NormalTok{), }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2024{-}12{-}31\textquotesingle{}}\NormalTok{))) }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{samp\_period =} \FunctionTok{ifelse}\NormalTok{(}
+  \FunctionTok{between}\NormalTok{(samp\_date, }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2021{-}01{-}01\textquotesingle{}}\NormalTok{), }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2021{-}03{-}31\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{|}
+   \FunctionTok{between}\NormalTok{(samp\_date, }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}01{-}01\textquotesingle{}}\NormalTok{), }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}03{-}31\textquotesingle{}}\NormalTok{)),}
+  \StringTok{\textquotesingle{}pre\textquotesingle{}}\NormalTok{,}
+  \FunctionTok{ifelse}\NormalTok{(}\FunctionTok{between}\NormalTok{(}
+\NormalTok{   samp\_date, }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}04{-}01\textquotesingle{}}\NormalTok{), }\FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}12{-}31\textquotesingle{}}\NormalTok{)}
+\NormalTok{  ), }\StringTok{\textquotesingle{}mid\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}post\textquotesingle{}}\NormalTok{)}
+\NormalTok{ ))}
+
+\CommentTok{\# Site AB{-}2023{-}13{-}45 was sampled twice mid season accidentally {-} remove earliest sampling data.}
+\NormalTok{act\_ts\_dat }\OtherTok{\textless{}{-}}\NormalTok{ act\_ts\_dat }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\NormalTok{(samp\_date }\SpecialCharTok{==} \FunctionTok{as.Date}\NormalTok{(}\StringTok{\textquotesingle{}2023{-}08{-}29\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\&}\NormalTok{ site }\SpecialCharTok{==} \StringTok{\textquotesingle{}AB{-}2023{-}13{-}45\textquotesingle{}}\NormalTok{))}
+
+\CommentTok{\# Add additional sizeclass grouping}
+\NormalTok{act\_ts\_dat }\OtherTok{\textless{}{-}}\NormalTok{ act\_ts\_dat }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sizeclass\_actaeons =} \FunctionTok{ifelse}\NormalTok{(sizeclass }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{"0{-}60"}\NormalTok{, }\StringTok{"60{-}100"}\NormalTok{, }\StringTok{"0{-}100"}\NormalTok{, }\StringTok{"0{-}20"}\NormalTok{, }\StringTok{"20{-}40"}\NormalTok{, }\StringTok{"40{-}60"}\NormalTok{, }\StringTok{"60{-}80"}\NormalTok{, }\StringTok{"80{-}100"}\NormalTok{, }\StringTok{"100{-}120"}\NormalTok{), }\StringTok{\textquotesingle{}0{-}120 mm\textquotesingle{}}\NormalTok{,}
+                                   \FunctionTok{ifelse}\NormalTok{(sizeclass }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{"120{-}140"}\NormalTok{), }\StringTok{\textquotesingle{}120{-}140 mm\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}\textgreater{}140 mm\textquotesingle{}}\NormalTok{)))}
+
+\CommentTok{\# Summarise counts by site, sample period, and diver}
+\NormalTok{ts\_working\_dat\_act }\OtherTok{\textless{}{-}}\NormalTok{ act\_ts\_dat }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{group\_by}\NormalTok{(samp\_date, blockno, site, samp\_period, diver\_id, dive\_dir, legal\_size) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{summarise}\NormalTok{(}\AttributeTok{ab\_n =} \FunctionTok{sum}\NormalTok{(sizeclass\_freq\_10)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{samp\_period =} \FunctionTok{factor}\NormalTok{(samp\_period, }\AttributeTok{levels =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}pre\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}mid\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}post\textquotesingle{}}\NormalTok{)),}
+        \AttributeTok{site =} \FunctionTok{as.factor}\NormalTok{(site),}
+        \AttributeTok{diver\_id =} \FunctionTok{as.factor}\NormalTok{(diver\_id),}
+        \AttributeTok{legal\_size =} \FunctionTok{as.factor}\NormalTok{(legal\_size)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{pivot\_wider}\NormalTok{(}
+  \AttributeTok{names\_from =}\NormalTok{ legal\_size,}
+  \AttributeTok{values\_from =}\NormalTok{ ab\_n}
+\NormalTok{ ) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{sublegal\_n =} \StringTok{\textquotesingle{}\textless{}140 mm\textquotesingle{}}\NormalTok{,}
+               \AttributeTok{legal\_n =} \StringTok{\textquotesingle{}\textgreater{}140 mm\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{total\_n =}\NormalTok{ sublegal\_n }\SpecialCharTok{+}\NormalTok{ legal\_n,}
+        \AttributeTok{sublegal\_prop =}\NormalTok{ sublegal\_n }\SpecialCharTok{/}\NormalTok{ total\_n,}
+        \AttributeTok{legal\_prop =}\NormalTok{ legal\_n }\SpecialCharTok{/}\NormalTok{ total\_n,}
+        \AttributeTok{study\_loc =} \StringTok{\textquotesingle{}act\_bl\textquotesingle{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+`summarise()` has grouped output by 'samp_date', 'blockno', 'site',
+'samp_period', 'diver_id', 'dive_dir'. You can override using the `.groups`
+argument.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Convert swim direction}
+\NormalTok{ts\_working\_dat\_act }\OtherTok{\textless{}{-}}\NormalTok{ ts\_working\_dat\_act }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{dive\_dir\_group =} \FunctionTok{get\_compass\_direction}\NormalTok{(dive\_dir))}
+\end{Highlighting}
+\end{Shaded}
+
+\section{North-east greenlip data}\label{north-east-greenlip-data}
+
+\chapter{Methods}\label{methods}
+
+\section{Experimental Design}\label{experimental-design}
+
+This study aimed to quantify the magnitude of change detectable by the
+Timed Swim (TS) FIS program and to model the relationship between
+fishing pressure and observed changes in abalone abundance. Two natural
+experiments were conducted, each targeting a distinct fishery dynamic:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Rapid depletion associated with pulse fishing in the north-east
+  greenlip abalone fishery.
+\item
+  Within-season depletion of blacklip abalone in the Actaeons region,
+  south-east Tasmania.
+\end{enumerate}
+
+\subsection{Pulse Fishing in the North-East Greenlip
+Fishery}\label{pulse-fishing-in-the-north-east-greenlip-fishery}
+
+Timed swim surveys were conducted in the weeks preceding the opening of
+the north-east greenlip fishery (1 July 2024) and repeated within six
+weeks following the closure of the catch cap on 4 July 2024
+(@tab-sample-duration). Given the short duration of the fishing period
+(3-days), sub-legal abalone (\textless140 mm) were assumed to remain
+stable and served as a reference group. The following hypotheses were
+tested:
+
+• H1: The mean count of legal-sized abalone (\textgreater145 mm) would
+be lower post-fishing. • H2: The magnitude of decline would be greater
+in areas subjected to higher fishing effort.
+
+\subsection{Within-Season Depletion in the Actaeons Blacklip
+Fishery}\label{within-season-depletion-in-the-actaeons-blacklip-fishery}
+
+Surveys in the Actaeons region were conducted at three time points:
+pre-season (March 2023), mid-season (September 2023), and post-season
+(February 2024) (@tab-sample-duration). This timeframe was selected to
+capture both fishing-induced depletion and potential seasonal shifts in
+the abundance of emergent and cryptic abalone. The following hypotheses
+were tested:
+
+• H1: Abundance of legal-sized abalone would decline progressively from
+April to January. • H2: Declines would be more pronounced in areas with
+higher fishing pressure. • H3: Sub-legal abundance would peak in winter
+(September) and decline in autumn and summer.
+
+\section{Timed Swim Survey Protocol}\label{timed-swim-survey-protocol}
+
+At each site, two divers conducted a 10-minute timed swim using
+surface-supplied breathing apparatus (SSBA) from an IMAS research
+vessel. Divers swam in parallel along a random bearing within the 8--12
+m depth contour, visually measuring all abalone encountered in situ
+using a measuring slate marked in 20 mm increments. Abalone were not
+removed from the substrate. Lengths were recorded by marking the
+corresponding interval on a waterproof slate. The timed swim commenced
+upon encountering the first abalone and was terminated if no abalone
+were observed within five minutes, in which case a zero count was
+recorded. Vessel GPS positions at the start and end of each dive were
+recorded and used to determine swim direction and where possible
+replicated in post-season surveys. For greenlip surveys divers also
+recorded a visibility rating on a five-point scale, ranging from 1
+(visibility \textgreater10 m) to 5 (zero visibility). Tide direction was
+also classified as either incoming or outgoing based on historical tide
+predictions for Swan Island, sourced from the Bureau of Meteorology (BOM
+2024). Directional classification was determined by comparing the dive
+time to the predicted tide height, with rising tides considered incoming
+and falling tides considered outgoing.Site Selection Survey sites were
+identified using GPS logger data and catch records spanning 2012 to
+2019, stratified into two fishing pressure categories: moderately and
+highly fished. The coastline was partitioned into 1-hectare hexagonal
+grid cells extending up to 5 km offshore, with total catch (kg)
+allocated to each cell. Grid cells were ranked into five quantiles using
+the ntile() function from the R package dplyr, with the upper three
+strata (Q3--Q5) used to select sites. From these strata, 100 and 150
+grid cell centroids were randomly selected for the North East greenlip
+and Actaeons blacklip experimental areas, respectively, maintaining a
+minimum spacing of 300 m between sites. Final site locations were
+adjusted in situ to ensure placement within the target depth range of
+8--12 m.
+
+\section{Data Analysis}\label{data-analysis}
+
+A legal minimum length (LML) threshold of 140 mm was used to classify
+abalone as either legal or sub-legal. Abundance, measured as the mean
+count of abalone per 10-minute search between paired divers at each
+site, was standardised prior to statistical analysis using a Generalised
+Linear Mixed Model (GLMM) fitted via the glmmTMB package in R. The model
+assumed a negative binomial distribution with a zero-inflation component
+and included both fixed and random effects. Fixed effects comprised the
+abundance of the alternate size class, sampling period, tide direction,
+and dive direction, while random effects accounted for diver, site,
+sampling period, visibility, and interactions between sampling period
+and tide or dive direction. Standardisation variables were selected to
+address potential sources of observational bias. The size class variable
+controlled for detection bias arising when diver attention was
+disproportionately directed toward either legal or sub-legal abalone,
+depending on relative abundance. Diver captured variation in observer
+experience, as diver pairs differed across sites. Environmental factors
+such as weather and tidal conditions occasionally prevented replication
+of pre-fishing swim directions, potentially affecting site
+comparability. In high-flow greenlip regions, reduced visibility due to
+tide conditions was also considered in the standardisation. The fitted
+model is specified as:
+
+\begin{align*}
+\text{size\_class\_A}_i &\sim \text{NB}(\mu_i, \theta) \\
+\log(\mu_i) &= \underbrace{\beta_0 + \beta_1 \cdot \text{size\_class\_B}_i + \beta_2 \cdot \text{samp_period} + \beta_3 \cdot \text{tide_direction} + \beta_3 \cdot \text{dive_direction}__i}_{\textnormal{Fixed effects}} \\
+&\quad + \underbrace{u_{\text{diver\_id}_i} + u_{\text{site}_i} + u_{\text{samp_period}_i} + u_{\text{visibility}_i} + u_{\text{samp_period:tide_direction}_i} + u_{\text{ samp_period:dive_direction }_i}}_{\textnormal{Random effects}} \\
+\text{Zero-inflation:} &\quad \text{logit}(\pi_i) = \gamma_0
+\end{align*}
+
+To evaluate changes in abalone abundance associated with fishing
+activity, site-level correlation analyses were conducted for each survey
+region. In the North East greenlip fishery, 61 sites were sampled both
+before and after fishing and included in the analysis
+(Figure~\ref{fig-site-map-gl}). For the Actaeons blacklip fishery, 100
+sites were sampled across three periods---pre-fishing, mid-fishing, and
+post-fishing---and used in the analysis (Figure~\ref{fig-site-map-bl}).
+
+Abundance was defined as the mean count of abalone per 10-minute timed
+swim, averaged across paired divers. For each site, pre- and
+post-fishing abundance estimates were paired and analysed using
+Pearson's correlation coefficient to quantify the strength and direction
+of the linear relationship. Sites with missing or incomplete
+post-fishing data were excluded from the correlation analysis.
+
+To compare mean densities between sampling periods, a two-sample t-test
+was applied under the assumption of normality and equal variances.
+Bootstrap confidence intervals (95\%) were generated using 10,000
+resamples to assess the robustness of the estimated mean differences.
+
+In addition, correlations were tested between timed swim abundance and
+mean CPUE derived from the nearest hex-cell commercial dive events for
+the years 2012--2019 and 2024.
+
+\section{Actaeons sites}\label{actaeons-sites}
+
+\begin{figure}
+
+\centering{
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/fig-site-map-bl-1.pdf}
+
+}
+
+\caption{\label{fig-site-map-bl}Map of survey sites in the Actaeons
+blacklip fishery region.}
+
+\end{figure}%
+
+\section{Greenlip sites}\label{greenlip-sites}
+
+\begin{figure}
+
+\centering{
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/fig-site-map-gl-1.pdf}
+
+}
+
+\caption{\label{fig-site-map-gl}Map of survey sites in the north-east
+greenlip fishery region.}
+
+\end{figure}%
+
+\chapter{Results}\label{results}
+
+\section{Actaeons standardisation}\label{actaeons-standardisation}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/act_std_plot-1.pdf}
+
+\section{Greenlip standardisation}\label{greenlip-standardisation}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/gl_std_plot-1.pdf}
+
+\section{Temporal Analysis of Abalone Abundance: Pre-, Mid-, and
+Post-Fishing
+Surveys}\label{temporal-analysis-of-abalone-abundance-pre--mid--and-post-fishing-surveys}
+
+\subsection{Plot data preparation}\label{plot-data-preparation}
+
+\begin{verbatim}
+[1] 100
+\end{verbatim}
+
+\begin{verbatim}
+[1] 61
+\end{verbatim}
+
+\section{Summary of sampling dates}\label{summary-of-sampling-dates}
+
+\subsection{Sampling duration}\label{sampling-duration}
+
+\global\setlength{\Oldarrayrulewidth}{\arrayrulewidth}
+
+\global\setlength{\Oldtabcolsep}{\tabcolsep}
+
+\setlength{\tabcolsep}{2pt}
+
+\renewcommand*{\arraystretch}{1.5}
+
+
+
+\providecommand{\ascline}[3]{\noalign{\global\arrayrulewidth #1}\arrayrulecolor[HTML]{#2}\cline{#3}}
+
+\begin{longtable}[c]{|p{0.75in}|p{0.75in}|p{0.75in}|p{0.75in}}
+\caption{Minimum and maximum number of days between sampling periods for repeated
+sites in the North East greenlip (Greenlip) and Actaeons blacklip
+(Actaeons) fishery experiments. `Min days' is the interval between the
+last Pre- or Mid-fishing sampling date and the first Mid- or
+Post-fishing date, respectively. `Max days' is the interval between the
+first Pre- or Mid-fishing date and the last Mid- or Post-fishing date,
+respectively.}\tabularnewline
+
+
+
+
+\ascline{1.5pt}{666666}{1-4}
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Survey}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Survey\ Period}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Min\ days}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Max\ days}}}} \\
+
+\ascline{1.5pt}{666666}{1-4}\endfirsthead 
+
+\ascline{1.5pt}{666666}{1-4}
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Survey}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Survey\ Period}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Min\ days}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Max\ days}}}} \\
+
+\ascline{1.5pt}{666666}{1-4}\endhead
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Actaeons}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Pre-Mid}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{158}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{231}}}} \\
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Actaeons}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Mid-Post}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{122}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{204}}}} \\
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Actaeons}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Pre-Post}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{327}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{391}}}} \\
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Greenlip}}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{Pre-Post}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{9}}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.75in+0\tabcolsep}}{\textcolor[HTML]{000000}{\fontsize{10}{10}\selectfont{\global\setmainfont{Arial}{85}}}} \\
+
+\ascline{1.5pt}{666666}{1-4}
+
+
+
+\end{longtable}
+
+
+
+\arrayrulecolor[HTML]{000000}
+
+\global\setlength{\arrayrulewidth}{\Oldarrayrulewidth}
+
+\global\setlength{\tabcolsep}{\Oldtabcolsep}
+
+\renewcommand*{\arraystretch}{1}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/unnamed-chunk-5-1.pdf}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/unnamed-chunk-6-1.pdf}
+
+\section{Actaeons Legal Plots}\label{actaeons-legal-plots}
+
+\begin{figure}[H]
+
+\centering{
+
+\includegraphics[width=\textwidth,height=0.9\textheight]{TimedSwim_AIRF2022-53_files/figure-pdf/fig-corr-leg-1.pdf}
+
+}
+
+\caption{\label{fig-corr-leg}Relationship between mean pre-, mid- and
+post-season legal (\textgreater140 mm) blacklip abalone counts at each
+site surveyed in the Actaeons fishery region (n = 100).}
+
+\end{figure}%
+
+\section{Actaeons Sub-Legal Plots}\label{actaeons-sub-legal-plots}
+
+\begin{figure}[H]
+
+\centering{
+
+\includegraphics[width=\textwidth,height=0.9\textheight]{TimedSwim_AIRF2022-53_files/figure-pdf/fig-corr-subleg-1.pdf}
+
+}
+
+\caption{\label{fig-corr-subleg}Relationship between mean pre-, mid- and
+post-season sub-legal (\textless140 mm) blacklip abalone counts at each
+site surveyed in the Actaeons fishery region (n = 100).}
+
+\end{figure}%
+
+\section{Greenlip Plots}\label{greenlip-plots}
+
+\begin{figure}[H]
+
+\centering{
+
+\includegraphics[width=\textwidth,height=0.9\textheight]{TimedSwim_AIRF2022-53_files/figure-pdf/fig-corr-gl-1.pdf}
+
+}
+
+\caption{\label{fig-corr-gl}Relationship between mean pre-, mid- and
+post-season legal (\textgreater140 mm) greenlip abalone counts at each
+site surveyed in the North-east greenlip fishery region (n = 61).}
+
+\end{figure}%
+
+\chapter{T-tests Actaeons}\label{t-tests-actaeons}
+
+Legal-size
+
+\begin{itemize}
+\tightlist
+\item
+  Pre vs Mid = No significant change in legal abundance (t\,=\,0.33,
+  p\,=\,0.33; CI spans zero).
+\item
+  Pre vs Post = Significant increase in legal abundance post-period
+  (t\,=\,0.043, CI\,=\,{[}1.44, 7.18{]}; perm\,p\,=\,0.046). Not
+  significant at p 0.01 but suggests possible growth transition of
+  sub-legal cohorts (120-140 mm)?
+\item
+  Mid vs Post = No significant change (t\,=\,0.29, CI includes zero).
+\end{itemize}
+
+Sub-legal size
+
+\begin{itemize}
+\tightlist
+\item
+  Pre vs Mid = Strong, significant increase in sublegal abundance
+  (t\,\textless\,0.001, CI\,=\,{[}11.25, 20.09{]}).
+\item
+  Pre vs Post = No significant change (t\,=\,0.78, CI spans zero).
+  Sublegal numbers returned to baseline or fluctuated?
+\item
+  Mid vs Post = Strong, significant decrease (t\,\textless\,0.001,
+  CI\,=\,{[}--21.85, --10.62{]}). Indicates that the mid-period spike
+  was transient---possibly seasonal or linked to a specific cohort
+  (e.g.~growth transition of 120-140 mm to legal-sized).
+\end{itemize}
+
+Summary
+
+\begin{itemize}
+\tightlist
+\item
+  Legal-size abalone show a significant increase from pre to post, but
+  not between adjacent periods.
+\item
+  Sublegal abundance spikes mid-period, then drops sharply---suggesting
+  a temporary recruitment event or sampling anomaly.
+\item
+  The bootstrap CIs and permutation p-values align well with the
+  t-tests, reinforcing robustness.
+\end{itemize}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Step 1: Aggregate to site{-}level means}
+\NormalTok{site\_means }\OtherTok{\textless{}{-}}\NormalTok{ act\_site\_dat }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(site, samp\_period) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{legal\_mean =} \FunctionTok{mean}\NormalTok{(legal\_n, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{sublegal\_mean =} \FunctionTok{mean}\NormalTok{(sublegal\_n, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\CommentTok{\# Step 2: Generate all pairwise combinations of periods}
+\NormalTok{period\_pairs }\OtherTok{\textless{}{-}} \FunctionTok{combn}\NormalTok{(}\FunctionTok{unique}\NormalTok{(site\_means}\SpecialCharTok{$}\NormalTok{samp\_period), }\DecValTok{2}\NormalTok{, }\AttributeTok{simplify =} \ConstantTok{FALSE}\NormalTok{)}
+
+\CommentTok{\# Step 3: Define a function to run t{-}test and bootstrap CI}
+
+\NormalTok{compare\_periods }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data, var, p1, p2) \{}
+ 
+\NormalTok{ p1 }\OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(p1)}
+\NormalTok{p2 }\OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(p2)}
+
+\NormalTok{  wide }\OtherTok{\textless{}{-}}\NormalTok{ data }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{filter}\NormalTok{(samp\_period }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(p1, p2)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(site, samp\_period, }\SpecialCharTok{!!}\FunctionTok{sym}\NormalTok{(var)) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{    dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{value =} \SpecialCharTok{!!}\FunctionTok{sym}\NormalTok{(var)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{names\_from =}\NormalTok{ samp\_period, }\AttributeTok{values\_from =}\NormalTok{ value)}
+
+  \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\NormalTok{(p1 }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(wide)) }\SpecialCharTok{||} \SpecialCharTok{!}\NormalTok{(p2 }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(wide))) \{}
+    \FunctionTok{return}\NormalTok{(}\FunctionTok{tibble}\NormalTok{(}
+      \AttributeTok{size\_class =}\NormalTok{ var,}
+      \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+      \AttributeTok{t\_p =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{mean\_diff =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_low =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_high =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{perm\_p =} \ConstantTok{NA\_real\_}
+\NormalTok{    ))}
+\NormalTok{  \}}
+
+\NormalTok{  wide }\OtherTok{\textless{}{-}}\NormalTok{ wide }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(.data[[p1]]) }\SpecialCharTok{\&} \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(.data[[p2]]))}
+  
+  \FunctionTok{message}\NormalTok{(}\StringTok{"Rows retained for "}\NormalTok{, var, }\StringTok{" "}\NormalTok{, p1, }\StringTok{" vs "}\NormalTok{, p2, }\StringTok{": "}\NormalTok{, }\FunctionTok{nrow}\NormalTok{(wide))}
+  
+  \ControlFlowTok{if}\NormalTok{ (}\FunctionTok{nrow}\NormalTok{(wide) }\SpecialCharTok{\textless{}} \DecValTok{2}\NormalTok{) \{}
+    \FunctionTok{return}\NormalTok{(}\FunctionTok{tibble}\NormalTok{(}
+      \AttributeTok{size\_class =}\NormalTok{ var,}
+      \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+      \AttributeTok{t\_p =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{mean\_diff =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_low =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_high =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{perm\_p =} \ConstantTok{NA\_real\_}
+\NormalTok{    ))}
+\NormalTok{  \}}
+
+\NormalTok{  ttest }\OtherTok{\textless{}{-}} \FunctionTok{t.test}\NormalTok{(wide[[p1]], wide[[p2]])}
+
+\NormalTok{  boot\_diff }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(d, i) \{}
+\NormalTok{    d }\OtherTok{\textless{}{-}}\NormalTok{ d[i, ]}
+    \FunctionTok{mean}\NormalTok{(d[[p2]] }\SpecialCharTok{{-}}\NormalTok{ d[[p1]], }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{  \}}
+
+  \FunctionTok{set.seed}\NormalTok{(}\DecValTok{123}\NormalTok{)}
+\NormalTok{  boot\_out }\OtherTok{\textless{}{-}} \FunctionTok{boot}\NormalTok{(}\AttributeTok{data =}\NormalTok{ wide, }\AttributeTok{statistic =}\NormalTok{ boot\_diff, }\AttributeTok{R =} \DecValTok{1000}\NormalTok{)}
+  
+\NormalTok{  ci }\OtherTok{\textless{}{-}} \FunctionTok{tryCatch}\NormalTok{(}
+  \FunctionTok{boot.ci}\NormalTok{(boot\_out, }\AttributeTok{type =} \StringTok{"perc"}\NormalTok{),}
+  \AttributeTok{error =} \ControlFlowTok{function}\NormalTok{(e) }\ConstantTok{NULL}
+\NormalTok{)}
+
+\NormalTok{  long }\OtherTok{\textless{}{-}}\NormalTok{ wide }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_longer}\NormalTok{(}\AttributeTok{cols =} \FunctionTok{c}\NormalTok{(p1, p2), }\AttributeTok{names\_to =} \StringTok{"period"}\NormalTok{, }\AttributeTok{values\_to =} \StringTok{"abundance"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{period =} \FunctionTok{factor}\NormalTok{(period, }\AttributeTok{levels =} \FunctionTok{c}\NormalTok{(p1, p2)))}
+
+\NormalTok{perm\_test }\OtherTok{\textless{}{-}}\NormalTok{ coin}\SpecialCharTok{::}\FunctionTok{oneway\_test}\NormalTok{(abundance }\SpecialCharTok{\textasciitilde{}}\NormalTok{ period, }\AttributeTok{data =}\NormalTok{ long, }\AttributeTok{distribution =} \StringTok{"approximate"}\NormalTok{)}
+\NormalTok{perm\_p }\OtherTok{=} \FunctionTok{as.numeric}\NormalTok{(coin}\SpecialCharTok{::}\FunctionTok{pvalue}\NormalTok{(perm\_test))}
+
+\FunctionTok{tibble}\NormalTok{(}
+  \AttributeTok{size\_class =}\NormalTok{ var,}
+  \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+  \AttributeTok{t\_p =}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{p.value,}
+  \AttributeTok{mean\_diff =}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{estimate[[}\DecValTok{2}\NormalTok{]] }\SpecialCharTok{{-}}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{estimate[[}\DecValTok{1}\NormalTok{]],}
+  \AttributeTok{ci\_low =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(ci)) ci}\SpecialCharTok{$}\NormalTok{percent[}\DecValTok{4}\NormalTok{] }\ControlFlowTok{else} \ConstantTok{NA\_real\_}\NormalTok{,}
+  \AttributeTok{ci\_high =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(ci)) ci}\SpecialCharTok{$}\NormalTok{percent[}\DecValTok{5}\NormalTok{] }\ControlFlowTok{else} \ConstantTok{NA\_real\_}\NormalTok{,}
+  \AttributeTok{perm\_p =}\NormalTok{ perm\_p}
+\NormalTok{)}
+\NormalTok{\}}
+
+\CommentTok{\# Step 4: Run comparisons for legal and sublegal}
+
+\NormalTok{results }\OtherTok{\textless{}{-}} \FunctionTok{map\_dfr}\NormalTok{(}
+  \FunctionTok{c}\NormalTok{(}\StringTok{"legal\_mean"}\NormalTok{, }\StringTok{"sublegal\_mean"}\NormalTok{),}
+  \ControlFlowTok{function}\NormalTok{(var) \{}
+    \FunctionTok{map\_dfr}\NormalTok{(period\_pairs, }\ControlFlowTok{function}\NormalTok{(pair) \{}
+      \FunctionTok{compare\_periods}\NormalTok{(site\_means, var, pair[}\DecValTok{1}\NormalTok{], pair[}\DecValTok{2}\NormalTok{])}
+\NormalTok{    \})}
+\NormalTok{  \}}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Rows retained for legal_mean pre vs mid: 100
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Using an external vector in selections was deprecated in tidyselect 1.1.0.
+i Please use `all_of()` or `any_of()` instead.
+  # Was:
+  data %>% select(p1)
+
+  # Now:
+  data %>% select(all_of(p1))
+
+See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Using an external vector in selections was deprecated in tidyselect 1.1.0.
+i Please use `all_of()` or `any_of()` instead.
+  # Was:
+  data %>% select(p2)
+
+  # Now:
+  data %>% select(all_of(p2))
+
+See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for legal_mean pre vs post: 100
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for legal_mean mid vs post: 100
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for sublegal_mean pre vs mid: 100
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for sublegal_mean pre vs post: 100
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for sublegal_mean mid vs post: 100
+\end{verbatim}
+
+\section{T-test result plot}\label{t-test-result-plot}
+
+\begin{itemize}
+\tightlist
+\item
+  Points above zero → increase in abundance.
+\item
+  Points below zero → decrease.
+\item
+  Error bars crossing zero → not statistically significant
+\end{itemize}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(results, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ comparison, }\AttributeTok{y =}\NormalTok{ mean\_diff, }\AttributeTok{color =}\NormalTok{ size\_class)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{, }\AttributeTok{position =} \FunctionTok{position\_dodge}\NormalTok{(}\AttributeTok{width =} \FloatTok{0.5}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_errorbar}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{ymin =}\NormalTok{ ci\_low, }\AttributeTok{ymax =}\NormalTok{ ci\_high), }\AttributeTok{width =} \FloatTok{0.2}\NormalTok{, }\AttributeTok{position =} \FunctionTok{position\_dodge}\NormalTok{(}\AttributeTok{width =} \FloatTok{0.5}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_hline}\NormalTok{(}\AttributeTok{yintercept =} \DecValTok{0}\NormalTok{, }\AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{, }\AttributeTok{color =} \StringTok{"grey50"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Mean Difference in Abalone Abundance Between Sampling Periods"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Mean Difference (Post – Pre)"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Comparison"}\NormalTok{,}
+    \AttributeTok{color =} \StringTok{"Size Class"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{14}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/results plot-1.pdf}
+
+\chapter{T-tests Greenlip}\label{t-tests-greenlip}
+
+Legal-sized
+
+\begin{itemize}
+\tightlist
+\item
+  There's no statistically significant change in legal-sized abalone
+  abundance between pre and post periods. The CI includes zero, and both
+  p-values are well above 0.05. While the mean difference is positive,
+  it's not strong enough to rule out chance variation.
+\end{itemize}
+
+Sub-legal sized
+
+\begin{itemize}
+\tightlist
+\item
+  Although the CI suggests a consistent increase in sublegal abundance,
+  the p-values are still above the conventional 0.05 threshold. This
+  might indicate a moderate effect that's not statistically
+  robust---possibly due to sample size, variability, or ecological
+  noise.
+\end{itemize}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Step 1: Aggregate to site{-}level means}
+\NormalTok{site\_means\_gl }\OtherTok{\textless{}{-}}\NormalTok{ gl\_site\_dat }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(site, samp\_period) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{legal\_mean =} \FunctionTok{mean}\NormalTok{(legal\_n, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{sublegal\_mean =} \FunctionTok{mean}\NormalTok{(sublegal\_n, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  )}
+
+\CommentTok{\# Step 2: Generate all pairwise combinations of periods}
+\NormalTok{period\_pairs\_gl }\OtherTok{\textless{}{-}} \FunctionTok{combn}\NormalTok{(}\FunctionTok{unique}\NormalTok{(site\_means\_gl}\SpecialCharTok{$}\NormalTok{samp\_period), }\DecValTok{2}\NormalTok{, }\AttributeTok{simplify =} \ConstantTok{FALSE}\NormalTok{)}
+
+\CommentTok{\# Step 3: Define a function to run t{-}test and bootstrap CI}
+
+\NormalTok{compare\_periods\_gl }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data, var, p1, p2) \{}
+ 
+\NormalTok{ p1 }\OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(p1)}
+\NormalTok{p2 }\OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(p2)}
+
+\NormalTok{  wide }\OtherTok{\textless{}{-}}\NormalTok{ data }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{filter}\NormalTok{(samp\_period }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(p1, p2)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(site, samp\_period, }\SpecialCharTok{!!}\FunctionTok{sym}\NormalTok{(var)) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{    dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{value =} \SpecialCharTok{!!}\FunctionTok{sym}\NormalTok{(var)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{names\_from =}\NormalTok{ samp\_period, }\AttributeTok{values\_from =}\NormalTok{ value)}
+
+  \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\NormalTok{(p1 }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(wide)) }\SpecialCharTok{||} \SpecialCharTok{!}\NormalTok{(p2 }\SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(wide))) \{}
+    \FunctionTok{return}\NormalTok{(}\FunctionTok{tibble}\NormalTok{(}
+      \AttributeTok{size\_class =}\NormalTok{ var,}
+      \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+      \AttributeTok{t\_p =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{mean\_diff =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_low =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_high =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{perm\_p =} \ConstantTok{NA\_real\_}
+\NormalTok{    ))}
+\NormalTok{  \}}
+
+\NormalTok{  wide }\OtherTok{\textless{}{-}}\NormalTok{ wide }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(.data[[p1]]) }\SpecialCharTok{\&} \SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(.data[[p2]]))}
+  
+  \FunctionTok{message}\NormalTok{(}\StringTok{"Rows retained for "}\NormalTok{, var, }\StringTok{" "}\NormalTok{, p1, }\StringTok{" vs "}\NormalTok{, p2, }\StringTok{": "}\NormalTok{, }\FunctionTok{nrow}\NormalTok{(wide))}
+  
+  \ControlFlowTok{if}\NormalTok{ (}\FunctionTok{nrow}\NormalTok{(wide) }\SpecialCharTok{\textless{}} \DecValTok{2}\NormalTok{) \{}
+    \FunctionTok{return}\NormalTok{(}\FunctionTok{tibble}\NormalTok{(}
+      \AttributeTok{size\_class =}\NormalTok{ var,}
+      \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+      \AttributeTok{t\_p =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{mean\_diff =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_low =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{ci\_high =} \ConstantTok{NA\_real\_}\NormalTok{,}
+      \AttributeTok{perm\_p =} \ConstantTok{NA\_real\_}
+\NormalTok{    ))}
+\NormalTok{  \}}
+
+\NormalTok{  ttest }\OtherTok{\textless{}{-}} \FunctionTok{t.test}\NormalTok{(wide[[p1]], wide[[p2]])}
+
+\NormalTok{  boot\_diff }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(d, i) \{}
+\NormalTok{    d }\OtherTok{\textless{}{-}}\NormalTok{ d[i, ]}
+    \FunctionTok{mean}\NormalTok{(d[[p2]] }\SpecialCharTok{{-}}\NormalTok{ d[[p1]], }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{  \}}
+
+  \FunctionTok{set.seed}\NormalTok{(}\DecValTok{123}\NormalTok{)}
+\NormalTok{  boot\_out }\OtherTok{\textless{}{-}} \FunctionTok{boot}\NormalTok{(}\AttributeTok{data =}\NormalTok{ wide, }\AttributeTok{statistic =}\NormalTok{ boot\_diff, }\AttributeTok{R =} \DecValTok{1000}\NormalTok{)}
+  
+\NormalTok{  ci }\OtherTok{\textless{}{-}} \FunctionTok{tryCatch}\NormalTok{(}
+  \FunctionTok{boot.ci}\NormalTok{(boot\_out, }\AttributeTok{type =} \StringTok{"perc"}\NormalTok{),}
+  \AttributeTok{error =} \ControlFlowTok{function}\NormalTok{(e) }\ConstantTok{NULL}
+\NormalTok{)}
+
+\NormalTok{  long }\OtherTok{\textless{}{-}}\NormalTok{ wide }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_longer}\NormalTok{(}\AttributeTok{cols =} \FunctionTok{c}\NormalTok{(p1, p2), }\AttributeTok{names\_to =} \StringTok{"period"}\NormalTok{, }\AttributeTok{values\_to =} \StringTok{"abundance"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{period =} \FunctionTok{factor}\NormalTok{(period, }\AttributeTok{levels =} \FunctionTok{c}\NormalTok{(p1, p2)))}
+
+\NormalTok{perm\_test }\OtherTok{\textless{}{-}}\NormalTok{ coin}\SpecialCharTok{::}\FunctionTok{oneway\_test}\NormalTok{(abundance }\SpecialCharTok{\textasciitilde{}}\NormalTok{ period, }\AttributeTok{data =}\NormalTok{ long, }\AttributeTok{distribution =} \StringTok{"approximate"}\NormalTok{)}
+\NormalTok{perm\_p }\OtherTok{=} \FunctionTok{as.numeric}\NormalTok{(coin}\SpecialCharTok{::}\FunctionTok{pvalue}\NormalTok{(perm\_test))}
+
+\FunctionTok{tibble}\NormalTok{(}
+  \AttributeTok{size\_class =}\NormalTok{ var,}
+  \AttributeTok{comparison =} \FunctionTok{paste}\NormalTok{(p1, }\StringTok{"vs"}\NormalTok{, p2),}
+  \AttributeTok{t\_p =}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{p.value,}
+  \AttributeTok{mean\_diff =}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{estimate[[}\DecValTok{2}\NormalTok{]] }\SpecialCharTok{{-}}\NormalTok{ ttest}\SpecialCharTok{$}\NormalTok{estimate[[}\DecValTok{1}\NormalTok{]],}
+  \AttributeTok{ci\_low =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(ci)) ci}\SpecialCharTok{$}\NormalTok{percent[}\DecValTok{4}\NormalTok{] }\ControlFlowTok{else} \ConstantTok{NA\_real\_}\NormalTok{,}
+  \AttributeTok{ci\_high =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(ci)) ci}\SpecialCharTok{$}\NormalTok{percent[}\DecValTok{5}\NormalTok{] }\ControlFlowTok{else} \ConstantTok{NA\_real\_}\NormalTok{,}
+  \AttributeTok{perm\_p =}\NormalTok{ perm\_p}
+\NormalTok{)}
+\NormalTok{\}}
+
+\CommentTok{\# Step 4: Run comparisons for legal and sublegal}
+
+\NormalTok{results\_gl }\OtherTok{\textless{}{-}} \FunctionTok{map\_dfr}\NormalTok{(}
+  \FunctionTok{c}\NormalTok{(}\StringTok{"legal\_mean"}\NormalTok{, }\StringTok{"sublegal\_mean"}\NormalTok{),}
+  \ControlFlowTok{function}\NormalTok{(var) \{}
+    \FunctionTok{map\_dfr}\NormalTok{(period\_pairs\_gl, }\ControlFlowTok{function}\NormalTok{(pair) \{}
+      \FunctionTok{compare\_periods\_gl}\NormalTok{(site\_means\_gl, var, pair[}\DecValTok{1}\NormalTok{], pair[}\DecValTok{2}\NormalTok{])}
+\NormalTok{    \})}
+\NormalTok{  \}}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Rows retained for legal_mean pre vs post: 61
+\end{verbatim}
+
+\begin{verbatim}
+Rows retained for sublegal_mean pre vs post: 61
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(results\_gl, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ comparison, }\AttributeTok{y =}\NormalTok{ mean\_diff, }\AttributeTok{color =}\NormalTok{ size\_class)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{, }\AttributeTok{position =} \FunctionTok{position\_dodge}\NormalTok{(}\AttributeTok{width =} \FloatTok{0.5}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_errorbar}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{ymin =}\NormalTok{ ci\_low, }\AttributeTok{ymax =}\NormalTok{ ci\_high), }\AttributeTok{width =} \FloatTok{0.2}\NormalTok{, }\AttributeTok{position =} \FunctionTok{position\_dodge}\NormalTok{(}\AttributeTok{width =} \FloatTok{0.5}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_hline}\NormalTok{(}\AttributeTok{yintercept =} \DecValTok{0}\NormalTok{, }\AttributeTok{linetype =} \StringTok{"dashed"}\NormalTok{, }\AttributeTok{color =} \StringTok{"grey50"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title =} \StringTok{"Mean Difference in Abalone Abundance Between Sampling Periods"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Mean Difference (Post – Pre)"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Comparison"}\NormalTok{,}
+    \AttributeTok{color =} \StringTok{"Size Class"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{14}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/results_gl plot-1.pdf}
+
+\chapter{Distance surveyed}\label{distance-surveyed}
+
+Examine change in distance surveyed pre and post as a secondary
+indicator of depletion?
+
+\chapter{TS abundance vs fishery
+CPUE}\label{ts-abundance-vs-fishery-cpue}
+
+Compare CPUE data for each OID and nearest timed swim site. Were there
+increased depletion in timed swim counts for those sites with higher
+CPUE?
+
+\section{Data preparations}\label{data-preparations}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load original output files from site selection script that includes OID and cell\_ntile}
+\CommentTok{\# These are the proposed sites and were chosen based on the original 2012{-}19 data time series of total catch and calculation of quantiles.}
+\CommentTok{\# Need to go back and determine total kg for these for the period 2012{-}2019}
+
+\CommentTok{\# Define CRS}
+\NormalTok{GDA2020 }\OtherTok{\textless{}{-}} \FunctionTok{st\_crs}\NormalTok{(}\DecValTok{7855}\NormalTok{)}
+\NormalTok{WGS84 }\OtherTok{\textless{}{-}} \FunctionTok{st\_crs}\NormalTok{(}\DecValTok{4326}\NormalTok{)}
+
+\NormalTok{oid\_act\_dat }\OtherTok{\textless{}{-}} \FunctionTok{read.xlsx}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS\_TimedSwimSurveys2023/TimedSwim\_Actaeons/TimedSwimSites\_SubBlock13DE\_Final\_2023.xlsx"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])),}
+                    \AttributeTok{detectDates =}\NormalTok{ T)}
+
+
+\NormalTok{oid\_gl\_dat }\OtherTok{\textless{}{-}} \FunctionTok{read.xlsx}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS\_TimedSwimSurveys2023/TimedSwim\_NEGreens/TimedSwim\_NE\_GL\_2023\_50m.xlsx"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])),}
+                    \AttributeTok{detectDates =}\NormalTok{ T)}
+
+\CommentTok{\# Load 2012{-}2019 hex cell data}
+\NormalTok{hex\_dat\_2019 }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide\_2020\_03\_24.rds"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])))}
+
+\NormalTok{hex\_dat\_2019\_gl }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/grid1HA\_greenlip.rds"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])))}
+
+\NormalTok{hex\_dat\_2019\_summary }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{cpue\_kg\_hr =}\NormalTok{ blkgtotal }\SpecialCharTok{/}\NormalTok{ (minstotal }\SpecialCharTok{/} \DecValTok{60}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{select}\NormalTok{(oid, zone, blockno, subblockno, blkgtotal, cpue\_kg\_hr) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_drop\_geometry}\NormalTok{()}
+
+\NormalTok{hex\_dat\_2019\_summary\_gl }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019\_gl }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{cpue\_kg\_hr =}\NormalTok{ GLhexcatch }\SpecialCharTok{/}\NormalTok{ (hexeffort }\SpecialCharTok{/} \DecValTok{60}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{glkgtotal =} \StringTok{\textquotesingle{}GLhexcatch\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{select}\NormalTok{(oid, zone, blockno, subblockno, glkgtotal, cpue\_kg\_hr) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_drop\_geometry}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\FunctionTok{across}\NormalTok{(}\FunctionTok{where}\NormalTok{(is.numeric), }\SpecialCharTok{\textasciitilde{}} \FunctionTok{format}\NormalTok{(.x, }\AttributeTok{scientific =} \ConstantTok{FALSE}\NormalTok{)))}
+ 
+
+\CommentTok{\# Load 2023 hex cell data}
+\NormalTok{hex\_dat\_2023 }\OtherTok{\textless{}{-}} \FunctionTok{st\_read}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/hex\_data\_2025/hex1a\_ng\_abalone\_2023\_040725.gpkg"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])), }\AttributeTok{quiet =}\NormalTok{ T)}
+
+\CommentTok{\# Load 2024 hex cell data}
+\NormalTok{hex\_dat\_2024 }\OtherTok{\textless{}{-}} \FunctionTok{st\_read}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"C:/Users/\%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/hex\_data\_2025/hex1a\_ng\_abalone\_2024\_040725.gpkg"}\NormalTok{, }\FunctionTok{Sys.info}\NormalTok{()[[}\StringTok{"user"}\NormalTok{]])), }\AttributeTok{quiet =}\NormalTok{ T)}
+
+\CommentTok{\# Remove unnecessary cells, clean data and convert to SF}
+\NormalTok{oid\_act }\OtherTok{\textless{}{-}}\NormalTok{ oid\_act\_dat }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, site.no)) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{cell\_ntile =} \StringTok{\textquotesingle{}cell.ntile\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{coords =} \FunctionTok{c}\NormalTok{(}\StringTok{"longitude"}\NormalTok{, }\StringTok{"latitude"}\NormalTok{), }\AttributeTok{crs =}\NormalTok{ WGS84) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_transform}\NormalTok{(., GDA2020)}
+
+\NormalTok{oid\_gl }\OtherTok{\textless{}{-}}\NormalTok{ oid\_gl\_dat }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, site\_order)) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{cell\_ntile =} \StringTok{\textquotesingle{}cell.ntile\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{coords =} \FunctionTok{c}\NormalTok{(}\StringTok{"longitude"}\NormalTok{, }\StringTok{"latitude"}\NormalTok{), }\AttributeTok{crs =}\NormalTok{ WGS84) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_transform}\NormalTok{(., GDA2020)}
+
+
+\CommentTok{\# Join to site catch summary tables}
+
+\NormalTok{oid\_act\_join }\OtherTok{\textless{}{-}} \FunctionTok{left\_join}\NormalTok{(ts\_act, oid\_act, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}site\textquotesingle{}}\NormalTok{))}
+
+\NormalTok{oid\_gl\_join }\OtherTok{\textless{}{-}} \FunctionTok{left\_join}\NormalTok{(ts\_gl, oid\_gl, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}site\textquotesingle{}}\NormalTok{))}
+
+\CommentTok{\# Join to site pre and post difference counts}
+
+\NormalTok{oid\_act\_diff }\OtherTok{\textless{}{-}} \FunctionTok{left\_join}\NormalTok{(pre\_post\_site\_diff\_act, oid\_act, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}site\textquotesingle{}}\NormalTok{))}
+
+\NormalTok{oid\_gl\_diff }\OtherTok{\textless{}{-}} \FunctionTok{left\_join}\NormalTok{(pre\_post\_site\_diff\_gl, oid\_gl, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}site\textquotesingle{}}\NormalTok{))}
+
+\CommentTok{\# Join hex cell cpue data}
+\NormalTok{hex\_dat\_2023\_geom }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2023 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_set\_crs}\NormalTok{(GDA2020) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_centroid}\NormalTok{(.)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning: st_crs<- : replacing crs does not reproject data; use st_transform for
+that
+\end{verbatim}
+
+\begin{verbatim}
+Warning: st_centroid assumes attributes are constant over geometries
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{hex\_dat\_2024\_geom }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_set\_crs}\NormalTok{(GDA2020) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_centroid}\NormalTok{(.)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning: st_crs<- : replacing crs does not reproject data; use st_transform for
+that
+Warning: st_centroid assumes attributes are constant over geometries
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{hex\_dat\_2023 }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2023\_geom }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_set\_geometry}\NormalTok{(}\ConstantTok{NULL}\NormalTok{)}
+
+\NormalTok{hex\_dat\_2024 }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024\_geom }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_set\_geometry}\NormalTok{(}\ConstantTok{NULL}\NormalTok{)}
+
+\NormalTok{hex\_act\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2023 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_b\_totcatch, ab\_b\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_act\_join }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.integer}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_gl\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_g\_totcatch, ab\_g\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_gl\_join }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.integer}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_act\_diff\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2023 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_b\_totcatch, ab\_b\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_act\_diff }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.integer}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_gl\_diff\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024 }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_g\_totcatch, ab\_g\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_gl\_diff }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.integer}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\CommentTok{\# Join hex cell cpue data used to generate original sites (2012{-}2019)}
+\NormalTok{hex\_act\_2019\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019\_summary }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_act\_join, ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_gl\_2019\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019\_summary\_gl }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_gl\_join }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.character}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{glkgtotal =} \FunctionTok{as.numeric}\NormalTok{(glkgtotal))}
+
+\NormalTok{hex\_act\_2019\_diff\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019\_summary }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_act\_diff, ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_gl\_2019\_diff\_join }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2019\_summary\_gl }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{left\_join}\NormalTok{(oid\_gl\_diff }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{oid =} \FunctionTok{as.character}\NormalTok{(oid)), ., }\AttributeTok{by =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{glkgtotal =} \FunctionTok{as.numeric}\NormalTok{(glkgtotal))}
+
+
+\CommentTok{\# filter sites where there is no overlap with most recent hex cell catch data and join with nearest hex cell}
+
+\NormalTok{hex\_act\_join\_na }\OtherTok{\textless{}{-}}\NormalTok{ hex\_act\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(ab\_b\_totcatch)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(ab\_b\_totcatch, ab\_b\_mean\_daily\_qd\_cpue)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{crs =}\NormalTok{ GDA2020)}
+
+\NormalTok{hex\_act\_join\_oid }\OtherTok{\textless{}{-}}\NormalTok{ hex\_act\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(ab\_b\_totcatch))}
+
+\NormalTok{hex\_gl\_join\_na }\OtherTok{\textless{}{-}}\NormalTok{ hex\_gl\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(ab\_g\_totcatch)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(ab\_g\_totcatch, ab\_g\_mean\_daily\_qd\_cpue)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{crs =}\NormalTok{ GDA2020)}
+ 
+\NormalTok{hex\_gl\_join\_oid }\OtherTok{\textless{}{-}}\NormalTok{ hex\_gl\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(ab\_g\_totcatch))}
+
+\CommentTok{\# For sample period difference}
+
+\NormalTok{hex\_act\_diff\_join\_na }\OtherTok{\textless{}{-}}\NormalTok{ hex\_act\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(ab\_b\_totcatch)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(ab\_b\_totcatch, ab\_b\_mean\_daily\_qd\_cpue)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{crs =}\NormalTok{ GDA2020)}
+
+\NormalTok{hex\_act\_diff\_join\_oid }\OtherTok{\textless{}{-}}\NormalTok{ hex\_act\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(ab\_b\_totcatch))}
+
+\NormalTok{hex\_gl\_diff\_join\_na }\OtherTok{\textless{}{-}}\NormalTok{ hex\_gl\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(ab\_g\_totcatch)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(ab\_g\_totcatch, ab\_g\_mean\_daily\_qd\_cpue)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{st\_as\_sf}\NormalTok{(}\AttributeTok{crs =}\NormalTok{ GDA2020)}
+ 
+\NormalTok{hex\_gl\_diff\_join\_oid }\OtherTok{\textless{}{-}}\NormalTok{ hex\_gl\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(ab\_g\_totcatch))}
+
+\CommentTok{\# Get index of nearest hexcell for each timeswim site}
+
+\NormalTok{nearest\_idx\_act }\OtherTok{\textless{}{-}} \FunctionTok{st\_nearest\_feature}\NormalTok{(hex\_act\_join\_na, hex\_dat\_2023\_geom)}
+\NormalTok{nearest\_idx\_gl }\OtherTok{\textless{}{-}} \FunctionTok{st\_nearest\_feature}\NormalTok{(hex\_gl\_join\_na, hex\_dat\_2024\_geom)}
+
+\NormalTok{nearest\_idx\_act\_diff }\OtherTok{\textless{}{-}} \FunctionTok{st\_nearest\_feature}\NormalTok{(hex\_act\_diff\_join\_na, hex\_dat\_2023\_geom)}
+\NormalTok{nearest\_idx\_gl\_diff }\OtherTok{\textless{}{-}} \FunctionTok{st\_nearest\_feature}\NormalTok{(hex\_gl\_diff\_join\_na, hex\_dat\_2024\_geom)}
+
+\CommentTok{\# Select data from hexcell to join}
+\NormalTok{hex\_dat\_act }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024\_geom }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_b\_totcatch, ab\_b\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{oid\_near =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{hex\_dat\_gl }\OtherTok{\textless{}{-}}\NormalTok{ hex\_dat\_2024\_geom }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{select}\NormalTok{(oid, ab\_g\_totcatch, ab\_g\_mean\_daily\_qd\_cpue) }\SpecialCharTok{\%\textgreater{}\%} 
+\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{rename}\NormalTok{(}\AttributeTok{oid\_near =} \StringTok{\textquotesingle{}oid\textquotesingle{}}\NormalTok{)}
+
+\CommentTok{\# Join nearest hexcell data to timed swim sites}
+\NormalTok{act\_joined }\OtherTok{\textless{}{-}} \FunctionTok{bind\_cols}\NormalTok{(hex\_act\_join\_na, }\FunctionTok{st\_drop\_geometry}\NormalTok{(hex\_dat\_act)[nearest\_idx\_act, ])}
+\NormalTok{gl\_joined }\OtherTok{\textless{}{-}} \FunctionTok{bind\_cols}\NormalTok{(hex\_gl\_join\_na, }\FunctionTok{st\_drop\_geometry}\NormalTok{(hex\_dat\_gl)[nearest\_idx\_gl, ])}
+
+\NormalTok{act\_diff\_joined }\OtherTok{\textless{}{-}} \FunctionTok{bind\_cols}\NormalTok{(hex\_act\_diff\_join\_na, }\FunctionTok{st\_drop\_geometry}\NormalTok{(hex\_dat\_act)[nearest\_idx\_act\_diff, ])}
+\NormalTok{gl\_diff\_joined }\OtherTok{\textless{}{-}} \FunctionTok{bind\_cols}\NormalTok{(hex\_gl\_diff\_join\_na, }\FunctionTok{st\_drop\_geometry}\NormalTok{(hex\_dat\_gl)[nearest\_idx\_gl\_diff, ])}
+
+\CommentTok{\# Recombine with timed swim sites with overlapping hexcell data filtered earlier}
+\NormalTok{hex\_act\_dat }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(hex\_act\_join\_oid, act\_joined)}
+\NormalTok{hex\_gl\_dat }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(hex\_gl\_join\_oid, gl\_joined)}
+
+\NormalTok{hex\_act\_dat\_diff }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(hex\_act\_diff\_join\_oid, act\_diff\_joined)}
+\NormalTok{hex\_gl\_dat\_diff }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(hex\_gl\_diff\_join\_oid, gl\_diff\_joined)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Plots}\label{plots}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Only data with overlapping hex cells}
+\NormalTok{hex\_act\_diff\_join }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ ab\_b\_mean\_daily\_qd\_cpue, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \CommentTok{\# xlab(\textquotesingle{}Total Catch (kg)\textquotesingle{})+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 100)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning: A numeric `legend.position` argument in `theme()` was deprecated in ggplot2
+3.5.0.
+i Please use the `legend.position.inside` argument of `theme()` instead.
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 32 rows containing non-finite outside the scale range
+(`stat_smooth()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 32 rows containing non-finite outside the scale range
+(`stat_poly_eq()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 32 rows containing missing values or values outside the scale range
+(`geom_point()`).
+\end{verbatim}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{hex\_gl\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ ab\_g\_mean\_daily\_qd\_cpue, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\StringTok{\textquotesingle{}Total Catch (kg)\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 50)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning: Removed 37 rows containing non-finite outside the scale range
+(`stat_smooth()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 37 rows containing non-finite outside the scale range
+(`stat_poly_eq()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 37 rows containing missing values or values outside the scale range
+(`geom_point()`).
+\end{verbatim}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-2.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Using nearest hex cell data}
+\NormalTok{hex\_act\_dat\_diff }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ ab\_b\_mean\_daily\_qd\_cpue, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \CommentTok{\# xlab(\textquotesingle{}Total Catch (kg)\textquotesingle{})+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 100)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-3.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{hex\_gl\_dat\_diff }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ ab\_g\_mean\_daily\_qd\_cpue, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\StringTok{\textquotesingle{}Total Catch (kg)\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 50)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-4.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Using historical 2012{-}2019 data}
+\NormalTok{hex\_act\_2019\_diff\_join }\SpecialCharTok{\%\textgreater{}\%}
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ cpue\_kg\_hr, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \CommentTok{\# xlab(\textquotesingle{}Total Catch (kg)\textquotesingle{})+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 100)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-5.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{hex\_gl\_2019\_diff\_join }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{mutate}\NormalTok{(}\AttributeTok{cpue\_kg\_hr =} \FunctionTok{as.numeric}\NormalTok{(cpue\_kg\_hr)) }\SpecialCharTok{\%\textgreater{}\%} 
+ \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ cpue\_kg\_hr, }\AttributeTok{y =}\NormalTok{ leg\_diff))}\SpecialCharTok{+}
+ \FunctionTok{geom\_point}\NormalTok{(}\AttributeTok{size =} \DecValTok{3}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{\textquotesingle{}lm\textquotesingle{}}\NormalTok{, }\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\AttributeTok{se =}\NormalTok{ T)}\SpecialCharTok{+}
+ \FunctionTok{stat\_poly\_eq}\NormalTok{(}\AttributeTok{formula =}\NormalTok{ y}\SpecialCharTok{\textasciitilde{}}\NormalTok{x, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste}\NormalTok{(..rr.label.., p.value.label, }\AttributeTok{sep =} \StringTok{"\textasciitilde{}\textasciitilde{}\textasciitilde{}"}\NormalTok{)), }
+              \AttributeTok{parse =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{label.y =} \FloatTok{0.95}\NormalTok{) }\SpecialCharTok{+}
+ \FunctionTok{theme\_bw}\NormalTok{()}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\StringTok{\textquotesingle{}Total Catch (kg)\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \FunctionTok{xlab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}CPUE (\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{kg.hr}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{ylab}\NormalTok{(}\FunctionTok{bquote}\NormalTok{(}\StringTok{\textquotesingle{}Timed Swim Depletion (abalone.10\textquotesingle{}}\SpecialCharTok{*}\ErrorTok{\textasciitilde{}}\NormalTok{min}\SpecialCharTok{\^{}{-}}\DecValTok{1}\SpecialCharTok{*}\StringTok{\textquotesingle{})\textquotesingle{}}\NormalTok{))}\SpecialCharTok{+}
+ \FunctionTok{labs}\NormalTok{(}\AttributeTok{colour =} \StringTok{\textquotesingle{}Rank\textquotesingle{}}\NormalTok{)}\SpecialCharTok{+}
+ \CommentTok{\# ylim(0, 50)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.95}\NormalTok{, }\FloatTok{0.85}\NormalTok{))}\SpecialCharTok{+}
+ \CommentTok{\# facet\_wrap(\textasciitilde{}legal.size, ncol = 2)+}
+ \FunctionTok{theme}\NormalTok{(}\AttributeTok{strip.background =} \FunctionTok{element\_blank}\NormalTok{(),}
+       \AttributeTok{strip.text.x =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{size =} \DecValTok{12}\NormalTok{, }\AttributeTok{face =} \StringTok{\textquotesingle{}bold\textquotesingle{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning in ci_f_ncp(stat, df1 = df1, df2 = df2, probs = probs): Upper limit
+outside search range. Set to the maximum of the parameter range.
+\end{verbatim}
+
+\begin{verbatim}
+Warning in compute_group(...): CI computation error: Error in check_output(cint, probs = probs, parameter_range = c(0, 1)): out[1] <= out[2] is not TRUE
+\end{verbatim}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/cpue vs ts plots-6.pdf}
+
+\section{Spatial plots}\label{spatial-plots}
+
+Hex cell catch and cpue vs sites
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Create map of pre{-}season sites (red) and those sampled post season (blue)}
+\FunctionTok{ggplot}\NormalTok{(sf\_hex\_map\_crop) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{fill =}\NormalTok{ cpue\_kg\_hr), }\AttributeTok{color =} \StringTok{"grey30"}\NormalTok{, }\AttributeTok{size =} \FloatTok{0.2}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_gradientn}\NormalTok{(}
+    \AttributeTok{colours =} \FunctionTok{c}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\StringTok{"yellow"}\NormalTok{, }\StringTok{"orange"}\NormalTok{, }\StringTok{"red"}\NormalTok{, }\StringTok{\textquotesingle{}darkred\textquotesingle{}}\NormalTok{),}
+    \AttributeTok{values =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{rescale}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{20}\NormalTok{, }\DecValTok{40}\NormalTok{, }\DecValTok{80}\NormalTok{, }\DecValTok{120}\NormalTok{)),  }\CommentTok{\# Adjust breakpoints to suit your CPUE range}
+    \AttributeTok{na.value =} \StringTok{"white"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\AttributeTok{data =}\NormalTok{ site\_sampled\_crop) }\SpecialCharTok{+}
+  \FunctionTok{scale\_colour\_manual}\NormalTok{(}\AttributeTok{values =} \FunctionTok{c}\NormalTok{(}\StringTok{"black"}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{annotation\_scale}\NormalTok{(}\AttributeTok{location =} \StringTok{"bl"}\NormalTok{, }\AttributeTok{width\_hint =} \FloatTok{0.5}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{annotation\_north\_arrow}\NormalTok{(}
+    \AttributeTok{location =} \StringTok{"br"}\NormalTok{, }\AttributeTok{which\_north =} \StringTok{"true"}\NormalTok{,}
+    \AttributeTok{pad\_x =} \FunctionTok{unit}\NormalTok{(}\FloatTok{0.05}\NormalTok{, }\StringTok{"cm"}\NormalTok{), }\AttributeTok{pad\_y =} \FunctionTok{unit}\NormalTok{(}\FloatTok{0.1}\NormalTok{, }\StringTok{"cm"}\NormalTok{),}
+    \AttributeTok{style =}\NormalTok{ north\_arrow\_fancy\_orienteering}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{axis.text.y =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{angle =} \DecValTok{90}\NormalTok{, }\AttributeTok{vjust =} \DecValTok{0}\NormalTok{, }\AttributeTok{hjust =} \FloatTok{0.5}\NormalTok{),}
+    \AttributeTok{legend.position =} \StringTok{"right"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{fill =} \StringTok{"CPUE (kg/hr)"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Longitude"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Latitude"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/hex site plot act-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(sf\_hex\_map\_crop\_gl) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{fill =}\NormalTok{ cpue\_kg\_hr), }\AttributeTok{color =} \StringTok{"grey30"}\NormalTok{, }\AttributeTok{size =} \FloatTok{0.2}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_gradientn}\NormalTok{(}
+    \AttributeTok{colours =} \FunctionTok{c}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\StringTok{"yellow"}\NormalTok{, }\StringTok{"orange"}\NormalTok{, }\StringTok{"red"}\NormalTok{, }\StringTok{\textquotesingle{}darkred\textquotesingle{}}\NormalTok{),}
+    \AttributeTok{values =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{rescale}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{20}\NormalTok{, }\DecValTok{40}\NormalTok{, }\DecValTok{80}\NormalTok{, }\DecValTok{120}\NormalTok{)),  }\CommentTok{\# Adjust breakpoints to suit your CPUE range}
+    \AttributeTok{na.value =} \StringTok{"white"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\AttributeTok{data =}\NormalTok{ site\_sampled\_crop\_gl) }\SpecialCharTok{+}
+  \FunctionTok{scale\_colour\_manual}\NormalTok{(}\AttributeTok{values =} \FunctionTok{c}\NormalTok{(}\StringTok{"black"}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{theme\_bw}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{annotation\_scale}\NormalTok{(}\AttributeTok{location =} \StringTok{"bl"}\NormalTok{, }\AttributeTok{width\_hint =} \FloatTok{0.5}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{annotation\_north\_arrow}\NormalTok{(}
+    \AttributeTok{location =} \StringTok{"br"}\NormalTok{, }\AttributeTok{which\_north =} \StringTok{"true"}\NormalTok{,}
+    \AttributeTok{pad\_x =} \FunctionTok{unit}\NormalTok{(}\FloatTok{0.05}\NormalTok{, }\StringTok{"cm"}\NormalTok{), }\AttributeTok{pad\_y =} \FunctionTok{unit}\NormalTok{(}\FloatTok{0.1}\NormalTok{, }\StringTok{"cm"}\NormalTok{),}
+    \AttributeTok{style =}\NormalTok{ north\_arrow\_fancy\_orienteering}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{axis.text.y =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{angle =} \DecValTok{90}\NormalTok{, }\AttributeTok{vjust =} \DecValTok{0}\NormalTok{, }\AttributeTok{hjust =} \FloatTok{0.5}\NormalTok{),}
+    \AttributeTok{legend.position =} \StringTok{"right"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{fill =} \StringTok{"CPUE (kg/hr)"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"Longitude"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Latitude"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TimedSwim_AIRF2022-53_files/figure-pdf/hex site plot gl-1.pdf}
+
+
+
+\end{document}

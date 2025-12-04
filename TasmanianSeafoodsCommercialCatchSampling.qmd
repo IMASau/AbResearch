@@ -1,0 +1,291 @@
+---
+title: "Tasmanian Seafoods Commercial Catch Sampling"
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+  pdf:
+    documentclass: scrreport
+    keep-tex:  true
+    dpi: 600
+    pdf-engine: lualatex
+    toc: true
+    toc-depth: 4
+    toc_float: true
+    number-sections: false
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    linestretch: 1.25
+    mainfont: Calibri
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+editor: 
+  markdown: 
+    wrap: 72
+---
+\newpage
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# Clear console
+rm(list = ls())
+
+##---------------------------------------------------------------------------##
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+        library(dplyr)
+        library(ggplot2)
+        library(scales)
+        library(tidyr)
+        library(gdata)
+        library(openxlsx)
+        library(lubridate)
+        library(reshape)
+        library(gridExtra)
+        library(ggpubr)
+        library(readxl)
+        library(tibble)
+        library(data.table)
+        library(janitor)
+        library(anytime)
+        library(stringr)
+        library(broom)
+        library(purrr)
+        library(sf)
+        library(ggspatial)
+        library(tmap)
+        library(sf)
+        library(sp)
+        library(RColorBrewer)
+        library(viridis)
+        library(ggpmisc)
+        library(arsenal)
+  library(fuzzyjoin)
+ library(tidytext)
+})
+
+source("C:/GitCode/AbResearch/getLegend.r")
+source("C:/GitCode/AbResearch/StandardError_Functions.r")
+
+```
+
+
+```{r load data}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##-------------------------------------------------------------------------------------------------------##
+# Load data ####
+
+# Load most recent compiled MM dataframe
+
+compiledMM_df_final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+                                            Sys.info()[["user"]])))
+
+
+# Identify stock assessment year of interest
+target_year <- 2025
+
+
+# Create plots folder
+mm_plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/Assessment/Figures/MM',
+                                           Sys.info()[["user"]])),
+                             paste(target_year, '/', 'MM_Plots_', target_year, sep = ''))
+
+
+```
+
+# Weight Grading
+
+Since 2020, catches have been predominantly composed of medium grade abalone (@fig-stacked). However, the proportion of large grade abalone has steadily increased, particularly from 2022 onward, while small grade abalone have declined in relative proportion. 
+
+```{r stacked grade plot}
+#| label: fig-stacked
+#| fig-cap: "Stacked frequency distribution of weight gradings across extra small, small, medium and large abalone, illustrating the relative contribution of each weight grade to the overall distributions in the Western Zone between 2020 and 2025. Number of abalone measured above each boxplot."
+#| fig-pos: "H"
+#| fig-width: 10
+#| fig-height: 8
+#| out-height: 90%
+#| echo: false
+#| warning: false
+#| message: false
+
+# Stacked barplot of grades measured for zone in stock assessment year
+    
+# Determine number of abalone measured by grade per zone
+
+  blockno.grade.meas <- compiledMM_df_final %>% 
+    filter(!is.na(whole.weight) &
+             between(fishyear, target_year - 5, fishyear) &
+             numblocks == 1) %>% 
+    group_by(fishyear, newzone, grade) %>% 
+    summarise(grade.meas = n()) %>% 
+    mutate(zone.blockno = paste(newzone, sep = '-'))
+
+# Create plot label for total number of abalone measured per block
+  blockno_n_plot_lab <- compiledMM_df_final %>% 
+   filter(!is.na(whole.weight) &
+           between(fishyear, target_year - 5, fishyear) &
+           numblocks == 1) %>% 
+    group_by(fishyear, newzone) %>% 
+    summarise(n = n()) %>% 
+    mutate(zone.blockno = paste(newzone, sep = '-'),
+           y.pos = 1.02)
+
+# Create 100% stacked barplot of grades for western zone
+  
+  grade_stack_plot <- ggplot(blockno.grade.meas %>% filter(newzone == 'W'), 
+                             aes(x = fishyear, 
+                                 y = grade.meas,
+                             fill = forcats::fct_rev(grade))) + 
+    geom_bar(position = "fill", stat = "identity") + 
+    scale_y_continuous(labels = scales::percent_format())+
+    xlab('Year')+
+    ylab('Percentage')+
+    geom_text(data = blockno_n_plot_lab %>% filter(newzone == 'W') , aes(x = fishyear, y = y.pos, label = n, fill = NULL), size = 3)+
+    scale_fill_manual(name = 'Grade', 
+                      labels = c('XSmall', 'Small', 'Medium', 'Large'),
+                      values = c('#868686FF', '#EFC000FF', '#0073C2FF','#CD534CFF'))+
+    theme_bw()
+  
+  grade_stack_plot
+    
+# Save plot
+  
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneNoGradeSummary_W_', target_year, '.pdf', sep = ''),
+    plot = grade_stack_plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneNoGradeSummary_W_', target_year, '.wmf', sep = ''),
+    plot = grade_stack_plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneNoGradeSummary_W_', target_year, '.png', sep = ''),
+    plot = grade_stack_plot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+
+```
+
+# Length Frequency
+
+Size composition in the western zone has remained relatively stable since 2020, with catches consistently centered around a median length of 155–160 mm (@fig-boxplot). In 2025, catches have been dominated by generally larger abalone, with a median length closer to 160 mm.
+
+```{r median length}
+#| label: fig-boxplot
+#| fig-cap: 'Boxplot of length frequency distributions between 2020 and 2025 for the Western Zone. Red line under each boxplot indicates the LML for that year. Number of abalone measured given above each boxplot.'
+#| fig-pos: "H"
+#| fig-width: 10
+#| fig-height: 8
+#| out-height: 90%
+#| echo: false
+#| warning: false
+#| message: false
+
+# Boxplot of lengths measured for zone in stock assessment year
+    
+plotdat_zone <- compiledMM_df_final %>%
+filter(!is.na(whole.weight) &
+             between(fishyear, target_year - 5, fishyear) &
+             numblocks == 1 &
+        newzone == 'W')
+
+ # generate a count of records for each year to add to boxplot
+      
+      plotdat_n <- plotdat_zone %>%
+        group_by(fishyear, newzone) %>%
+        summarize(n = n())
+      
+      # generate table of size limits for each year to add to boxplot
+      
+      size_limit <- plotdat_zone %>% 
+        group_by(fishyear, newzone) %>% 
+        summarise(legal.min.length = max(sizelimit))
+      
+      # generate boxplot of shell lengths for chosen grouping variable
+      
+      mm_zone_boxplot <-
+        ggplot(plotdat_zone %>% filter(newzone == 'W'), aes(x = fishyear, y = shell.length, group = fishyear)) +
+        geom_boxplot(outlier.colour = "orange", outlier.size = 1.5) +
+        geom_text(
+          data = plotdat_n %>% filter(newzone == 'W'),
+          aes(y = 200, label = n),
+          size = 3,
+          angle = 0
+        ) +
+        geom_point(data = size_limit %>% filter(newzone == 'W'), aes(x = fishyear, y = legal.min.length), 
+                   shape = 95, size = 7, colour = "red")+
+        xlab('Year') +
+        ylab(paste('Shell Length (mm)')) +
+        coord_cartesian(ylim = c(120, 200)) +
+        theme_bw() +
+        theme(
+          plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(colour = "black"),
+          axis.text.x = element_text(angle = 0, vjust = 0.5)
+        )
+      
+mm_zone_boxplot
+
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneSizeStructure_W_', target_year, '.pdf', sep = ''),
+    plot = mm_zone_boxplot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneSizeStructure_W_', target_year, '.wmf', sep = ''),
+    plot = mm_zone_boxplot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+  ggsave(
+    filename = paste(mm_plots_folder, 'MM_ZoneSizeStructure_W_', target_year, '.png', sep = ''),
+    plot = mm_zone_boxplot,
+    width = 7.4,
+    height = 5.57,
+    units = 'in'
+  )
+      
+```    
+

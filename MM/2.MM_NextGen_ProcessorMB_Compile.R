@@ -6,7 +6,7 @@
 
 ##---------------------------------------------------------------------------##
 # clear console ####
-rm(list = ls())
+# rm(list = ls())
 
 # load libaries ####
 suppressPackageStartupMessages({
@@ -478,7 +478,9 @@ docket.incomplete <- measure.board.next.gen.df.old %>%
                                          527780, 528529, 818687, 816311, 811308, 810743, 529658,
                                          529485, 528231, 528168, 527358, 523743, 818704, 818564,
                                          818683, 812809, 528238, 528158, 527397, 520017, 519891,
-                                         529658, 819128))  #remove samples where manual check of raw data found no refresh/or additional data
+                                         529658, 819128, 819242, 819137, 819136, 816892, 816871, 
+                                         531143, 531138, 531135, 530690, 529800, 529720, 529671,
+                                         529622, 528613, 528288, 528047))  #remove samples where manual check of raw data found no refresh/or additional data
         # pull(docketnum)
 
 # saveRDS(docket.incomplete, 'C:/CloudStor/R_Stuff/MMLF/docket.incomplete.RDS')

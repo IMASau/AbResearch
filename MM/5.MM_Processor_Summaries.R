@@ -6,7 +6,7 @@
 
 ##----------------------------------------------------------------------------##
 # clear console ####
-rm(list = ls())
+# rm(list = ls())
 
 # 1. load libaries ####
 suppressPackageStartupMessages({

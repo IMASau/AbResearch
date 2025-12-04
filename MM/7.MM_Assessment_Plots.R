@@ -61,7 +61,7 @@ compiledMM.df.final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research
 # Identify fish year ####
 
 # identify stock assessment year of interest
-stock.assessment.year <- 2024
+stock.assessment.year <- 2025
 
 ##----------------------------------------------------------------------------##
 # Plots folders ####
@@ -2198,67 +2198,68 @@ df.7.block <- bind_rows(df.7.dat.2019, df.7.dat.histo)
   ## stacked barplot of grades measured for eaah block in stock assessment year
     
   # determine number of abalone measured by grade per block
-  blockno.grade.meas <- compiledMM.df.final.grade %>% 
+  blockno.grade.meas <- compiledMM.df.final %>% 
     filter(!is.na(whole.weight) &
-             fishyear == stock.assessment.year &
+             between(fishyear, stock.assessment.year - 5, fishyear) &
              numblocks == 1) %>% 
-    group_by(newzone, blockno, grade) %>% 
+    group_by(fishyear, newzone, grade) %>% 
     summarise(grade.meas = n()) %>% 
-    mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
+    mutate(zone.blockno = paste(newzone, sep = '-'))
     # mutate(blockno = as.factor(blockno))
   
-  # determine number of abalone measured by grade per block
-  blockno.grade.meas.proc <- compiledMM.df.final.grade %>% 
-    filter(!is.na(whole.weight) &
-             fishyear == stock.assessment.year &
-             numblocks == 1) %>% 
-    group_by(processorname, newzone, blockno, grade) %>% 
-    summarise(grade.meas = n()) %>% 
-    mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
-  # mutate(blockno = as.factor(blockno))
+  # # determine number of abalone measured by grade per block
+  # blockno.grade.meas.proc <- compiledMM.df.final.grade %>% 
+  #   filter(!is.na(whole.weight) &
+  #            fishyear == stock.assessment.year &
+  #            numblocks == 1) %>% 
+  #   group_by(processorname, newzone, blockno, grade) %>% 
+  #   summarise(grade.meas = n()) %>% 
+  #   mutate(zone.blockno = paste(newzone, blockno, sep = '-'))
+  # # mutate(blockno = as.factor(blockno))
   
   # create plot label for total number of abalone measured per block
-  blockno.n.plot.lab <- compiledMM.df.final.grade %>% 
-    filter(!is.na(whole.weight) &
-             fishyear == stock.assessment.year &
-             numblocks == 1) %>%
-    group_by(newzone, blockno) %>% 
+  blockno.n.plot.lab <- compiledMM.df.final %>% 
+   filter(!is.na(whole.weight) &
+           between(fishyear, stock.assessment.year - 5, fishyear) &
+           numblocks == 1) %>% 
+    group_by(fishyear, newzone) %>% 
     summarise(n = n()) %>% 
-    mutate(zone.blockno = paste(newzone, blockno, sep = '-'),
+    mutate(zone.blockno = paste(newzone, sep = '-'),
            y.pos = 1.02)
   
   #create 100% stacked barplot of grades by block
-  grade.stack.plot <- ggplot(blockno.grade.meas, 
-                             aes(x = zone.blockno, 
+  grade.stack.plot <- ggplot(blockno.grade.meas %>% filter(newzone == 'W'), 
+                             aes(x = fishyear, 
                                  y = grade.meas,
                              fill = forcats::fct_rev(grade))) + 
     geom_bar(position = "fill", stat = "identity") + 
     scale_y_continuous(labels = scales::percent_format())+
-    xlab('Zone-BlockNo')+
+    xlab('Year')+
     ylab('Percentage')+
-    geom_text(data = blockno.n.plot.lab , aes(x = zone.blockno, y = y.pos, label = n, fill = NULL), size = 3)+
+    geom_text(data = blockno.n.plot.lab %>% filter(newzone == 'W') , aes(x = fishyear, y = y.pos, label = n, fill = NULL), size = 3)+
     scale_fill_manual(name = 'Grade', 
-                      labels = c('Small', 'Medium', 'Large'),
-                      values = c('#EFC000FF', '#0073C2FF','#CD534CFF'))+
+                      labels = c('XSmall', 'Small', 'Medium', 'Large'),
+                      values = c('#868686FF', '#EFC000FF', '#0073C2FF','#CD534CFF'))+
     theme_bw()
     
-  setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  # setwd('C:/CloudStor/R_Stuff/MMLF/MM_Plots')
+  
   ggsave(
-    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.pdf', sep = ''),
+    filename = paste(mm_plots_folder, 'MM_BlockNoGradeSummary_W_', stock.assessment.year, '.pdf', sep = ''),
     plot = grade.stack.plot,
     width = 7.4,
     height = 5.57,
     units = 'in'
   )
   ggsave(
-    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.wmf', sep = ''),
+    filename = paste(mm_plots_folder, 'MM_BlockNoGradeSummary_W_', stock.assessment.year, '.wmf', sep = ''),
     plot = grade.stack.plot,
     width = 7.4,
     height = 5.57,
     units = 'in'
   )
   ggsave(
-    filename = paste('MM_BlockNoGradeSummary_', stock.assessment.year, '.png', sep = ''),
+    filename = paste(mm_plots_folder, 'MM_BlockNoGradeSummary_W_', stock.assessment.year, '.png', sep = ''),
     plot = grade.stack.plot,
     width = 7.4,
     height = 5.57,

@@ -1,0 +1,117 @@
+---
+title: "Timed Swim Spatial Analysis"
+author: "Jaime McAllister"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_height: 8
+    fig_width: 8
+    includes:
+      in_header: header.tex
+    toc: yes
+  word_document:
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",     ## nothing goes in front of each line
+                      message = FALSE,  ## into the console, not the document
+                      warning = FALSE,  ## into the console, not the document
+                      fig.align = "center",
+                      fig.show = "hold",
+                      out.height = "0.8\\textwidth",
+                      out.width = "0.8\\textwidth")
+options(knitr.kable.NA = '')
+
+
+suppressPackageStartupMessages({
+library(tictoc)
+library(sf)
+library(nngeo)
+library(sp)
+library(spatialEco)  
+library(lubridate)
+library(tidyverse)
+library(tmap)
+library(tictoc)
+library(spdep)
+library(openxlsx)  
+})
+
+## Set EPSG CRS
+
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+```
+# Read in hex layer
+Read in grid wide spatial layer, and transform to GDA2020. This hex cell layer contains the majority of fishing activity during the timed swim validation surveys.
+
+```{r prepare base layers}
+## Read in abalone wide hex layer
+ab_hex_2021 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLAyers/hex2021.rds", Sys.info()[["user"]]))) %>% 
+ mutate(fishyear = 2021)
+
+ab_hex_2023 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLAyers/hex2023.rds", Sys.info()[["user"]]))) %>% 
+ mutate(fishyear = 2023)
+
+ab_hex_2024 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLAyers/hex2024.rds", Sys.info()[["user"]]))) %>% 
+ mutate(fishyear = 2024)
+
+ab_hex <- bind_rows(ab_hex_2021, ab_hex_2023, ab_hex_2024) %>% 
+ mutate(zone = str_trim(zone))
+
+## Convert to sf
+sf_ab_hex <- st_as_sf(ab_hex)
+
+## Transform from GDA94 to GDA2020
+sf_ab_hex <- st_transform(sf_ab_hex, GDA2020)
+
+
+```
+
+```{r summary}
+
+# Determine catch for blacklip only
+sf_ab_hex <- sf_ab_hex %>% 
+ mutate(bl_kg = case_when(catch_species_1 == 'abb' ~ catch,
+                          catch_species_2 == 'abb' ~ catch,
+                          catch_species_3 == 'abb' ~ catch,
+                          TRUE ~ NA),
+        gl_kg = case_when(catch_species_1 == 'abg' ~ catch,
+                          catch_species_2 == 'abg' ~ catch,
+                          catch_species_3 == 'abg' ~ catch,
+                          TRUE ~ NA))
+
+# Select data frames for study areas
+
+act_hex_dat <- sf_ab_hex %>% 
+ filter(zone == 'E', blockno == 13)
+
+glp_hex_dat <- sf_ab_hex %>% 
+ filter((catch_species_1 == 'abg' | 
+         catch_species_2 == 'abg' | 
+         catch_species_3 == 'abg') &
+         blockno %in% c(39, 40))
+
+unique(sf_ab_hex$zone)
+
+# calculate mean cpue for each oid within timed swim survey areas and create data frame for later analysis
+df_cpue <- ts.hex %>% 
+ mutate(cpue_kg_hr = blkgtotal / (minstotal / 60)) %>%
+ st_centroid(.) %>% 
+ st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs(st_crs(7855)) %>%
+  st_transform(crs = st_crs(4326)) %>%
+  sfheaders::sf_to_df(fill = T) %>%
+  select(oid, zone, blockno, subblockno, cpue_kg_hr, cell.ntile, x, y) %>% 
+  dplyr::rename('latitude' = y,
+                'longitude' = x) %>%
+ select(-c(latitude, longitude)) %>% 
+ distinct()
+
+```
+
+

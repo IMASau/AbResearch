@@ -1,0 +1,3177 @@
+---
+title: "Quantifying potential of the IMAS Timed-Swim program to detect change in stock levels"
+subtitle: "AIRF Project 2022/53"
+author:
+  - name: Jaime McAllister
+    affiliations:
+        - name: IMAS, University of Tasmania
+          department: IMAS-FA
+date: last-modified
+date-format: "[Last Updated on] DD MMMM, YYYY"
+format:
+  docx:
+    highlight-style: github
+    papersize: A4
+    code-overflow: "wrap"
+    reference-doc: word-styles-reference-01.docx
+    toc: true
+    number-sections: false
+    toc-depth: 4
+    number-depth: 4
+    margin-left: 0.75in
+    margin-right: 0.75in
+    margin-top: 1in
+    margin-bottom: 1in
+  pdf:
+    documentclass: scrreprt
+    keep-tex:  true
+    dpi: 600
+    latex-auto-mk: true
+    latex-auto-install: true
+    # pdf-engine: pdflatex
+    mainfont: Arial
+    latex-tinytex: false
+    toc: false
+    toc-depth: 4
+    toc_float: true
+    number-sections: true
+    number-depth: 4
+    highlight-style: github
+    papersize: "A4paper"
+    #linestretch: 1.25
+    fig_caption: yes
+    geometry:
+      - left = 20mm
+      - right = 20mm
+      - top = 20mm
+      - bottom = 10mm
+    header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
+    include-in-header: |
+      \usepackage{amsmath}
+      \usepackage{fontspec}
+      \setmainfont{Arial}
+      \usepackage{fancyhdr}
+      \pagestyle{fancy}
+      \fancyhf{} % clear header and footer
+      \cfoot{\thepage} % center footer page number
+      \renewcommand{\headrulewidth}{0pt}
+      \renewcommand{\footrulewidth}{0pt}
+      \AtBeginDocument{\thispagestyle{fancy}} % force page number on title page
+      \renewcommand{\maketitle}{%
+        {\centering
+          \normalfont\Huge\bfseries\textsf{\title}\par\vskip 1.5em
+          \LARGE\textsf{\subtitle}\par\vskip 1.2em
+          \large\textsf{\author}\par\vskip 1em
+          \textsf{\date}\par}
+      }
+
+
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+\newpage
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+##---------------------------------------------------------------------------##
+# clear console
+rm(list = ls())
+
+## 1. Load libraries ####
+suppressPackageStartupMessages({
+ library(dplyr)
+ library(ggplot2)
+ library(ggrepel)
+ library(scales)
+ library(tidyr)
+ library(fs)
+ library(gdata)
+ library(openxlsx)
+ library(lubridate)
+ library(reshape)
+ library(gridExtra)
+ library(ggpubr)
+ library(readxl)
+ library(tibble)
+ library(data.table)
+ library(stringr)
+ library(broom)
+ library(purrr)
+ library(sf)
+ library(ggspatial)
+ library(tmap)
+  library(sp)
+ library(RColorBrewer)
+ library(viridis)
+ library(ggpmisc)
+ library(lme4)
+ library(pbkrtest)
+ library(AICcmodavg)
+ library(visreg)
+ library(glmmTMB)
+ library(DHARMa)
+ library(emmeans)
+ library(ggeffects)
+ library(ggExtra)
+ library(flextable)
+ library(boot)
+ library(coin)
+ library(patchwork)
+})
+
+set_flextable_defaults(#font.family = "Calibri (Body)",
+                       font.size = 10,
+                       # digits = 1,
+                       # border.color = "#000000",
+                       padding.bottom = 1,
+                       padding.top = 1,
+                       padding.left = 3,
+                       padding.right = 1)
+
+`%ni%` <- Negate(`%in%`)
+is.ok <- Negate(is.na)
+
+untibble <- function(tib) {
+  data.frame(unclass(tib), stringsAsFactors = FALSE, check.names = FALSE)
+} 
+
+theme_set(theme_bw() + theme(plot.title = element_text(hjust = 0.5)))
+
+# Identify sampling year of interest
+samp_year <- 2025
+
+# Identify input and output folders
+infolder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys', samp_year, sep = '')) 
+
+datetext <- now() |> format("%Y_%m_%d")
+
+```
+# Introduction
+
+Fishery-independent surveys are essential for robust stock assessment and management, offering data that underpin informed decision-making. Ensuring accuracy and appropriate spatial-temporal coverage is vital for their effectiveness. These surveys are critical for estimating stock abundance, distribution, recruitment, and biomass, especially in contexts where fishery-dependent data may be absent. As Jardim and Ribeiro (2007) emphasised, the integrity of stock assessments hinges on the quality and consistency of fishery-independent data, which serve as a benchmark for validating models and informing harvest strategies.
+
+In Tasmania, timed swim surveys have been implemented as the primary method for fishery-independent assessment of abalone stocks. This approach is designed to evaluate the spatial extent of recovery and monitor progress toward established rebuilding benchmarks. The method provides rapid estimates of both abundance and population size structure across a large number of sites, offering practical advantages over more detailed transect-based techniques that require greater time and logistical effort.
+
+Timed swim survey results from East Coast blocks closed to commercial fishing since 2020 have exceeded expectations. Observed trends show a stable to increasing abundance of larger abalone (>140 mm), consistent with the cessation of commercial harvest. In contrast, stable or declining numbers of sub-legal animals (<140 mm) align with expectations of reduced recruitment following the 2016 marine heatwave. However, due to the cryptic nature of abalone, particularly their tendency to occupy concealed habitats, estimate of true population abundance are nonsensical and largely unknown. This behavioural trait introduces uncertainty when interpreting changes in observed timed swim abundance relative to actual stock levels.
+
+In the absence of a known baseline for true abundance, the most robust way to assess the reliability of a survey method is through evaluating its repeatability over time. Consistent patterns across repeated surveys can provide confidence in the method’s ability to detect relative changes in abundance, even if absolute population size remains unknown. In the context of timed swim surveys, a key question is how repeatable the counts are, specifically, whether observed abundance at time A is comparable to that at time B, and whether the method reliably reflects underlying population dynamics. Over short timeframes, we expect a high correlation in sub-legal abalone counts between surveys. These individuals are not subject to fishing pressure and are less likely to be influenced by short-term environmental variability, making their abundance relatively stable. However, as the interval between surveys increases or if fishing pressure is reintroduced, the correlation is expected to weaken. This is particularly true for legal-sized animals, whose abundance may be affected by harvest, natural mortality, movement, and recruitment. These processes introduce variability that can obscure the relationship between survey counts and true abundance over longer periods. Ultimately, while timed swim surveys may not provide precise estimates of absolute abundance due to the cryptic nature of abalone, their value lies in detecting relative changes and trends, especially when applied consistently and interpreted within the appropriate ecological and management context.
+
+This report presents the outcomes of two natural experiments conducted within the Tasmanian abalone fishery, designed to evaluate the sensitivity of Timed Swim surveys to changes in stock abundance.
+The first case study focuses on the north-east greenlip fishery, which operates as a pulse fishery, typically harvesting 15–20 tonnes over a concentrated period of 4–6 days. The second examines the Actaeons blacklip fishery, Tasmania’s largest, which exhibits clear signs of within-season depletion, as evidenced by progressive declines in catch per unit effort (CPUE) over the course of the fishing season. Timed Swim surveys were conducted before, during, and after these intense fishing events to assess whether the method could reliably detect changes in abalone abundance associated with fishing pressure.
+
+The project was guided by two primary objectives:
+
+1.	Determine the potential effect size that Timed Swim surveys can detect at block level.
+2.	Examine the relationship between fishing pressure and reduction in abalone abundance.
+ 
+
+
+
+# Load Data
+
+```{r loaddat}
+
+# Load Actaeons blacklip data
+# Note: this data includes all blacklip data standardised for fishyear.
+
+myFile <- dir_info(infolder, recurse = FALSE, glob = "*.RData") %>%
+  filter(type == "file",  size > "10KB") %>%
+  arrange(desc(modification_time)) %>%
+  filter(str_detect(path, "TimedSwimData_Stnd_202")) %>% 
+  filter(modification_time == max(modification_time))
+
+print(myFile$path)
+load(myFile$path)
+
+# Load North-east greenlip data
+
+greenlip_dat_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata', 
+                                            Sys.info()[["user"]])), paste('FIS_TimedSwimSurveys2024/TimedSwim_NEGreens', sep = ''))
+
+ts_dat_gl <- readRDS(paste(greenlip_dat_folder, '/ts_gl_dat.RDS', sep = ''))
+
+# Identify output folders
+ts_plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Projects/AIRF_2022_53/FinalReport/Figures', Sys.info()[["user"]]),sep = ''))
+
+
+
+
+```
+
+
+# Data prepartation
+
+```{r direction function}
+
+# Function to convert continuous swim direction (i.e. compass direction) into a 
+# categorical direction for standardisation by dividing the 360 degree compass into 
+# segments that represent the cardinal and intercardinal directions. 
+
+get_compass_direction <- function(degrees) {
+  # Normalize degrees to [0, 360)
+  degrees <- degrees %% 360
+  
+  # Define compass labels
+  directions <- c("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                  "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
+  
+  # Each sector spans 22.5 degrees
+  sector <- floor((degrees + 11.25) / 22.5) %% 16
+  
+  return(directions[sector + 1])
+}
+
+```
+
+## Actaeons blacklip data
+```{r data prep}
+
+# Filter Actaeons blacklip data(Block 13) data and identify sample periods
+# Include only records in experimental period 2023-01-01 to 2024-12-31 (records outside this period we collected as part of a pilot study (2021) and ongoing population monitoring (2025)).
+
+act_ts_dat <- ts_dat %>%
+ dplyr::rename(samp_date = 'sampdate') %>%
+ filter(blockno == 13 &
+         between(samp_date, as.Date('2023-01-01'), as.Date('2024-12-31'))) %>%
+ mutate(samp_period = ifelse(
+  between(samp_date, as.Date('2021-01-01'), as.Date('2021-03-31')) |
+   between(samp_date, as.Date('2023-01-01'), as.Date('2023-03-31')),
+  'pre',
+  ifelse(between(
+   samp_date, as.Date('2023-04-01'), as.Date('2023-12-31')
+  ), 'mid', 'post')
+ ))
+
+# Site AB-2023-13-45 was sampled twice mid season accidentally - remove earliest sampling data.
+act_ts_dat <- act_ts_dat %>%
+  filter(!(samp_date == as.Date('2023-08-29') & site == 'AB-2023-13-45'))
+
+# Add additional sizeclass grouping
+act_ts_dat <- act_ts_dat %>% 
+ mutate(sizeclass_actaeons = ifelse(sizeclass %in% c("0-60", "60-100", "0-100", "0-20", "20-40", "40-60", "60-80", "80-100", "100-120"), '0-120 mm',
+                                   ifelse(sizeclass %in% c("120-140"), '120-140 mm', '>140 mm')))
+
+# Summarise counts by site, sample period, and diver
+ts_working_dat_act <- act_ts_dat %>% 
+ group_by(samp_date, blockno, site, samp_period, diver_id, dive_dir, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ mutate(samp_period = factor(samp_period, levels = c('pre', 'mid', 'post')),
+        site = as.factor(site),
+        diver_id = as.factor(diver_id),
+        legal_size = as.factor(legal_size)) %>% 
+ pivot_wider(
+  names_from = legal_size,
+  values_from = ab_n
+ ) %>% 
+ dplyr::rename(sublegal_n = '<140 mm',
+               legal_n = '>140 mm') %>% 
+ mutate(total_n = sublegal_n + legal_n,
+        sublegal_prop = sublegal_n / total_n,
+        legal_prop = legal_n / total_n,
+        study_loc = 'act_bl')
+
+# Summarise counts by site, sample period, and diver
+ts_dat_act_size <- act_ts_dat %>% 
+ group_by(samp_date, blockno, site, samp_period, diver_id, dive_dir, sizeclass_actaeons) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ mutate(samp_period = factor(samp_period, levels = c('pre', 'mid', 'post')),
+        site = as.factor(site),
+        diver_id = as.factor(diver_id),
+        sizeclass_actaeons = as.factor(sizeclass_actaeons)) %>% 
+ pivot_wider(
+  names_from = sizeclass_actaeons,
+  values_from = ab_n
+ ) %>% 
+ dplyr::rename(sublegal_n = '120-140 mm',
+               legal_n = '>140 mm',
+               juv_n = '0-120 mm') %>% 
+ mutate(total_n = sublegal_n + legal_n + juv_n,
+        study_loc = 'act_bl')
+
+# Convert swim direction
+ts_working_dat_act <- ts_working_dat_act %>% 
+ mutate(dive_dir_group = get_compass_direction(dive_dir))
+
+ts_dat_act_size <- ts_dat_act_size %>% 
+ mutate(dive_dir_group = get_compass_direction(dive_dir))
+
+```
+
+## North-east greenlip data
+
+```{r greenlip dat}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# Remove whitespace from any cells
+ts_dat_gl <- ts_dat_gl %>%
+  mutate(across(where(is.character), ~str_trim(.x, side = "both")))
+
+
+# Add unique diver_id to data
+ts_dat_gl_join <- fuzzyjoin::fuzzy_left_join(
+  ts_dat_gl, time_swim_divers,
+  by = c("diver" = "diver", 
+         "samp_date" = "start_date", 
+         "samp_date" = "end_date"),
+  match_fun = list(`==`, `>=`, `<=`)
+) %>% 
+ select(-c(diver.y, diver_name, diver_surname, dive_pair_id, dive_buddy_id, start_date, end_date)) %>% 
+ dplyr::rename(diver = 'diver.x')
+
+# Create site_year variable and sample period
+ts_dat_gl <- ts_dat_gl_join %>% 
+ filter(sampyear == 2024) %>%
+ mutate(site_year = paste(sampyear, site, sep = '_'),
+        samp_period = ifelse(samp_date <= as.Date('2024-06-30'), 'pre', 'post'))
+
+# ts_dat_gl %>% 
+#  distinct(samp_date)
+
+
+# Summarise counts by site, year, and diver
+ts_working_dat_gl <- ts_dat_gl %>% 
+ group_by(samp_date, blockno, site, samp_period, diver_id, dive_dir, habitat_std, percent_algae, visibility, tide,
+          tide_direction, legal_size) %>% 
+ summarise(ab_n = sum(sizeclass_freq_10)) %>% 
+ mutate(samp_period = factor(samp_period, levels = c('pre', 'post')),
+        site = as.factor(site),
+        diver_id = as.factor(diver_id),
+        legal_size = as.factor(legal_size),
+        tide_direction = as.factor(tide_direction),
+        tide = as.factor(tide),
+        visibility = as.factor(visibility)) %>% 
+ pivot_wider(
+  names_from = legal_size,
+  values_from = ab_n
+ ) %>% 
+ dplyr::rename(sublegal_n = '<150 mm',
+               legal_n = '>150 mm') %>%  
+ mutate(total_n = sublegal_n + legal_n,
+        sublegal_prop = sublegal_n / total_n,
+        legal_prop = legal_n / total_n,
+        study_loc = 'ne_gl')
+
+# Convert swim direction
+ts_working_dat_gl <- ts_working_dat_gl %>% 
+ mutate(dive_dir_group = as.factor(get_compass_direction(dive_dir)))
+
+
+```
+# Methods
+
+## Experimental Design
+
+This study aimed to quantify the magnitude of change detectable by the Timed Swim (TS) FIS program and to model the relationship between fishing pressure and observed changes in abalone abundance. Two natural experiments were conducted, each targeting a distinct fishery dynamic:
+
+1.	Rapid depletion associated with pulse fishing in the north-east greenlip abalone fishery.
+2.	Within-season depletion of blacklip abalone in the Actaeons region, south-east Tasmania.
+
+### Pulse Fishing in the North-East Greenlip Fishery
+
+Timed swim surveys were conducted in the weeks preceding the opening of the north-east greenlip fishery (1 July 2024) and repeated within six weeks following the closure of the catch cap on 4 July 2024 (@tab-sample-duration). Given the short duration of the fishing period (3-days), sub-legal abalone (<140 mm) were assumed to remain stable and served as a reference group. The following hypotheses were tested:
+
+•	H1: The mean count of legal-sized abalone (>145 mm) would be lower post-fishing.
+•	H2: The magnitude of decline would be greater in areas subjected to higher fishing effort.
+
+### Within-Season Depletion in the Actaeons Blacklip Fishery
+
+Surveys in the Actaeons region were conducted at three time points: pre-season (March 2023), mid-season (September 2023), and post-season (February 2024) (@tab-sample-duration). This timeframe was selected to capture both fishing-induced depletion and potential seasonal shifts in the abundance of emergent and cryptic abalone. The following hypotheses were tested:
+
+•	H1: Abundance of legal-sized abalone would decline progressively from April to January.
+•	H2: Declines would be more pronounced in areas with higher fishing pressure.
+•	H3: Sub-legal abundance would peak in winter (September) and decline in autumn and summer.
+
+## Timed Swim Survey Protocol
+
+At each site, two divers conducted a 10-minute timed swim using surface-supplied breathing apparatus (SSBA) from an IMAS research vessel. Divers swam in parallel along a random bearing within the 8–12 m depth contour, visually measuring all abalone encountered in situ using a measuring slate marked in 20 mm increments. Abalone were not removed from the substrate. Lengths were recorded by marking the corresponding interval on a waterproof slate. The timed swim commenced upon encountering the first abalone and was terminated if no abalone were observed within five minutes, in which case a zero count was recorded. Vessel GPS positions at the start and end of each dive were recorded and used to determine swim direction and where possible replicated in post-season surveys. For greenlip surveys divers also recorded a visibility rating on a five-point scale, ranging from 1 (visibility >10 m) to 5 (zero visibility). Tide direction was also classified as either incoming or outgoing based on historical tide predictions for Swan Island, sourced from the Bureau of Meteorology (BOM 2024). Directional classification was determined by comparing the dive time to the predicted tide height, with rising tides considered incoming and falling tides considered outgoing.Site Selection
+Survey sites were identified using GPS logger data and catch records spanning 2012 to 2019, stratified into two fishing pressure categories: moderately and highly fished. The coastline was partitioned into 1-hectare hexagonal grid cells extending up to 5 km offshore, with total catch (kg) allocated to each cell. Grid cells were ranked into five quantiles using the ntile() function from the R package dplyr, with the upper three strata (Q3–Q5) used to select sites. From these strata, 100 and 150 grid cell centroids were randomly selected for the North East greenlip and Actaeons blacklip experimental areas, respectively, maintaining a minimum spacing of 300 m between sites. Final site locations were adjusted in situ to ensure placement within the target depth range of 8–12 m.
+
+## Data Analysis
+
+A legal minimum length (LML) threshold of 140 mm was used to classify abalone as either legal or sub-legal. Abundance, measured as the mean count of abalone per 10-minute search between paired divers at each site, was standardised prior to statistical analysis using a Generalised Linear Mixed Model (GLMM) fitted via the glmmTMB package in R. The model assumed a negative binomial distribution with a zero-inflation component and included both fixed and random effects. Fixed effects comprised the abundance of the alternate size class, sampling period, tide direction, and dive direction, while random effects accounted for diver, site, sampling period, visibility, and interactions between sampling period and tide or dive direction. Standardisation variables were selected to address potential sources of observational bias. The size class variable controlled for detection bias arising when diver attention was disproportionately directed toward either legal or sub-legal abalone, depending on relative abundance. Diver captured variation in observer experience, as diver pairs differed across sites. Environmental factors such as weather and tidal conditions occasionally prevented replication of pre-fishing swim directions, potentially affecting site comparability. In high-flow greenlip regions, reduced visibility due to tide conditions was also considered in the standardisation. The fitted model is specified as:
+
+\begin{align*}
+\text{size\_class\_A}_i &\sim \text{NB}(\mu_i, \theta) \\
+\log(\mu_i) &= \underbrace{\beta_0 + \beta_1 \cdot \text{size\_class\_B}_i + \beta_2 \cdot \text{samp_period} + \beta_3 \cdot \text{tide_direction} + \beta_3 \cdot \text{dive_direction}__i}_{\textnormal{Fixed effects}} \\
+&\quad + \underbrace{u_{\text{diver\_id}_i} + u_{\text{site}_i} + u_{\text{samp_period}_i} + u_{\text{visibility}_i} + u_{\text{samp_period:tide_direction}_i} + u_{\text{ samp_period:dive_direction }_i}}_{\textnormal{Random effects}} \\
+\text{Zero-inflation:} &\quad \text{logit}(\pi_i) = \gamma_0
+\end{align*}
+
+To evaluate changes in abalone abundance associated with fishing activity, site-level correlation analyses were conducted for each survey region. In the North East greenlip fishery, 61 sites were sampled both before and after fishing and included in the analysis (@fig-site-map-gl). For the Actaeons blacklip fishery, 100 sites were sampled across three periods—pre-fishing, mid-fishing, and post-fishing—and used in the analysis (@fig-site-map-bl).
+
+Abundance was defined as the mean count of abalone per 10-minute timed swim, averaged across paired divers. For each site, pre- and post-fishing abundance estimates were paired and analysed using Pearson’s correlation coefficient to quantify the strength and direction of the linear relationship. Sites with missing or incomplete post-fishing data were excluded from the correlation analysis.
+
+To compare mean densities between sampling periods, a two-sample t-test was applied under the assumption of normality and equal variances. Bootstrap confidence intervals (95%) were generated using 10,000 resamples to assess the robustness of the estimated mean differences.
+
+In addition, correlations were tested between timed swim abundance and mean CPUE derived from the nearest hex-cell commercial dive events for the years 2012–2019 and 2024.
+
+::: {.hidden}
+
+## Actaeons sites
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-site-map-bl
+#| fig-cap: "Map of survey sites in the Actaeons blacklip fishery region."
+##---------------------------------------------------------------------------##
+# Map of pre and post sites 
+# Create map of sites sampled pre-season vs post season
+
+# Read in sub-block map
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Read in Tas land map
+tas_land <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Establish CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+# Transform sub-block map to GDA2020
+sf_subblock_map <- st_transform(sf_subblock_map, GDA2020)
+
+# Transform Tas land map to GDA2020
+tas_land <- st_transform(tas_land, GDA2020)
+
+# Identify sites that were re-surveyed in all sample periods
+site_rep <- act_ts_dat %>% 
+ select(site, samp_date, samp_period, actual_geom) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre, mid and post season
+site_dat <- act_ts_dat %>%
+ select(site, samp_date, samp_period, actual_geom) %>%
+ distinct() %>% 
+ left_join(., site_rep) %>% 
+ filter(sampled_n > 2 &
+         samp_period == 'pre') %>% 
+ st_as_sf()
+
+# create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
+bbox <- st_bbox(site_dat)
+bbox_poly <- st_as_sfc(bbox)
+bbox_buffered <- st_buffer(bbox_poly, dist = 500)
+bbox_sf <- st_sf(geometry = bbox_buffered)
+
+
+# crop subblock map and sites sampled to maximise zoom                           
+site_sampled_crop <- st_crop(site_dat, bbox_sf)
+sf_subblock_map_crop <- st_crop(sf_subblock_map, bbox_sf)
+sf_tas_land_crop <- st_crop(tas_land, bbox_sf)
+
+# Create map of pre-season sites (red) and those sampled post season (blue)
+act_map <- ggplot(data = st_geometry(sf_subblock_map_crop)) +
+                geom_sf(fill = NA) +
+                geom_sf_text(data = sf_subblock_map_crop %>% filter(SubBlockNo %in% c('13E', '13D')), aes(label = SubBlockNo))+
+ geom_sf(data = sf_tas_land_crop, fill = "#d9ead3")+
+                geom_sf(data = site_sampled_crop, aes(colour = as.factor(sampled_n)))+
+                scale_colour_manual(values = c('black'))+
+                theme_bw() +
+                annotation_scale(location = "bl", width_hint = 0.5) +
+                annotation_north_arrow(location = "br", which_north = "true", 
+                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                                       style = north_arrow_fancy_orienteering)+
+                theme(legend.position="none")+
+ theme(axis.text.y = element_text(angle = 90, vjust = 0, hjust=0.5))+
+                xlab('Longitude')+
+                ylab('Latitude')
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_TimedSwim_Map', '.pdf', sep = ''), sep = ''), plot = act_map, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_TimedSwim_Map', '.png', sep = ''), sep = ''), plot = act_map, units = 'mm', width = 190, height = 150)
+
+
+```
+## Greenlip sites
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-site-map-gl
+#| fig-cap: "Map of survey sites in the north-east greenlip fishery region."
+##---------------------------------------------------------------------------##
+# Map of pre and post sites 
+# Create map of sites sampled pre-season vs post season
+
+# Read in sub-block map
+sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Read in Tas land map
+tas_land <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TasLand.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Establish CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+# Transform sub-block map to GDA2020
+sf_subblock_map <- st_transform(sf_subblock_map, GDA2020)
+
+# Transform Tas land map to GDA2020
+tas_land <- st_transform(tas_land, GDA2020)
+
+# Identify sites that were re-surveyed in all sample periods
+gl_site_rep <- ts_dat_gl %>% 
+ select(site, samp_date, samp_period, start_geom, finish_geom) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre, mid and post season
+gl_site_dat <- ts_dat_gl %>%
+ select(site, samp_date, samp_period, start_geom) %>%
+ distinct() %>% 
+ left_join(., gl_site_rep) %>% 
+ filter(sampled_n >= 2 &
+         samp_period == 'pre') %>% 
+ st_as_sf()
+
+# create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
+ne_gl_bbox <- st_bbox(c(xmin = 577919.4788533378,
+                        ymin = 5482577.2994562695,
+                        xmax = 596143.3918643385,
+                        ymax = 5497344.001926334),
+                      crs = GDA2020)
+
+# crop subblock map and sites sampled to maximise zoom                           
+site_sampled_crop <- st_crop(gl_site_dat, ne_gl_bbox)
+sf_subblock_map_crop <- st_crop(sf_subblock_map, ne_gl_bbox)
+sf_tas_land_crop <- st_crop(tas_land, ne_gl_bbox)
+
+# Create map of pre-season sites (red) and those sampled post season (blue)
+glip_map <- ggplot(data = st_geometry(sf_subblock_map_crop)) +
+                geom_sf(fill = NA) +
+                geom_sf_text(data = sf_subblock_map_crop %>% filter(SubBlockNo %in% c('39A', '31B')), aes(label = SubBlockNo))+
+ geom_sf(data = sf_tas_land_crop, fill = "#d9ead3")+
+                geom_sf(data = site_sampled_crop, aes(colour = as.factor(sampled_n)))+
+                scale_colour_manual(values = c('black'))+
+                theme_bw() +
+                annotation_scale(location = "bl", width_hint = 0.5) +
+                annotation_north_arrow(location = "br", which_north = "true", 
+                                       pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+                                       style = north_arrow_fancy_orienteering)+
+                theme(legend.position="none")+
+ theme(axis.text.y = element_text(angle = 90, vjust = 0, hjust=0.5))+
+                xlab('Longitude')+
+                ylab('Latitude')
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_TimedSwim_Map', '.pdf', sep = ''), sep = ''), plot = glip_map, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_TimedSwim_Map', '.png', sep = ''), sep = ''), plot = glip_map, units = 'mm', width = 190, height = 150)
+
+```
+:::
+
+# Results
+
+::: {.hidden}
+## Actaeons standardisation
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+ts_act_std <- ts_working_dat_act
+
+# === Model A: Sublegal ~ Legal ===
+sub_mod <- glmmTMB(
+  sublegal_n ~ legal_n + samp_period * dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_act_std,
+  family = nbinom2
+)
+
+ts_act_std$sublegal_pred <- predict(sub_mod, newdata = ts_act_std, type = "response")
+
+# === Model B: Legal ~ Sublegal ===
+legal_mod <- glmmTMB(
+  legal_n ~ sublegal_n + samp_period * dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_act_std,
+  family = nbinom2
+)
+
+ts_act_std$legal_pred <- predict(legal_mod, newdata = ts_act_std, type = "response")
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+ts_act_size_std <- ts_dat_act_size
+
+# === Model A: Sublegal ~ Juvenile/Legal ===
+sub_mod <- glmmTMB(
+  sublegal_n ~ legal_n + juv_n + samp_period * dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_act_size_std,
+  family = nbinom2
+)
+
+ts_act_size_std$sublegal_pred <- predict(sub_mod, newdata = ts_act_size_std, type = "response")
+
+# === Model B: Legal ~ Juvenile/Sublegal ===
+legal_mod <- glmmTMB(
+  legal_n ~ sublegal_n + juv_n + samp_period * dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_act_size_std,
+  family = nbinom2
+)
+
+ts_act_size_std$legal_pred <- predict(legal_mod, newdata = ts_act_size_std, type = "response")
+
+# === Model C: Juvenile ~ Sublegal/legal ===
+juv_mod <- glmmTMB(
+  juv_n ~ sublegal_n + legal_n + samp_period * dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_act_size_std,
+  family = nbinom2
+)
+
+ts_act_size_std$juv_pred <- predict(juv_mod, newdata = ts_act_size_std, type = "response")
+
+```
+
+```{r act_std_plot, message=FALSE, warning=FALSE}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Legal summary
+legal_summary <- ts_act_std %>%
+  group_by(samp_period) %>%
+  summarise(
+    unstd_mean = mean(legal_n, na.rm = TRUE),
+    unstd_se   = sd(legal_n, na.rm = TRUE) / sqrt(n()),
+    std_mean   = mean(legal_pred, na.rm = TRUE),
+    std_se     = sd(legal_pred, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(type = "legal")
+
+# Sublegal summary
+sublegal_summary <- ts_act_std %>%
+  group_by(samp_period) %>%
+  summarise(
+    unstd_mean = mean(sublegal_n, na.rm = TRUE),
+    unstd_se   = sd(sublegal_n, na.rm = TRUE) / sqrt(n()),
+    std_mean   = mean(sublegal_pred, na.rm = TRUE),
+    std_se     = sd(sublegal_pred, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(type = "sublegal")
+
+plot_data <- bind_rows(legal_summary, sublegal_summary)
+
+plot_data <- plot_data %>%
+  pivot_longer(
+    cols = c(unstd_mean, unstd_se, std_mean, std_se),
+    names_to = c("standardisation", "stat"),
+    names_sep = "_"
+  ) %>%
+  pivot_wider(
+    names_from = stat,
+    values_from = value
+  )
+
+
+ggplot(plot_data, aes(x = samp_period, y = mean, color = standardisation, group = standardisation)) +
+  geom_point(position = position_dodge(width = 0.4), size = 3, alpha = 0.8) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                position = position_dodge(width = 0.4), width = 0.2) +
+  geom_line(position = position_dodge(width = 0.4), linewidth = 1) +
+  facet_wrap(~ type, scales = "free_y") +
+  labs(title = "Standardised vs Unstandardised Abalone Counts",
+       x = "Survey Period",
+       y = "Mean Count ± SE",
+       color = "Standardisation") +
+  scale_color_manual(values = c("unstd" = "#FF6666", "std" = "#3399FF"),
+                     labels = c("Unstandardised", "Standardised")) +
+  theme_bw()
+
+```
+
+## Greenlip standardisation
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+ts_ne_gl_std <- ts_working_dat_gl
+
+# === Model A: Sublegal ~ Legal ===
+# sub_mod <- glmmTMB(
+#   sublegal_n ~ legal_n + samp_period +
+#     (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | site:samp_period),
+#   ziformula = ~1,
+#   data = ts_ne_gl_std,
+#   family = nbinom2
+# )
+
+sub_mod <- glmmTMB(
+  sublegal_n ~ legal_n + samp_period + tide_direction + dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | samp_period:tide_direction) + 
+    (1 | samp_period:dive_dir_group) + (1 | visibility) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_ne_gl_std,
+  family = nbinom2
+)
+
+ts_ne_gl_std$sublegal_pred <- predict(sub_mod, newdata = ts_ne_gl_std, type = "response")
+
+# === Model B: Legal ~ Sublegal ===
+legal_mod <- glmmTMB(
+  legal_n ~ sublegal_n + samp_period + tide_direction + dive_dir_group +
+    (1 | diver_id) + (1 | site) + (1 | samp_period) + (1 | samp_period:tide_direction) + 
+    (1 | samp_period:dive_dir_group) + (1 | visibility) + (1 | site:samp_period),
+  ziformula = ~1,
+  data = ts_ne_gl_std,
+  family = nbinom2
+)
+
+ts_ne_gl_std$legal_pred <- predict(legal_mod, newdata = ts_ne_gl_std, type = "response")
+
+```
+
+```{r gl_std_plot, message=FALSE, warning=FALSE}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Legal summary
+legal_summary <- ts_ne_gl_std %>%
+  group_by(samp_period) %>%
+  summarise(
+    unstd_mean = mean(legal_n, na.rm = TRUE),
+    unstd_se   = sd(legal_n, na.rm = TRUE) / sqrt(n()),
+    std_mean   = mean(legal_pred, na.rm = TRUE),
+    std_se     = sd(legal_pred, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(type = "legal")
+
+# Sublegal summary
+sublegal_summary <- ts_ne_gl_std %>%
+  group_by(samp_period) %>%
+  summarise(
+    unstd_mean = mean(sublegal_n, na.rm = TRUE),
+    unstd_se   = sd(sublegal_n, na.rm = TRUE) / sqrt(n()),
+    std_mean   = mean(sublegal_pred, na.rm = TRUE),
+    std_se     = sd(sublegal_pred, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(type = "sublegal")
+
+plot_data <- bind_rows(legal_summary, sublegal_summary)
+
+plot_data <- plot_data %>%
+  pivot_longer(
+    cols = c(unstd_mean, unstd_se, std_mean, std_se),
+    names_to = c("standardisation", "stat"),
+    names_sep = "_"
+  ) %>%
+  pivot_wider(
+    names_from = stat,
+    values_from = value
+  )
+
+
+ggplot(plot_data, aes(x = samp_period, y = mean, color = standardisation, group = standardisation)) +
+  geom_point(position = position_dodge(width = 0.4), size = 3, alpha = 0.8) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                position = position_dodge(width = 0.4), width = 0.2) +
+  geom_line(position = position_dodge(width = 0.4), linewidth = 1) +
+  facet_wrap(~ type, scales = "free_y") +
+  labs(title = "Standardised vs Unstandardised Abalone Counts",
+       x = "Survey Period",
+       y = "Mean Count ± SE",
+       color = "Standardisation") +
+  scale_color_manual(values = c("unstd" = "#FF6666", "std" = "#3399FF"),
+                     labels = c("Unstandardised", "Standardised")) +
+  theme_bw()
+
+```
+:::
+
+## Temporal Analysis of Abalone Abundance: Pre-, Mid-, and Post-Fishing Surveys
+
+
+::: {.hidden}
+### Plot data preparation
+
+```{r corr dat}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+##---------------------------------------------------------------------------##
+# Actaeons data
+
+# Identify sites that were re-surveyed in all sample periods
+act_site_rep <- ts_act_std %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre, mid and post season
+act_site_dat <- ts_act_std %>%
+ left_join(., act_site_rep) %>% 
+ filter(sampled_n > 2)
+
+act_site_size_dat <- ts_act_size_std %>%
+ left_join(., act_site_rep) %>% 
+ filter(sampled_n > 2)
+
+# There were 100 sites re-surveyed in each sample period
+n_distinct(act_site_dat$site)
+
+
+# Determine legal and sub-legal counts in each sample period
+ts_act <- act_site_dat %>%
+  group_by(samp_date, samp_period, site) %>% 
+  summarise(sub_leg_mean = mean(sublegal_pred),
+            leg_mean = mean(legal_pred)) 
+
+# Convert data to wide format for plotting
+ts_act_plot_dat <- ts_act %>%
+  select(samp_date, site, samp_period, sub_leg_mean, leg_mean) %>%
+  pivot_wider(names_from = samp_period, values_from = c(sub_leg_mean, leg_mean, samp_date)) %>%
+  drop_na()
+
+##---------------------------------------------------------------------------##
+# Greenlip data
+
+# Identify sites that were re-surveyed in all sample periods
+gl_site_rep <- ts_ne_gl_std %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre, mid and post season
+gl_site_dat <- ts_ne_gl_std %>%
+ left_join(., gl_site_rep) %>% 
+ filter(sampled_n >= 2)
+
+# There were 61 sites re-surveyed in each sample period
+n_distinct(gl_site_dat$site)
+
+
+# Determine legal and sub-legal counts in each sample period
+ts_gl <- gl_site_dat %>%
+  group_by(samp_date, samp_period, site) %>% 
+  summarise(sub_leg_mean = mean(sublegal_pred),
+            leg_mean = mean(legal_pred)) 
+
+# Convert data to wide format for plotting
+ts_gl_plot_dat <- ts_gl %>%
+  select(samp_date, site, samp_period, sub_leg_mean, leg_mean) %>%
+  pivot_wider(names_from = samp_period, values_from = c(sub_leg_mean, leg_mean, samp_date)) %>%
+  drop_na()
+
+```
+
+## Summary of sampling dates
+
+### Sampling duration
+
+```{r gl diff}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# Pre vs Post site count deviation over time
+
+# Determine count difference between pre and post for each sampling trip
+pre_post_site_diff_act <- ts_act_plot_dat %>%  
+ mutate(sub_diff = sub_leg_mean_pre - sub_leg_mean_post,
+        leg_diff = leg_mean_pre - leg_mean_post,
+        leg_pre_mid_diff = leg_mean_pre - leg_mean_mid,
+        leg_mid_post = leg_mean_mid - leg_mean_post,
+        sub_rel_diff = ((sub_leg_mean_post - sub_leg_mean_pre) / sub_leg_mean_pre),
+        leg_rel_diff = ((leg_mean_post - leg_mean_pre) / leg_mean_pre),
+        days_diff = as.numeric(difftime(samp_date_post, samp_date_pre, units = 'days')))
+
+pre_post_site_diff_gl <- ts_gl_plot_dat %>%  
+ mutate(sub_diff = sub_leg_mean_pre - sub_leg_mean_post,
+        leg_diff = leg_mean_pre - leg_mean_post,
+        sub_rel_diff = ((sub_leg_mean_post - sub_leg_mean_pre) / sub_leg_mean_pre),
+        leg_rel_diff = ((leg_mean_post - leg_mean_pre) / leg_mean_pre),
+        days_diff = as.numeric(difftime(samp_date_post, samp_date_pre, units = 'days')))
+
+# Determine mean sample period date
+mean_act_date <- ts_act_plot_dat %>%
+  summarise(mean_date = as.Date(mean(as.numeric(samp_date_mid), na.rm = TRUE), origin = "1970-01-01"))
+
+# Determine days difference between pre and post for each sampling trip
+days_diff_act <- ts_act_plot_dat %>% 
+ mutate(pre_mid = as.numeric(difftime(samp_date_mid, samp_date_pre, units = 'days')),
+        mid_post = as.numeric(difftime(samp_date_post, samp_date_mid, units = 'days')),
+        pre_post = as.numeric(difftime(samp_date_post, samp_date_pre, units = 'days'))) %>% 
+ select(site, pre_post, pre_mid, mid_post) %>% 
+ pivot_longer(cols = -site, names_to = 'survey', values_to = 'time_days') %>% 
+ group_by(survey) %>% 
+ summarise(min_time = min(time_days),
+           max_time = max(time_days)) %>% 
+ mutate(location = 'Actaeons')
+
+days_diff_gl <- ts_gl_plot_dat %>% 
+ mutate(pre_post = as.numeric(difftime(samp_date_post, samp_date_pre, units = 'days'))) %>% 
+ select(site, pre_post) %>% 
+ pivot_longer(cols = -site, names_to = 'survey', values_to = 'time_days') %>% 
+ group_by(survey) %>% 
+ summarise(min_time = min(time_days),
+           max_time = max(time_days)) %>% 
+ mutate(location = 'Greenlip')
+
+days_diff <- bind_rows(days_diff_act, days_diff_gl) %>% 
+ select(location, survey, min_time, max_time) %>% 
+  mutate(
+    survey = case_when(
+      survey == "pre_post" ~ "Pre-Post",
+      survey == "pre_mid" ~ "Pre-Mid",
+      survey == "mid_post" ~ "Mid-Post",
+      TRUE ~ survey  # retain original value if no match
+    )
+  ) %>% 
+ dplyr::rename(Survey = 'location',
+               'Survey Period' = 'survey',
+               'Min days' = min_time,
+               'Max days' = max_time) 
+
+days_diff <- days_diff %>%
+  mutate(sort_order = case_when(
+    Survey == "Actaeons" & `Survey Period` == "Pre-Mid" ~ 1,
+    Survey == "Actaeons" & `Survey Period` == "Mid-Post" ~ 2,
+    Survey == "Actaeons" & `Survey Period` == "Pre-Post" ~ 3,
+    Survey == "Greenlip" & `Survey Period` == "Pre-Post" ~ 4,
+    TRUE ~ 99
+  )) %>%
+  arrange(sort_order) %>%
+  select(-sort_order)
+
+# Determine mean count difference for each sampling trip
+days_diff_mean_act <- pre_post_site_diff_act %>% 
+ # filter(!is.infinite(sub_diff)) %>% 
+ group_by(days_diff) %>% 
+ summarise(mean_sub = mean(sub_diff),
+          median_sub = median(sub_diff),
+          se_sub = sd(sub_diff)/sqrt(n()),
+          mean_leg = mean(leg_diff),
+          median_leg = median(leg_diff),
+          se_leg = sd(leg_diff)/sqrt(n())) %>% 
+ filter(!is.na(days_diff))
+
+days_diff_mean_gl <- pre_post_site_diff_gl %>% 
+ # filter(!is.infinite(sub_diff)) %>% 
+ group_by(days_diff) %>% 
+ summarise(mean_sub = mean(sub_diff),
+          median_sub = median(sub_diff),
+          se_sub = sd(sub_diff)/sqrt(n()),
+          mean_leg = mean(leg_diff),
+          median_leg = median(leg_diff),
+          se_leg = sd(leg_diff)/sqrt(n())) %>% 
+ filter(!is.na(days_diff))
+
+```
+:::
+
+```{r days-flex}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: tab-sample-duration
+#| tbl-cap: "Minimum and maximum number of days between sampling periods for repeated sites in the North East greenlip (Greenlip) and Actaeons blacklip (Actaeons) fishery experiments. 'Min days' is the interval between the last Pre- or Mid-fishing sampling date and the first Mid- or Post-fishing date, respectively. 'Max days' is the interval between the first Pre- or Mid-fishing date and the last Mid- or Post-fishing date, respectively."
+
+
+
+days_diff %>% 
+ flextable::flextable()
+ # set_table_properties(layout = "autofit") %>%
+ # paginate(init = F, hdr_ftr = TRUE) %>%
+ # fontsize(size = 10, part = 'all') %>% 
+ # height(height = 0.5) %>% 
+ # line_spacing(space = 0.25, part = "all")
+
+
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+# Boxplot of count difference for each sampling trip
+dev_plot_box <- days_diff_mean_gl %>% 
+ filter(!is.na(days_diff)) %>% 
+ mutate(post_days = case_when(between(days_diff, 0,  20) ~ '10',
+                              between(days_diff, 21, 50) ~ '45',
+                              between(days_diff, 51, 90) ~ '85')) %>% 
+ ggplot(aes(x = post_days, y = mean_leg))+
+ geom_boxplot(outlier.colour = 'orange', outlier.size = 2)+
+ theme_bw()+
+ ylim(-10, 0)+
+ ylab('Count Difference')+
+ xlab('Post-survey Days Difference')
+
+dev_plot_box
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+# Plot count difference raw data and average for sampling durations
+mean_diff_plot <- days_diff_mean_act %>% 
+ filter(!is.na(days_diff)) %>% 
+ ggplot(aes(x = days_diff, y = mean_sub))+
+ geom_point(size = 2)+
+ geom_point(data = pre_post_site_diff_act, aes(x = days_diff, y = sub_diff), colour = 'blue', alpha = 0.3, size = 2)+
+ geom_errorbar(aes(ymin = mean_sub -  se_sub, ymax = mean_sub + se_sub), width = 1,
+               position = position_dodge(0.05), size = 1)+
+ theme_bw()+
+ ylim(-20, 20)+
+ ylab('Mean Count Difference')+
+ xlab('Days Difference')+
+ geom_hline(yintercept = 0, colour = 'red', linetype = 2)
+
+mean_diff_plot
+
+```
+
+
+
+## Actaeons Legal Plots
+```{r act legal plots}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create legal pre vs post correlation overall plot
+
+legal_pre_post <- ts_act_plot_dat %>% 
+ ggplot(aes(x = leg_mean_pre, y = leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Post-count')+
+ geom_text(aes(x = 60, y = 10, label = '>140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 80)+
+ ylim(0, 80)
+
+legal_pre_post <- ggMarginal(legal_pre_post)
+
+# Create legal pre vs mid correlation overall plot
+
+legal_pre_mid <- ts_act_plot_dat %>%
+ ggplot(aes(x = leg_mean_pre, y = leg_mean_mid))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Mid-count')+
+ # geom_text(aes(x = 125, y = 10, label = '>140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 80)+
+ ylim(0, 80)
+
+legal_pre_mid <- ggMarginal(legal_pre_mid)
+
+# Create legal mid vs post correlation overall plot
+
+legal_mid_post <- ts_act_plot_dat %>%
+ ggplot(aes(x = leg_mean_mid, y = leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Mid-count')+
+ ylab('Post-count')+
+ # geom_text(aes(x = 125, y = 10, label = '>140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 80)+
+ ylim(0, 80)
+
+legal_mid_post <- ggMarginal(legal_mid_post)
+
+```
+
+```{r act-leg-plot-combo}
+#| label: fig-corr-leg
+#| fig-cap: "Relationship between mean pre-, mid- and post-season legal (>140 mm) blacklip abalone counts at each site surveyed in the Actaeons fishery region (n = 100)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_legal <- patchwork::wrap_plots( legal_pre_post, legal_mid_post,legal_pre_mid, nrow = 3)
+
+corr_plots_legal
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Legal', '.pdf', sep = ''), sep = ''), plot = corr_plots_legal, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Legal', '.png', sep = ''), sep = ''), plot = corr_plots_legal, units = 'mm', width = 150, height = 200)
+
+```
+
+## Actaeons Sub-Legal Plots
+```{r act sublegal plots}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create legal pre vs post correlation overall plot
+
+sublegal_pre_post <- ts_act_plot_dat %>% 
+ ggplot(aes(x = sub_leg_mean_pre, y = sub_leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Post-count')+
+ geom_text(aes(x = 125, y = 20, label = '<140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 160)+
+ ylim(0, 160)
+
+sublegal_pre_post <- ggMarginal(sublegal_pre_post)
+
+# Create legal pre vs mid correlation overall plot
+
+sublegal_pre_mid <- ts_act_plot_dat %>%
+ ggplot(aes(x = sub_leg_mean_pre, y = sub_leg_mean_mid))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Mid-count')+
+ # geom_text(aes(x = 125, y = 10, label = '>140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 160)+
+ ylim(0, 160)
+
+sublegal_pre_mid <- ggMarginal(sublegal_pre_mid)
+
+# Create legal mid vs post correlation overall plot
+
+sublegal_mid_post <- ts_act_plot_dat %>%
+ ggplot(aes(x = sub_leg_mean_mid, y = sub_leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Mid-count')+
+ ylab('Post-count')+
+ # geom_text(aes(x = 125, y = 10, label = '>140 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 160)+
+ ylim(0, 160)
+
+sublegal_mid_post <- ggMarginal(sublegal_mid_post)
+
+```
+
+
+```{r act-sub-leg-plot-combo}
+#| label: fig-corr-subleg
+#| fig-cap: "Relationship between mean pre-, mid- and post-season sub-legal (<140 mm) blacklip abalone counts at each site surveyed in the Actaeons fishery region (n = 100)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_sublegal <- patchwork::wrap_plots( sublegal_pre_post, sublegal_mid_post, sublegal_pre_mid, nrow = 3)
+
+corr_plots_sublegal
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Sub-Legal', '.pdf', sep = ''), sep = ''), plot = corr_plots_sublegal, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Sub-Legal', '.png', sep = ''), sep = ''), plot = corr_plots_sublegal, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r act-sub-leg-plot-combined}
+#| label: fig-corr-leg-subleg
+#| fig-cap: "Relationship between mean pre-, mid- and post-season legal (>140 mm) and sub-legal (<140 mm) blacklip abalone counts at each site surveyed in the Actaeons fishery region (n = 100)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_combo <- patchwork::wrap_plots( corr_plots_legal, corr_plots_sublegal, nrow = 1) + 
+ plot_annotation(tag_levels = 'a')
+
+corr_plots_combo
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combined', '.pdf', sep = ''), sep = ''), plot = corr_plots_combo, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combined', '.png', sep = ''), sep = ''), plot = corr_plots_combo, units = 'mm', width = 150, height = 200)
+
+```
+
+
+
+## Greenlip Plots
+
+```{r gl plots}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create legal pre vs post correlation overall plot
+
+legal_gl_pre_post <- ts_gl_plot_dat %>% 
+ ggplot(aes(x = leg_mean_pre, y = leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Post-count')+
+ geom_text(aes(x = 75, y = 10, label = '>150 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 90)+
+ ylim(0, 90)
+
+legal_gl_pre_post <- ggMarginal(legal_gl_pre_post)
+
+# Create sub-legal mid vs post correlation overall plot
+
+sublegal_gl_pre_post <- ts_gl_plot_dat %>%
+ ggplot(aes(x = sub_leg_mean_pre, y = sub_leg_mean_post))+
+ geom_point()+
+ theme_bw()+
+ theme(legend.position = 'none')+
+ xlab('Pre-count')+
+ ylab('Post-count')+
+ geom_text(aes(x = 75, y = 10, label = '<150 mm'), stat = 'unique', colour = 'black')+
+ theme(plot.title = element_text(hjust = 1, vjust = -100))+
+ scale_x_continuous(limits = c(0, 150))+
+ geom_smooth(method = 'lm', formula = y~x, se = F)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = c(0.95, 0.90))+
+ xlim(0, 90)+
+ ylim(0, 90)
+
+sublegal_gl_pre_post <- ggMarginal(sublegal_gl_pre_post)
+
+```
+
+```{r gl-plot-combo}
+#| label: fig-corr-gl
+#| fig-cap: "Relationship between mean pre-, mid- and post-season legal (>140 mm) greenlip abalone counts at each site surveyed in the North-east greenlip fishery region (n = 61)."
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots <- patchwork::wrap_plots(legal_gl_pre_post, sublegal_gl_pre_post, nrow = 2)
+
+corr_plots
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot', '.pdf', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 75, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot', '.png', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 75, height = 150)
+
+```
+## Abundance Overall
+
+### T-tests Actaeons
+
+Legal-size
+
+- Pre vs Mid = No significant change in legal abundance (t = 0.33, p = 0.33; CI spans zero).
+- Pre vs Post = Significant increase in legal abundance post-period (t = 0.043, CI = [1.44, 7.18]; perm p = 0.046). Not significant at p 0.01 but suggests possible growth transition of sub-legal cohorts (120-140 mm)?
+- Mid vs Post = No significant change (t = 0.29, CI includes zero).
+
+Sub-legal size
+
+- Pre vs Mid = Strong, significant increase in sublegal abundance (t < 0.001, CI = [11.25, 20.09]).
+- Pre vs Post = No significant change (t = 0.78, CI spans zero). Sublegal numbers returned to baseline or fluctuated?
+- Mid vs Post = Strong, significant decrease (t < 0.001, CI = [–21.85, –10.62]). Indicates that the mid-period spike was transient—possibly seasonal or linked to a specific cohort (e.g. growth transition of 120-140 mm to legal-sized).
+
+Summary
+
+- Legal-size abalone show a significant increase from pre to post, but not between adjacent periods.
+- Sublegal abundance spikes mid-period, then drops sharply—suggesting a temporary recruitment event or sampling anomaly.
+- The bootstrap CIs and permutation p-values align well with the t-tests, reinforcing robustness.
+
+```{r t-tests actaeons}
+
+
+# Step 1: Aggregate to site-level means
+site_means <- act_site_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Generate all pairwise combinations of periods
+period_pairs <- combn(unique(site_means$samp_period), 2, simplify = FALSE)
+
+# Step 3: Define a function to run t-test and bootstrap CI
+
+compare_periods <- function(data, var, p1, p2) {
+ 
+ p1 <- as.character(p1)
+p2 <- as.character(p2)
+
+  wide <- data %>%
+    filter(samp_period %in% c(p1, p2)) %>%
+    select(site, samp_period, !!sym(var)) %>%
+    dplyr::rename(value = !!sym(var)) %>%
+    pivot_wider(names_from = samp_period, values_from = value)
+
+  if (!(p1 %in% names(wide)) || !(p2 %in% names(wide))) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  wide <- wide %>% filter(!is.na(.data[[p1]]) & !is.na(.data[[p2]]))
+  
+  message("Rows retained for ", var, " ", p1, " vs ", p2, ": ", nrow(wide))
+  
+  if (nrow(wide) < 2) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  ttest <- t.test(wide[[p1]], wide[[p2]])
+
+  boot_diff <- function(d, i) {
+    d <- d[i, ]
+    mean(d[[p2]] - d[[p1]], na.rm = TRUE)
+  }
+
+  set.seed(123)
+  boot_out <- boot(data = wide, statistic = boot_diff, R = 1000)
+  
+  ci <- tryCatch(
+  boot.ci(boot_out, type = "perc"),
+  error = function(e) NULL
+)
+
+  long <- wide %>%
+  pivot_longer(cols = c(p1, p2), names_to = "period", values_to = "abundance") %>%
+  mutate(period = factor(period, levels = c(p1, p2)))
+
+perm_test <- coin::oneway_test(abundance ~ period, data = long, distribution = "approximate")
+perm_p = as.numeric(coin::pvalue(perm_test))
+
+tibble(
+  size_class = var,
+  comparison = paste(p1, "vs", p2),
+  t_p = ttest$p.value,
+  mean_diff = ttest$estimate[[2]] - ttest$estimate[[1]],
+  ci_low = if (!is.null(ci)) ci$percent[4] else NA_real_,
+  ci_high = if (!is.null(ci)) ci$percent[5] else NA_real_,
+  perm_p = perm_p
+)
+}
+
+# Step 4: Run comparisons for legal and sublegal
+
+results <- map_dfr(
+  c("legal_mean", "sublegal_mean"),
+  function(var) {
+    map_dfr(period_pairs, function(pair) {
+      compare_periods(site_means, var, pair[1], pair[2])
+    })
+  }
+)
+
+```
+```{r t-tests size actaeons}
+
+
+# Step 1: Aggregate to site-level means
+site_means <- act_site_size_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    juv_mean = mean(juv_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Generate all pairwise combinations of periods
+period_pairs <- combn(unique(site_means$samp_period), 2, simplify = FALSE)
+
+# Step 3: Define a function to run t-test and bootstrap CI
+
+compare_periods <- function(data, var, p1, p2) {
+ 
+ p1 <- as.character(p1)
+p2 <- as.character(p2)
+
+  wide <- data %>%
+    filter(samp_period %in% c(p1, p2)) %>%
+    select(site, samp_period, !!sym(var)) %>%
+    dplyr::rename(value = !!sym(var)) %>%
+    pivot_wider(names_from = samp_period, values_from = value)
+
+  if (!(p1 %in% names(wide)) || !(p2 %in% names(wide))) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  wide <- wide %>% filter(!is.na(.data[[p1]]) & !is.na(.data[[p2]]))
+  
+  message("Rows retained for ", var, " ", p1, " vs ", p2, ": ", nrow(wide))
+  
+  if (nrow(wide) < 2) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  ttest <- t.test(wide[[p1]], wide[[p2]])
+
+  boot_diff <- function(d, i) {
+    d <- d[i, ]
+    mean(d[[p2]] - d[[p1]], na.rm = TRUE)
+  }
+
+  set.seed(123)
+  boot_out <- boot(data = wide, statistic = boot_diff, R = 1000)
+  
+  ci <- tryCatch(
+  boot.ci(boot_out, type = "perc"),
+  error = function(e) NULL
+)
+
+  long <- wide %>%
+  pivot_longer(cols = c(p1, p2), names_to = "period", values_to = "abundance") %>%
+  mutate(period = factor(period, levels = c(p1, p2)))
+
+perm_test <- coin::oneway_test(abundance ~ period, data = long, distribution = "approximate")
+perm_p = as.numeric(coin::pvalue(perm_test))
+
+tibble(
+  size_class = var,
+  comparison = paste(p1, "vs", p2),
+  t_p = ttest$p.value,
+  mean_diff = ttest$estimate[[2]] - ttest$estimate[[1]],
+  ci_low = if (!is.null(ci)) ci$percent[4] else NA_real_,
+  ci_high = if (!is.null(ci)) ci$percent[5] else NA_real_,
+  perm_p = perm_p
+)
+}
+
+# Step 4: Run comparisons for legal and sublegal
+
+results_size <- map_dfr(
+  c("legal_mean", "sublegal_mean", "juv_mean"),
+  function(var) {
+    map_dfr(period_pairs, function(pair) {
+      compare_periods(site_means, var, pair[1], pair[2])
+    })
+  }
+)
+
+```
+
+## T-test result plot
+
+- Points above zero → increase in abundance.
+- Points below zero → decrease.
+- Error bars crossing zero → not statistically significant
+
+```{r results plot}
+
+results_2 <- results %>%
+  mutate(
+    comparison = case_when(
+      comparison == "pre vs mid"  ~ "Pre vs Mid",
+      comparison == "mid vs post" ~ "Mid vs Post",
+      comparison == "pre vs post" ~ "Pre vs Post",
+      TRUE ~ comparison
+    ),
+    comparison = factor(comparison, levels = c("Pre vs Mid", "Mid vs Post", "Pre vs Post")),
+    sig = case_when(
+      perm_p <= 0.001 ~ "***",
+      perm_p <= 0.01  ~ "**",
+      perm_p <= 0.05  ~ "*",
+      TRUE            ~ ""
+    ),
+    sig_y = ci_high + 0.5,
+    size_class = factor(size_class,
+      levels = c("legal_mean", "sublegal_mean"),
+      labels = c("Legal", "Sub-legal")))
+
+dodge <- position_dodge(width = 0.5)
+
+act_ttest <- ggplot(results_2, aes(x = comparison, y = mean_diff, color = size_class)) +
+  geom_point(size = 3, position = dodge) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.2, position = dodge) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_text(
+    aes(y = sig_y, label = sig, group = size_class),
+    position = dodge,
+    size = 5,
+    color = "black"
+  ) +
+  scale_color_manual(values = c("Legal" = "blue", "Sub-legal" = "red")) +
+  labs(
+    # title = "Mean Difference in Abalone Abundance Between Sampling Periods",
+    y = "Mean Difference",
+    x = "Comparison",
+    color = "Size Class"
+  ) +
+  theme_bw(base_size = 14)+
+ theme(legend.position = "none")
+
+act_ttest
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_T-test', '.pdf', sep = ''), sep = ''), plot = act_ttest, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_T-test', '.png', sep = ''), sep = ''), plot = act_ttest, units = 'mm', width = 190, height = 150)
+
+```
+```{r results plot}
+
+results_3 <- results_size %>%
+  mutate(
+    comparison = case_when(
+      comparison == "pre vs mid"  ~ "Pre vs Mid",
+      comparison == "mid vs post" ~ "Mid vs Post",
+      comparison == "pre vs post" ~ "Pre vs Post",
+      TRUE ~ comparison
+    ),
+    comparison = factor(comparison, levels = c("Pre vs Mid", "Mid vs Post", "Pre vs Post")),
+    sig = case_when(
+      perm_p <= 0.001 ~ "***",
+      perm_p <= 0.01  ~ "**",
+      perm_p <= 0.05  ~ "*",
+      TRUE            ~ ""
+    ),
+    sig_y = ci_high + 0.5,
+    size_class = factor(size_class,
+      levels = c("juv_mean", "sublegal_mean", "legal_mean"),
+      labels = c("Juvenile", "Sub-legal", "Legal")))
+
+dodge <- position_dodge(width = 0.5)
+
+act_ttest_size <- ggplot(results_3, aes(x = comparison, y = mean_diff, color = size_class)) +
+  geom_point(size = 3, position = dodge) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.2, position = dodge) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_text(
+    aes(y = sig_y, label = sig, group = size_class),
+    position = dodge,
+    size = 5,
+    color = "black"
+  ) +
+  scale_color_manual(values = c("Legal" = "blue", "Sub-legal" = "red", "Juvenile" = "darkgreen")) +
+  labs(
+    # title = "Mean Difference in Abalone Abundance Between Sampling Periods",
+    y = "Mean Difference",
+    x = "Comparison",
+    color = "Size Class"
+  ) +
+  theme_bw(base_size = 14)+
+ theme(legend.position = "none")
+
+act_ttest_size
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_T-test', '.pdf', sep = ''), sep = ''), plot = act_ttest_size, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_T-test', '.png', sep = ''), sep = ''), plot = act_ttest_size, units = 'mm', width = 190, height = 150)
+```
+
+```{r abundance plot}
+
+# Step 1: Aggregate to site-level means
+site_means <- act_site_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Reshape to long format
+site_means_long <- site_means %>%
+  pivot_longer(
+    cols = c(legal_mean, sublegal_mean),
+    names_to = "size_class",
+    values_to = "mean_count"
+  )
+
+# Capitalize samp_period labels
+site_means_long <- site_means_long %>%
+  mutate(samp_period = str_to_title(samp_period))
+
+site_means_long <- site_means_long %>%
+  mutate(
+    samp_period = factor(samp_period, levels = c("Pre", "Mid", "Post"))
+  )
+
+site_means_long <- site_means_long %>%
+  mutate(size_class = recode(size_class,
+                             "legal_mean" = "Legal",
+                             "sublegal_mean" = "Sub-legal"))
+
+# Step 3: Create boxplot with mean points
+act_abundance <- ggplot(site_means_long, aes(x = samp_period, y = mean_count, fill = size_class)) +
+  geom_boxplot(
+    outlier.shape = NA,
+    position = position_dodge(width = 0.8),
+    alpha = 0.7
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    aes(group = size_class),
+    position = position_dodge(width = 0.8),
+    shape = 21,
+    size = 3,
+    color = "black",
+    fill = "white"
+  ) +
+  scale_fill_manual(values = c("Legal" = "blue", "Sub-legal" = "red"))+
+  coord_cartesian(ylim = c(0, 150)) +
+ guides(fill = guide_legend(title = NULL)) +
+  labs(
+    x = "Sampling Period",
+    y = "Mean Count",
+    fill = "Size Class",
+    # title = "Boxplot of Site-Level Means by Sampling Period and Size Class"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = c(0.98, 0.98),              # top-right inside plot
+    legend.justification = c(1, 1),                # anchor top-right
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.box.background = element_blank(),
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.key = element_blank()
+  )
+
+act_abundance
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Abundance', '.pdf', sep = ''), sep = ''), plot = act_abundance, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Abundance', '.png', sep = ''), sep = ''), plot = act_abundance, units = 'mm', width = 190, height = 150)
+
+```
+```{r abundance size plot}
+
+# Step 1: Aggregate to site-level means
+site_means <- act_site_size_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    juv_mean = mean(juv_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Reshape to long format
+site_means_long <- site_means %>%
+  pivot_longer(
+    cols = c(legal_mean, sublegal_mean, juv_mean),
+    names_to = "size_class",
+    values_to = "mean_count"
+  )
+
+# Capitalize samp_period labels
+site_means_long <- site_means_long %>%
+  mutate(samp_period = str_to_title(samp_period))
+
+site_means_long <- site_means_long %>%
+  mutate(
+    samp_period = factor(samp_period, levels = c("Pre", "Mid", "Post"))
+  )
+
+site_means_long <- site_means_long %>%
+  mutate(size_class = recode(size_class,
+                             "legal_mean" = "Legal",
+                             "sublegal_mean" = "Sub-legal",
+                             "juv_mean" = "Juvenile"))
+
+site_means_long <- site_means_long %>%
+  mutate(size_class = factor(size_class, levels = c("Juvenile", "Sub-legal", "Legal")))
+
+# Step 3: Create boxplot with mean points
+act_abundance_size <- ggplot(site_means_long, aes(x = samp_period, y = mean_count, fill = size_class)) +
+  geom_boxplot(
+    outlier.shape = NA,
+    position = position_dodge(width = 0.8),
+    alpha = 0.7
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    aes(group = size_class),
+    position = position_dodge(width = 0.8),
+    shape = 21,
+    size = 3,
+    color = "black",
+    fill = "white"
+  ) +
+  scale_fill_manual(values = c("Legal" = "blue", "Sub-legal" = "red", "Juvenile" = "darkgreen"))+
+  coord_cartesian(ylim = c(0, 100)) +
+ guides(fill = guide_legend(title = NULL)) +
+  labs(
+    x = "Sampling Period",
+    y = "Mean Count",
+    fill = "Size Class",
+    # title = "Boxplot of Site-Level Means by Sampling Period and Size Class"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = c(0.98, 0.98),              # top-right inside plot
+    legend.justification = c(1, 1),                # anchor top-right
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.box.background = element_blank(),
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.key = element_blank()
+  )
+
+act_abundance_size
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_Abundance', '.pdf', sep = ''), sep = ''), plot = act_abundance_size, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_Abundance', '.png', sep = ''), sep = ''), plot = act_abundance_size, units = 'mm', width = 190, height = 150)
+
+```
+
+
+
+```{r combine plots}
+
+act_combine_size <- (act_abundance_size | act_ttest_size) +
+ # plot_layout(guides = "collect") +
+ plot_annotation(tag_levels = 'a')
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_Abundance_T-test', '.pdf', sep = ''), sep = ''), plot = act_combine_size, units = 'mm', width = 190, height = 100)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Size_Abundance_T-test', '.png', sep = ''), sep = ''), plot = act_combine_size, units = 'mm', width = 190, height = 100)
+
+act_combine <- (act_abundance | act_ttest) +
+ # plot_layout(guides = "collect") +
+ plot_annotation(tag_levels = 'a')
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Abundance_T-test', '.pdf', sep = ''), sep = ''), plot = act_combine, units = 'mm', width = 190, height = 100)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Abundance_T-test', '.png', sep = ''), sep = ''), plot = act_combine, units = 'mm', width = 190, height = 100)
+
+```
+
+# T-tests Greenlip
+
+Legal-sized
+
+- There’s no statistically significant change in legal-sized abalone abundance between pre and post periods. The CI includes zero, and both p-values are well above 0.05 (p = 0.396). While the mean difference is positive, it’s not strong enough to rule out chance variation.
+
+Sub-legal sized
+
+- Although the CI suggests a consistent increase in sublegal abundance, the p-values are still above the conventional 0.05 threshold (p = 0.269). This might indicate a moderate effect that’s not statistically robust—possibly due to sample size, variability, or ecological noise.
+
+
+```{r t-tests greenlip}
+
+
+# Step 1: Aggregate to site-level means
+site_means_gl <- gl_site_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Generate all pairwise combinations of periods
+period_pairs_gl <- combn(unique(site_means_gl$samp_period), 2, simplify = FALSE)
+
+# Step 3: Define a function to run t-test and bootstrap CI
+
+compare_periods_gl <- function(data, var, p1, p2) {
+ 
+ p1 <- as.character(p1)
+p2 <- as.character(p2)
+
+  wide <- data %>%
+    filter(samp_period %in% c(p1, p2)) %>%
+    select(site, samp_period, !!sym(var)) %>%
+    dplyr::rename(value = !!sym(var)) %>%
+    pivot_wider(names_from = samp_period, values_from = value)
+
+  if (!(p1 %in% names(wide)) || !(p2 %in% names(wide))) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  wide <- wide %>% filter(!is.na(.data[[p1]]) & !is.na(.data[[p2]]))
+  
+  message("Rows retained for ", var, " ", p1, " vs ", p2, ": ", nrow(wide))
+  
+  if (nrow(wide) < 2) {
+    return(tibble(
+      size_class = var,
+      comparison = paste(p1, "vs", p2),
+      t_p = NA_real_,
+      mean_diff = NA_real_,
+      ci_low = NA_real_,
+      ci_high = NA_real_,
+      perm_p = NA_real_
+    ))
+  }
+
+  ttest <- t.test(wide[[p1]], wide[[p2]])
+
+  boot_diff <- function(d, i) {
+    d <- d[i, ]
+    mean(d[[p2]] - d[[p1]], na.rm = TRUE)
+  }
+
+  set.seed(123)
+  boot_out <- boot(data = wide, statistic = boot_diff, R = 1000)
+  
+  ci <- tryCatch(
+  boot.ci(boot_out, type = "perc"),
+  error = function(e) NULL
+)
+
+  long <- wide %>%
+  pivot_longer(cols = c(p1, p2), names_to = "period", values_to = "abundance") %>%
+  mutate(period = factor(period, levels = c(p1, p2)))
+
+perm_test <- coin::oneway_test(abundance ~ period, data = long, distribution = "approximate")
+perm_p = as.numeric(coin::pvalue(perm_test))
+
+tibble(
+  size_class = var,
+  comparison = paste(p1, "vs", p2),
+  t_p = ttest$p.value,
+  mean_diff = ttest$estimate[[2]] - ttest$estimate[[1]],
+  ci_low = if (!is.null(ci)) ci$percent[4] else NA_real_,
+  ci_high = if (!is.null(ci)) ci$percent[5] else NA_real_,
+  perm_p = perm_p
+)
+}
+
+# Step 4: Run comparisons for legal and sublegal
+
+results_gl <- map_dfr(
+  c("legal_mean", "sublegal_mean"),
+  function(var) {
+    map_dfr(period_pairs_gl, function(pair) {
+      compare_periods_gl(site_means_gl, var, pair[1], pair[2])
+    })
+  }
+)
+
+```
+
+```{r results_gl plot}
+
+results_gl <- results_gl %>%
+  mutate(
+    comparison = case_when(
+      comparison == "pre vs post" ~ "Pre vs Post",
+      TRUE ~ comparison
+    ),
+    comparison = factor(comparison, levels = c("Pre vs Post")),
+    sig = case_when(
+      perm_p <= 0.001 ~ "***",
+      perm_p <= 0.01  ~ "**",
+      perm_p <= 0.05  ~ "*",
+      TRUE            ~ ""
+    ),
+    sig_y = ci_high + 0.5,
+    size_class = factor(size_class,
+      levels = c("legal_mean", "sublegal_mean"),
+      labels = c("Legal", "Sub-legal")))
+
+dodge <- position_dodge(width = 0.5)
+
+glip_ttest <- ggplot(results_gl, aes(x = comparison, y = mean_diff, color = size_class)) +
+  geom_point(size = 3, position = dodge) +
+  geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.2, position = dodge) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_text(
+    aes(y = sig_y, label = sig, group = size_class),
+    position = dodge,
+    size = 5,
+    color = "black"
+  ) +
+  scale_color_manual(values = c("Legal" = "blue", "Sub-legal" = "red")) +
+  labs(
+    # title = "Mean Difference in Abalone Abundance Between Sampling Periods",
+    y = "Mean Difference",
+    x = "Comparison",
+    color = "Size Class"
+  ) +
+  theme_bw(base_size = 14)+
+  theme(legend.position = "none")
+
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_T-test', '.pdf', sep = ''), sep = ''), plot = glip_ttest, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_T-test', '.png', sep = ''), sep = ''), plot = glip_ttest, units = 'mm', width = 190, height = 150)
+
+```
+
+```{r abundance plot greenlip}
+
+# Step 1: Aggregate to site-level means
+site_means <- gl_site_dat %>%
+  group_by(site, samp_period) %>%
+  summarise(
+    legal_mean = mean(legal_n, na.rm = TRUE),
+    sublegal_mean = mean(sublegal_n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Reshape to long format
+site_means_long <- site_means %>%
+  pivot_longer(
+    cols = c(legal_mean, sublegal_mean),
+    names_to = "size_class",
+    values_to = "mean_count"
+  )
+
+# Capitalize samp_period labels
+site_means_long <- site_means_long %>%
+  mutate(samp_period = str_to_title(samp_period))
+
+site_means_long <- site_means_long %>%
+  mutate(
+    samp_period = factor(samp_period, levels = c("Pre", "Mid", "Post"))
+  )
+
+site_means_long <- site_means_long %>%
+  mutate(size_class = recode(size_class,
+                             "legal_mean" = "Legal",
+                             "sublegal_mean" = "Sub-legal"))
+
+# Step 3: Create boxplot with mean points
+glip_abundance <- ggplot(site_means_long, aes(x = samp_period, y = mean_count, fill = size_class)) +
+  geom_boxplot(
+    outlier.shape = NA,
+    position = position_dodge(width = 0.8),
+    alpha = 0.7
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    aes(group = size_class),
+    position = position_dodge(width = 0.8),
+    shape = 21,
+    size = 3,
+    color = "black",
+    fill = "white"
+  ) +
+  scale_fill_manual(values = c("Legal" = "blue", "Sub-legal" = "red"))+
+  coord_cartesian(ylim = c(0, 50)) +
+ guides(fill = guide_legend(title = NULL)) +
+  labs(
+    x = "Sampling Period",
+    y = "Mean Count",
+    fill = "Size Class",
+    # title = "Boxplot of Site-Level Means by Sampling Period and Size Class"
+  ) +
+    theme_bw(base_size = 14) +
+  theme(
+    legend.position = c(0.98, 0.98),              # top-right inside plot
+    legend.justification = c(1, 1),                # anchor top-right
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.box.background = element_blank(),
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.key = element_blank()
+  )
+
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Abundance', '.pdf', sep = ''), sep = ''), plot = glip_abundance, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Abundance', '.png', sep = ''), sep = ''), plot = glip_abundance, units = 'mm', width = 190, height = 150)
+
+```
+
+```{r combine plots glip}
+
+glip_combine <- (glip_abundance | glip_ttest) +
+ # plot_layout(guides = "collect") +
+ plot_annotation(tag_levels = 'a')
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Abundance_T-test', '.pdf', sep = ''), sep = ''), plot = glip_combine, units = 'mm', width = 190, height = 100)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Abundance_T-test', '.png', sep = ''), sep = ''), plot = glip_combine, units = 'mm', width = 190, height = 100)
+
+```
+
+# TS abundance vs fishery CPUE
+
+Compare CPUE data for each OID and nearest timed swim site. Were there increased depletion in timed swim counts for those sites with higher CPUE?
+
+## Data preparations
+```{r cpue vs ts}
+
+# Load original output files from site selection script that includes OID and cell_ntile
+# These are the proposed sites and were chosen based on the original 2012-19 data time series of total catch and calculation of quantiles.
+# Need to go back and determine total kg for these for the period 2012-2019
+
+# Define CRS
+GDA2020 <- st_crs(7855)
+WGS84 <- st_crs(4326)
+
+oid_act_dat <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_Actaeons/TimedSwimSites_SubBlock13DE_Final_2023.xlsx", Sys.info()[["user"]])),
+                    detectDates = T)
+
+
+oid_gl_dat <- read.xlsx(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/FISdata/FIS_TimedSwimSurveys2023/TimedSwim_NEGreens/TimedSwim_NE_GL_2023_50m.xlsx", Sys.info()[["user"]])),
+                    detectDates = T)
+
+# Load 2012-2019 hex cell data
+hex_dat_2019 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]])))
+
+hex_dat_2019_gl <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.rds", Sys.info()[["user"]])))
+
+hex_dat_2019_summary <- hex_dat_2019 %>% 
+ st_as_sf() %>% 
+ mutate(cpue_kg_hr = blkgtotal / (minstotal / 60)) %>%
+ select(oid, zone, blockno, subblockno, blkgtotal, cpue_kg_hr) %>% 
+ st_drop_geometry()
+
+hex_dat_2019_summary_gl <- hex_dat_2019_gl %>% 
+ st_as_sf() %>% 
+ mutate(cpue_kg_hr = GLhexcatch / (hexeffort / 60)) %>% 
+ dplyr::rename(glkgtotal = 'GLhexcatch') %>%
+ select(oid, zone, blockno, subblockno, glkgtotal, cpue_kg_hr) %>% 
+ st_drop_geometry() %>% 
+ mutate(across(where(is.numeric), ~ format(.x, scientific = FALSE)))
+ 
+
+# Load 2023 hex cell data
+hex_dat_2023 <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/hex_data_2025/hex1a_ng_abalone_2023_040725.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Load 2024 hex cell data
+hex_dat_2024 <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/hex_data_2025/hex1a_ng_abalone_2024_040725.gpkg", Sys.info()[["user"]])), quiet = T)
+
+# Remove unnecessary cells, clean data and convert to SF
+oid_act <- oid_act_dat %>% 
+ select(-c(1, site.no)) %>% 
+ dplyr::rename(cell_ntile = 'cell.ntile') %>% 
+ st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>% 
+ st_transform(., GDA2020)
+
+oid_gl <- oid_gl_dat %>% 
+ select(-c(1, site_order)) %>% 
+ dplyr::rename(cell_ntile = 'cell.ntile') %>% 
+ st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>% 
+ st_transform(., GDA2020)
+
+
+# Join to site catch summary tables
+
+oid_act_join <- left_join(ts_act, oid_act, by = c('site'))
+
+oid_gl_join <- left_join(ts_gl, oid_gl, by = c('site'))
+
+# Join to site pre and post difference counts
+
+oid_act_diff <- left_join(pre_post_site_diff_act, oid_act, by = c('site'))
+
+oid_gl_diff <- left_join(pre_post_site_diff_gl, oid_gl, by = c('site'))
+
+# Join hex cell cpue data
+hex_dat_2023_geom <- hex_dat_2023 %>% 
+ st_set_crs(GDA2020) %>% 
+ st_centroid(.)
+
+hex_dat_2024_geom <- hex_dat_2024 %>% 
+ st_set_crs(GDA2020) %>% 
+ st_centroid(.)
+
+hex_dat_2023 <- hex_dat_2023_geom %>% 
+ st_set_geometry(NULL)
+
+hex_dat_2024 <- hex_dat_2024_geom %>% 
+ st_set_geometry(NULL)
+
+hex_act_join <- hex_dat_2023 %>% 
+ select(oid, ab_b_totcatch, ab_b_mean_daily_qd_cpue) %>% 
+ left_join(oid_act_join %>% mutate(oid = as.integer(oid)), ., by = 'oid')
+
+hex_gl_join <- hex_dat_2024 %>% 
+ select(oid, ab_g_totcatch, ab_g_mean_daily_qd_cpue) %>% 
+ left_join(oid_gl_join %>% mutate(oid = as.integer(oid)), ., by = 'oid')
+
+hex_act_diff_join <- hex_dat_2023 %>% 
+ select(oid, ab_b_totcatch, ab_b_mean_daily_qd_cpue) %>% 
+ left_join(oid_act_diff %>% mutate(oid = as.integer(oid)), ., by = 'oid')
+
+hex_gl_diff_join <- hex_dat_2024 %>% 
+ select(oid, ab_g_totcatch, ab_g_mean_daily_qd_cpue) %>% 
+ left_join(oid_gl_diff %>% mutate(oid = as.integer(oid)), ., by = 'oid')
+
+# Join hex cell cpue data used to generate original sites (2012-2019)
+hex_act_2019_join <- hex_dat_2019_summary %>% 
+ left_join(oid_act_join, ., by = 'oid')
+
+hex_gl_2019_join <- hex_dat_2019_summary_gl %>% 
+ left_join(oid_gl_join %>% mutate(oid = as.character(oid)), ., by = 'oid') %>% 
+ mutate(glkgtotal = as.numeric(glkgtotal))
+
+hex_act_2019_diff_join <- hex_dat_2019_summary %>% 
+ left_join(oid_act_diff, ., by = 'oid')
+
+hex_gl_2019_diff_join <- hex_dat_2019_summary_gl %>% 
+ left_join(oid_gl_diff %>% mutate(oid = as.character(oid)), ., by = 'oid') %>% 
+ mutate(glkgtotal = as.numeric(glkgtotal))
+
+
+# filter sites where there is no overlap with most recent hex cell catch data and join with nearest hex cell
+
+hex_act_join_na <- hex_act_join %>% 
+ filter(is.na(ab_b_totcatch)) %>% 
+ select(-c(ab_b_totcatch, ab_b_mean_daily_qd_cpue)) %>% 
+ st_as_sf(crs = GDA2020)
+
+hex_act_join_oid <- hex_act_join %>% 
+ filter(!is.na(ab_b_totcatch))
+
+hex_gl_join_na <- hex_gl_join %>% 
+ filter(is.na(ab_g_totcatch)) %>% 
+ select(-c(ab_g_totcatch, ab_g_mean_daily_qd_cpue)) %>% 
+ st_as_sf(crs = GDA2020)
+ 
+hex_gl_join_oid <- hex_gl_join %>% 
+ filter(!is.na(ab_g_totcatch))
+
+# For sample period difference
+
+hex_act_diff_join_na <- hex_act_diff_join %>% 
+ filter(is.na(ab_b_totcatch)) %>% 
+ select(-c(ab_b_totcatch, ab_b_mean_daily_qd_cpue)) %>% 
+ st_as_sf(crs = GDA2020)
+
+hex_act_diff_join_oid <- hex_act_diff_join %>% 
+ filter(!is.na(ab_b_totcatch))
+
+hex_gl_diff_join_na <- hex_gl_diff_join %>% 
+ filter(is.na(ab_g_totcatch)) %>% 
+ select(-c(ab_g_totcatch, ab_g_mean_daily_qd_cpue)) %>% 
+ st_as_sf(crs = GDA2020)
+ 
+hex_gl_diff_join_oid <- hex_gl_diff_join %>% 
+ filter(!is.na(ab_g_totcatch))
+
+# Get index of nearest hexcell for each timeswim site
+
+nearest_idx_act <- st_nearest_feature(hex_act_join_na, hex_dat_2023_geom)
+nearest_idx_gl <- st_nearest_feature(hex_gl_join_na, hex_dat_2024_geom)
+
+nearest_idx_act_diff <- st_nearest_feature(hex_act_diff_join_na, hex_dat_2023_geom)
+nearest_idx_gl_diff <- st_nearest_feature(hex_gl_diff_join_na, hex_dat_2024_geom)
+
+# Select data from hexcell to join
+hex_dat_act <- hex_dat_2024_geom %>% 
+ select(oid, ab_b_totcatch, ab_b_mean_daily_qd_cpue) %>% 
+ dplyr::rename(oid_near = 'oid')
+
+hex_dat_gl <- hex_dat_2024_geom %>% 
+ select(oid, ab_g_totcatch, ab_g_mean_daily_qd_cpue) %>% 
+ dplyr::rename(oid_near = 'oid')
+
+# Join nearest hexcell data to timed swim sites
+act_joined <- bind_cols(hex_act_join_na, st_drop_geometry(hex_dat_act)[nearest_idx_act, ])
+gl_joined <- bind_cols(hex_gl_join_na, st_drop_geometry(hex_dat_gl)[nearest_idx_gl, ])
+
+act_diff_joined <- bind_cols(hex_act_diff_join_na, st_drop_geometry(hex_dat_act)[nearest_idx_act_diff, ])
+gl_diff_joined <- bind_cols(hex_gl_diff_join_na, st_drop_geometry(hex_dat_gl)[nearest_idx_gl_diff, ])
+
+# Recombine with timed swim sites with overlapping hexcell data filtered earlier
+hex_act_dat <- bind_rows(hex_act_join_oid, act_joined)
+hex_gl_dat <- bind_rows(hex_gl_join_oid, gl_joined)
+
+hex_act_dat_diff <- bind_rows(hex_act_diff_join_oid, act_diff_joined)
+hex_gl_dat_diff <- bind_rows(hex_gl_diff_join_oid, gl_diff_joined)
+
+
+```
+
+## Plots
+```{r cpue vs ts plots}
+
+# Season CPUE (2023) vs counts including overlapping site data and nearest hexcell data where sites chosen from 2012-19 weren't fished in 2023.
+
+act_pre_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>% 
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_mean_pre))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-count'))+
+   scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_cpue <- ggMarginal(act_pre_cpue)
+
+act_mid_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_mean_mid))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Mid-count'))+
+ scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_mid_cpue <- ggMarginal(act_mid_cpue)
+
+act_post_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_mean_post))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Post-count'))+
+ scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_post_cpue <- ggMarginal(act_post_cpue)
+
+```
+
+
+```{r act-leg-plot-cpue}
+#| label: fig-corr-cpue
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots <- patchwork::wrap_plots(act_post_cpue, act_mid_cpue, act_pre_cpue, nrow = 3)
+
+corr_plots
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE', '.pdf', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE', '.png', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r cpue vs ts plots depletion}
+
+# Only data with overlapping hex cells
+act_pre_mid_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_pre_mid_diff))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Mid'))+
+  scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_mid_cpue <- ggMarginal(act_pre_mid_cpue)
+
+act_mid_post_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_mid_post))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Mid-Post'))+
+  scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_mid_post_cpue <- ggMarginal(act_mid_post_cpue)
+
+act_pre_post_cpue <- hex_act_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_b_mean_daily_qd_cpue, y = leg_diff))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Post'))+
+  scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_post_cpue <- ggMarginal(act_pre_post_cpue)
+
+```
+
+```{r act-leg-plot-cpue-depletion}
+#| label: fig-corr-cpue-depletion
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_deplete <- patchwork::wrap_plots(act_pre_post_cpue, act_mid_post_cpue, act_pre_mid_cpue, nrow = 3)
+
+corr_plots_deplete
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Depletion', '.pdf', sep = ''), sep = ''), plot = corr_plots_deplete, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Depletion', '.png', sep = ''), sep = ''), plot = corr_plots_deplete, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r act-leg-plot-cpue-combo}
+#| label: fig-corr-cpue-combo
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_combo <- patchwork::wrap_plots(corr_plots, corr_plots_deplete, nrow = 1)+
+  plot_annotation(tag_levels = 'a')
+
+corr_plots_combo
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combo', '.pdf', sep = ''), sep = ''), plot = corr_plots_combo, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combo', '.png', sep = ''), sep = ''), plot = corr_plots_combo, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r cpue vs ts plots 2019}
+
+# Season CPUE (2019) vs counts 
+
+act_pre_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_mean_pre))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-count'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_cpue_2019 <- ggMarginal(act_pre_cpue)
+
+act_mid_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_mean_mid))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Mid-count'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_mid_cpue_2019 <- ggMarginal(act_mid_cpue)
+
+act_post_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_mean_post))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Post-count'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_post_cpue_2019 <- ggMarginal(act_post_cpue)
+
+```
+
+
+```{r act-leg-plot-cpue-2019}
+#| label: fig-corr-cpue
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_2019 <- patchwork::wrap_plots(act_post_cpue_2019, act_mid_cpue_2019, act_pre_cpue_2019, nrow = 3)
+
+corr_plots_2019
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE_2019', '.pdf', sep = ''), sep = ''), plot = corr_plots_2019, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE_2019', '.png', sep = ''), sep = ''), plot = corr_plots_2019, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r cpue vs ts plots depletion 2019}
+
+# Only data with overlapping hex cells
+act_pre_mid_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_pre_mid_diff))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Mid'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_mid_cpue_2019 <- ggMarginal(act_pre_mid_cpue)
+
+act_mid_post_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_mid_post))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Mid-Post'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_mid_post_cpue_2019 <- ggMarginal(act_mid_post_cpue)
+
+act_pre_post_cpue <- hex_act_2019_diff_join %>%
+ ggplot(aes(x = cpue_kg_hr, y = leg_diff))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Post'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_pre_post_cpue_2019 <- ggMarginal(act_pre_post_cpue)
+
+```
+
+```{r act-leg-plot-cpue-depletion-2019}
+#| label: fig-corr-cpue-depletion
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_deplete_2019 <- patchwork::wrap_plots(act_pre_post_cpue_2019, act_mid_post_cpue_2019, act_pre_mid_cpue_2019, nrow = 3)
+
+corr_plots_deplete_2019
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Depletion_2019', '.pdf', sep = ''), sep = ''), plot = corr_plots_deplete_2019, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Depletion_2019', '.png', sep = ''), sep = ''), plot = corr_plots_deplete_2019, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r act-leg-plot-cpue-combo-2019}
+#| label: fig-corr-cpue-combo
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_combo_2019 <- patchwork::wrap_plots(corr_plots_2019, corr_plots_deplete_2019, nrow = 1)+
+  plot_annotation(tag_levels = 'a')
+
+corr_plots_combo
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combo_2019', '.pdf', sep = ''), sep = ''), plot = corr_plots_combo_2019, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_Combo_2019', '.png', sep = ''), sep = ''), plot = corr_plots_combo_2019, units = 'mm', width = 150, height = 200)
+
+```
+```{r}
+
+# Correlation between 2019 and 2023 cpue - are historical sites still productive?
+
+# Extract site and cpue data for each period
+
+act_cpue_dat_2019 <- hex_act_2019_diff_join %>% 
+ select(site, cpue_kg_hr) %>% 
+ dplyr::rename(cpue_2019 = cpue_kg_hr)
+
+
+act_cpue_dat_2023 <- hex_act_dat_diff %>% 
+ select(site, ab_b_mean_daily_qd_cpue, oid_near) %>% 
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ dplyr::rename(cpue_2023 = ab_b_mean_daily_qd_cpue)
+
+# Join 2019 and 2023 data
+
+act_cpue_dat_1923 <- left_join(act_cpue_dat_2019, act_cpue_dat_2023, by = c('site'))
+
+
+# Create plot
+act_2019_2023 <- act_cpue_dat_1923 %>%
+ ggplot(aes(x = cpue_2019, y = cpue_2023))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE 2012-2019 ('*~kg.hr^-1*')'))+
+ ylab(bquote('CPUE 2023 ('*~kg.hr^-1*')'))+
+   scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ # theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+act_2019_2023 <- ggMarginal(act_2019_2023)
+
+act_2019_2023
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_2019-2023', '.pdf', sep = ''), sep = ''), plot = act_2019_2023, units = 'mm', width = 100, height = 100)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_2019-2023', '.png', sep = ''), sep = ''), plot = act_2019_2023, units = 'mm', width = 100, height = 100)
+
+
+```
+
+### Greenlip CPUE vs timed swim
+
+```{r cpue vs ts plots glip}
+
+# Season CPUE (2023) vs counts including overlapping site data and nearest hexcell data where sites chosen from 2012-19 weren't fished in 2023.
+
+glip_pre_cpue <- hex_gl_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_g_mean_daily_qd_cpue, y = leg_mean_pre))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-count'))+
+    scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+glip_pre_cpue <- ggMarginal(glip_pre_cpue)
+
+glip_post_cpue <- hex_gl_dat_diff %>%
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_g_mean_daily_qd_cpue, y = leg_mean_post))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Post-count'))+
+    scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+glip_post_cpue <- ggMarginal(glip_post_cpue)
+
+```
+
+
+```{r leg-plot-cpue-glip}
+#| label: fig-corr-cpue
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_gl <- patchwork::wrap_plots(glip_post_cpue, glip_pre_cpue, nrow = 2)
+
+corr_plots_gl
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_CPUE', '.pdf', sep = ''), sep = ''), plot = corr_plots_gl, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_CPUE', '.png', sep = ''), sep = ''), plot = corr_plots_gl, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r cpue vs ts plots depletion glip}
+
+# Only data with overlapping hex cells
+gl_pre_post_cpue <- hex_gl_dat_diff %>%
+  mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ ggplot(aes(x = ab_g_mean_daily_qd_cpue, y = leg_diff))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Post'))+
+     scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+gl_pre_post_cpue <- ggMarginal(gl_pre_post_cpue)
+
+gl_pre_post_cpue_wrap <- wrap_plots(
+  gl_pre_post_cpue,
+  plot_spacer(),
+  nrow = 2
+) + plot_layout(heights = c(0.49, 0.51))
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Depletion', '.pdf', sep = ''), sep = ''), plot = gl_pre_post_cpue_wrap, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Depletion', '.png', sep = ''), sep = ''), plot = gl_pre_post_cpue_wrap, units = 'mm', width = 150, height = 200)
+
+```
+
+```{r gl-leg-plot-cpue-combo}
+#| label: fig-corr-cpue-combo
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_combo_gl <- patchwork::wrap_plots(corr_plots_gl, gl_pre_post_cpue_wrap, nrow = 1)+
+  plot_annotation(tag_levels = 'a')
+
+corr_plots_combo_gl
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Combo', '.pdf', sep = ''), sep = ''), plot = corr_plots_combo_gl, units = 'mm', width = 150, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Combo', '.png', sep = ''), sep = ''), plot = corr_plots_combo_gl, units = 'mm', width = 150, height = 150)
+
+```
+
+```{r cpue vs ts plots 2019 glip}
+
+# Season CPUE (2019) vs counts 
+
+gl_pre_cpue <- hex_gl_2019_diff_join %>%
+ ggplot(aes(x = as.numeric(cpue_kg_hr), y = leg_mean_pre))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-count'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+gl_pre_cpue_2019 <- ggMarginal(gl_pre_cpue)
+
+gl_post_cpue <- hex_gl_2019_diff_join %>%
+ ggplot(aes(x = as.numeric(cpue_kg_hr), y = leg_mean_post))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Post-count'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+gl_post_cpue_2019 <- ggMarginal(gl_post_cpue)
+
+```
+
+
+```{r leg-plot-cpue-2019-gl}
+#| label: fig-corr-cpue
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_2019_gl <- patchwork::wrap_plots(gl_post_cpue_2019, gl_pre_cpue_2019, nrow = 2)
+
+corr_plots_2019_gl
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_CPUE_2019', '.pdf', sep = ''), sep = ''), plot = corr_plots_2019_gl, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_CPUE_2019', '.png', sep = ''), sep = ''), plot = corr_plots_2019_gl, units = 'mm', width = 150, height = 200)
+
+```
+```{r cpue vs ts plots depletion 2019 glip}
+
+# Only data with overlapping hex cells
+gl_pre_post_cpue <- hex_gl_2019_diff_join %>%
+ ggplot(aes(x = as.numeric(cpue_kg_hr), y = leg_diff))+
+ geom_point(size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE ('*~kg.hr^-1*')'))+
+ ylab(bquote('Pre-Post'))+
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+ theme(strip.background = element_blank(),
+       strip.text.x = element_text(size = 12, face = 'bold'))
+
+corr_plots_deplete_2019_gl <- ggMarginal(gl_pre_post_cpue)
+
+corr_plots_deplete_2019_gl_wrap <- wrap_plots(
+  corr_plots_deplete_2019_gl,
+  plot_spacer(),
+  nrow = 2
+) + plot_layout(heights = c(0.49, 0.51))
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Depletion_2019', '.pdf', sep = ''), sep = ''), plot = gl_pre_post_cpue, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Depletion_2019', '.png', sep = ''), sep = ''), plot = gl_pre_post_cpue, units = 'mm', width = 150, height = 200)
+
+```
+```{r gl-leg-plot-cpue-combo-2019}
+#| label: fig-corr-cpue-combo
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+corr_plots_combo_2019_gl <- patchwork::wrap_plots(corr_plots_2019_gl, corr_plots_deplete_2019_gl_wrap, nrow = 1)+
+  plot_annotation(tag_levels = 'a')
+
+corr_plots_combo_2019_gl
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Combo_2019', '.pdf', sep = ''), sep = ''), plot = corr_plots_combo_2019_gl, units = 'mm', width = 150, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_Combo_2019', '.png', sep = ''), sep = ''), plot = corr_plots_combo_2019_gl, units = 'mm', width = 150, height = 150)
+
+```
+```{r}
+
+# Correlation between 2019 and 2023 cpue greenlip - are historical sites still productive?
+
+# Extract site and cpue data for each period
+
+gl_cpue_dat_2019 <- hex_gl_2019_diff_join %>% 
+ select(site, cpue_kg_hr) %>% 
+ dplyr::rename(cpue_2019 = cpue_kg_hr)
+
+
+gl_cpue_dat_2023 <- hex_gl_dat_diff %>% 
+ mutate(point_colour = ifelse(is.na(oid_near), 'oid', 'near')) %>%
+ select(site, ab_g_mean_daily_qd_cpue, point_colour) %>% 
+ dplyr::rename(cpue_2023 = ab_g_mean_daily_qd_cpue)
+
+# Join 2019 and 2023 data
+
+gl_cpue_dat_1923 <- left_join(gl_cpue_dat_2019, gl_cpue_dat_2023, by = c('site'))
+
+
+# Create plot
+gl_2019_2023 <- gl_cpue_dat_1923 %>%
+ ggplot(aes(x = as.numeric(cpue_2019), y = as.numeric(cpue_2023)))+
+ geom_point(aes(colour = point_colour), size = 3)+
+ geom_smooth(method = 'lm', formula = y~x, se = T)+
+ stat_poly_eq(formula = y~x, aes(label = paste(..rr.label.., p.value.label, sep = "~~~")), 
+              parse = TRUE, label.y = 0.95) +
+ theme_bw()+
+ # xlab('Total Catch (kg)')+
+ xlab(bquote('CPUE 2012-2019 ('*~kg.hr^-1*')'))+
+ ylab(bquote('CPUE 2023 ('*~kg.hr^-1*')'))+
+      scale_colour_manual(values = c("oid" = "black",
+                                 "near" = "grey60")) +
+ labs(colour = 'Rank')+
+ # ylim(0, 100)+
+ # theme(legend.position = c(0.95, 0.85))+
+ # facet_wrap(~legal.size, ncol = 2)+
+theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12, face = 'bold'))
+
+gl_2019_2023 <- ggMarginal(gl_2019_2023)
+
+gl_2019_2023
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_2019-2023', '.pdf', sep = ''), sep = ''), plot = gl_2019_2023, units = 'mm', width = 100, height = 100)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_CorrelationPlot_2019-2023', '.png', sep = ''), sep = ''), plot = gl_2019_2023, units = 'mm', width = 100, height = 100)
+
+
+```
+
+
+## Spatial plots
+
+Hex cell catch and cpue vs sites
+
+```{r hex sites}
+#| echo: false
+#| warning: false
+#| message: false
+##---------------------------------------------------------------------------##
+# Establish CRS
+GDA2020 <- st_crs(7855)
+GDA94 <- st_crs(28355)
+WGS84 <- st_crs(4326)
+
+hex_dat_2019 <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/g1hawide_2020_03_24.rds", Sys.info()[["user"]])))
+
+hex_dat_2019_gl <- readRDS(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers/grid1HA_greenlip.rds", Sys.info()[["user"]])))
+
+hex_dat_2019_summary <- hex_dat_2019 %>% 
+ st_as_sf(crs = GDA2020) %>% 
+ mutate(cpue_kg_hr = blkgtotal / (minstotal / 60)) %>%
+ select(oid, zone, blockno, subblockno, blkgtotal, cpue_kg_hr) 
+
+hex_dat_2019_summary_gl <- hex_dat_2019_gl %>% 
+ st_as_sf(crs = GDA2020) %>% 
+ mutate(cpue_kg_hr = GLhexcatch / (hexeffort / 60)) %>%
+ select(oid, zone, blockno, subblockno, glkgtotal = GLhexcatch, cpue_kg_hr) 
+
+# Transform sub-block map to GDA2020
+hex_dat_2019_summary <- st_transform(hex_dat_2019_summary, GDA2020)
+
+hex_dat_2019_summary_gl <- st_transform(hex_dat_2019_summary_gl, GDA2020)
+ 
+# Identify sites that were re-surveyed in all sample periods
+site_rep <- act_ts_dat %>% 
+ select(site, samp_date, samp_period, actual_geom) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+gl_site_rep <- ts_dat_gl %>% 
+ select(site, samp_date, samp_period, start_geom, finish_geom) %>% 
+ group_by(site) %>% 
+ summarise(sampled_n = n_distinct(samp_date))
+
+# Filter data for pre, mid and post season
+site_dat <- act_ts_dat %>%
+ select(site, samp_date, samp_period, actual_geom) %>%
+ distinct() %>% 
+ left_join(., site_rep) %>% 
+ filter(sampled_n > 2 &
+         samp_period == 'pre') %>% 
+ st_as_sf()
+
+gl_site_dat <- ts_dat_gl %>%
+ select(site, samp_date, samp_period, start_geom) %>%
+ distinct() %>% 
+ left_join(., gl_site_rep) %>% 
+ filter(sampled_n >= 2 &
+         samp_period == 'pre') %>% 
+ st_as_sf()
+
+# create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
+bbox <- st_bbox(site_dat)
+bbox_poly <- st_as_sfc(bbox)
+bbox_buffered <- st_buffer(bbox_poly, dist = 500)
+bbox_sf <- st_sf(geometry = bbox_buffered)
+
+bbox_gl <- st_bbox(gl_site_dat)
+bbox_poly_gl <- st_as_sfc(bbox_gl)
+bbox_buffered_gl <- st_buffer(bbox_poly_gl, dist = 500)
+bbox_sf_gl <- st_sf(geometry = bbox_buffered_gl)
+
+# crop hex map and sites sampled to maximise zoom                           
+site_sampled_crop <- st_crop(site_dat, bbox_sf)
+sf_hex_map_crop <- st_crop(hex_dat_2019_summary, bbox_sf)
+
+site_sampled_crop_gl <- st_crop(gl_site_dat, bbox_sf_gl)
+sf_hex_map_crop_gl <- st_crop(hex_dat_2019_summary_gl, bbox_sf_gl)
+
+
+site_sampled_crop_gl <- st_crop(gl_site_dat, ne_gl_bbox)
+sf_hex_map_crop_gl <- st_crop(hex_dat_2019_summary_gl, ne_gl_bbox)
+
+```
+
+```{r hex site plot act}
+
+# Create map of pre-season sites (red) and those sampled post season (blue)
+act_spat_plot <- ggplot(sf_hex_map_crop) +
+  geom_sf(aes(fill = cpue_kg_hr), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(
+    colours = c("green", "yellow", "orange", "red", 'darkred'),
+    values = scales::rescale(c(0, 20, 40, 80, 120)),  # Adjust breakpoints to suit your CPUE range
+    na.value = "white"
+  ) +
+  geom_sf(data = site_sampled_crop) +
+  scale_colour_manual(values = c("black")) +
+  theme_bw() +
+  annotation_scale(location = "bl", width_hint = 0.5) +
+  annotation_north_arrow(
+    location = "br", which_north = "true",
+    pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+    style = north_arrow_fancy_orienteering
+  ) +
+  theme(
+    axis.text.y = element_text(angle = 90, vjust = 0, hjust = 0.5),
+    legend.position = "right"
+  ) +
+  labs(
+    fill = "CPUE (kg/hr)",
+    x = "Longitude",
+    y = "Latitude"
+  )
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Sites_Spatial_2012-2019', '.pdf', sep = ''), sep = ''), plot = act_spat_plot, units = 'mm', width = 190, height = 150)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_Sites_Spatial_2012-2019', '.png', sep = ''), sep = ''), plot = act_spat_plot, units = 'mm', width = 190, height = 150)
+
+```
+
+```{r hex site plot gl}
+
+gl_spat_plot <- ggplot(sf_hex_map_crop_gl) +
+  geom_sf(aes(fill = cpue_kg_hr), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(
+    colours = c("green", "yellow", "orange", "red", 'darkred'),
+    values = scales::rescale(c(0, 30, 50, 70, 90)),  # Adjust breakpoints to suit your CPUE range
+    na.value = "white"
+  ) +
+  geom_sf(data = site_sampled_crop_gl) +
+  scale_colour_manual(values = c("black")) +
+  theme_bw() +
+  annotation_scale(location = "bl", width_hint = 0.5) +
+  annotation_north_arrow(
+    location = "br", which_north = "true",
+    pad_x = unit(0.05, "cm"), pad_y = unit(0.1, "cm"),
+    style = north_arrow_fancy_orienteering
+  ) +
+  theme(
+    axis.text.y = element_text(angle = 90, vjust = 0, hjust = 0.5),
+    legend.position = "right"
+  ) +
+  labs(
+    fill = "CPUE (kg/hr)",
+    x = "Longitude",
+    y = "Latitude"
+  )
+
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Sites_Spatial_2012-2019', '.pdf', sep = ''), sep = ''), plot = gl_spat_plot, units = 'mm', width = 190, height = 120)
+ggsave(filename = paste(ts_plots_folder, paste('/Greenlip_Sites_Spatial_2012-2019', '.png', sep = ''), sep = ''), plot = gl_spat_plot, units = 'mm', width = 190, height = 120)
+
+```
+
+
+```{r maps}
+#| label: fig-maps
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 7
+#| fig-width: 6
+#| out-height: 90%
+#| fig-pos: "H"
+
+act_maps <- patchwork::wrap_plots(act_map, act_spat_plot, nrow = 2)
+
+act_maps
+
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE', '.pdf', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 150, height = 200)
+ggsave(filename = paste(ts_plots_folder, paste('/Actaeons_CorrelationPlot_CPUE', '.png', sep = ''), sep = ''), plot = corr_plots, units = 'mm', width = 150, height = 200)
+
+```
+

@@ -34,9 +34,9 @@ suppressPackageStartupMessages({
 library(RODBC)
 library(R.utils)
 library(lubridate)
-library(rgdal)
+# library(rgdal)
 library(sp)
-library(maptools)
+# library(maptools)
 library(tools)
 library(openxlsx)
 library(lubridate)
@@ -134,7 +134,10 @@ The following code have been developed to utilise the most recent data collected
 ```{r catch sampling data, echo=FALSE}
 # Load most recent compilation of Commercial Abalone Catch Sampling data.
 ## Read in most recent commercial catch sampling compiled MM dataframe
-compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+# compiledMM.df.final <- readRDS('C:/CloudStor/R_Stuff/MMLF/compiledMM.df.final.RDS')
+
+compiledMM.df.final <- readRDS(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/Abalone/MMdata/compiledMM.df.final.RDS',
+                                            Sys.info()[["user"]])))
 ```
 
 ```{r lwplot check, fig.cap = "Length-weight relationship of commercial abalone catch sampling data for all zones collected between 2019-2022.", echo=FALSE}
@@ -216,7 +219,7 @@ rec.region.wt <- lw.dat %>%
  as_tibble()
 
 library(knitr)
-kable(rec.region.wt, caption = "Average weight of individual abalone from commerical abalone catch sampling data for all recreational harvest regions collected between 2019-2022.", col.names = c('RecRegion', 'Av.weight<br>(g)', 'n', 'Catches'))
+kable(rec.region.wt, caption = "Average weight of individual abalone from commerical abalone catch sampling data for all recreational harvest regions collected between 2019-2025.", col.names = c('RecRegion', 'Av.weight<br>(g)', 'n', 'Catches'))
 ```
 
 # Estimate recreational harvest weight for east coast based on mean weight of individual abalone from commerical catch sampling for the eastern zone

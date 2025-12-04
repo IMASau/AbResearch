@@ -35,13 +35,14 @@ suppressPackageStartupMessages({
  library(ggExtra)
   library(fuzzyjoin)
  library(tidytext)
+ library(geosphere)
 })
 
-source("C:/GitCode/AbResearch/getLegend.r")
-source("C:/GitCode/AbResearch/StandardError_Functions.r")
+# source("C:/GitCode/AbResearch/getLegend.r")
+# source("C:/GitCode/AbResearch/StandardError_Functions.r")
 
 ##---------------------------------------------------------------------------##
-## 1. Set sample year and file paths ####
+## 2. Set sample year and file paths ####
 
 # identify sampling year of interest
 samp_year <- 2024
@@ -58,7 +59,7 @@ plots_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/Div
 spat_layer_folder <- file.path(paste(sprintf('C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/TimeSwimLayers', 
                         Sys.info()[["user"]])))
 ##---------------------------------------------------------------------------##
-## 2. Load raw data ####
+## 3. Load raw data ####
 
 # load timed swim length frequency raw data
 ts_dat <- read.xlsx("R:/TAFI/TAFI_MRL_Sections/Abalone/Section Shared/Abalone_databases/Data/Data for Transfer/2020/FIS_TimedswimsGreens_rawdata_2023.xlsx",
@@ -83,7 +84,7 @@ ts_meta_dat <- ts_meta_dat %>%
         mutate(site = str_trim(site))
 
 ##---------------------------------------------------------------------------##
-## 3. Raw data conversions ####
+## 4. Raw data conversions ####
 
 # re-format Excel times for ts_dat
 ts_dat$start_time <- convertToDateTime(ts_dat$start_time, origin = "1970-01-01", tz = "Australia/HOBART")
@@ -151,13 +152,13 @@ ts_dat <- ts_dat %>%
  mutate(size_class_freq = as.numeric(size_class_freq))
 
 # create data frame of individual abalone lengths
-ts_dat_df <- ts_dat %>% 
- mutate(size_class_freq = as.numeric(size_class_freq)) %>% 
-        uncount(size_class_freq, .remove = F) %>% 
-        dplyr::rename('shell_length' = mid_size)
+# ts_dat_df <- ts_dat %>% 
+#  mutate(size_class_freq = as.numeric(size_class_freq)) %>% 
+#         uncount(size_class_freq, .remove = F) %>% 
+#         dplyr::rename('shell_length' = mid_size)
 
 ##---------------------------------------------------------------------------##
-## 11. Standardise data #### 
+## 5. Count adjustment #### 
 
 # Standardise counts for 10 minute swim (i.e. some swims marginally shorter or longer duration)
 std_ts_dat <- ts_dat %>% 
@@ -165,14 +166,14 @@ std_ts_dat <- ts_dat %>%
         sizeclass_freq_10 = replace(sizeclass_freq_10, is.na(sizeclass_freq_10), 0))
 
 ##---------------------------------------------------------------------------##
-# save dataframes
+## 6. Save dataframes ####
 saveRDS(ts_dat, paste(data_folder, '/ts_dat.RDS', sep = ''))
 saveRDS(std_ts_dat, paste(data_folder, '/std_ts_dat.RDS', sep = ''))
-saveRDS(ts_dat_df, paste(data_folder, '/ts_dat_df.RDS', sep = ''))
+# saveRDS(ts_dat_df, paste(data_folder, '/ts_dat_df.RDS', sep = ''))
 saveRDS(ts_meta_dat, paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
-## 4. Data check #### 
+## 7. Data check #### 
 #quick check that sites match between raw and meta data
 
 # create summary data frames of sites sampled by date
@@ -188,7 +189,11 @@ ts_meta_dat_sites <- ts_meta_dat %>%
 summary(arsenal::comparedf(ts_dat_sites, ts_meta_dat_sites, by.x = c('samp_date', 'site'), by.y = c('samp_date', 'site')))
 
 ##---------------------------------------------------------------------------##
-## 5. Vessel GPS data ####
+
+rm(ts_dat_sites, ts_meta_dat_sites)
+
+##---------------------------------------------------------------------------##
+## 8. Vessel GPS data ####
 ## load data from vessel GPS downloads and match to raw data
 
 # define CRS
@@ -228,19 +233,49 @@ morana_gps_2024c <- morana_gps_2024c %>%
  mutate(sampyear = 2024,
         vesselname = 'MoranaII')
 
+morana_gps_2024d <- morana_gps_2024d %>%
+ mutate(sampyear = 2024,
+        vesselname = 'MoranaII')
+
 # join GPX files
 vessel_gps <- bind_rows(morana_gps_2023,
                         morana_gps_2024a,
                         morana_gps_2024b,
                         morana_gps_2024c,
-                        morana_gps_2024d) %>%  
-        mutate(gpsdate = as.Date(time),
-               gpstime = time) %>% 
-        select(c(name, sampyear, gpstime, gpsdate, geometry, vesselname))
+                        morana_gps_2024d) %>% 
+ select(c(name, time, sampyear, vesselname, geometry))
 
+
+# Set time zones
+vessel_gps$gps_time <- as.POSIXct(vessel_gps$time, origin = "1970-01-01", tz = "Australia/BRISBANE")
+
+vessel_gps_dat <- vessel_gps %>%  
+ mutate(gps_date = as.Date(gps_time, tz="Australia/BRISBANE")) %>%
+ select(c(name, sampyear, gps_date, geometry, vesselname)) %>% 
+ distinct()
+
+# Remove duplicate GPS positions from vessel data from repeat uploads
+
+geometry_lookup <- vessel_gps_dat %>%
+ group_by(name, gps_date, sampyear, vesselname) %>%
+ slice(1) %>%  # Keep first geometry per group
+ ungroup() %>%
+ select(name, gps_date, sampyear, vesselname, geometry)
+
+vessel_gps_no_geom <- vessel_gps_dat %>% 
+ filter(str_detect(name, "^\\d")) %>% 
+ st_drop_geometry() %>% 
+ distinct(name, sampyear, gps_date, vesselname)
+
+vessel_gps_clean <- vessel_gps_no_geom %>% 
+ left_join(., geometry_lookup)
+
+# Join to vessel data to metadata
+
+# Ensure latest metadata is used
 ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
-# separate start positions
+# Separate start positions
 ts_site_start <- ts_meta_dat %>%
         select(-c(finish_waypoint, finish_time)) %>% 
         dplyr::rename('waypoint' = start_waypoint,
@@ -248,7 +283,7 @@ ts_site_start <- ts_meta_dat %>%
         mutate(sampperiod = 'start',
                sampyear = year(samp_date))
 
-# separate finish positions
+# Separate finish positions
 ts_site_finish <- ts_meta_dat %>%
         select(-c(start_waypoint, start_time)) %>% 
         dplyr::rename('waypoint' = finish_waypoint,
@@ -256,7 +291,7 @@ ts_site_finish <- ts_meta_dat %>%
         mutate(sampperiod = 'finish',
                sampyear = year(samp_date))
 
-# re-join start and finish positions and remove non-sampled sites        
+# Re-combine start and finish positions and remove non-sampled sites        
 ts_site_start_finish <- bind_rows(ts_site_start, ts_site_finish) %>%
         mutate(waypoint = if_else(waypoint < 10, as.character(paste('00', waypoint, sep = '')),
                                   if_else(between(waypoint, 10, 99), as.character(paste(0, waypoint, sep = '')),
@@ -264,28 +299,28 @@ ts_site_start_finish <- bind_rows(ts_site_start, ts_site_finish) %>%
         select(c(samp_date, samptime, sampperiod, site, waypoint, sampyear))
 
 
-# join geometry where start and finish waypoints were recorded 
-ts_site_start_finish_wp <- ts_site_start_finish %>% 
-        filter(!is.na(waypoint)) %>% 
-        left_join(., vessel_gps, by = c('waypoint' = 'name', 'samp_date' = 'gpsdate')) %>% 
-        dplyr::rename('sampyear' = sampyear.x) %>% 
-        select(c(sampyear, samptime, gpstime, sampperiod, site, waypoint, geometry))
+# Join to metadata to vessel GPS data noting GPS and sample date may vary by a day
+# and transform to GDA2020
+ts_site_start_finish_vessel <- fuzzy_left_join(
+ ts_site_start_finish,
+ vessel_gps_clean,
+ by = c(
+  "waypoint" = "name",
+  "samp_date" = "gps_date"
+ ),
+ match_fun = list(`==`, function(samp, gps) abs(difftime(samp, gps, units = "mins")) <= 1440)
+) %>% 
+ select(sampyear = sampyear.x, samp_date, gps_date, sampperiod, site, waypoint, geometry)
 
 
-# re-join all waypoint data and transform to GDA2020
-
-ts_site_start_finish_loc <- bind_rows(ts_site_start_finish_wp) %>% 
-        st_as_sf() %>% 
-        st_transform(GDA2020)
-
-vessel_gps_dat <- ts_site_start_finish_loc
-
-# save files
+vessel_gps_dat <- ts_site_start_finish_vessel %>% 
+ st_as_sf() %>% 
+ st_transform(GDA2020)
+ 
+# Save files
 saveRDS(vessel_gps_dat, paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
 
 # vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
-
-# saveRDS(meta_dat_start, paste(data_folder, '/meta_dat_start.RDS', sep = ''))
 
 # save spatial layer for QGIS
 
@@ -295,10 +330,217 @@ st_write(vessel_gps_dat,
 
 ##---------------------------------------------------------------------------##
 
-
+rm(list = setdiff(ls(), c('std_ts_dat', 'ts_dat', 'ts_meta_dat', 'vessel_gps_dat',
+                          'data_folder', 'plots_folder', 'samp_year', 'spat_layer_folder')))
 
 ##---------------------------------------------------------------------------##
+## 9. Metadata spatial join ####
+
+# Join spatial data to meta data
+
+# Ensure latest std_ts_dat and metadat is used
+std_ts_dat <- readRDS(file.path(data_folder, '/std_ts_dat.RDS'))
+ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
+
+# Ensure cleaned gps data is used
+vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
+
+# Remove leading zero from waypoints for join
+vessel_gps_dat <- vessel_gps_dat %>% 
+ mutate(waypoint = sub("^0+", "", waypoint))
+
+# Join vessel data to start position
+ts_meta_dat_start <- ts_meta_dat %>% 
+ mutate(start_waypoint = as.character(start_waypoint)) %>%
+ left_join(., vessel_gps_dat, by = c('samp_date', 'site', 'start_waypoint' = 'waypoint')) %>% 
+ dplyr::rename(start_geom = 'geometry')
+
+# Join vessel data to finish position
+ts_meta_dat_finish <- ts_meta_dat %>% 
+ mutate(finish_waypoint = as.character(finish_waypoint)) %>%
+ left_join(., vessel_gps_dat, by = c('samp_date', 'site', 'finish_waypoint' = 'waypoint')) %>% 
+ dplyr::rename(finish_geom = 'geometry')
+
+ts_meta_dat_start_finish <- ts_meta_dat_start %>%
+ mutate(finish_waypoint = as.character(finish_waypoint)) %>% 
+ left_join(., vessel_gps_dat, by = c('samp_date', 'site', 'finish_waypoint' = 'waypoint')) %>% 
+ dplyr::rename(finish_geom = 'geometry')
+
+# Remove unecesaary data columns
+ts_meta_dat_start_finish <- ts_meta_dat_start_finish %>% 
+ select(samp_date, site, divers, start_time, finish_time, start_waypoint,
+        finish_waypoint, max_depth, start_geom, finish_geom, habitat_type,
+        percent_algae, visibility, tide, comments)
+
+# Calculate straighline distance and bearing between start and finish positions
+ts_meta_dat_dir_dist <- ts_meta_dat_start_finish %>%
+ filter(!st_is_empty(start_geom), !st_is_empty(finish_geom)) %>% 
+ mutate(dive_dir = nngeo::st_azimuth(start_geom, finish_geom),
+        distance_m = as.numeric(st_distance(start_geom, finish_geom, by_element = TRUE)))
+
+ts_meta_dat_geom <- ts_meta_dat_dir_dist
+
+saveRDS(ts_meta_dat_geom, paste(data_folder, '/ts_meta_dat_geom.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+rm(list = setdiff(ls(), c('std_ts_dat', 'ts_dat', 'ts_meta_dat', 'vessel_gps_dat',
+                          'ts_meta_dat_geom',
+                          'data_folder', 'plots_folder', 'samp_year', 'spat_layer_folder')))
+
+##---------------------------------------------------------------------------##
+## 10. Metadata cleaning ####
+
+#Ensure latest metadata with geometry is loaded
+ts_meta_dat_geom <- readRDS(paste(data_folder, '/ts_meta_dat_geom.RDS', sep = ''))
+
+# Standardise naming convention of habitats into categories for any standardisation
+
+# Function to standardise habitat vector names
+std_hab <- function(x) {
+ if (is.na(x)) return(NA_character_)
+ 
+ x_split <- unlist(strsplit(x, ","))           # Split by comma
+ x_clean <- trimws(x_split)                    # Trim whitespace
+ x_clean <- gsub("^FL$|^FR$", "F", x_clean)     # Replace FL/FR with F
+ x_clean <- x_clean[x_clean != "SN"]           # Remove SN
+ x_clean <- ifelse(x_clean == "B", "SB", x_clean)  # Replace B with SB
+ x_clean <- ifelse(x_clean == "NB", "S", x_clean)  # Replace NB with S
+ x_sorted <- sort(unique(x_clean))             # Deduplicate and sort
+ paste(x_sorted, collapse = ",")               # Recombine
+}
+
+# Apply function to standardise habitat categories
+ts_meta_dat_hab <- ts_meta_dat_geom %>%
+ mutate(habitat_std = sapply(habitat_type, std_hab)) %>% 
+ select(-habitat_type)
+
+saveRDS(ts_meta_dat_hab, paste(data_folder, '/ts_meta_dat_hab.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+rm(list = setdiff(ls(), c('std_ts_dat', 'ts_dat', 'ts_meta_dat', 'vessel_gps_dat',
+                          'ts_meta_dat_geom', 'ts_meta_dat_hab',
+                          'data_folder', 'plots_folder', 'samp_year', 'spat_layer_folder')))
+
+##---------------------------------------------------------------------------##
+## 11. Metadata tide data join ####
+
+#Ensure latest metadata with is loaded
+ts_meta_dat_hab <- readRDS(paste(data_folder, '/ts_meta_dat_hab.RDS', sep = ''))
+
+# Import historical tide data for sampling periods for Swan Island
+ne_tide_dat <- read.xlsx(paste(data_folder, '/SwanIsland_TideData_May_Sep_2024.xlsx', sep = ''),
+                         detectDates = T)
+
+
+# Re-format Excel times
+ne_tide_dat$time <- convertToDateTime(ne_tide_dat$time, origin = "1970-01-01", tz = "Australia/HOBART")
+
+ne_tide_dat <- ne_tide_dat %>% 
+ mutate(time = strftime(time, format="%H:%M:%S"))
+
+ne_tide_dat$date_time <- as.POSIXct(paste(ne_tide_dat$date, ne_tide_dat$time), format = "%Y-%m-%d %H:%M:%S")
+
+# Determine tide direction based on high and low tide times
+ne_tide_dat <- ne_tide_dat %>%
+ mutate(
+  next_m = lead(m),
+  tide_direction = case_when(
+   is.na(next_m) ~ NA_character_,
+   next_m > m ~ "Incoming",
+   next_m < m ~ "Outgoing",
+   TRUE ~ "Stable"
+  )
+ )
+
+# Determine tide direction based interval between high and low tides
+tide_intervals <- ne_tide_dat %>%
+ mutate(
+  tide_start = date_time,
+  tide_end = lead(date_time),
+  tide_phase = case_when(
+   lead(m) > m ~ "Incoming",
+   lead(m) < m ~ "Outgoing",
+   TRUE ~ NA_character_
+  )
+ ) %>%
+ filter(!is.na(tide_end))  # Remove last row with no interval
+
+# Join metadata to tide intervals
+ts_meta_dat_tide <- fuzzy_left_join(
+ ts_meta_dat_hab %>% mutate(obs_id = row_number()),
+ tide_intervals,
+ by = c("start_time" = "tide_end", "finish_time" = "tide_start"),
+ match_fun = list(`<=`, `>=`)
+)
+
+# Remove duplicates where dive time is spread over multiple tide intervals by
+# selecting the interval with the longest overlap duration
+ts_meta_dat_tide <- ts_meta_dat_tide %>%
+ mutate(
+  overlap_start = pmax(start_time, tide_start),
+  overlap_end = pmin(finish_time, tide_end),
+  overlap_duration = as.numeric(overlap_end - overlap_start, units = "mins")
+ ) %>%
+ group_by(obs_id) %>%
+ slice_max(overlap_duration, with_ties = FALSE) %>%
+ ungroup()
+
+# Remove unecessary data columns
+ts_meta_dat_tide <- ts_meta_dat_tide %>% 
+ select(samp_date, site, divers, start_time, finish_time, start_waypoint,
+        finish_waypoint, start_geom, finish_geom, distance_m, dive_dir,
+        max_depth, habitat_std, percent_algae, visibility, tide, tide_direction, 
+        comments)
+
+saveRDS(ts_meta_dat_tide, paste(data_folder, '/ts_meta_dat_tide.RDS', sep = ''))
+
+# Create final metadata frame and save
+ts_gl_meta_dat <- ts_meta_dat_tide
+
+saveRDS(ts_gl_meta_dat, paste(data_folder, '/ts_gl_meta_dat.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+rm(list = setdiff(ls(), c('std_ts_dat', 'ts_dat', 'ts_meta_dat', 'vessel_gps_dat',
+                          'ts_meta_dat_geom', 'ts_meta_dat_hab', 'ts_meta_dat_tide',
+                          'ts_gl_meta_dat',
+                          'data_folder', 'plots_folder', 'samp_year', 'spat_layer_folder')))
+
+##---------------------------------------------------------------------------##
+## 12. Count data join ####
+
+# Join metadata to length data to include model variables for standardisation
+# dive direction, tide phase, tide(category), visibility, etc
+
+# Ensure latest std_ts_dat and metadata is used
+std_ts_dat <- readRDS(file.path(data_folder, '/std_ts_dat.RDS'))
+ts_gl_meta_dat <- readRDS(paste(data_folder, '/ts_gl_meta_dat.RDS', sep = ''))
+
+
+
+ts_gl_dat <- left_join(std_ts_dat, ts_gl_meta_dat, by = c("samp_date", "site")) %>%
+ dplyr::rename(
+  start_time = start_time.x,
+  finish_time = finish_time.x
+ ) %>%
+ select(-c(start_time.y, finish_time.y, start_waypoint, finish_waypoint, distance_m, max_depth, comments, divers))
+
+# Remove sites that were abandoned due to tide or no bottom and no count data recorded
+
+ts_gl_dat <- ts_gl_dat %>% 
+ filter(!(site %in% c('GL-2023-39-121', 'GL-2023-39-80') &
+         samp_date == as.Date('2024-05-20')))
+
+
+saveRDS(ts_gl_dat, paste(data_folder, '/ts_gl_dat.RDS', sep = ''))
+
+##---------------------------------------------------------------------------##
+
+
 ## 6. Sites sampled - proposed ####
+
 ## identify sites sampled based on proposed GPS site data and
 ## create map of sites sampled within based on proposed position
 ## use these data for 'proposed geometry' when joining to raw data 
@@ -318,7 +560,7 @@ WGS84 <- st_crs(4326)
 ts_NE_GL_sites_sf <- ts_NE_GL_sites_2023 %>% 
  st_as_sf(coords = c("longitude", "latitude"), crs = WGS84) %>% 
  st_transform(., crs = GDA2020) %>% 
- select(c(site, geometry)) %>% 
+ select(c(site, subblockno, geometry)) %>% 
  mutate(sampyear = 2024) 
 
 # save final proposed sites up to sample year
@@ -412,15 +654,13 @@ write.xlsx(gl_resurvey_gpx, paste(spat_layer_folder, '/TimedSwim_NE_GL_2024_GPX_
 
 ##---------------------------------------------------------------------------##
 ## 7. Sites sampled - actual ####
+
 ## create map of sites sampled within each Block with recorded GPS positions and 
 ## use these data for 'actual geometry' when joining to raw data 
 
 vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
 
 # read in Subblock map as an sf::sfc polygon object
-# sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries - Assessments - Documents/Assessments/GIS/SpatialLayers/IMAS_Layers/", 
-#                                          Sys.info()[["user"]]), 'IMAS_subblock_rev2022', '.gpkg', sep = ''))
-
 sf_subblock_map <- st_read(paste(sprintf("C:/Users/%s/Dropbox (UTAS Research)/DiveFisheries/GIS/SpatialLayers/IMAS_Layers/IMAS_subblock_rev2022.gpkg", Sys.info()[["user"]])))
 
 
@@ -432,6 +672,7 @@ site_sampled_start <- vessel_gps_dat %>%
 
 site_sampled_finish <- vessel_gps_dat %>% 
  filter(sampperiod == 'finish')
+
 
 # create approx bbox to crop maps and zoom (use QGIS to manually get bbox coordinates)
 ne_gl_bbox <- st_bbox(c(xmin = 577919.4788533378,
@@ -467,15 +708,18 @@ ggsave(filename = paste(plots_folder, '/TimedSwimSurvey_', 'SitesSampled_Actual_
 
 # save spatial layer for QGIS
 
-gl_sites_2024 <- site_sampled_start_crop %>% 
- filter(between(samptime, as.Date('2024-01-01'), as.Date('2024-06-30'))) %>% 
- distinct(site, .keep_all = T)
+# gl_sites_2024 <- site_sampled_start_crop %>% 
+#  filter(between(samptime, as.Date('2024-01-01'), as.Date('2024-06-30'))) %>% 
+#  distinct(site, .keep_all = T)
 
-st_write(gl_sites_2024, 
-         dsn = paste(spat_layer_folder, '/TimedSwim_NE_GL_2024_sites_sampled_', Sys.Date(), '.gpkg', sep = ''),
-         layer = "TimedSwim_NE_GL_2024_sites_sampled.gpkg", driver = "GPKG", overwrite = T, delete_dsn = T)
+# st_write(gl_sites_2024, 
+#          dsn = paste(spat_layer_folder, '/TimedSwim_NE_GL_2024_sites_sampled_', Sys.Date(), '.gpkg', sep = ''),
+#          layer = "TimedSwim_NE_GL_2024_sites_sampled.gpkg", driver = "GPKG", overwrite = T, delete_dsn = T)
 
-##---------------------------------------------------------------------------##
+
+
+
+
 # GPS site file for pilot 2023 post-survey of baseline 32 sites
 
 vessel_gps_dat <- readRDS(paste(data_folder, '/vessel_gps_dat.RDS', sep = ''))
@@ -509,12 +753,17 @@ write.xlsx(df_2, sprintf("C:/Users/%s/University of Tasmania/IMAS-DiveFisheries 
 # Import final dataframes 
 ts_dat <- readRDS(file.path(data_folder, '/ts_dat.RDS'))
 ts_dat_df <- readRDS(paste(data_folder, '/ts_dat_df.RDS', sep = ''))
+std_ts_dat <- readRDS(paste(data_folder, '/std_ts_dat.RDS', sep = ''))
 
 # Import metadata frame
 ts_meta_dat <- readRDS(paste(data_folder, '/ts_meta_dat.RDS', sep = ''))
 
 ##---------------------------------------------------------------------------##
-std_ts_dat <- readRDS(paste(data_folder, '/std_ts_dat.RDS', sep = ''))
+
+
+
+
+
 
 # Summarise total count for blockno x site x sampyear x legal.size
 ts_count_sum <- std_ts_dat %>% 
